@@ -1,0 +1,39 @@
+[
+  {
+    "id": "dungeon_cave_1",
+    "name": "초보 동굴",
+    "baseWaveSeconds": 20,
+    "power": 10,
+    "drops": [
+      { "itemId": "item_stone", "weight": 65, "minQty": 1, "maxQty": 2 },
+      { "itemId": "item_ore", "weight": 28, "minQty": 1, "maxQty": 1 },
+      { "itemId": "item_minion_egg", "weight": 7, "minQty": 1, "maxQty": 1 }
+    ]
+  },
+  {
+    "id": "dungeon_forest_1",
+    "name": "어두운 숲",
+    "baseWaveSeconds": 25,
+    "power": 25,
+    "drops": [
+      { "itemId": "item_wood", "weight": 52, "minQty": 1, "maxQty": 2 },
+      { "itemId": "item_herb", "weight": 35, "minQty": 1, "maxQty": 2 },
+      { "itemId": "item_minion_egg", "weight": 13, "minQty": 1, "maxQty": 1 }
+    ]
+  },
+  {
+    "id": "dungeon_slime_forest_1",
+    "name": "슬라임의 숲",
+    "mode": "PUSH_LUCK",
+    "baseWaveSeconds": 8,
+    "power": 22,
+    "maxFloors": 20,
+    "floorPowerGrowth": 1.12,
+    "drops": [
+      { "itemId": "item_slime_gel", "weight": 85, "minQty": 1, "maxQty": 3 },
+      { "itemId": "item_rune_low", "weight": 15, "minQty": 1, "maxQty": 1 }
+    ],
+    "bossDrops": [{ "itemId": "item_slime_king_sig", "weight": 1, "minQty": 1, "maxQty": 1 }]
+  }
+]
+

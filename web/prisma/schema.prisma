@@ -1,0 +1,703 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ListingSaleType {
+  FIXED
+  AUCTION
+}
+
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  CANCELLED
+  EXPIRED
+}
+
+enum WeaponInstanceStatus {
+  OWNED
+  LISTED
+}
+
+enum ToolInstanceStatus {
+  OWNED
+  LISTED
+}
+
+enum MinionMarketListingStatus {
+  ACTIVE
+  SOLD
+  CANCELLED
+  EXPIRED
+}
+
+enum MinionContractStatus {
+  ACTIVE
+  USED
+  EXPIRED
+}
+
+enum MinionContractScope {
+  DUNGEON_RUN_1
+}
+
+enum MinionTraitType {
+  MINER
+  LUMBER
+  FARMER
+  FISHER
+  FIGHTER
+}
+
+enum MinionJobType {
+  UNASSIGNED
+  MINER
+  FISHER
+  LUMBERJACK
+  HERBALIST
+  BLACKSMITH
+  JEWELER
+  ALCHEMIST
+  COOK
+  SCRAPPER
+  WARRIOR
+  ARCHER
+  MAGE
+}
+
+/** 미니언 개체 등급 (전투·시장 표시용) */
+enum MinionGrade {
+  S
+  A
+  B
+  C
+  D
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  createdAt DateTime @default(now())
+
+  /** 사용 가능한 부지 칸 수 (1~3). 1이면 슬롯 0만, 3이면 0·1·2 전부 */
+  plotSlotsUnlocked Int @default(1)
+
+  /** 황실 거래로 쌓이는 명예 점수 */
+  honorPoints  Int @default(0)
+  /** 지하도시(암시장) 거래로 쌓이는 악명 점수 */
+  infamyPoints Int @default(0)
+  /** 명예로 하사되는 칭호(표시용) */
+  honorTitle   String?
+
+  wallet    Wallet?
+  botBudget BotBudget?
+  minions   MinionInventory?
+  minionEntities Minion[]
+  itemEnhancements UserItemEnhancement[]
+  weaponInstances WeaponInstance[]
+  toolInstances ToolInstance[]
+  dungeonRuns DungeonRun[]
+  stacks    InventoryStack[]
+  workshops WorkshopInstance[]
+  listings  Listing[] @relation("SellerListings")
+  highestOn Listing[] @relation("HighestBidder")
+  bids      Bid[]
+
+  minionMarketListings MinionMarketListing[] @relation("MinionMarketSeller")
+  minionMarketHighestOn MinionMarketListing[] @relation("MinionMarketHighestBidder")
+  minionContractsOwned MinionContract[] @relation("MinionContractOwner")
+  minionContractsHired MinionContract[] @relation("MinionContractHirer")
+  chatMessages         ChatMessage[]
+
+  royalTrades      RoyalTradeLog[]
+  blackMarketTrades BlackMarketTradeLog[]
+}
+
+model RoyalPrice {
+  itemId String @id
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  /** 황실이 유저에게 파는 가격(매도) - 1개당 */
+  buyPricePerUnit  Int
+  /** 황실이 유저에게서 사는 가격(매입) - 1개당 */
+  sellPricePerUnit Int
+
+  enabled Boolean @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+enum BlackMarketEventKind {
+  BOOM
+  CRASH
+}
+
+model BlackMarketPrice {
+  itemId String @id
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  /** 기준가 대비 배수 (예: 1.25). */
+  multiplier Float @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model BlackMarketEvent {
+  id String @id @default(cuid())
+  kind BlackMarketEventKind
+  /** 이벤트가 적용되는 아이템 카테고리(예: \"재료\"). null이면 전체 */
+  category String?
+  /** 특정 아이템만 타겟팅할 때 사용. null이면 category 기준 */
+  itemId String?
+  item   Item? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  /** 이벤트 추가 배수 (예: 1.5). */
+  multiplier Float
+  startsAt DateTime
+  endsAt   DateTime
+
+  createdAt DateTime @default(now())
+
+  trades BlackMarketTradeLog[]
+
+  @@index([startsAt])
+  @@index([endsAt])
+  @@index([category, startsAt])
+  @@index([itemId, startsAt])
+}
+
+model RoyalTradeLog {
+  id String @id @default(cuid())
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  itemId String
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  /** BUY=황실에서 구매, SELL=황실에 판매 */
+  side String
+  quantity Int
+  /** 거래로 인한 골드 변화량. 유저 관점(+면 획득, -면 지불) */
+  goldDelta Int
+  honorDelta Int
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([itemId, createdAt])
+}
+
+model BlackMarketTradeLog {
+  id String @id @default(cuid())
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  itemId String
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  side String
+  quantity Int
+  goldDelta Int
+  infamyDelta Int
+  eventId String?
+  event   BlackMarketEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([itemId, createdAt])
+  @@index([eventId, createdAt])
+}
+
+// NPC market makers: daily buy budget (KST) separate from wallet gold.
+model BotBudget {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // YYYYMMDD in Asia/Seoul
+  dayKey String
+
+  remainingBuyBudget Int @default(5000)
+
+  updatedAt DateTime @updatedAt
+}
+
+model Wallet {
+  userId        String   @id
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goldAvailable Int      @default(0)
+  goldLocked    Int      @default(0)
+  updatedAt     DateTime @updatedAt
+}
+
+model UserItemEnhancement {
+  userId String
+  itemId String
+  level  Int @default(0)
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@id([userId, itemId])
+  @@index([userId])
+  @@index([itemId])
+}
+
+model MinionInventory {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  owned     Int      @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model Minion {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  level Int @default(1)
+  jobType MinionJobType @default(UNASSIGNED)
+  grade MinionGrade @default(D)
+
+  // 개별 무기 장착(던전 전투에 사용)
+  equippedWeaponInstanceId String?
+  equippedWeaponInstance   WeaponInstance? @relation(fields: [equippedWeaponInstanceId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dungeonPartyMemberships DungeonPartyMember[]
+  workshopAssignments WorkshopAssignment[]
+  marketListings MinionMarketListing[]
+  contracts MinionContract[]
+  traits MinionTrait[]
+
+  @@index([userId])
+  @@index([equippedWeaponInstanceId])
+}
+
+model WeaponInstance {
+  id         String @id @default(cuid())
+  userId     String
+  baseItemId String
+  enhanceLevel Int @default(0)
+  status WeaponInstanceStatus @default(OWNED)
+  /** JSON 배열: `{ kind, tier }[]` 제작 시 부여 옵션 (`itemOptions.ts`) */
+  optionsJson String @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseItem Item @relation(fields: [baseItemId], references: [id], onDelete: Restrict)
+  equippedOn Minion[]
+  listing Listing?
+
+  @@index([userId, createdAt])
+  @@index([baseItemId])
+}
+
+model ToolInstance {
+  id         String @id @default(cuid())
+  userId     String
+  baseItemId String
+  status ToolInstanceStatus @default(OWNED)
+  /** JSON 배열: `{ kind, tier }[]` 제작 시 부여 옵션 */
+  optionsJson String @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseItem Item @relation(fields: [baseItemId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([baseItemId])
+}
+
+model WorkshopAssignment {
+  id         String @id @default(cuid())
+  workshopId String
+  minionId   String
+  jobType    MinionJobType
+  createdAt  DateTime @default(now())
+
+  workshop WorkshopInstance @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  minion   Minion          @relation(fields: [minionId], references: [id], onDelete: Cascade)
+
+  @@unique([minionId])
+  @@unique([workshopId, minionId])
+  @@index([workshopId, createdAt])
+  @@index([jobType, createdAt])
+}
+
+model MinionTrait {
+  id       String @id @default(cuid())
+  minionId String
+  type     MinionTraitType
+  rank     Int @default(1)
+  xp       Int @default(0)
+
+  minion Minion @relation(fields: [minionId], references: [id], onDelete: Cascade)
+
+  @@index([minionId])
+  @@unique([minionId, type])
+}
+
+model MinionMarketListing {
+  id String @id @default(cuid())
+
+  // null이면 NPC 공급
+  sellerUserId String?
+  seller       User? @relation("MinionMarketSeller", fields: [sellerUserId], references: [id], onDelete: SetNull)
+
+  minionId String
+  minion   Minion @relation(fields: [minionId], references: [id], onDelete: Cascade)
+
+  status MinionMarketListingStatus @default(ACTIVE)
+
+  // AUCTION only (MVP)
+  startPrice Int
+  endsAt     DateTime
+
+  highestBid      Int?
+  highestBidderId String?
+  highestBidder   User? @relation("MinionMarketHighestBidder", fields: [highestBidderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contract MinionContract?
+
+  @@index([status, createdAt])
+  @@index([endsAt])
+  @@index([minionId])
+  @@index([sellerUserId, status])
+}
+
+model MinionContract {
+  id String @id @default(cuid())
+
+  listingId String @unique
+  listing   MinionMarketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  ownerUserId String
+  owner       User @relation("MinionContractOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  hirerUserId String
+  hirer       User @relation("MinionContractHirer", fields: [hirerUserId], references: [id], onDelete: Cascade)
+
+  minionId String
+  minion   Minion @relation(fields: [minionId], references: [id], onDelete: Cascade)
+
+  scope  MinionContractScope  @default(DUNGEON_RUN_1)
+  status MinionContractStatus @default(ACTIVE)
+
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([hirerUserId, status, createdAt])
+  @@index([ownerUserId, status, createdAt])
+  @@index([minionId])
+}
+
+model Item {
+  id       String @id @default(cuid())
+  name     String
+  category String
+  tradable Boolean @default(true)
+  /** 1=일반 … 8=초월 (`itemGrade.ts`의 `ITEM_GRADE_LABELS`와 대응) */
+  grade    Int     @default(1)
+
+  stacks   InventoryStack[]
+  enhancements UserItemEnhancement[]
+  listings Listing[]
+  drops    DropTableEntry[]
+  equippedOnWorkshops WorkshopInstance[] @relation("WorkshopEquippedTool")
+  weaponInstances WeaponInstance[]
+  toolInstances ToolInstance[]
+
+  recipeInputs  RecipeInput[]
+  recipeOutputs RecipeOutput[]
+
+  royalPrice        RoyalPrice?
+  blackMarketPrice  BlackMarketPrice?
+  blackMarketEvents BlackMarketEvent[]
+  royalTrades       RoyalTradeLog[]
+  blackMarketTrades BlackMarketTradeLog[]
+}
+
+model InventoryStack {
+  userId String
+  itemId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  quantity Int @default(0)
+
+  @@id([userId, itemId])
+}
+
+model WorkshopType {
+  id   String @id @default(cuid())
+  name String @unique
+
+  kind WorkshopKind @default(GATHER)
+
+  drops     DropTableEntry[]
+  recipes   Recipe[]
+  instances WorkshopInstance[]
+}
+
+enum WorkshopKind {
+  GATHER
+  PROCESS
+  CONSUME
+}
+
+enum DungeonRunStatus {
+  RUNNING
+  STOPPED
+}
+
+model DropTableEntry {
+  id             String @id @default(cuid())
+  workshopTypeId String
+  itemId         String
+
+  weight Int
+  minQty Int @default(1)
+  maxQty Int @default(1)
+  // 이 드랍이 활성화되는 최소 시설 티어(1~5)
+  minTier Int @default(1)
+
+  workshopType WorkshopType @relation(fields: [workshopTypeId], references: [id], onDelete: Cascade)
+  item         Item         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([workshopTypeId])
+}
+
+model Recipe {
+  id             String @id @default(cuid())
+  workshopTypeId String
+  name           String
+  rewardGold     Int    @default(0)
+  /** 가공(PROCESS) 등: 이 레시피를 쓰려면 시설 티어가 minTier 이상이어야 함 (1~5) */
+  minTier        Int    @default(1)
+  /** 가공(PROCESS): 1회 레시피 실행당 제작 시간(초). 수량 N이면 총 N배 시간 */
+  craftTimeSeconds Int @default(60)
+
+  workshopType WorkshopType @relation(fields: [workshopTypeId], references: [id], onDelete: Cascade)
+
+  inputs  RecipeInput[]
+  outputs RecipeOutput[]
+
+  @@index([workshopTypeId])
+}
+
+model RecipeInput {
+  id       String @id @default(cuid())
+  recipeId String
+  itemId   String
+  quantity Int
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([recipeId])
+}
+
+model RecipeOutput {
+  id       String @id @default(cuid())
+  recipeId String
+  itemId   String
+
+  // deterministic output: weight can be null
+  // random output: if ANY output has weight, we pick 1 output weighted each craft
+  weight Int?
+
+  minQty Int @default(1)
+  maxQty Int @default(1)
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([recipeId])
+}
+
+model WorkshopInstance {
+  id             String @id @default(cuid())
+  userId         String
+  workshopTypeId String
+
+  /** 내 부지 슬롯 인덱스 0~2 (한 유저 마을에 최대 3개 시설) */
+  plotSlot Int?
+
+  minionCount Int @default(0)
+  masteryXp  Int @default(0)
+  // 골드 업그레이드로 올리는 시설 티어(1~5). 수집 시설 드랍 해금에 사용
+  tier       Int @default(1)
+
+  // 시설(인스턴스)별 장착 도구(곡괭이/낫/낚싯대 등)
+  equippedToolItemId String?
+  equippedTool       Item?   @relation("WorkshopEquippedTool", fields: [equippedToolItemId], references: [id], onDelete: SetNull)
+
+  lastCollectedAt DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  /** 가공(PROCESS): 진행 중인 제작 — 입력 재료는 시작 시 차감됨 */
+  processCraftRecipeId   String?
+  processCraftStartedAt  DateTime?
+  /** 가공 제작 예상 완료 시각 (직업·시너지 반영 제작 속도) */
+  processCraftEndsAt     DateTime?
+  /** 제작 완료 시 산출 배수 (시작 시점 기준 잠금) */
+  processCraftOutputMult Float?
+  processCraftQuantity   Int       @default(0)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workshopType WorkshopType @relation(fields: [workshopTypeId], references: [id], onDelete: Restrict)
+  assignments  WorkshopAssignment[]
+
+  @@index([userId, plotSlot])
+  @@index([userId])
+  @@index([workshopTypeId])
+  @@index([equippedToolItemId])
+}
+
+model DungeonRun {
+  id       String @id @default(cuid())
+  userId   String
+  dungeonId String
+  status   DungeonRunStatus @default(RUNNING)
+
+  startedAt DateTime @default(now())
+  lastTickAt DateTime @default(now())
+
+  wins   Int @default(0)
+  losses Int @default(0)
+
+  /** PUSH_LUCK: 현재 진행 중인 층(1부터). AUTO_WAVES에는 표시용 */
+  floor Int @default(1)
+  /** PUSH_LUCK: 누적 보상(정산 전). 예: [{"itemId":"item_slime_gel","qty":3}] */
+  pendingLootJson String @default("[]")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  party DungeonPartyMember[]
+
+  @@index([userId])
+  @@index([dungeonId])
+}
+
+model DungeonPartyMember {
+  id        String @id @default(cuid())
+  runId     String
+  minionId  String
+
+  run    DungeonRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  minion Minion     @relation(fields: [minionId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([minionId])
+  @@unique([runId, minionId])
+}
+
+model Listing {
+  id       String         @id @default(cuid())
+  saleType ListingSaleType
+  status   ListingStatus  @default(ACTIVE)
+
+  sellerId String
+  seller   User   @relation("SellerListings", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  itemId   String
+  item     Item   @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  quantity Int
+
+  // Optional: 개별 무기(WeaponInstance) 거래
+  weaponInstanceId String? @unique
+  weaponInstance   WeaponInstance? @relation(fields: [weaponInstanceId], references: [id], onDelete: SetNull)
+
+  // FIXED
+  fixedPricePerUnit Int?
+  // 총액 고정가(부분 구매 불가). 값이 있으면 fixedPricePerUnit은 null로 취급
+  fixedPriceTotal   Int?
+
+  // AUCTION
+  startPrice      Int?
+  endsAt          DateTime?
+  highestBid      Int?
+  highestBidderId String?
+  highestBidder   User? @relation("HighestBidder", fields: [highestBidderId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bids Bid[]
+  txs  Transaction[]
+
+  @@index([status, saleType, createdAt])
+  @@index([itemId, status])
+  @@index([sellerId, status])
+  @@index([endsAt])
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  listingId String
+  bidderId  String
+
+  amount    Int
+  createdAt DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  bidder  User    @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@index([bidderId, createdAt])
+}
+
+model Transaction {
+  id        String @id @default(cuid())
+  listingId String
+  buyerId   String
+  sellerId  String
+
+  itemId    String
+  quantity  Int
+  saleType  ListingSaleType
+
+  grossGold Int
+  feeGold   Int
+  netGold   Int
+
+  createdAt DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@index([itemId, createdAt])
+}
+
+/** 세계/채널별 텍스트 채팅 (프로토타입: 폴링 수신) */
+model ChatMessage {
+  id        String   @id @default(cuid())
+  channel   String   @default("world")
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([channel, createdAt])
+  @@index([userId, createdAt])
+}
