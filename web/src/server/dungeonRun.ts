@@ -1,7 +1,66 @@
 import { prisma } from "@/server/db";
-import type { DungeonDef } from "@/server/dungeonData";
-import { computePartyPower, computeWinRate } from "@/server/dungeonCombat";
-import { weaponCombatBonusFromOptions } from "@/server/itemOptions";
+import { loadDungeons, type DungeonDef } from "@/server/dungeonData";
+import { buildPartyCombatants, buildFullPartyHp, estimateFloorWinChance, simulateFloorCombat, type FloorEnemy, type PartyHpSnapshot } from "@/server/dungeonBattler";
+import { computeWinRate } from "@/server/dungeonCombat";
+import { resolveFloorMonster } from "@/server/dungeonEncounters";
+import { combatPowerFromMonster } from "@/server/monsterCombat";
+import { loadPartyCombatRows, type PartyCombatDb } from "@/server/minionCombatBuild";
+import type { CombatLogLine } from "@/shared/dungeonCombatLog";
+import {
+  parsePartyHpJson,
+  partyHpToMap,
+  serializePartyHp,
+  type PartyHpEntry,
+} from "@/shared/dungeonPartyHp";
+
+export type { PartyHpEntry };
+
+function resolvePartyHpForRun(
+  partyHpJson: string | null | undefined,
+  combatants: Array<{ id: string; label: string; power: number }>,
+): { entries: PartyHpEntry[]; map: Record<string, { hp: number; maxHp: number }> } {
+  const parsed = parsePartyHpJson(partyHpJson ?? "[]");
+  if (parsed.length > 0) {
+    return { entries: parsed, map: partyHpToMap(parsed) };
+  }
+  const full = buildFullPartyHp(
+    combatants.map((c) => ({ id: c.id, label: c.label, power: c.power })),
+  );
+  return {
+    entries: full.map((f) => ({
+      minionId: f.minionId,
+      hp: f.hp,
+      maxHp: f.maxHp,
+      label: f.label,
+    })),
+    map: partyHpToMap(
+      full.map((f) => ({ minionId: f.minionId, hp: f.hp, maxHp: f.maxHp, label: f.label })),
+    ),
+  };
+}
+
+function snapshotsToEntries(rows: PartyHpSnapshot[]): PartyHpEntry[] {
+  return rows.map((r) => ({
+    minionId: r.minionId,
+    hp: r.hp,
+    maxHp: r.maxHp,
+    label: r.label,
+  }));
+}
+
+export async function initializeDungeonRunPartyHp(userId: string, runId: string) {
+  const run = await prisma.dungeonRun.findUnique({
+    where: { id: runId },
+    include: { party: { include: { minion: true } } },
+  });
+  if (!run) return;
+  const { combatants } = await loadRunPartyCombat(prisma, userId, run);
+  const entries = snapshotsToEntries(buildFullPartyHp(combatants));
+  await prisma.dungeonRun.update({
+    where: { id: runId },
+    data: { partyHpJson: serializePartyHp(entries) },
+  });
+}
 
 function randIntInclusive(min: number, max: number, rnd = Math.random) {
   const lo = Math.min(min, max);
@@ -49,40 +108,12 @@ export async function tickAndMaybeCollectDungeonRun(input: { userId: string; dun
       };
     }
 
-    const minionIds = run.party.map((p) => p.minionId);
-    const traits = await tx.minionTrait.findMany({
-      where: { minionId: { in: minionIds }, type: "FIGHTER" },
-      select: { minionId: true, rank: true },
-      take: 50,
+    const { partyPower } = await loadPartyCombatRows(tx, input.userId, run.party);
+    const waveMonster = await resolveFloorMonster(input.dungeon, 1);
+    const winRate = computeWinRate({
+      partyPower,
+      enemyPower: combatPowerFromMonster(waveMonster.monster),
     });
-    const fighterByMinionId = new Map(traits.map((t) => [t.minionId, t.rank]));
-
-    const weaponInstanceIds = run.party
-      .map((p) => p.minion.equippedWeaponInstanceId)
-      .filter(Boolean) as string[];
-    const weapons = weaponInstanceIds.length
-      ? await tx.weaponInstance.findMany({
-          where: { id: { in: weaponInstanceIds }, userId: input.userId },
-          include: { baseItem: true },
-          take: 50,
-        })
-      : [];
-    const weaponById = new Map(weapons.map((w) => [w.id, w]));
-
-    const partyPower = computePartyPower({
-      members: run.party.map((m) => {
-        const wi = weaponById.get(m.minion.equippedWeaponInstanceId ?? "");
-        return {
-          weaponBaseItemId: wi?.baseItemId ?? null,
-          weaponEnhanceLevel: wi?.enhanceLevel ?? 0,
-          weaponOptionBonus: wi ? weaponCombatBonusFromOptions(wi.optionsJson) : 0,
-          level: m.minion.level,
-          fighterRank: fighterByMinionId.get(m.minionId) ?? 0,
-          minionGrade: m.minion.grade,
-        };
-      }),
-    });
-    const winRate = computeWinRate({ partyPower, dungeon: input.dungeon });
 
     let winsAdded = 0;
     let lossesAdded = 0;
@@ -189,6 +220,50 @@ function rollDrops(def: { drops: DungeonDef["drops"] }, rolls: number, rnd = Mat
   return Array.from(lootMap.entries()).map(([itemId, qty]) => ({ itemId, qty }));
 }
 
+async function loadRunPartyCombat(tx: PartyCombatDb, userId: string, run: { party: Array<{ minionId: string; minion: { level: number; jobType: string; equippedWeaponInstanceId: string | null } }> }) {
+  const { memberInputs, partyPower } = await loadPartyCombatRows(tx, userId, run.party);
+  const combatants = buildPartyCombatants(
+    memberInputs.map((x) => ({
+      minionId: x.minionId,
+      jobType: x.jobType,
+      power: x.power,
+      bonusHp: x.bonusHp,
+      bonusDef: x.bonusDef,
+    })),
+  );
+
+  return { partyPower, combatants, memberInputs };
+}
+
+export async function getActiveRunCombatPreview(userId: string) {
+  const run = await prisma.dungeonRun.findFirst({
+    where: { userId, status: "RUNNING" },
+    orderBy: { startedAt: "desc" },
+    include: { party: { include: { minion: true } } },
+  });
+  if (!run) return null;
+
+  const { dungeons } = await loadDungeons();
+  const dungeon = dungeons.find((d) => d.id === run.dungeonId);
+  if (!dungeon) return null;
+
+  const floor = Math.max(1, Math.floor(run.floor ?? 1));
+  const { partyPower, combatants } = await loadRunPartyCombat(prisma, userId, run);
+  const { entries: partyHp, map: partyHpMap } = resolvePartyHpForRun(run.partyHpJson, combatants);
+  const floorMonster = await resolveFloorMonster(dungeon, floor);
+  const enemy: FloorEnemy = { name: floorMonster.monster.name, monster: floorMonster.monster };
+  const clearChance = estimateFloorWinChance({
+    floor,
+    maxFloors: dungeon.maxFloors ?? 20,
+    party: combatants,
+    enemy,
+    partyHp: partyHpMap,
+    samples: 48,
+  });
+
+  return { partyPower, clearChance, floor, enemyName: enemy.name, partyHp };
+}
+
 export async function advancePushLuckFloor(input: { userId: string; dungeon: DungeonDef }) {
   if (input.dungeon.mode !== "PUSH_LUCK") throw new Error("NOT_PUSH_LUCK_DUNGEON");
   return prisma.$transaction(async (tx) => {
@@ -199,55 +274,33 @@ export async function advancePushLuckFloor(input: { userId: string; dungeon: Dun
     });
     if (!run) throw new Error("DUNGEON_RUN_NOT_FOUND");
 
-    const extra = (await (tx as any).$queryRawUnsafe(
-      `SELECT "floor" as floor, "pendingLootJson" as pendingLootJson FROM "DungeonRun" WHERE "id" = ? LIMIT 1`,
-      run.id,
-    )) as any;
-    const e0 = Array.isArray(extra) ? extra[0] : extra;
-    const floor = Math.max(1, Math.floor(e0?.floor ?? 1));
-    const pending = safeParsePendingLoot(e0?.pendingLootJson ?? "[]");
+    const floor = Math.max(1, Math.floor(run.floor ?? 1));
+    const pending = safeParsePendingLoot(run.pendingLootJson ?? "[]");
 
-    const minionIds = run.party.map((p) => p.minionId);
-    const traits = await tx.minionTrait.findMany({
-      where: { minionId: { in: minionIds }, type: "FIGHTER" },
-      select: { minionId: true, rank: true },
-      take: 50,
-    });
-    const fighterByMinionId = new Map(traits.map((t) => [t.minionId, t.rank]));
+    const { partyPower, combatants } = await loadRunPartyCombat(tx, input.userId, run);
+    const { map: partyHpStart } = resolvePartyHpForRun(run.partyHpJson, combatants);
 
-    const weaponInstanceIds = run.party
-      .map((p) => p.minion.equippedWeaponInstanceId)
-      .filter(Boolean) as string[];
-    const weapons = weaponInstanceIds.length
-      ? await tx.weaponInstance.findMany({
-          where: { id: { in: weaponInstanceIds }, userId: input.userId },
-          include: { baseItem: true },
-          take: 50,
-        })
-      : [];
-    const weaponById = new Map(weapons.map((w) => [w.id, w]));
-
-    const partyPower = computePartyPower({
-      members: run.party.map((m) => {
-        const wi = weaponById.get(m.minion.equippedWeaponInstanceId ?? "");
-        return {
-          weaponBaseItemId: wi?.baseItemId ?? null,
-          weaponEnhanceLevel: wi?.enhanceLevel ?? 0,
-          weaponOptionBonus: wi ? weaponCombatBonusFromOptions(wi.optionsJson) : 0,
-          level: m.minion.level,
-          fighterRank: fighterByMinionId.get(m.minionId) ?? 0,
-          minionGrade: m.minion.grade,
-        };
-      }),
+    const floorMonster = await resolveFloorMonster(input.dungeon, floor);
+    const enemy: FloorEnemy = { name: floorMonster.monster.name, monster: floorMonster.monster };
+    const clearChance = estimateFloorWinChance({
+      floor,
+      maxFloors: input.dungeon.maxFloors ?? 20,
+      party: combatants,
+      enemy,
+      partyHp: partyHpStart,
+      samples: 32,
     });
 
-    const floorPower = Math.max(
-      1,
-      Math.floor(input.dungeon.power * Math.pow(input.dungeon.floorPowerGrowth ?? 1.12, Math.max(0, floor - 1))),
-    );
-    const winRate = computeWinRate({ partyPower, dungeon: { ...input.dungeon, power: floorPower } });
-
-    const win = Math.random() < winRate;
+    const battle = simulateFloorCombat({
+      floor,
+      maxFloors: input.dungeon.maxFloors ?? 20,
+      party: combatants,
+      enemy,
+      partyHp: partyHpStart,
+    });
+    const combatLog: CombatLogLine[] = battle.log;
+    const partyHpAfter = snapshotsToEntries(battle.partyHp);
+    const win = battle.outcome === "WIN";
     if (!win) {
       await tx.dungeonRun.update({
         where: { id: run.id },
@@ -255,15 +308,18 @@ export async function advancePushLuckFloor(input: { userId: string; dungeon: Dun
           status: "STOPPED",
           losses: { increment: 1 },
           lastTickAt: new Date(),
+          pendingLootJson: "[]",
+          partyHpJson: serializePartyHp(partyHpAfter),
         },
       });
-      await (tx as any).$executeRawUnsafe(`UPDATE "DungeonRun" SET "pendingLootJson" = '[]' WHERE "id" = ?`, run.id);
       return {
         ok: true as const,
         result: "LOSS" as const,
         floor,
         partyPower,
-        winRate,
+        clearChance,
+        combatLog,
+        partyHp: partyHpAfter,
         lootGained: [] as LootEntry[],
         pendingLoot: [] as LootEntry[],
       };
@@ -281,14 +337,11 @@ export async function advancePushLuckFloor(input: { userId: string; dungeon: Dun
       data: {
         wins: { increment: 1 },
         lastTickAt: new Date(),
+        floor: nextFloor,
+        pendingLootJson: JSON.stringify(nextPending),
+        partyHpJson: serializePartyHp(partyHpAfter),
       },
     });
-    await (tx as any).$executeRawUnsafe(
-      `UPDATE "DungeonRun" SET "floor" = ?, "pendingLootJson" = ? WHERE "id" = ?`,
-      nextFloor,
-      JSON.stringify(nextPending),
-      run.id,
-    );
 
     const finished = floor >= (input.dungeon.maxFloors ?? 20);
     if (finished) {
@@ -309,17 +362,18 @@ export async function advancePushLuckFloor(input: { userId: string; dungeon: Dun
           update: { quantity: { increment: x.qty } },
         });
       }
-      await tx.dungeonRun.update({ where: { id: run.id }, data: { status: "STOPPED" } });
-      await (tx as any).$executeRawUnsafe(
-        `UPDATE "DungeonRun" SET "pendingLootJson" = '[]' WHERE "id" = ?`,
-        run.id,
-      );
+      await tx.dungeonRun.update({
+        where: { id: run.id },
+        data: { status: "STOPPED", pendingLootJson: "[]" },
+      });
       return {
         ok: true as const,
         result: "WIN_AND_CASHOUT" as const,
         floor,
         partyPower,
-        winRate,
+        clearChance,
+        combatLog,
+        partyHp: partyHpAfter,
         lootGained: gained,
         pendingLoot: [] as LootEntry[],
         cashedOut: nextPending,
@@ -331,7 +385,9 @@ export async function advancePushLuckFloor(input: { userId: string; dungeon: Dun
       result: "WIN" as const,
       floor,
       partyPower,
-      winRate,
+      clearChance,
+      combatLog,
+      partyHp: partyHpAfter,
       lootGained: gained,
       pendingLoot: nextPending,
     };
@@ -346,12 +402,7 @@ export async function cashoutPushLuckRun(input: { userId: string; dungeon: Dunge
       orderBy: { startedAt: "desc" },
     });
     if (!run) throw new Error("DUNGEON_RUN_NOT_FOUND");
-    const extra = (await (tx as any).$queryRawUnsafe(
-      `SELECT "pendingLootJson" as pendingLootJson FROM "DungeonRun" WHERE "id" = ? LIMIT 1`,
-      run.id,
-    )) as any;
-    const e0 = Array.isArray(extra) ? extra[0] : extra;
-    const pending = safeParsePendingLoot(e0?.pendingLootJson ?? "[]");
+    const pending = safeParsePendingLoot(run.pendingLootJson ?? "[]");
     for (const x of pending) {
       const item = await tx.item.findUnique({ where: { id: x.itemId } });
       if (item?.category === "무기") {
@@ -368,8 +419,10 @@ export async function cashoutPushLuckRun(input: { userId: string; dungeon: Dunge
         update: { quantity: { increment: x.qty } },
       });
     }
-    await tx.dungeonRun.update({ where: { id: run.id }, data: { status: "STOPPED" } });
-    await (tx as any).$executeRawUnsafe(`UPDATE "DungeonRun" SET "pendingLootJson" = '[]' WHERE "id" = ?`, run.id);
+    await tx.dungeonRun.update({
+      where: { id: run.id },
+      data: { status: "STOPPED", pendingLootJson: "[]" },
+    });
     return { ok: true as const, cashedOut: pending };
   });
 }

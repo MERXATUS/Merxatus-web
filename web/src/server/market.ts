@@ -5,11 +5,11 @@ async function feeBpsForSeller(userId: string) {
   // 명예 점수로 경매장 수수료 감면
   //  - 50k: 1%p 감면, 150k: 3%p 감면, 300k: 5%p 감면
   //  - 최저 수수료: 1% (100bps)
-  const rows = (await prisma.$queryRawUnsafe(
-    `SELECT "honorPoints" as honorPoints FROM "User" WHERE "id" = ? LIMIT 1`,
-    userId,
-  )) as any[];
-  const honor = Math.max(0, Math.floor(rows?.[0]?.honorPoints ?? 0));
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { honorPoints: true },
+  });
+  const honor = Math.max(0, Math.floor(user?.honorPoints ?? 0));
   const discountBps = honor >= 300_000 ? 500 : honor >= 150_000 ? 300 : honor >= 50_000 ? 100 : 0;
   const base = GAME_RULES.market.feeBps;
   return Math.max(100, base - discountBps);
@@ -21,12 +21,102 @@ function feeSplit(grossGold: number, feeBps: number) {
   return { feeGold, netGold };
 }
 
+type ListingTimingRow = {
+  saleType: string;
+  endsAt: Date | null;
+  createdAt: Date;
+};
+
+export function listingEffectiveEndsAt(listing: ListingTimingRow): Date | null {
+  if (listing.endsAt) return listing.endsAt;
+  return new Date(listing.createdAt.getTime() + GAME_RULES.market.listingDurationSeconds * 1000);
+}
+
+export function listingIsExpired(listing: ListingTimingRow, now: Date = new Date()): boolean {
+  const endsAt = listingEffectiveEndsAt(listing);
+  return endsAt != null && endsAt.getTime() <= now.getTime();
+}
+
+export function listingMaxEndsAt(createdAt: Date): Date {
+  return new Date(createdAt.getTime() + GAME_RULES.market.listingDurationSeconds * 1000);
+}
+
+/** ACTIVE 매물 중 아직 거래 가능한 것만 (만료 전) */
+export function activeListingVisibilityWhere(now: Date = new Date()) {
+  const legacyCutoff = new Date(now.getTime() - GAME_RULES.market.listingDurationSeconds * 1000);
+  return {
+    OR: [
+      { endsAt: { gt: now } },
+      { endsAt: null, createdAt: { gt: legacyCutoff } },
+    ],
+  };
+}
+
+/** 만료됐지만 status=ACTIVE 로 남은 매물 */
+export function staleActiveListingWhere(now: Date = new Date()) {
+  const legacyCutoff = new Date(now.getTime() - GAME_RULES.market.listingDurationSeconds * 1000);
+  return {
+    status: "ACTIVE" as const,
+    OR: [
+      { endsAt: { lte: now } },
+      { endsAt: null, createdAt: { lte: legacyCutoff } },
+    ],
+  };
+}
+
+/** 만료 매물 정리 — escrow 반환 후 EXPIRED(경매 낙찰 시 SOLD) */
+export async function expireStaleActiveListings(options?: { limit?: number }) {
+  const limit = Math.max(1, Math.min(200, options?.limit ?? 50));
+  const stale = await prisma.listing.findMany({
+    where: staleActiveListingWhere(),
+    orderBy: { createdAt: "asc" },
+    take: limit,
+    select: { id: true },
+  });
+
+  let expired = 0;
+  const errors: string[] = [];
+  for (const row of stale) {
+    try {
+      await settleListing({ listingId: row.id });
+      expired += 1;
+    } catch (e) {
+      errors.push(`${row.id}:${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return { expired, scanned: stale.length, errors };
+}
+
+async function returnListingEscrowToSeller(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  listing: { sellerId: string; itemId: string; quantity: number; weaponInstanceId: string | null },
+) {
+  const isWeapon = listing.weaponInstanceId != null;
+  if (isWeapon) {
+    const inst = await tx.weaponInstance.findUnique({ where: { id: listing.weaponInstanceId! } });
+    if (inst && inst.userId === listing.sellerId) {
+      await tx.weaponInstance.update({ where: { id: inst.id }, data: { status: "OWNED" } });
+    }
+  } else {
+    await tx.inventoryStack.upsert({
+      where: { userId_itemId: { userId: listing.sellerId, itemId: listing.itemId } },
+      create: { userId: listing.sellerId, itemId: listing.itemId, quantity: listing.quantity },
+      update: { quantity: { increment: listing.quantity } },
+    });
+  }
+}
+
+function assertListingNotExpired(listing: ListingTimingRow, now: Date = new Date()) {
+  if (listingIsExpired(listing, now)) throw new Error("LISTING_EXPIRED");
+}
+
 export async function buyFixedListing(input: { listingId: string; buyerId: string }) {
   return prisma.$transaction(async (tx) => {
     const listing = await tx.listing.findUnique({ where: { id: input.listingId } });
     if (!listing) throw new Error("LISTING_NOT_FOUND");
     if (listing.status !== "ACTIVE") throw new Error("LISTING_NOT_ACTIVE");
     if (listing.saleType !== "FIXED") throw new Error("LISTING_NOT_FIXED");
+    assertListingNotExpired(listing);
     const hasTotal = listing.fixedPriceTotal != null && listing.fixedPriceTotal > 0;
     const hasUnit = listing.fixedPricePerUnit != null && listing.fixedPricePerUnit > 0;
     if (!hasTotal && !hasUnit) throw new Error("INVALID_PRICE");
@@ -89,6 +179,7 @@ export async function buyFixedListingPartial(input: { listingId: string; buyerId
     if (!listing) throw new Error("LISTING_NOT_FOUND");
     if (listing.status !== "ACTIVE") throw new Error("LISTING_NOT_ACTIVE");
     if (listing.saleType !== "FIXED") throw new Error("LISTING_NOT_FIXED");
+    assertListingNotExpired(listing);
     const hasTotal = listing.fixedPriceTotal != null && listing.fixedPriceTotal > 0;
     const hasUnit = listing.fixedPricePerUnit != null && listing.fixedPricePerUnit > 0;
     if (!hasTotal && !hasUnit) throw new Error("INVALID_PRICE");
@@ -176,9 +267,10 @@ export async function placeAuctionBid(input: { listingId: string; bidderId: stri
     if (!listing) throw new Error("LISTING_NOT_FOUND");
     if (listing.status !== "ACTIVE") throw new Error("LISTING_NOT_ACTIVE");
     if (listing.saleType !== "AUCTION") throw new Error("LISTING_NOT_AUCTION");
-    if (!listing.endsAt) throw new Error("AUCTION_ENDS_AT_MISSING");
+    const endsAt = listingEffectiveEndsAt(listing);
+    if (!endsAt) throw new Error("AUCTION_ENDS_AT_MISSING");
     if (!listing.startPrice || listing.startPrice <= 0) throw new Error("AUCTION_START_PRICE_INVALID");
-    if (listing.endsAt.getTime() <= now.getTime()) throw new Error("AUCTION_ENDED");
+    if (endsAt.getTime() <= now.getTime()) throw new Error("AUCTION_ENDED");
 
     if (listing.sellerId === input.bidderId) throw new Error("CANNOT_BID_OWN_LISTING");
 
@@ -214,10 +306,13 @@ export async function placeAuctionBid(input: { listingId: string; bidderId: stri
       });
     }
 
-    let newEndsAt = listing.endsAt;
-    const msLeft = listing.endsAt.getTime() - now.getTime();
+    let newEndsAt = endsAt;
+    const msLeft = endsAt.getTime() - now.getTime();
+    const maxEndsAt = listingMaxEndsAt(listing.createdAt);
     if (msLeft <= GAME_RULES.auction.extendWindowSeconds * 1000) {
-      newEndsAt = new Date(listing.endsAt.getTime() + GAME_RULES.auction.extendBySeconds * 1000);
+      newEndsAt = new Date(
+        Math.min(endsAt.getTime() + GAME_RULES.auction.extendBySeconds * 1000, maxEndsAt.getTime()),
+      );
     }
 
     await tx.listing.update({
@@ -244,24 +339,14 @@ export async function settleAuctionListing(input: { listingId: string }) {
     if (!listing) throw new Error("LISTING_NOT_FOUND");
     if (listing.saleType !== "AUCTION") throw new Error("LISTING_NOT_AUCTION");
     if (listing.status !== "ACTIVE") throw new Error("LISTING_NOT_ACTIVE");
-    if (!listing.endsAt) throw new Error("AUCTION_ENDS_AT_MISSING");
-    if (listing.endsAt.getTime() > now.getTime()) throw new Error("AUCTION_NOT_ENDED");
+    const endsAt = listingEffectiveEndsAt(listing);
+    if (!endsAt) throw new Error("AUCTION_ENDS_AT_MISSING");
+    if (endsAt.getTime() > now.getTime()) throw new Error("AUCTION_NOT_ENDED");
 
     const isWeapon = listing.weaponInstanceId != null;
     // No bids -> return item to seller (escrowed quantity)
     if (!listing.highestBidderId || !listing.highestBid) {
-      if (isWeapon) {
-        const inst = await tx.weaponInstance.findUnique({ where: { id: listing.weaponInstanceId! } });
-        if (inst && inst.userId === listing.sellerId) {
-          await tx.weaponInstance.update({ where: { id: inst.id }, data: { status: "OWNED" } });
-        }
-      } else {
-        await tx.inventoryStack.upsert({
-          where: { userId_itemId: { userId: listing.sellerId, itemId: listing.itemId } },
-          create: { userId: listing.sellerId, itemId: listing.itemId, quantity: listing.quantity },
-          update: { quantity: { increment: listing.quantity } },
-        });
-      }
+      await returnListingEscrowToSeller(tx, listing);
 
       await tx.listing.update({ where: { id: listing.id }, data: { status: "EXPIRED" } });
       return { ok: true as const, status: "EXPIRED" as const };
@@ -328,7 +413,7 @@ export async function settleAuctionListing(input: { listingId: string }) {
 
 export async function createListing(input: {
   sellerId: string;
-  itemId: string;
+  itemId?: string;
   quantity: number;
   weaponInstanceId?: string;
   saleType: "FIXED" | "AUCTION";
@@ -339,11 +424,16 @@ export async function createListing(input: {
   return prisma.$transaction(async (tx) => {
     if (input.quantity <= 0) throw new Error("INVALID_QUANTITY");
 
-    const item = await tx.item.findUnique({ where: { id: input.itemId } });
-    if (!item) throw new Error("ITEM_NOT_FOUND");
-    if (!item.tradable) throw new Error("ITEM_NOT_TRADABLE");
+    const activeCount = await tx.listing.count({
+      where: { sellerId: input.sellerId, status: "ACTIVE" },
+    });
+    if (activeCount >= GAME_RULES.market.maxActiveListingsPerUser) {
+      throw new Error("MAX_LISTINGS_REACHED");
+    }
 
     const isWeapon = input.weaponInstanceId != null;
+    let itemId = input.itemId;
+
     if (isWeapon) {
       if (input.quantity !== 1) throw new Error("WEAPON_LISTING_QTY_INVALID");
       const inst = await tx.weaponInstance.findUnique({
@@ -359,14 +449,18 @@ export async function createListing(input: {
         select: { id: true },
       });
       if (equipped) throw new Error("WEAPON_EQUIPPED");
-      // override itemId to baseItemId for stats/search
-      input.itemId = inst.baseItemId;
+      itemId = inst.baseItemId;
     } else {
+      if (!itemId) throw new Error("ITEM_ID_REQUIRED");
       const stack = await tx.inventoryStack.findUnique({
-        where: { userId_itemId: { userId: input.sellerId, itemId: input.itemId } },
+        where: { userId_itemId: { userId: input.sellerId, itemId } },
       });
       if (!stack || stack.quantity < input.quantity) throw new Error("INSUFFICIENT_ITEM");
     }
+
+    const item = await tx.item.findUnique({ where: { id: itemId } });
+    if (!item) throw new Error("ITEM_NOT_FOUND");
+    if (!item.tradable) throw new Error("ITEM_NOT_TRADABLE");
 
     if (input.saleType === "FIXED") {
       const hasTotal = input.fixedPriceTotal != null && input.fixedPriceTotal > 0;
@@ -381,18 +475,19 @@ export async function createListing(input: {
       await tx.weaponInstance.update({ where: { id: input.weaponInstanceId! }, data: { status: "LISTED" } });
     } else {
       await tx.inventoryStack.update({
-        where: { userId_itemId: { userId: input.sellerId, itemId: input.itemId } },
+        where: { userId_itemId: { userId: input.sellerId, itemId: itemId! } },
         data: { quantity: { decrement: input.quantity } },
       });
     }
 
     const createdAt = new Date();
+    const endsAt = listingMaxEndsAt(createdAt);
     const listing = await tx.listing.create({
       data: {
         saleType: input.saleType,
         status: "ACTIVE",
         sellerId: input.sellerId,
-        itemId: input.itemId,
+        itemId: itemId!,
         quantity: input.quantity,
         weaponInstanceId: input.weaponInstanceId ?? null,
         fixedPricePerUnit:
@@ -404,10 +499,7 @@ export async function createListing(input: {
             ? input.fixedPriceTotal
             : null,
         startPrice: input.saleType === "AUCTION" ? input.startPrice! : null,
-        endsAt:
-          input.saleType === "AUCTION"
-            ? new Date(createdAt.getTime() + GAME_RULES.auction.baseDurationSeconds * 1000)
-            : null,
+        endsAt,
         highestBid: null,
         highestBidderId: null,
       },
@@ -415,6 +507,28 @@ export async function createListing(input: {
 
     return { ok: true as const, listingId: listing.id };
   });
+}
+
+export async function settleExpiredFixedListing(input: { listingId: string }) {
+  return prisma.$transaction(async (tx) => {
+    const now = new Date();
+    const listing = await tx.listing.findUnique({ where: { id: input.listingId } });
+    if (!listing) throw new Error("LISTING_NOT_FOUND");
+    if (listing.saleType !== "FIXED") throw new Error("LISTING_NOT_FIXED");
+    if (listing.status !== "ACTIVE") throw new Error("LISTING_NOT_ACTIVE");
+    if (!listingIsExpired(listing, now)) throw new Error("LISTING_NOT_EXPIRED");
+
+    await returnListingEscrowToSeller(tx, listing);
+    await tx.listing.update({ where: { id: listing.id }, data: { status: "EXPIRED" } });
+    return { ok: true as const, status: "EXPIRED" as const };
+  });
+}
+
+export async function settleListing(input: { listingId: string }) {
+  const listing = await prisma.listing.findUnique({ where: { id: input.listingId } });
+  if (!listing) throw new Error("LISTING_NOT_FOUND");
+  if (listing.saleType === "AUCTION") return settleAuctionListing(input);
+  return settleExpiredFixedListing(input);
 }
 
 export async function cancelListing(input: { listingId: string; sellerId: string }) {
@@ -435,20 +549,7 @@ export async function cancelListing(input: { listingId: string; sellerId: string
       });
     }
 
-    const isWeapon = listing.weaponInstanceId != null;
-    // Return escrowed items to seller
-    if (isWeapon) {
-      const inst = await tx.weaponInstance.findUnique({ where: { id: listing.weaponInstanceId! } });
-      if (inst && inst.userId === listing.sellerId) {
-        await tx.weaponInstance.update({ where: { id: inst.id }, data: { status: "OWNED" } });
-      }
-    } else {
-      await tx.inventoryStack.upsert({
-        where: { userId_itemId: { userId: listing.sellerId, itemId: listing.itemId } },
-        create: { userId: listing.sellerId, itemId: listing.itemId, quantity: listing.quantity },
-        update: { quantity: { increment: listing.quantity } },
-      });
-    }
+    await returnListingEscrowToSeller(tx, listing);
 
     await tx.listing.update({ where: { id: listing.id }, data: { status: "CANCELLED" } });
     return { ok: true as const };

@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 const BodySchema = z.object({
   workshopId: z.string().min(1),
   userId: z.string().min(1).optional(),
+  forceReady: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
     const result = await completeProcessCraft({
       userId: auth.userId,
       workshopId: parsed.data.workshopId,
+      forceReady: parsed.data.forceReady,
     });
     return Response.json(result);
   } catch (e) {

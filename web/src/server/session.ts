@@ -1,6 +1,10 @@
 import crypto from "node:crypto";
+import { readEnv } from "@/server/envUtil";
 
-const COOKIE_NAME = "sid";
+export const SESSION_COOKIE_NAME = "sid";
+export const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 30;
+
+const COOKIE_NAME = SESSION_COOKIE_NAME;
 
 function base64urlEncode(buf: Buffer) {
   return buf
@@ -18,7 +22,7 @@ function base64urlDecode(s: string) {
 
 function getSessionSecret() {
   // 개발 편의: SESSION_SECRET 없으면 ADMIN_TOKEN을 폴백으로 사용
-  const s = process.env.SESSION_SECRET || process.env.ADMIN_TOKEN;
+  const s = readEnv("SESSION_SECRET") || readEnv("ADMIN_TOKEN");
   if (!s) throw new Error("SESSION_SECRET_NOT_SET");
   return s;
 }
@@ -33,16 +37,17 @@ function sign(input: string) {
   return base64urlEncode(crypto.createHmac("sha256", getSessionSecret()).update(input).digest());
 }
 
-export function createSessionCookie(userId: string) {
+export function createSessionToken(userId: string) {
   const payload: SessionPayload = { v: 1, userId, iat: Date.now() };
   const json = JSON.stringify(payload);
   const body = base64urlEncode(Buffer.from(json, "utf8"));
   const sig = sign(body);
-  const value = `${body}.${sig}`;
+  return `${body}.${sig}`;
+}
 
-  // 30일
-  const maxAge = 60 * 60 * 24 * 30;
-  return `${COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`;
+export function createSessionCookie(userId: string) {
+  const value = createSessionToken(userId);
+  return `${COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SEC}`;
 }
 
 export function clearSessionCookie() {

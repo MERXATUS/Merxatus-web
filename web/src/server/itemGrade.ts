@@ -42,7 +42,14 @@ const G = {
 const ITEM_GRADE_BY_ID: Record<string, number> = {
   // --- 재료: 수집 minTier = 등급(1~5). 광막·최상급 광/낚 일부만 신화·고대 상향 ---
 
-  // 광산 (minTier 1~5 → 일반~전설 / 에테르·최상 마정석만 신화)
+  // --- 광산·제련 (Merxatus) ---
+  item_dark_iron_ore: G.레어,
+  item_red_gold_ore: G.유니크,
+  item_gold_ore: G.영웅,
+  item_dark_iron: G.레어,
+  item_red_gold: G.유니크,
+
+  // 광산 (레거시·기타)
   item_stone: G.일반,
   item_ore: G.일반,
   item_magic_stone_low: G.레어,
@@ -52,19 +59,6 @@ const ITEM_GRADE_BY_ID: Record<string, number> = {
   item_magic_stone_high: G.영웅,
   item_ethernium: G.신화,
   item_magic_stone_top: G.신화,
-
-  // 낚시
-  item_fish: G.일반,
-  item_jellyfish: G.일반,
-  item_shell: G.일반,
-  item_shark: G.레어,
-  item_mystery_box: G.레어,
-  item_whale: G.유니크,
-  item_one_eye_fish: G.유니크,
-  item_abyss_fish: G.영웅,
-  item_treasure_box: G.영웅,
-  item_tamoe: G.고대,
-  item_mermaid: G.고대,
 
   // 산(약초)
   item_weed: G.일반,
@@ -90,7 +84,7 @@ const ITEM_GRADE_BY_ID: Record<string, number> = {
   item_wood: G.일반,
   item_mushroom: G.일반,
   item_iron: G.레어,
-  item_gold: G.유니크,
+  item_gold: G.영웅,
   item_diamond: G.영웅,
   item_magic_stone: G.유니크,
   item_goblin_bag: G.영웅,
@@ -122,7 +116,6 @@ const ITEM_GRADE_BY_ID: Record<string, number> = {
   // 도구
   item_pickaxe: G.레어,
   item_sickle: G.레어,
-  item_fishing_rod: G.레어,
   item_pickaxe_t1: G.레어,
   item_pickaxe_t2: G.유니크,
   item_pickaxe_t3: G.영웅,
@@ -136,12 +129,6 @@ const ITEM_GRADE_BY_ID: Record<string, number> = {
   item_sickle_t4: G.전설,
   item_sickle_t5: G.신화,
   item_sickle_harvest: G.고대,
-
-  item_rod_t1: G.레어,
-  item_rod_t2: G.유니크,
-  item_rod_t3: G.영웅,
-  item_rod_t4: G.전설,
-  item_rod_t5: G.신화,
 
   item_accessory: G.레어,
   item_enhance_scroll: G.유니크,
@@ -173,27 +160,5 @@ export function itemGradeNameClassName(grade: number): string {
       return "inline-block max-w-full rounded px-1 py-px font-semibold bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-950 text-white [box-shadow:0_0_12px_rgba(255,255,255,0.75),0_0_24px_rgba(226,232,240,0.45)]";
     default:
       return "text-zinc-900";
-  }
-}
-
-/** 미니언 개체 등급 문자(D·C·B·A·S) 배지용 Tailwind 클래스 */
-export function minionLetterGradeBadgeClassName(grade: string | null | undefined): string {
-  const g = String(grade ?? "")
-    .trim()
-    .toUpperCase()
-    .slice(0, 1);
-  switch (g) {
-    case "D":
-      return "rounded-md border border-zinc-400 bg-zinc-200 px-2 py-0.5 text-[11px] font-bold text-zinc-800 shadow-sm";
-    case "C":
-      return "rounded-md border border-emerald-400 bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-900 shadow-sm";
-    case "B":
-      return "rounded-md border border-sky-500 bg-sky-100 px-2 py-0.5 text-[11px] font-bold text-sky-900 shadow-sm";
-    case "A":
-      return "rounded-md border border-violet-500 bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-900 shadow-sm";
-    case "S":
-      return "rounded-md border border-amber-400 bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-200 px-2 py-0.5 text-[11px] font-black text-amber-950 shadow-[0_0_10px_rgba(251,191,36,0.45)]";
-    default:
-      return "rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-bold text-zinc-500";
   }
 }

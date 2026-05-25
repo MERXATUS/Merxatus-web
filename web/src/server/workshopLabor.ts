@@ -1,6 +1,7 @@
-import type { MinionJobType } from "@prisma/client";
+import type { MinionJobType, SpecialistProfession } from "@prisma/client";
 import { GAME_RULES } from "@/server/gameRules";
 import { getPreferredJobsForWorkshopName } from "@/server/minionJobs";
+import { requiredSpecialistForProcessWorkshop } from "@/shared/specialistProfession";
 
 /** 특화 직업 n명일 때 시너지 배수 (누적 곱) */
 export function synergyMultiplierFromMatchingCount(matchingCount: number): number {
@@ -26,7 +27,54 @@ export type WorkshopLaborMetrics = {
   consumeOutputMult: number;
 };
 
-export function computeWorkshopLabor(workshopName: string, assignmentJobTypes: MinionJobType[]): WorkshopLaborMetrics {
+export type ComputeWorkshopLaborOpts = {
+  workshopKind?: "GATHER" | "PROCESS" | "CONSUME";
+  specialistProfession?: SpecialistProfession | null;
+};
+
+export function computeWorkshopLabor(
+  workshopName: string,
+  assignmentJobTypes: MinionJobType[],
+  opts?: ComputeWorkshopLaborOpts,
+): WorkshopLaborMetrics {
+  const { craftSpeedMultMin: lo, craftSpeedMultMax: hi } = GAME_RULES.workshopLabor;
+
+  if (opts?.workshopKind === "PROCESS") {
+    const req = requiredSpecialistForProcessWorkshop(workshopName);
+    const prof = opts.specialistProfession ?? null;
+    const match = req != null && prof != null && (prof as string) === req;
+
+    if (match) {
+      const totalAssigned = 3;
+      const matchingCount = 3;
+      const syn = synergyMultiplierFromMatchingCount(matchingCount);
+      const bonusEach = GAME_RULES.workshopLabor.matchingBonusPerMinion;
+      const laborScore = (totalAssigned + matchingCount * bonusEach) * syn;
+      const base = Math.max(1, totalAssigned);
+      const rawMult = laborScore / base;
+      const craftSpeedMult = Math.min(hi, Math.max(lo, rawMult));
+      return {
+        workshopName,
+        totalAssigned,
+        matchingCount,
+        synergyMult: syn,
+        laborScore,
+        craftSpeedMult,
+        consumeOutputMult: craftSpeedMult,
+      };
+    }
+
+    return {
+      workshopName,
+      totalAssigned: 0,
+      matchingCount: 0,
+      synergyMult: 1,
+      laborScore: 0,
+      craftSpeedMult: lo,
+      consumeOutputMult: lo,
+    };
+  }
+
   const preferred = getPreferredJobsForWorkshopName(workshopName);
   const totalAssigned = assignmentJobTypes.length;
   const matchingCount =
@@ -40,7 +88,6 @@ export function computeWorkshopLabor(workshopName: string, assignmentJobTypes: M
 
   const base = Math.max(1, totalAssigned);
   const rawMult = laborScore / base;
-  const { craftSpeedMultMin: lo, craftSpeedMultMax: hi } = GAME_RULES.workshopLabor;
   const craftSpeedMult = Math.min(hi, Math.max(lo, rawMult));
   const consumeOutputMult = craftSpeedMult;
 

@@ -60,7 +60,6 @@ export async function collectWorkshopInTx(tx: WorkshopPrismaTx, input: { worksho
     assignedTotal > 0
       ? computeWorkshopLabor(workshop.workshopType.name, assignmentJobs)
       : null;
-  const upkeepBodies = assignedTotal > 0 ? assignedTotal : workshop.minionCount;
   const rollLabor =
     assignedTotal > 0 && labor ? labor.laborScore : Math.max(0, workshop.minionCount);
 
@@ -98,38 +97,20 @@ export async function collectWorkshopInTx(tx: WorkshopPrismaTx, input: { worksho
   const bankedMs = cappedGatherElapsedMs(rawElapsedMs);
   const wholeTicks = tickMs > 0 ? Math.floor(bankedMs / tickMs) : 0;
   if (wholeTicks <= 0) {
-    return { ok: true as const, produced: [] as Array<{ itemId: string; qty: number }> };
+    throw new Error("COLLECT_NOT_READY");
   }
 
-  const wallet = await tx.wallet.findUnique({ where: { userId: input.userId } });
-  const available = wallet?.goldAvailable ?? 0;
-  const upkeepPerTick = GAME_RULES.workshop.upkeepGoldPerTickPerMinion * upkeepBodies;
-  const payableTicks = upkeepPerTick > 0 ? Math.min(wholeTicks, Math.floor(available / upkeepPerTick)) : wholeTicks;
-  if (payableTicks <= 0) {
-    return {
-      ok: true as const,
-      produced: [] as Array<{ itemId: string; qty: number }>,
-      rolls: 0,
-      wholeTicks,
-      paidTicks: 0,
-      upkeepCost: 0,
-      note: "INSUFFICIENT_UPKEEP" as const,
-    };
-  }
-
-  const upkeepCost = payableTicks * upkeepPerTick;
-  if (upkeepCost > 0) {
-    await tx.wallet.upsert({
-      where: { userId: input.userId },
-      create: { userId: input.userId, goldAvailable: 0, goldLocked: 0 },
-      update: { goldAvailable: { decrement: upkeepCost } },
-    });
-  }
-
-  const rolls = Math.floor(payableTicks * rollLabor);
+  const paidTicks = wholeTicks;
+  const rolls = Math.floor(paidTicks * rollLabor);
   const allDrops = workshop.workshopType.drops;
   const tier = Math.max(1, Math.min(5, Math.floor(workshop.tier ?? 1)));
-  const drops = allDrops.filter((d) => Math.max(1, Math.min(5, Math.floor(d.minTier ?? 1))) <= tier);
+  // 기본은 "현재 티어 이하 전부" 누적 테이블.
+  // 다만 광산은 유저가 티어별 확률을 고정으로 원해서, 해당 티어 전용(minTier===tier) 테이블을 우선 사용한다.
+  const filteredByTier = allDrops.filter((d) => Math.max(1, Math.min(5, Math.floor(d.minTier ?? 1))) <= tier);
+  const exactTier = allDrops.filter((d) => Math.max(1, Math.min(5, Math.floor(d.minTier ?? 1))) === tier);
+  const exactTierNames = new Set(["광산"]);
+  const drops =
+    exactTierNames.has(workshop.workshopType.name) && exactTier.length > 0 ? exactTier : filteredByTier;
   if (drops.length === 0) throw new Error("DROP_TABLE_EMPTY");
 
   // 도구 장착 시: 희귀 드랍(minTier>=2) 가중치 보정
@@ -184,12 +165,11 @@ export async function collectWorkshopInTx(tx: WorkshopPrismaTx, input: { worksho
     });
   }
 
-  const advancedMs = payableTicks * tickMs;
-  const gainedXp = Math.floor(payableTicks * rollLabor);
+  const gainedXp = Math.floor(paidTicks * rollLabor);
   await tx.workshopInstance.update({
     where: { id: workshop.id },
     data: {
-      lastCollectedAt: new Date(workshop.lastCollectedAt.getTime() + advancedMs),
+      lastCollectedAt: now,
       masteryXp: { increment: gainedXp },
     },
   });
@@ -208,8 +188,9 @@ export async function collectWorkshopInTx(tx: WorkshopPrismaTx, input: { worksho
     producedCards,
     rolls,
     wholeTicks,
-    paidTicks: payableTicks,
-    upkeepCost,
+    paidTicks,
+    upkeepCost: 0,
+    lastCollectedAt: now.toISOString(),
     mastery: {
       before: masteryBefore,
       after: masteryAfter,

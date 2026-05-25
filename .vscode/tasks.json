@@ -1,0 +1,52 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "dev",
+      "path": "web",
+      "label": "dev (web)",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "build",
+      "path": "web",
+      "label": "build (web)",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "start",
+      "path": "web",
+      "label": "start (web)",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "lint",
+      "path": "web",
+      "label": "lint (web)",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "apply:merxatus-csv",
+      "path": "web",
+      "label": "apply:merxatus-csv (web)",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "validate:minion-csv",
+      "path": "web",
+      "label": "validate:minion-csv (web)",
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,30 +1,46 @@
-import { GAME_RULES } from "@/server/gameRules";
+import weaponEnhanceLevels from "../../data/weapon_enhance_levels.json";
 
 export type WeaponUpgradeCost = {
   gold: number;
   materials: Array<{ itemId: string; quantity: number }>;
+  successRate: number;
 };
 
-/** currentWeaponLevel -> nextWeaponLevel (= current + 1) 비용 */
+type EnhanceLevelRow = {
+  targetLevel: number;
+  gold: number;
+  scrollItemId: string | null;
+  scrollQty: number;
+  successRate: number;
+};
+
+const LEVELS = weaponEnhanceLevels as EnhanceLevelRow[];
+const byTargetLevel = new Map(LEVELS.map((row) => [row.targetLevel, row]));
+
+export function weaponEnhanceMaxLevel(): number {
+  if (LEVELS.length === 0) return 0;
+  return Math.max(...LEVELS.map((r) => r.targetLevel));
+}
+
+/** currentWeaponLevel(0~) → next level (= current + 1) 비용 */
 export function weaponUpgradeCostForNextLevel(currentWeaponLevel: number): WeaponUpgradeCost {
   const cur = Math.max(0, Math.floor(currentWeaponLevel));
   const next = cur + 1;
-  const max = Math.max(0, Math.floor(GAME_RULES.weaponUpgrade.maxLevel));
-  if (next > max) {
-    throw new Error("MAX_WEAPON_LEVEL");
+  const row = byTargetLevel.get(next);
+  if (!row) throw new Error("MAX_WEAPON_LEVEL");
+
+  const materials: Array<{ itemId: string; quantity: number }> = [];
+  if (row.scrollItemId && row.scrollQty > 0) {
+    materials.push({ itemId: row.scrollItemId, quantity: row.scrollQty });
   }
 
-  const g = GAME_RULES.weaponUpgrade.gold;
-  const gold = Math.ceil(g.base * Math.pow(g.growth, next - 1));
+  return {
+    gold: Math.max(0, Math.ceil(row.gold)),
+    materials,
+    successRate: Math.max(0, Math.min(100, row.successRate)),
+  };
+}
 
-  const mats: Array<{ itemId: string; quantity: number }> = [];
-  const stoneQty = Math.max(0, Math.floor(GAME_RULES.weaponUpgrade.materials.stonePerNextLevel * next));
-  if (stoneQty > 0) mats.push({ itemId: "item_stone", quantity: stoneQty });
-
-  const n = Math.max(1, Math.floor(GAME_RULES.weaponUpgrade.materials.oreEveryNLevels));
-  if (next % n === 0) {
-    mats.push({ itemId: "item_ore", quantity: Math.max(1, Math.floor(GAME_RULES.weaponUpgrade.materials.oreQty)) });
-  }
-
-  return { gold, materials: mats };
+export function listWeaponEnhanceLevels(): EnhanceLevelRow[] {
+  return LEVELS.slice();
 }

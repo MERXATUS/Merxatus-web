@@ -39,7 +39,9 @@ export async function POST(req: Request) {
       const inst = await tx.weaponInstance.findUnique({ where: { id: weaponInstanceId }, include: { baseItem: true } });
       if (!inst) throw new Error("WEAPON_INSTANCE_NOT_FOUND");
       if (inst.userId !== auth.userId) throw new Error("WEAPON_NOT_OWNED");
-      if (inst.baseItem.category !== "??") throw new Error("NOT_A_WEAPON");
+      if (inst.baseItem.category !== "무기" && !inst.baseItemId.toLowerCase().startsWith("weapon_")) {
+        throw new Error("NOT_A_WEAPON");
+      }
       if (inst.status !== "OWNED") throw new Error("WEAPON_LOCKED");
       if (!canMinionEquipWeapon(m.jobType, inst.baseItemId)) throw new Error("WEAPON_JOB_MISMATCH");
 

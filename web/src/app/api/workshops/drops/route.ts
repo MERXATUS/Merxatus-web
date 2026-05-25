@@ -3,6 +3,7 @@ import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
 import { GAME_RULES } from "@/server/gameRules";
 import { itemGradeLabel } from "@/server/itemGrade";
+import { itemIconFieldsForItemId } from "@/server/itemCatalog";
 
 export const runtime = "nodejs";
 
@@ -42,7 +43,7 @@ export async function GET(req: Request) {
 
   const tier = Math.max(1, Math.min(5, Math.floor(ws.tier ?? 1)));
   const allDrops = ws.workshopType.drops;
-  const drops =
+  const eligibleDrops =
     ws.workshopType.kind === "GATHER"
       ? allDrops.filter((d) => Math.max(1, Math.min(5, Math.floor(d.minTier ?? 1))) <= tier)
       : allDrops;
@@ -60,30 +61,39 @@ export async function GET(req: Request) {
     return Math.round(base * rareMult);
   };
 
-  const rows = drops.map((d) => {
+  const rows = eligibleDrops.map((d) => {
     const minTier = Math.max(1, Math.min(5, Math.floor(d.minTier ?? 1)));
     return { d, minTier, weightAdj: adjustedWeight(d.weight, minTier) };
   });
   const total = rows.reduce((a, r) => a + r.weightAdj, 0);
+
+  const dropRows = await Promise.all(
+    rows.map(async ({ d, minTier, weightAdj }) => {
+      const iconFields = await itemIconFieldsForItemId(d.itemId);
+      return {
+        itemId: d.itemId,
+        itemName: d.item.name,
+        category: d.item.category,
+        grade: d.item.grade,
+        gradeLabel: itemGradeLabel(d.item.grade),
+        icon: iconFields.icon,
+        iconSrc: iconFields.iconSrc,
+        weight: d.weight,
+        weightAdjusted: weightAdj,
+        chance: total > 0 ? weightAdj / total : 0,
+        minQty: d.minQty,
+        maxQty: d.maxQty,
+        minTier,
+      };
+    }),
+  );
 
   return Response.json({
     ok: true,
     workshopType: { id: ws.workshopType.id, name: ws.workshopType.name, kind: ws.workshopType.kind },
     tier,
     tool: { equippedToolItemId: toolId, active: toolActive, rareWeightMultiplier: rareMult },
-    drops: rows.map(({ d, minTier, weightAdj }) => ({
-      itemId: d.itemId,
-      itemName: d.item.name,
-      category: d.item.category,
-      grade: d.item.grade,
-      gradeLabel: itemGradeLabel(d.item.grade),
-      weight: d.weight,
-      weightAdjusted: weightAdj,
-      chance: total > 0 ? weightAdj / total : 0,
-      minQty: d.minQty,
-      maxQty: d.maxQty,
-      minTier,
-    })),
+    drops: dropRows,
   });
 }
 

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "node .cursor/hooks/regenerate-merxatus-canvas.mjs",
+        "timeout": 20,
+        "failClosed": false
+      }
+    ]
+  }
+}
+

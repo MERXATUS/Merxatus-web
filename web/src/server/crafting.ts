@@ -1,9 +1,11 @@
-import type { MinionJobType, PrismaClient } from "@prisma/client";
+import type { MinionJobType, PrismaClient, SpecialistProfession } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { GAME_RULES } from "@/server/gameRules";
 import type { RolledOption } from "@/server/itemOptions";
 import { rollOptionsForCraft, serializeOptions } from "@/server/itemOptions";
 import { computeWorkshopLabor } from "@/server/workshopLabor";
+import { getUserSpecialistRow } from "@/server/userSpecialistDb";
+import { requiredSpecialistForProcessWorkshop } from "@/shared/specialistProfession";
 
 function processWorkshopTierCraftSpeedMult(tier: unknown): number {
   const t = Math.max(1, Math.min(5, Math.floor(Number(tier) || 1)));
@@ -135,6 +137,7 @@ export async function deliverRecipeCraft(
 
   const craftInstances: Array<{
     itemId: string;
+    itemName: string;
     kind: "weapon" | "tool";
     instanceId: string;
     options: RolledOption[];
@@ -156,7 +159,13 @@ export async function deliverRecipeCraft(
             optionsJson: serializeOptions(options),
           },
         });
-        craftInstances.push({ itemId, kind: "weapon", instanceId: inst.id, options });
+        craftInstances.push({
+          itemId,
+          itemName: meta?.name ?? itemId,
+          kind: "weapon",
+          instanceId: inst.id,
+          options,
+        });
       }
       continue;
     }
@@ -170,7 +179,13 @@ export async function deliverRecipeCraft(
             optionsJson: serializeOptions(options),
           },
         });
-        craftInstances.push({ itemId, kind: "tool", instanceId: inst.id, options });
+        craftInstances.push({
+          itemId,
+          itemName: meta?.name ?? itemId,
+          kind: "tool",
+          instanceId: inst.id,
+          options,
+        });
       }
       continue;
     }
@@ -197,12 +212,17 @@ export async function deliverRecipeCraft(
     workshopName: recipe.workshopType.name,
     quantity: qty,
     produced: Array.from(produced.entries()).map(([itemId, q]) => ({ itemId, qty: q })),
-    producedCards: Array.from(produced.entries()).map(([itemId, q]) => ({
-      itemId,
-      itemName: infoById.get(itemId)?.name ?? itemId,
-      category: infoById.get(itemId)?.category ?? "",
-      qty: q,
-    })),
+    producedCards: Array.from(produced.entries())
+      .filter(([itemId]) => {
+        const cat = infoById.get(itemId)?.category ?? "";
+        return cat !== "무기" && cat !== "도구";
+      })
+      .map(([itemId, q]) => ({
+        itemId,
+        itemName: infoById.get(itemId)?.name ?? itemId,
+        category: infoById.get(itemId)?.category ?? "",
+        qty: q,
+      })),
     craftedInstances: craftInstances,
     rewardGold,
   };
@@ -215,6 +235,9 @@ export async function craftRecipe(input: {
   recipeId: string;
   quantity: number;
 }) {
+  // 납품소(2차 소모처) 시스템 제거: 즉시 제작(consume) API는 더 이상 사용하지 않는다.
+  throw new Error("CONSUME_DISABLED");
+
   const qty = Math.max(1, Math.floor(input.quantity));
 
   return prisma.$transaction(async (tx) => {
@@ -272,9 +295,14 @@ export async function startProcessCraft(input: {
     if (!workshop) throw new Error("WORKSHOP_NOT_FOUND");
     if (workshop.userId !== input.userId) throw new Error("FORBIDDEN");
     if (workshop.workshopType.kind !== "PROCESS") throw new Error("NOT_PROCESS_WORKSHOP");
-    const stationedP = await tx.workshopAssignment.count({ where: { workshopId: workshop.id } });
-    if (Math.max(stationedP, workshop.minionCount) <= 0) throw new Error("NO_MINIONS_ASSIGNED");
     if (workshop.processCraftRecipeId) throw new Error("CRAFT_IN_PROGRESS");
+
+    const userRow = await getUserSpecialistRow(tx, input.userId);
+    if (!userRow) throw new Error("USER_NOT_FOUND");
+    const req = requiredSpecialistForProcessWorkshop(workshop.workshopType.name);
+    if (req == null) throw new Error("PROCESS_WORKSHOP_UNKNOWN");
+    if (!userRow.specialistProfession) throw new Error("SPECIALIST_NOT_CHOSEN");
+    if (userRow.specialistProfession !== req) throw new Error("SPECIALIST_MISMATCH");
 
     const recipe = await tx.recipe.findUnique({
       where: { id: input.recipeId },
@@ -293,12 +321,13 @@ export async function startProcessCraft(input: {
 
     const craftTimeSeconds = Math.max(1, Math.floor(recipe.craftTimeSeconds ?? 60));
     const jobs = await assignmentJobTypesForWorkshop(tx, workshop.id);
-    const labor = computeWorkshopLabor(workshop.workshopType.name, jobs);
-    const speedMult = labor.craftSpeedMult * processWorkshopTierCraftSpeedMult(workshop.tier);
+    const labor = computeWorkshopLabor(workshop.workshopType.name, jobs, {
+      workshopKind: "PROCESS",
+      specialistProfession: userRow.specialistProfession as SpecialistProfession,
+    });
     const started = new Date();
-    const baseMs = craftTimeSeconds * qty * 1000;
-    const durationMs = baseMs / speedMult;
-    const endsAt = new Date(started.getTime() + durationMs);
+    /** 클라이언트 제작 연출 후 즉시 수령 — 서버 대기 시간 없음 */
+    const endsAt = started;
 
     await tx.workshopInstance.update({
       where: { id: workshop.id },
@@ -318,7 +347,7 @@ export async function startProcessCraft(input: {
       workshopName: recipe.workshopType.name,
       quantity: qty,
       craftTimeSeconds,
-      totalCraftTimeSeconds: Math.ceil(durationMs / 1000),
+      totalCraftTimeSeconds: 0,
       laborBonus: {
         matchingCount: labor.matchingCount,
         synergyMult: labor.synergyMult,
@@ -328,10 +357,90 @@ export async function startProcessCraft(input: {
   });
 }
 
+async function completeProcessCraftInTx(
+  tx: CraftTx,
+  input: { userId: string; workshopId: string },
+  options?: { forceReady?: boolean },
+) {
+  const workshop = await tx.workshopInstance.findUnique({
+    where: { id: input.workshopId },
+    include: { workshopType: true },
+  });
+  if (!workshop) throw new Error("WORKSHOP_NOT_FOUND");
+  if (workshop.userId !== input.userId) throw new Error("FORBIDDEN");
+  if (workshop.workshopType.kind !== "PROCESS") throw new Error("NOT_PROCESS_WORKSHOP");
+
+  const rid = workshop.processCraftRecipeId;
+  if (!rid) throw new Error("NO_CRAFT_IN_PROGRESS");
+
+  const recipe = await tx.recipe.findUnique({
+    where: { id: rid },
+    include: { inputs: true, outputs: true, workshopType: true },
+  });
+  if (!recipe) throw new Error("RECIPE_NOT_FOUND");
+
+  const qty = Math.max(1, Math.floor(workshop.processCraftQuantity ?? 1));
+  const started = workshop.processCraftStartedAt;
+  if (!started) throw new Error("NO_CRAFT_IN_PROGRESS");
+
+  const craftSec = Math.max(1, Math.floor(recipe.craftTimeSeconds ?? 60));
+  const endsAtField = workshop.processCraftEndsAt;
+  const readyAtMs = endsAtField
+    ? endsAtField.getTime()
+    : started.getTime() + craftSec * qty * 1000;
+  const now = Date.now();
+  if (!options?.forceReady && now < readyAtMs) {
+    throw new Error(`CRAFT_NOT_READY:${readyAtMs - now}`);
+  }
+
+  const outMult =
+    workshop.processCraftOutputMult != null && Number.isFinite(workshop.processCraftOutputMult)
+      ? workshop.processCraftOutputMult
+      : 1;
+
+  const result = await deliverRecipeCraft(tx, {
+    userId: input.userId,
+    recipe,
+    quantity: qty,
+    outputMult: outMult,
+  });
+
+  await tx.workshopInstance.update({
+    where: { id: workshop.id },
+    data: {
+      processCraftRecipeId: null,
+      processCraftStartedAt: null,
+      processCraftEndsAt: null,
+      processCraftOutputMult: null,
+      processCraftQuantity: 0,
+    },
+  });
+
+  return { ...result, mode: "PROCESS_COMPLETE" as const };
+}
+
 /** 가공(PROCESS): 제작 시간 경과 후 산출 */
-export async function completeProcessCraft(input: { userId: string; workshopId: string }) {
+export async function completeProcessCraft(input: {
+  userId: string;
+  workshopId: string;
+  forceReady?: boolean;
+}) {
+  return prisma.$transaction(async (tx) =>
+    completeProcessCraftInTx(tx, input, { forceReady: input.forceReady }),
+  );
+}
+
+/** 가공(PROCESS): 연출 후 즉시 제작·지급 (중간 대기 상태 없음) */
+export async function runProcessCraft(input: {
+  userId: string;
+  workshopId: string;
+  recipeId: string;
+  quantity: number;
+}) {
+  const qty = Math.max(1, Math.floor(input.quantity));
+
   return prisma.$transaction(async (tx) => {
-    const workshop = await tx.workshopInstance.findUnique({
+    let workshop = await tx.workshopInstance.findUnique({
       where: { id: input.workshopId },
       include: { workshopType: true },
     });
@@ -339,52 +448,45 @@ export async function completeProcessCraft(input: { userId: string; workshopId: 
     if (workshop.userId !== input.userId) throw new Error("FORBIDDEN");
     if (workshop.workshopType.kind !== "PROCESS") throw new Error("NOT_PROCESS_WORKSHOP");
 
-    const rid = workshop.processCraftRecipeId;
-    if (!rid) throw new Error("NO_CRAFT_IN_PROGRESS");
+    if (workshop.processCraftRecipeId) {
+      throw new Error("CRAFT_IN_PROGRESS");
+    }
+
+    const userRow = await getUserSpecialistRow(tx, input.userId);
+    if (!userRow) throw new Error("USER_NOT_FOUND");
+    const req = requiredSpecialistForProcessWorkshop(workshop.workshopType.name);
+    if (req == null) throw new Error("PROCESS_WORKSHOP_UNKNOWN");
+    if (!userRow.specialistProfession) throw new Error("SPECIALIST_NOT_CHOSEN");
+    if (userRow.specialistProfession !== req) throw new Error("SPECIALIST_MISMATCH");
 
     const recipe = await tx.recipe.findUnique({
-      where: { id: rid },
+      where: { id: input.recipeId },
       include: { inputs: true, outputs: true, workshopType: true },
     });
     if (!recipe) throw new Error("RECIPE_NOT_FOUND");
+    if (recipe.workshopTypeId !== workshop.workshopTypeId) throw new Error("RECIPE_WORKSHOP_MISMATCH");
+    if (recipe.workshopType.kind !== "PROCESS") throw new Error("RECIPE_WORKSHOP_KIND_MISMATCH");
 
-    const qty = Math.max(1, Math.floor(workshop.processCraftQuantity ?? 1));
-    const started = workshop.processCraftStartedAt;
-    if (!started) throw new Error("NO_CRAFT_IN_PROGRESS");
+    const needTier = Math.max(1, Math.min(5, Math.floor(recipe.minTier ?? 1)));
+    const haveTier = Math.max(1, Math.min(5, Math.floor(workshop.tier ?? 1)));
+    if (haveTier < needTier) throw new Error("RECIPE_TIER_TOO_LOW");
 
-    const craftSec = Math.max(1, Math.floor(recipe.craftTimeSeconds ?? 60));
-    const endsAtField = workshop.processCraftEndsAt;
-    const readyAtMs = endsAtField
-      ? endsAtField.getTime()
-      : started.getTime() + craftSec * qty * 1000;
-    const now = Date.now();
-    if (now < readyAtMs) {
-      throw new Error(`CRAFT_NOT_READY:${readyAtMs - now}`);
-    }
+    await assertInputsAvailable(tx, input.userId, recipe, qty);
+    await consumeInputs(tx, input.userId, recipe, qty);
 
-    const outMult =
-      workshop.processCraftOutputMult != null && Number.isFinite(workshop.processCraftOutputMult)
-        ? workshop.processCraftOutputMult
-        : 1;
+    const jobs = await assignmentJobTypesForWorkshop(tx, workshop.id);
+    const labor = computeWorkshopLabor(workshop.workshopType.name, jobs, {
+      workshopKind: "PROCESS",
+      specialistProfession: userRow.specialistProfession as SpecialistProfession,
+    });
 
     const result = await deliverRecipeCraft(tx, {
       userId: input.userId,
       recipe,
       quantity: qty,
-      outputMult: outMult,
+      outputMult: labor.consumeOutputMult,
     });
 
-    await tx.workshopInstance.update({
-      where: { id: workshop.id },
-      data: {
-        processCraftRecipeId: null,
-        processCraftStartedAt: null,
-        processCraftEndsAt: null,
-        processCraftOutputMult: null,
-        processCraftQuantity: 0,
-      },
-    });
-
-    return { ...result, mode: "PROCESS_COMPLETE" as const };
+    return { ...result, mode: "PROCESS_RUN" as const };
   });
 }

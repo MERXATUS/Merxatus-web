@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { GamePanelError } from "@/app/_components/panelFeedback";
 
 type PnlPoint = { day: string; delta: number; cumulative: number };
 type PnlResp = {
@@ -114,11 +115,7 @@ export function WealthTrendPanel() {
         </div>
       </div>
 
-      {error ? (
-        <pre className="mt-4 overflow-auto rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-900">
-          {JSON.stringify(error, null, 2)}
-        </pre>
-      ) : null}
+      {error ? <GamePanelError error={error} className="mt-4" /> : null}
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">

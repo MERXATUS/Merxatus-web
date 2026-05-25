@@ -1,0 +1,3 @@
+Id,Name,Mode,BaseWaveSeconds,MaxFloors,MaxParty
+Dungeon_Slime_Forest,슬라임의 숲,PUSH_LUCK,8,10,1
+Dungeon_Goblin_Den,고블린 굴,PUSH_LUCK,8,16,1

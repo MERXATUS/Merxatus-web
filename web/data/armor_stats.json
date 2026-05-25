@@ -1,0 +1,130 @@
+{
+  "armor_leather_helmet": {
+    "name": "가죽 투구",
+    "slot": "Helmet",
+    "grade": 1,
+    "hp": 5,
+    "def": 0,
+    "icon": "Icon_Leather_Helmet"
+  },
+  "armor_crimson_helmet": {
+    "name": "적빛 투구",
+    "slot": "Helmet",
+    "grade": 2,
+    "hp": 10,
+    "def": 0,
+    "icon": "Icon_Crimson_Helmet"
+  },
+  "armor_iron_helmet": {
+    "name": "철 투구",
+    "slot": "Helmet",
+    "grade": 3,
+    "hp": 20,
+    "def": 5,
+    "icon": "Icon_Iron_Helmet"
+  },
+  "armor_golden_helmet": {
+    "name": "금 투구",
+    "slot": "Helmet",
+    "grade": 3,
+    "hp": 25,
+    "def": 10,
+    "icon": "Icon_Golden_Helmet"
+  },
+  "armor_leather_armor": {
+    "name": "가죽 갑옷",
+    "slot": "Armor",
+    "grade": 1,
+    "hp": 5,
+    "def": 0,
+    "icon": "Icon_Leather_Armor"
+  },
+  "armor_crimson_armor": {
+    "name": "적빛 갑옷",
+    "slot": "Armor",
+    "grade": 2,
+    "hp": 10,
+    "def": 0,
+    "icon": "Icon_Crimson_Armor"
+  },
+  "armor_iron_armor": {
+    "name": "철 갑옷",
+    "slot": "Armor",
+    "grade": 3,
+    "hp": 20,
+    "def": 5,
+    "icon": "Icon_Iron_Armor"
+  },
+  "armor_golden_armor": {
+    "name": "금 갑옷",
+    "slot": "Armor",
+    "grade": 3,
+    "hp": 25,
+    "def": 10,
+    "icon": "Icon_Golden_Armor"
+  },
+  "armor_leather_pants": {
+    "name": "가죽 바지",
+    "slot": "Pants",
+    "grade": 1,
+    "hp": 5,
+    "def": 0,
+    "icon": "Icon_Leather_Pants"
+  },
+  "armor_crimson_pants": {
+    "name": "적빛 바지",
+    "slot": "Pants",
+    "grade": 2,
+    "hp": 10,
+    "def": 0,
+    "icon": "Icon_Crimson_Pants"
+  },
+  "armor_iron_pants": {
+    "name": "철 바지",
+    "slot": "Pants",
+    "grade": 3,
+    "hp": 20,
+    "def": 5,
+    "icon": "Icon_Iron_Pants"
+  },
+  "armor_golden_pants": {
+    "name": "금 바지",
+    "slot": "Pants",
+    "grade": 3,
+    "hp": 25,
+    "def": 10,
+    "icon": "Icon_Golden_Pants"
+  },
+  "armor_leather_boots": {
+    "name": "가죽 신발",
+    "slot": "Boots",
+    "grade": 1,
+    "hp": 5,
+    "def": 0,
+    "icon": "Icon_Leather_Boots"
+  },
+  "armor_crimson_boots": {
+    "name": "적빛 신발",
+    "slot": "Boots",
+    "grade": 2,
+    "hp": 10,
+    "def": 0,
+    "icon": "Icon_Crimson_Boots"
+  },
+  "armor_iron_boots": {
+    "name": "철 신발",
+    "slot": "Boots",
+    "grade": 3,
+    "hp": 20,
+    "def": 5,
+    "icon": "Icon_Iron_Boots"
+  },
+  "armor_golden_boots": {
+    "name": "금 신발",
+    "slot": "Boots",
+    "grade": 3,
+    "hp": 25,
+    "def": 10,
+    "icon": "Icon_Golden_Boots"
+  }
+}

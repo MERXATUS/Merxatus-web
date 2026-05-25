@@ -21,6 +21,14 @@ const T5 = rarityReferenceGoldForGrade(5); // 94
 
 /** items.json 전체 + 폴백에 쓰는 기준가 */
 const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
+  // --- 광산·제련 재료 (Merxatus) ---
+  item_dark_iron_ore: T2,
+  item_red_gold_ore: T3,
+  item_gold_ore: T4,
+  item_dark_iron: 20,
+  item_red_gold: 38,
+  item_gold: 65,
+
   // --- 광산 (돌 앵커, 광석은 동티어에서 약간 프리미엄) ---
   item_stone: T1,
   item_ore: 12,
@@ -31,19 +39,6 @@ const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
   item_magic_stone_high: T4,
   item_ethernium: T5,
   item_magic_stone_top: T5,
-
-  // --- 낚시 ---
-  item_fish: T1,
-  item_jellyfish: T1,
-  item_shell: T1,
-  item_shark: T2,
-  item_mystery_box: T2,
-  item_whale: T3,
-  item_one_eye_fish: T3,
-  item_abyss_fish: T4,
-  item_treasure_box: T4,
-  item_tamoe: T5,
-  item_mermaid: T5,
 
   // --- 산(약초) ---
   item_weed: T1,
@@ -69,7 +64,6 @@ const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
   item_wood: T1,
   item_mushroom: T1,
   item_iron: 25,
-  item_gold: T3,
   item_diamond: T4,
   item_magic_stone: T3,
   item_goblin_bag: T4,
@@ -101,7 +95,6 @@ const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
   // --- 도구 ---
   item_pickaxe: 75,
   item_sickle: 75,
-  item_fishing_rod: 75,
   item_pickaxe_t1: 95,
   item_pickaxe_t2: 190,
   item_pickaxe_t3: 420,
@@ -115,12 +108,6 @@ const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
   item_sickle_t4: 880,
   item_sickle_t5: 1650,
   item_sickle_harvest: 2000,
-
-  item_rod_t1: 95,
-  item_rod_t2: 190,
-  item_rod_t3: 420,
-  item_rod_t4: 880,
-  item_rod_t5: 1650,
 
   // --- 기타 ---
   item_accessory: 55,

@@ -1,0 +1,16 @@
+Target_LV,Gold_Cost,Scroll_Item_Id,Scroll_Qty,SuccessRate
+1,150,None,0,100
+2,195,None,0,100
+3,253.5,None,0,100
+4,329.55,None,0,100
+5,428.415,None,0,100
+6,642.6225,Item_Enhance_Scroll_Low,1,100
+7,963.93375,Item_Enhance_Scroll_Low,1,100
+8,1445.900625,Item_Enhance_Scroll_Low,1,100
+9,2168.850938,Item_Enhance_Scroll_Low,2,100
+10,3253.276406,Item_Enhance_Scroll_Low,2,100
+11,6506.552813,Item_Enhance_Scroll_Mid,1,100
+12,13013.10563,Item_Enhance_Scroll_Mid,1,100
+13,26026.21125,Item_Enhance_Scroll_Mid,2,100
+14,52052.4225,Item_Enhance_Scroll_Mid,2,100
+15,104104.845,Item_Enhance_Scroll_Mid,3,100

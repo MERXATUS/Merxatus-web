@@ -1,0 +1,10 @@
+ItemID,Buy_Price,Sell_Price
+Item_Stone,3,1
+Item_Red_Gold_Ore,30,10
+Item_Gold_Ore,300,100
+Item_Red_Gold,165,55
+Item_Gold,1650,550
+Item_Fish,6,2
+Item_Second_Fish,30,10
+Item_White_Fish,300,100
+Item_Paper,9,3

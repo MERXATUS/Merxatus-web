@@ -3,7 +3,7 @@ import { findBotUsersOrdered } from "@/server/botRuntimeConfig";
 import { GAME_RULES } from "@/server/gameRules";
 import { kstDayKey } from "@/server/kst";
 import { referenceUnitPrice } from "@/server/marketStats";
-import { buyFixedListingPartial, createListing } from "@/server/market";
+import { buyFixedListingPartial, createListing, activeListingVisibilityWhere, expireStaleActiveListings } from "@/server/market";
 
 function randInt(min: number, max: number) {
   const lo = Math.ceil(min);
@@ -80,6 +80,18 @@ export async function runMarketBotsTick() {
 
   const actions: string[] = [];
 
+  try {
+    const sweep = await expireStaleActiveListings({ limit: 100 });
+    if (sweep.expired > 0) {
+      actions.push(`EXPIRE swept=${sweep.expired}/${sweep.scanned}`);
+    }
+    if (sweep.errors.length > 0) {
+      actions.push(`EXPIRE_ERR ${sweep.errors.slice(0, 3).join("; ")}`);
+    }
+  } catch (e) {
+    actions.push(`EXPIRE_LOOP_ERR err=${String(e)}`);
+  }
+
   for (const bot of shuffleInPlace([...botUsers])) {
     await syncBotBudgetRow(bot.id, dayKey);
 
@@ -90,6 +102,7 @@ export async function runMarketBotsTick() {
           status: "ACTIVE",
           saleType: "FIXED",
           sellerId: { not: bot.id },
+          AND: [activeListingVisibilityWhere()],
         },
         include: { item: true },
         orderBy: { createdAt: "desc" },

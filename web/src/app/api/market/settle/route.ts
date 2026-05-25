@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/server/db";
-import { settleAuctionListing } from "@/server/market";
+import { settleListing } from "@/server/market";
 import { requireUserId } from "@/server/auth";
 
 export const runtime = "nodejs";
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     if (listing.sellerId !== auth.userId)
       return Response.json({ ok: false, error: "FORBIDDEN" }, { status: 403 });
 
-    const result = await settleAuctionListing(parsed.data);
+    const result = await settleListing(parsed.data);
     return Response.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";

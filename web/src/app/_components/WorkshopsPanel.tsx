@@ -1,15 +1,53 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CraftMotionOverlay } from "@/app/_components/CraftMotionOverlay";
+import { CraftReveal, type CraftRevealCard } from "@/app/_components/CraftReveal";
+import { useEscapeClose } from "@/shared/useEscapeClose";
 import { GAME_RULES } from "@/server/gameRules";
-import { itemGradeNameClassName, minionLetterGradeBadgeClassName } from "@/server/itemGrade";
+import { itemGradeNameClassName } from "@/server/itemGrade";
+import { ItemIcon } from "@/app/_components/ItemIcon";
+import { GameBtn, GamePanel } from "@/app/_components/gameUi";
+import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
+import {
+  playerMatchesProcessWorkshop,
+  processWorkshopNamesForProfession,
+  type SpecialistProfessionSlug,
+} from "@/shared/specialistProfession";
+import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
+import { useSessionUser } from "@/app/_components/SessionProvider";
+import { GATHER_TUTORIAL_WORKSHOPS } from "@/shared/tutorial";
+import { isUnauthorizedError } from "@/shared/sessionClient";
+
+export type WorkshopsPanelVariant = "gather" | "specialist";
+
+const GATHER_ACTIVITY_NAMES = ["광산", "낚시터", "탐험", "고고학"] as const;
+
+const GATHER_MINION_JOB_LABEL: Record<string, string> = {
+  MINER: "광부",
+  FISHER: "낚시꾼",
+  EXPLORER: "탐험가",
+  ARCHAEOLOGIST: "고고학자",
+};
+
+function workshopsForPanelVariant(
+  list: Workshop[],
+  variant: WorkshopsPanelVariant,
+  specialistProfession: string | null,
+): Workshop[] {
+  if (variant === "gather") return list.filter((w) => (w.kind ?? "GATHER") === "GATHER");
+  if (!specialistProfession) return [];
+  return list.filter(
+    (w) => w.kind === "PROCESS" && playerMatchesProcessWorkshop(w.name, specialistProfession),
+  );
+}
 
 type Workshop = {
   id: string;
   /** 부지 슬롯 0~2 */
   plotSlot?: number | null;
   name: string;
-  kind?: "GATHER" | "PROCESS" | "CONSUME";
+  kind?: "GATHER" | "PROCESS";
   workshopTypeId?: string;
   tier?: number;
   minionCount: number;
@@ -31,6 +69,8 @@ type DropRow = {
   category: string;
   grade?: number;
   gradeLabel?: string;
+  icon?: string | null;
+  iconSrc?: string;
   weight: number;
   weightAdjusted?: number;
   chance: number; // 0..1
@@ -42,7 +82,6 @@ type DropRow = {
 type Recipe = {
   id: string;
   name: string;
-  rewardGold?: number;
   /** 시설 티어(1~5) 이상일 때만 제작·제출 가능 */
   minTier?: number;
   /** 가공: 1회당 제작 시간(초) */
@@ -51,58 +90,24 @@ type Recipe = {
   outputs: Array<{ itemId: string; weight: number | null; minQty: number; maxQty: number }>;
 };
 
+function recipeMinTier(r: Recipe): number {
+  return Math.max(1, Math.min(5, Math.floor(r.minTier ?? 1)));
+}
+
+/** 전문 작업장: 현재 시설 티어에서 제작 가능한 레시피만 */
+function recipesForWorkshopTier(recipes: Recipe[], workshopTier: number): Recipe[] {
+  const tier = Math.max(1, Math.min(5, Math.floor(workshopTier)));
+  return recipes.filter((r) => recipeMinTier(r) <= tier);
+}
+
 type MinionRow = {
   id: string;
   jobType: string;
   level: number;
-  /** D C B A S */
-  grade?: string;
+  combatStats?: { combatPower: number };
   equippedWeapon?: { id: string; baseItemId: string; name: string; enhanceLevel: number } | null;
   assignedWorkshop?: { workshopId: string; workshopName: string; workshopKind: string } | null;
 };
-
-function formatPanelError(e: unknown): string {
-  if (e == null) return "알 수 없는 오류";
-  if (typeof e === "string") return e;
-  if (e instanceof Error) return e.message;
-  if (typeof e === "object") {
-    const o = e as Record<string, unknown>;
-    if (typeof o.error === "string" && o.error.length > 0) {
-      const code = o.error;
-      if (code === "PLOT_LOCKED") return "이 칸은 아직 열리지 않았어요. 먼저 골드로 부지를 해제하세요.";
-      if (code === "BAD_REQUEST") return "요청 형식이 잘못됐어요. 새로고침 후 다시 시도해 주세요.";
-      if (code === "USER_NOT_FOUND") return "유저를 찾을 수 없어요. 로그인을 확인해 주세요.";
-      if (code === "WORKSHOP_TYPE_NOT_FOUND") return "시설 종류를 찾을 수 없어요.";
-      if (code === "SLOT_OCCUPIED") return "이 칸에 이미 시설이 있어요.";
-      if (code === "PLOT_FULL") return "부지에 더 이상 시설을 둘 수 없어요.";
-      if (code === "TRANSACTION_FAILED") return "처리 중 오류가 났어요. DB 반영(npx prisma db push) 후 다시 시도해 보세요.";
-      if (code === "TIER_UPGRADE_NOT_ALLOWED") return "이 시설 종류는 티어 업그레이드를 할 수 없어요.";
-      if (code === "INSUFFICIENT_GOLD") return "골드가 부족해요.";
-      if (code === "ALREADY_MAX_TIER") return "이미 최대 티어예요.";
-      if (code === "WORKSHOP_NOT_FOUND") return "시설을 찾을 수 없어요.";
-      if (code === "FORBIDDEN") return "이 시설을 수정할 권한이 없어요.";
-      if (code === "UPGRADE_COST_MISSING") return "티어 업그레이드 비용 설정이 없어요.";
-      if (code === "RECIPE_TIER_TOO_LOW") return "시설 티어가 부족해요. 티어 업그레이드 후 다시 시도해 주세요.";
-      return code;
-    }
-    if (typeof o.message === "string" && o.message.length > 0) return o.message;
-    if (typeof o.status === "number") {
-      const st = o.status;
-      if (st === 401) return "로그인이 필요해요.";
-      if (st === 403) return "이 작업은 할 수 없어요.";
-      if (st === 404) return "데이터를 찾을 수 없어요.";
-      if (st >= 500) return `서버 오류(${st}). 잠시 후 다시 시도하거나 DB 마이그레이션을 확인해 주세요.`;
-      return `요청 실패(HTTP ${st})`;
-    }
-    try {
-      const s = JSON.stringify(e);
-      if (s !== "{}") return s;
-    } catch {
-      /* ignore */
-    }
-  }
-  return "요청 실패(응답을 읽을 수 없음). 서버 오류이거나 DB 스키마 반영(npx prisma db push)이 필요할 수 있어요.";
-}
 
 async function parseJsonResponse<T>(res: Response): Promise<{ data: T; text: string }> {
   const text = await res.text();
@@ -157,35 +162,34 @@ function formatDuration(seconds: number) {
   return `${mm}:${ss}`;
 }
 
-function getUserIdFromStorage() {
-  try {
-    return localStorage.getItem("dev_userId") ?? "";
-  } catch {
-    return "";
-  }
-}
-
-export function WorkshopsPanel() {
-  const [userId, setUserId] = useState("");
+export function WorkshopsPanel({ variant = "gather" }: { variant?: WorkshopsPanelVariant }) {
+  const { user, loading: sessionLoading } = useSessionUser();
   const [tickSeconds, setTickSeconds] = useState(60);
-  const [plotMaxSlots, setPlotMaxSlots] = useState<number>(GAME_RULES.plot.maxSlots);
-  const [plotSlotsUnlocked, setPlotSlotsUnlocked] = useState(1);
-  const [nextUnlockGold, setNextUnlockGold] = useState<number | null>(GAME_RULES.plot.unlockGoldAfterSlotCount[0] ?? null);
   const [workshopTypes, setWorkshopTypes] = useState<WorkshopTypeOption[]>([]);
-  const [plotInstallSlot, setPlotInstallSlot] = useState<number | null>(null);
-  const [plotInstallTypeId, setPlotInstallTypeId] = useState("");
-  const [plotBusy, setPlotBusy] = useState(false);
+  const [workshopActionBusy, setWorkshopActionBusy] = useState(false);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
   const [wallet, setWallet] = useState<{ goldAvailable: number; goldLocked: number } | null>(null);
   const [inventory, setInventory] = useState<Array<{ itemId: string; name: string; quantity: number }>>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<any>(null);
-  const [tab, setTab] = useState<"GATHER" | "CRAFT">("GATHER");
   const [selectedWorkshopId, setSelectedWorkshopId] = useState<string>("");
-  const [lastCollectById, setLastCollectById] = useState<Record<string, any>>({});
+  /** 수령 직후 버튼 위에 잠깐 보여 줄 카드 (GATHER 전용) */
+  const [gatherCollectToast, setGatherCollectToast] = useState<{
+    cards: Array<{ itemId: string; itemName?: string; category?: string; qty: number }>;
+    key: number;
+  } | null>(null);
+  const gatherCollectToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [tutorialGrantMsg, setTutorialGrantMsg] = useState<string | null>(null);
+  const tutorialGrantTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [dropsByKey, setDropsByKey] = useState<Record<string, DropRow[]>>({});
   const [recipesByTypeId, setRecipesByTypeId] = useState<Record<string, Recipe[]>>({});
-  const [minions, setMinions] = useState<{ owned: number; assigned: number; free: number; nextPrice: number } | null>(
+  const [minions, setMinions] = useState<{
+    owned: number;
+    assigned: number;
+    free: number;
+    nextPrice: number;
+    maxGatherOwned?: number;
+  } | null>(
     null,
   );
 
@@ -195,50 +199,49 @@ export function WorkshopsPanel() {
   const [assignedMinionIds, setAssignedMinionIds] = useState<Set<string>>(new Set());
   const [checkedMinionIds, setCheckedMinionIds] = useState<Set<string>>(new Set());
   const [assignPreferredJobs, setAssignPreferredJobs] = useState<string[]>([]);
+  const [specialistUnlocked, setSpecialistUnlocked] = useState(false);
+  const [specialistProfession, setSpecialistProfession] = useState<string | null>(null);
+  const [craftMotion, setCraftMotion] = useState<{
+    workshopId: string;
+    recipeId: string;
+    recipeName: string;
+    quantity: number;
+  } | null>(null);
+  const pendingCraftRef = useRef<typeof craftMotion>(null);
+  const craftRunInFlightRef = useRef(false);
+  const [craftReveal, setCraftReveal] = useState<{
+    recipeName: string;
+    cards: CraftRevealCard[];
+  } | null>(null);
 
   const nowMsRef = useRef(Date.now());
   const [clockTick, setClockTick] = useState(0);
 
   useEffect(() => {
-    setUserId(getUserIdFromStorage());
-    function onChanged() {
-      setUserId(getUserIdFromStorage());
-    }
-    window.addEventListener("dev_user_changed", onChanged);
-    window.addEventListener("storage", onChanged);
-    void getJson<{ ok: true; user: { id: string } | null }>("/api/auth/me")
-      .then((r) => {
-        if (r?.user?.id) {
-          try {
-            localStorage.setItem("dev_userId", r.user.id);
-          } catch {
-            /* ignore */
-          }
-          setUserId(r.user.id);
-          window.dispatchEvent(new Event("dev_user_changed"));
-        }
-      })
-      .catch(() => {
-        /* 미로그인 */
-      });
     return () => {
-      window.removeEventListener("dev_user_changed", onChanged);
-      window.removeEventListener("storage", onChanged);
+      if (gatherCollectToastTimerRef.current) clearTimeout(gatherCollectToastTimerRef.current);
     };
   }, []);
 
   useEffect(() => {
-    if (!userId) {
+    setGatherCollectToast(null);
+    if (gatherCollectToastTimerRef.current) {
+      clearTimeout(gatherCollectToastTimerRef.current);
+      gatherCollectToastTimerRef.current = null;
+    }
+  }, [selectedWorkshopId]);
+
+  useEffect(() => {
+    if (!user) {
       setWorkshopTypes([]);
       return;
     }
-    const qs = new URLSearchParams({ userId });
-    void getJson<{ ok: boolean; types: WorkshopTypeOption[] }>(`/api/workshops/types?${qs.toString()}`)
+    void getJson<{ ok: boolean; types: WorkshopTypeOption[] }>("/api/workshops/types")
       .then((r) => {
         if (r?.ok && Array.isArray(r.types)) setWorkshopTypes(r.types);
       })
       .catch(() => setWorkshopTypes([]));
-  }, [userId]);
+  }, [user?.id]);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -250,6 +253,17 @@ export function WorkshopsPanel() {
 
   async function refresh(options?: { silent?: boolean }) {
     const silent = options?.silent === true;
+    if (!user) {
+      if (!silent) {
+        setBusy(null);
+        setWorkshops([]);
+        setMinions(null);
+        setWallet(null);
+        setInventory([]);
+        setError(null);
+      }
+      return;
+    }
     if (!silent) setBusy("refresh");
     if (!silent) setError(null);
     try {
@@ -257,71 +271,111 @@ export function WorkshopsPanel() {
         getJson<{
           ok: boolean;
           tickSeconds: number;
-          plotMaxSlots?: number;
-          plotSlotsUnlocked?: number;
-          nextUnlockGold?: number | null;
+          workshopMaxCount?: number;
           workshops: Workshop[];
-        }>(userId ? `/api/workshops/list?userId=${encodeURIComponent(userId)}` : `/api/workshops/list`),
-        getJson<{ ok: boolean; owned: number; assigned: number; free: number; nextPrice: number }>(
-          `/api/minions/state`,
-        ),
+        }>("/api/workshops/list"),
+        getJson<{
+          ok: boolean;
+          owned: number;
+          assigned: number;
+          free: number;
+          nextPrice: number;
+          maxGatherOwned?: number;
+        }>(`/api/minions/state`),
         getJson<{
           ok: boolean;
           wallet: { goldAvailable: number; goldLocked: number };
           inventory?: Array<{ itemId: string; name: string; quantity: number }>;
+          specialistUnlocked?: boolean;
+          specialistProfession?: string | null;
         }>(`/api/me/state`),
       ]);
       setTickSeconds(r.tickSeconds ?? 60);
-      setPlotMaxSlots(
-        typeof r.plotMaxSlots === "number" && Number.isFinite(r.plotMaxSlots)
-          ? Math.max(1, Math.floor(r.plotMaxSlots))
-          : GAME_RULES.plot.maxSlots,
-      );
-      if (typeof r.plotSlotsUnlocked === "number" && Number.isFinite(r.plotSlotsUnlocked)) {
-        setPlotSlotsUnlocked(
-          Math.max(1, Math.min(GAME_RULES.plot.maxSlots, Math.floor(r.plotSlotsUnlocked))),
-        );
-      }
-      if ("nextUnlockGold" in r) {
-        setNextUnlockGold(
-          r.nextUnlockGold == null || typeof r.nextUnlockGold === "number"
-            ? (r.nextUnlockGold ?? null)
-            : null,
-        );
-      }
       setWorkshops(r.workshops ?? []);
-      if (m?.ok) setMinions({ owned: m.owned, assigned: m.assigned, free: m.free, nextPrice: m.nextPrice });
+      if (m?.ok)
+        setMinions({
+          owned: m.owned,
+          assigned: m.assigned,
+          free: m.free,
+          nextPrice: m.nextPrice,
+          maxGatherOwned: m.maxGatherOwned ?? 10,
+        });
       if ((me as any)?.ok) setWallet({ goldAvailable: me.wallet?.goldAvailable ?? 0, goldLocked: me.wallet?.goldLocked ?? 0 });
       if ((me as any)?.ok) setInventory((me as any).inventory ?? []);
-      {
-        const list = (r.workshops ?? []) as Workshop[];
-        const first =
-          list.find((w) => w.kind === "GATHER")?.id ??
-          list.find((w) => w.kind === "PROCESS")?.id ??
-          list.find((w) => w.kind === "CONSUME")?.id ??
-          list[0]?.id ??
-          "";
-
-        // auto-refresh 중 선택이 "첫 마을(대개 광산)"으로 되돌아가는 레이스를 방지.
-        // - 기존 선택이 있으면 유지
-        // - 기존 선택이 목록에서 사라졌으면 첫 항목으로 보정
-        if (first) {
-          setSelectedWorkshopId((prev) => {
-            if (!prev) return first;
-            const exists = list.some((w) => w.id === prev);
-            return exists ? prev : first;
-          });
-        }
+      if ((me as any)?.ok) {
+        setSpecialistUnlocked(Boolean((me as any).specialistUnlocked));
+        setSpecialistProfession(
+          (me as any).specialistProfession != null ? String((me as any).specialistProfession) : null,
+        );
       }
     } catch (e) {
-      if (!silent) setError(e);
+      if (!silent && !isUnauthorizedError(e)) setError(e);
     } finally {
       if (!silent) setBusy(null);
     }
   }
 
+  function startCraftMotion(payload: {
+    workshopId: string;
+    recipeId: string;
+    recipeName: string;
+    quantity: number;
+  }) {
+    pendingCraftRef.current = payload;
+    setCraftMotion(payload);
+    setError(null);
+  }
+
+  const onCraftMotionComplete = useCallback(async () => {
+    if (craftRunInFlightRef.current) return;
+    const m = pendingCraftRef.current;
+    if (!m) return;
+    craftRunInFlightRef.current = true;
+    pendingCraftRef.current = null;
+    setCraftMotion(null);
+    setBusy(`craft-${m.quantity}`);
+    setError(null);
+    try {
+      const done = await postJson(`/api/workshops/craft/run`, {
+        workshopId: m.workshopId,
+        recipeId: m.recipeId,
+        quantity: m.quantity,
+      });
+      const cards = craftRewardCardsFromPayload(done);
+      setWorkshops((prev) =>
+        prev.map((w) =>
+          w.id === m.workshopId
+            ? {
+                ...w,
+                processCraftRecipeId: null,
+                processCraftEndsAt: null,
+                processCraftQuantity: 0,
+              }
+            : w,
+        ),
+      );
+      if (cards.length > 0) {
+        setCraftReveal({ recipeName: m.recipeName, cards });
+      }
+      window.dispatchEvent(new Event("auth_session_changed"));
+      await refresh({ silent: true });
+    } catch (e) {
+      setError(e);
+    } finally {
+      craftRunInFlightRef.current = false;
+      setBusy(null);
+    }
+  }, []);
+
   async function openAssignModal() {
     if (!selected) return;
+    if ((selected.kind ?? "GATHER") === "PROCESS") {
+      setError({
+        ok: false,
+        error: "가공 시설에는 미니언을 배치하지 않아. 수집 시설만 미니언을 두고, 가공은 플레이어 전문 직업으로 진행해.",
+      });
+      return;
+    }
     setAssignOpen(true);
     setAssignBusy(true);
     setError(null);
@@ -359,14 +413,67 @@ export function WorkshopsPanel() {
       setAssignOpen(false);
       return;
     }
+
+    const isGatherWs = (selected.kind ?? "GATHER") === "GATHER";
+    const allowed = new Set(assignPreferredJobs);
+    if (isGatherWs && allowed.size > 0) {
+      const bad = assignIds.filter((id) => {
+        const m = allMinions.find((x) => x.id === id);
+        return m && !allowed.has(m.jobType);
+      });
+      if (bad.length > 0) {
+        const labels = assignPreferredJobs.map((j) => GATHER_MINION_JOB_LABEL[j] ?? j).join(", ");
+        setError({
+          ok: false,
+          error: `MINION_JOB_NOT_ALLOWED_FOR_WORKSHOP:${selected.name}:${labels}`,
+        });
+        return;
+      }
+    }
+
+    if (isGatherWs && (assignIds.length > 0 || unassignIds.length > 0)) {
+      const m = workshopMetrics(selected);
+      let msg: string | null = null;
+      if (unassignIds.length > 0) {
+        msg =
+          "미니언을 제거하면 누적 틱이 초기화됩니다." +
+          (m.wholeTicks > 0 ? `\n\n현재 누적 틱 ${m.wholeTicks}이 사라집니다.` : "") +
+          "\n\n정말 초기화하시겠습니까?";
+      } else if (assignIds.length > 0 && (prev.size > 0 || m.wholeTicks > 0)) {
+        msg =
+          "미니언을 추가·변경하면 누적 틱이 초기화됩니다." +
+          (m.wholeTicks > 0 ? `\n\n현재 누적 틱 ${m.wholeTicks}이 0으로 돌아갑니다.` : "") +
+          "\n\n계속하시겠습니까?";
+      }
+      if (msg && !window.confirm(msg)) return;
+    }
+
     setAssignBusy(true);
     setError(null);
     try {
-      await postJson("/api/workshops/minions", {
+      const r = await postJson<{
+        ok: boolean;
+        minionCount?: number;
+        ticksReset?: boolean;
+        lastCollectedAt?: string;
+      }>("/api/workshops/minions", {
         workshopId: selected.id,
         assignMinionIds: assignIds,
         unassignMinionIds: unassignIds,
       });
+      if (r?.ticksReset && r.lastCollectedAt) {
+        setWorkshops((list) =>
+          list.map((w) =>
+            w.id === selected.id
+              ? {
+                  ...w,
+                  lastCollectedAt: r.lastCollectedAt!,
+                  ...(typeof r.minionCount === "number" ? { minionCount: r.minionCount } : {}),
+                }
+              : w,
+          ),
+        );
+      }
       setAssignOpen(false);
       await refresh();
     } catch (e) {
@@ -377,24 +484,20 @@ export function WorkshopsPanel() {
   }
 
   useEffect(() => {
+    if (sessionLoading) return;
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [user?.id, sessionLoading]);
 
   // 자동 새로고침: 골드/인벤 변동이 실시간처럼 보이게
   useEffect(() => {
-    if (!userId) return;
+    if (sessionLoading || !user) return;
     const t = setInterval(() => {
       void refresh({ silent: true });
     }, 2500);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
-
-  const selected = useMemo(
-    () => workshops.find((w) => w.id === selectedWorkshopId) ?? null,
-    [workshops, selectedWorkshopId],
-  );
+  }, [user?.id]);
 
   const invByItemId = useMemo(() => {
     const m = new Map<string, { itemId: string; name: string; quantity: number }>();
@@ -402,10 +505,191 @@ export function WorkshopsPanel() {
     return m;
   }, [inventory]);
 
+  const dropIconByItemId = useMemo(() => {
+    const m = new Map<string, { icon?: string | null; iconSrc?: string }>();
+    for (const rows of Object.values(dropsByKey)) {
+      for (const row of rows) {
+        m.set(row.itemId, { icon: row.icon, iconSrc: row.iconSrc });
+      }
+    }
+    return m;
+  }, [dropsByKey]);
+
+  const visibleWorkshops = useMemo(
+    () => workshopsForPanelVariant(workshops, variant, specialistProfession),
+    [workshops, variant, specialistProfession],
+  );
+
+  const orderedVisibleWorkshops = useMemo(() => {
+    return [...visibleWorkshops].sort((a, b) => {
+      const pa = typeof a.plotSlot === "number" ? a.plotSlot : 1e9;
+      const pb = typeof b.plotSlot === "number" ? b.plotSlot : 1e9;
+      if (pa !== pb) return pa - pb;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+  }, [visibleWorkshops]);
+
+  const workshopCap = GAME_RULES.workshop.maxInstancesPerUser;
+
+  const selected = useMemo(() => {
+    const w = workshops.find((x) => x.id === selectedWorkshopId) ?? null;
+    if (!w) return null;
+    if (!visibleWorkshops.some((x) => x.id === w.id)) return null;
+    return w;
+  }, [workshops, selectedWorkshopId, visibleWorkshops]);
+
+  const staleCraftRecoverRef = useRef(false);
+  const [recoveringStaleCraft, setRecoveringStaleCraft] = useState(false);
+  useEffect(() => {
+    if (variant !== "specialist" || !selected || (selected.kind ?? "GATHER") !== "PROCESS") return;
+    if (!selected.processCraftRecipeId || craftMotion || busy || craftRunInFlightRef.current) return;
+    if (staleCraftRecoverRef.current) return;
+    const workshopId = selected.id;
+    staleCraftRecoverRef.current = true;
+    setRecoveringStaleCraft(true);
+    void (async () => {
+      try {
+        await postJson("/api/workshops/craft/complete", {
+          workshopId,
+          forceReady: true,
+        });
+        setWorkshops((prev) =>
+          prev.map((w) =>
+            w.id === workshopId
+              ? {
+                  ...w,
+                  processCraftRecipeId: null,
+                  processCraftEndsAt: null,
+                  processCraftQuantity: 0,
+                }
+              : w,
+          ),
+        );
+        window.dispatchEvent(new Event("auth_session_changed"));
+        await refresh({ silent: true });
+      } catch {
+        /* 무시 — 제작 시 CRAFT_IN_PROGRESS로 안내 */
+      } finally {
+        staleCraftRecoverRef.current = false;
+        setRecoveringStaleCraft(false);
+      }
+    })();
+  }, [
+    variant,
+    selected?.id,
+    selected?.processCraftRecipeId,
+    selected?.kind,
+    craftMotion,
+    busy,
+  ]);
+
+  const gatherCollectReady = useMemo(() => {
+    if (!selected || (selected.kind ?? "GATHER") !== "GATHER") return false;
+    if (selected.minionCount <= 0) return false;
+    return workshopMetrics(selected).wholeTicks > 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clockTick drives live tick countdown
+  }, [selected, clockTick, tickSeconds]);
+
+  const closeAssignModal = useCallback(() => setAssignOpen(false), []);
+  useEscapeClose(assignOpen && !!selected, closeAssignModal);
+
+  useEffect(() => {
+    if (variant !== "gather") return;
+    if (selectedWorkshopId) {
+      const w = workshops.find((x) => x.id === selectedWorkshopId);
+      if (w && (w.kind ?? "GATHER") === "GATHER") {
+        return;
+      }
+    }
+    for (const name of GATHER_ACTIVITY_NAMES) {
+      const w = workshops.find((x) => (x.kind ?? "GATHER") === "GATHER" && x.name === name);
+      if (w) {
+        setSelectedWorkshopId(w.id);
+        return;
+      }
+    }
+  }, [variant, workshops, selectedWorkshopId]);
+
+  useEffect(() => {
+    if (variant !== "specialist" || !specialistProfession) return;
+    if (selectedWorkshopId && visibleWorkshops.some((w) => w.id === selectedWorkshopId)) return;
+    const names = processWorkshopNamesForProfession(specialistProfession as SpecialistProfessionSlug);
+    for (const name of names) {
+      const w = visibleWorkshops.find((x) => x.name === name);
+      if (w) {
+        setSelectedWorkshopId(w.id);
+        return;
+      }
+    }
+    if (orderedVisibleWorkshops[0]) setSelectedWorkshopId(orderedVisibleWorkshops[0].id);
+  }, [variant, specialistProfession, selectedWorkshopId, visibleWorkshops, orderedVisibleWorkshops]);
+
+  useEffect(() => {
+    if (variant !== "specialist") return;
+    void refresh({ silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant, specialistProfession]);
+
+  const selectGatherActivity = useCallback(
+    async (name: (typeof GATHER_ACTIVITY_NAMES)[number]) => {
+      if (!user) {
+        setError("로그인이 필요해요.");
+        return;
+      }
+      const existing = workshops.find((x) => (x.kind ?? "GATHER") === "GATHER" && x.name === name);
+      if (existing) {
+        setSelectedWorkshopId(existing.id);
+        if (GATHER_TUTORIAL_WORKSHOPS.includes(name)) {
+          try {
+            await postJson("/api/tutorial/gather-visit", { workshopName: name });
+            notifyTutorialRefresh();
+          } catch {
+            /* ignore */
+          }
+        }
+        return;
+      }
+      const type = workshopTypes.find((t) => t.kind === "GATHER" && t.name === name);
+      if (!type) {
+        setError(`${name} 시설 타입이 서버에 없어요. workshops.json을 반영한 뒤 시드를 다시 실행해 주세요.`);
+        return;
+      }
+      setWorkshopActionBusy(true);
+      setError(null);
+      try {
+        const r = await postJson<{ ok?: boolean; workshopId?: string }>("/api/workshops/plot/install", {
+          workshopTypeId: type.id,
+        });
+        const wid = typeof r?.workshopId === "string" ? r.workshopId : "";
+        if (wid) setSelectedWorkshopId(wid);
+        if (GATHER_TUTORIAL_WORKSHOPS.includes(name)) {
+          try {
+            await postJson("/api/tutorial/gather-visit", { workshopName: name });
+            notifyTutorialRefresh();
+          } catch {
+            /* ignore */
+          }
+        }
+        await refresh();
+      } catch (e) {
+        setError(e);
+      } finally {
+        setWorkshopActionBusy(false);
+      }
+    },
+    [user, workshops, workshopTypes],
+  );
+
   const selectedTier = useMemo(() => {
     if (!selected) return 1;
     return Math.max(1, Math.min(5, Math.floor(selected.tier ?? 1)));
   }, [selected]);
+
+  const processCraftAllowed = useMemo(() => {
+    if (!selected || (selected.kind ?? "GATHER") !== "PROCESS") return true;
+    if (!specialistUnlocked) return false;
+    return playerMatchesProcessWorkshop(selected.name, specialistProfession);
+  }, [selected, specialistUnlocked, specialistProfession]);
 
   const selectedDropsKey = useMemo(() => {
     if (!selectedWorkshopId) return "";
@@ -428,34 +712,18 @@ export function WorkshopsPanel() {
     return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 1;
   }, [selected, selectedTier]);
 
-  const grouped = useMemo(() => {
-    const gather = workshops.filter((w) => (w.kind ?? "GATHER") === "GATHER");
-    const process = workshops.filter((w) => w.kind === "PROCESS");
-    const consume = workshops.filter((w) => w.kind === "CONSUME");
-    return { gather, process, consume };
-  }, [workshops]);
-
-  const plotSlots = useMemo(() => {
-    const max = plotMaxSlots;
-    return Array.from({ length: max }, (_, i) => ({
-      slot: i,
-      workshop: workshops.find((w) => w.plotSlot === i) ?? null,
-    }));
-  }, [workshops, plotMaxSlots]);
-
-  const visibleWorkshops = useMemo(() => {
-    return tab === "GATHER" ? grouped.gather : [...grouped.process, ...grouped.consume];
-  }, [grouped.consume, grouped.gather, grouped.process, tab]);
-
-  // 탭 전환 시: 현재 선택이 탭 범위 밖이면 첫 마을으로 보정
+  // 현재 패널에서 선택 가능한 시설이 바뀌면 선택 ID 보정
   useEffect(() => {
-    if (!visibleWorkshops.length) return;
+    if (!visibleWorkshops.length) {
+      setSelectedWorkshopId("");
+      return;
+    }
     setSelectedWorkshopId((prev) => {
       if (!prev) return visibleWorkshops[0]!.id;
       const ok = visibleWorkshops.some((w) => w.id === prev);
       return ok ? prev : visibleWorkshops[0]!.id;
     });
-  }, [visibleWorkshops, tab]);
+  }, [visibleWorkshops]);
 
   useEffect(() => {
     async function loadDrops() {
@@ -562,6 +830,64 @@ export function WorkshopsPanel() {
     return { status: "running", remainingMs, ...base };
   }
 
+  function isWeaponOrToolItem(itemId: string, category?: string) {
+    return (
+      category === "무기" ||
+      category === "도구" ||
+      itemId.startsWith("weapon_") ||
+      itemId.startsWith("tool_")
+    );
+  }
+
+  /** 제작 결과 공개용 — 무기/도구는 인스턴스만, 재료는 producedCards */
+  function craftRewardCardsFromPayload(payload: unknown): CraftRevealCard[] {
+    const inst = (
+      payload as {
+        craftedInstances?: Array<{
+          itemId: string;
+          itemName?: string;
+          kind: string;
+          instanceId: string;
+        }>;
+      }
+    )?.craftedInstances;
+
+    const byItemId = new Map<string, CraftRevealCard>();
+
+    if (Array.isArray(inst)) {
+      for (const row of inst) {
+        const prev = byItemId.get(row.itemId);
+        if (prev) {
+          prev.qty += 1;
+          continue;
+        }
+        byItemId.set(row.itemId, {
+          itemId: row.itemId,
+          itemName: row.itemName ?? row.itemId,
+          category: row.kind === "weapon" ? "무기" : row.kind === "tool" ? "도구" : "",
+          qty: 1,
+        });
+      }
+    }
+
+    for (const c of collectCardsFromLast(payload)) {
+      if (isWeaponOrToolItem(c.itemId, c.category)) continue;
+      const prev = byItemId.get(c.itemId);
+      if (prev) {
+        prev.qty += Math.max(1, c.qty);
+      } else {
+        byItemId.set(c.itemId, {
+          itemId: c.itemId,
+          itemName: c.itemName ?? c.itemId,
+          category: c.category,
+          qty: Math.max(1, c.qty),
+        });
+      }
+    }
+
+    return Array.from(byItemId.values());
+  }
+
   function collectCardsFromLast(payload: any): Array<{ itemId: string; itemName?: string; category?: string; qty: number }> {
     const rows = payload?.producedCards ?? payload?.payload?.producedCards ?? null;
     if (Array.isArray(rows) && rows.length) return rows as any;
@@ -571,280 +897,82 @@ export function WorkshopsPanel() {
   }
 
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+    <GamePanel className="workshop-shell flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-5">
       <div className="flex items-center justify-between gap-4">
-        <div>
-          <div className="text-sm font-semibold">마을</div>
-          <div className="text-sm text-zinc-600">마을 시설 · 미니언 배치/수령/카운트다운</div>
+        <div className="text-sm font-semibold text-[var(--game-text)]">
+          {variant === "gather" ? "수집" : "전문 작업장"}
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
-            <div className="text-xs font-semibold text-zinc-600">골드</div>
-            <div className="text-xs font-semibold text-zinc-900 tabular-nums">
+          <div className="rounded-xl border border-[var(--game-border)] bg-black/25 px-3 py-2 text-xs">
+            <span className="text-[var(--game-muted)]">골드 </span>
+            <span className="font-semibold tabular-nums text-[var(--game-gold-bright)]">
               {(wallet?.goldAvailable ?? 0).toLocaleString()}G
-            </div>
+            </span>
           </div>
-          <div className="text-xs font-semibold text-zinc-600">userId (세션)</div>
-          <input
-            className="h-9 w-[340px] max-w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs text-zinc-700 outline-none"
-            value={userId}
-            readOnly
-          />
-          <button
-            className="h-9 rounded-xl bg-zinc-900 px-3 text-xs font-semibold text-white disabled:opacity-50"
-            disabled={!!busy}
-            onClick={() => void refresh()}
-          >
+          <GameBtn variant="ghost" disabled={!!busy} onClick={() => void refresh()}>
             새로고침
-          </button>
+          </GameBtn>
         </div>
       </div>
 
-      {error ? (
-        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          오류: {formatPanelError(error)}
+      {tutorialGrantMsg ? (
+        <div className="mt-3 rounded-xl border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 text-sm text-emerald-100">
+          {tutorialGrantMsg}
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <div className="text-sm font-semibold text-emerald-950">내 부지</div>
-            <div className="text-xs text-emerald-900/85">
-              시설 {workshops.length}개 · 사용 가능 칸 {plotSlotsUnlocked}/{plotMaxSlots}(첫 칸 무료 · 2번째 1,000G · 3번째
-              10,000G 해제)
-              {nextUnlockGold != null ? (
-                <span className="font-semibold"> · 다음 해제 {nextUnlockGold.toLocaleString()}G</span>
-              ) : (
-                <span> · 부지 최대 확장</span>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {plotSlots.map(({ slot, workshop: w }) => {
-            const canUse = slot < plotSlotsUnlocked;
-            const isNextLock =
-              slot === plotSlotsUnlocked && plotSlotsUnlocked < plotMaxSlots && nextUnlockGold != null;
-            const waitPrior = slot > plotSlotsUnlocked;
-            return (
-              <div
-                key={slot}
-                className={[
-                  "flex min-h-[104px] flex-col rounded-xl border p-3",
-                  w ? "border-zinc-300 bg-white" : "border-dashed border-zinc-300 bg-zinc-50/80",
-                  !canUse && !w ? "bg-amber-50/50" : "",
-                ].join(" ")}
-              >
-                <div className="text-[11px] font-semibold text-zinc-500">칸 {slot + 1}</div>
-                {waitPrior ? (
-                  <p className="mt-auto text-[10px] leading-snug text-zinc-400">앞 칸을 먼저 열어요</p>
-                ) : isNextLock ? (
-                  <button
-                    type="button"
-                    className="mt-auto h-9 rounded-lg border border-amber-400 bg-amber-100 text-[11px] font-semibold text-amber-950 hover:bg-amber-200 disabled:opacity-50"
-                    disabled={!userId || plotBusy}
-                    onClick={() =>
-                      void (async () => {
-                        setPlotBusy(true);
-                        setError(null);
-                        try {
-                          await postJson("/api/workshops/plot/unlock", { userId: userId || undefined });
-                          await refresh();
-                        } catch (e) {
-                          setError(e);
-                        } finally {
-                          setPlotBusy(false);
-                        }
-                      })()
-                    }
-                  >
-                    {!userId ? "로그인 필요" : `부지 열기 (${nextUnlockGold?.toLocaleString() ?? "?"}G)`}
-                  </button>
-                ) : w ? (
-                  <>
-                    <div className="mt-1 line-clamp-2 text-sm font-semibold text-zinc-900">{w.name}</div>
-                    <div className="mt-0.5 text-[10px] text-zinc-500">
-                      {w.kind === "GATHER"
-                        ? "수집"
-                        : w.kind === "PROCESS"
-                          ? "가공"
-                          : w.kind === "CONSUME"
-                            ? "2차"
-                            : (w.kind ?? "—")}
-                    </div>
-                    <div className="mt-auto flex flex-wrap gap-1 pt-2">
-                      <button
-                        type="button"
-                        className="h-7 rounded-lg bg-zinc-900 px-2 text-[11px] font-semibold text-white"
-                        onClick={() => {
-                          // 선택한 시설 종류에 맞춰 탭도 같이 전환(수집 탭에선 가공/2차 선택이 자동으로 되돌아가는 문제 방지)
-                          setTab(w.kind === "GATHER" ? "GATHER" : "CRAFT");
-                          setSelectedWorkshopId(w.id);
-                        }}
-                      >
-                        선택
-                      </button>
-                      <button
-                        type="button"
-                        className="h-7 rounded-lg border border-red-200 bg-red-50 px-2 text-[11px] font-semibold text-red-800 disabled:opacity-50"
-                        disabled={!!busy || plotBusy}
-                        onClick={() =>
-                          void (async () => {
-                            if (!confirm("이 시설을 철거할까요? 배치된 미니언은 해제됩니다.")) return;
-                            setPlotBusy(true);
-                            try {
-                              await postJson("/api/workshops/plot/remove", {
-                                workshopId: w.id,
-                                userId: userId || undefined,
-                              });
-                              if (selectedWorkshopId === w.id) setSelectedWorkshopId("");
-                              await refresh();
-                            } catch (e) {
-                              setError(e);
-                            } finally {
-                              setPlotBusy(false);
-                            }
-                          })()
-                        }
-                      >
-                        철거
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className="mt-auto h-8 rounded-lg border border-emerald-400 bg-white text-[11px] font-semibold text-emerald-900 hover:bg-emerald-50 disabled:opacity-50"
-                    disabled={
-                      !userId || !canUse || workshops.length >= plotMaxSlots || plotBusy
-                    }
-                    onClick={() => {
-                      setPlotInstallTypeId(workshopTypes[0]?.id ?? "");
-                      setPlotInstallSlot(slot);
-                    }}
-                  >
-                    {!userId
-                      ? "로그인 필요"
-                      : workshops.length >= plotMaxSlots
-                        ? "칸 가득"
-                        : "설치(무료)"}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {plotInstallSlot != null ? (
-          <div className="fixed inset-0 z-[45] flex items-end justify-center bg-black/40 p-4 sm:items-center">
-            <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-xl">
-              <div className="text-sm font-semibold">칸 {plotInstallSlot + 1}에 시설 설치</div>
-              <p className="mt-1 text-xs text-zinc-600">설치할 시설 종류를 고르세요.</p>
-              {workshopTypes.length === 0 ? (
-                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-                  등록된 시설 종류가 없어요. 관리자 시드(`admin`/데이터 적용) 후 새로고침 해 주세요.
-                </div>
-              ) : (
-                <select
-                  className="mt-3 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm outline-none"
-                  value={plotInstallTypeId}
-                  onChange={(e) => setPlotInstallTypeId(e.target.value)}
-                >
-                  {workshopTypes.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.kind})
-                    </option>
-                  ))}
-                </select>
-              )}
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  type="button"
-                  className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold"
-                  onClick={() => setPlotInstallSlot(null)}
-                >
-                  취소
-                </button>
-                <button
-                  type="button"
-                  className="h-9 rounded-xl bg-emerald-700 px-3 text-xs font-semibold text-white disabled:opacity-50"
-                  disabled={
-                    plotInstallSlot == null || !plotInstallTypeId || plotBusy || workshopTypes.length === 0
-                  }
-                  onClick={() =>
-                    void (async () => {
-                      if (plotInstallSlot == null) return;
-                      setPlotBusy(true);
-                      setError(null);
-                      try {
-                        await postJson("/api/workshops/plot/install", {
-                          plotSlot: plotInstallSlot,
-                          workshopTypeId: plotInstallTypeId,
-                          userId: userId || undefined,
-                        });
-                        setPlotInstallSlot(null);
-                        await refresh();
-                      } catch (e) {
-                        setError(e);
-                      } finally {
-                        setPlotBusy(false);
-                      }
-                    })()
-                  }
-                >
-                  설치
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </div>
+      {error ? <GamePanelError error={error} className="mt-0" /> : null}
 
-      <div className="mt-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="text-xs font-semibold text-zinc-600">선택한 시설</div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className={[
-                "h-9 rounded-xl px-3 text-xs font-semibold",
-                tab === "GATHER" ? "bg-zinc-900 text-white" : "border border-zinc-200 bg-white text-zinc-900",
-              ].join(" ")}
-              onClick={() => setTab("GATHER")}
-            >
-              수집
-            </button>
-            <button
-              type="button"
-              className={[
-                "h-9 rounded-xl px-3 text-xs font-semibold",
-                tab === "CRAFT" ? "bg-zinc-900 text-white" : "border border-zinc-200 bg-white text-zinc-900",
-              ].join(" ")}
-              onClick={() => setTab("CRAFT")}
-            >
-              제작
-            </button>
+      {sessionLoading ? (
+        <GamePanelLoading label="세션 확인 중…" />
+      ) : !user ? (
+        <GamePanelInfo>로그인이 필요합니다. 화면 오른쪽 위에서 Google 로그인을 진행해 주세요.</GamePanelInfo>
+      ) : null}
+
+      {!sessionLoading && user && variant === "gather" ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+          <div className="text-sm font-semibold text-emerald-950">수집 활동</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {GATHER_ACTIVITY_NAMES.map((name) => {
+              const w = workshops.find((x) => (x.kind ?? "GATHER") === "GATHER" && x.name === name) ?? null;
+              const isActive = !!selected && selected.name === name;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  className={[
+                    "h-11 min-w-[5.5rem] rounded-xl border px-3 text-sm font-semibold transition-colors",
+                    isActive
+                      ? "border-emerald-700 bg-emerald-700 text-white"
+                      : "border-emerald-300 bg-white text-emerald-950 hover:bg-emerald-100",
+                  ].join(" ")}
+                  disabled={!user || workshopActionBusy}
+                  onClick={() => void selectGatherActivity(name)}
+                >
+                  {name}
+                  {!w ? <span className="ml-1 text-[10px] font-normal opacity-80">(신규)</span> : null}
+                </button>
+              );
+            })}
           </div>
         </div>
-        <div className="mt-1 text-xs text-zinc-500">
-          시설 목록은 숨겼어요. 위 「내 부지」에서 시설의 「선택」으로 바꿀 수 있어요.
-        </div>
-        {workshops.length === 0 ? (
-          <div className="mt-2 rounded-xl border border-zinc-200 bg-white p-4">
-            <div className="text-sm text-zinc-500">
-              마을에 설치된 시설이 없어요. 위 「내 부지」에서 빈 칸에 시설을 설치하거나, 데이터 시드 후 새로고침 해 주세요.
-            </div>
-          </div>
-        ) : (
-          <div className="mt-2 rounded-xl border border-zinc-200 bg-white p-4">
-            {selected ? (
+      ) : null}
+
+      {!sessionLoading && user ? (
+      <>
+      <div className={variant === "gather" ? "mt-4" : ""}>
+        {selected ? (
+          <div className="rounded-xl border border-zinc-200 bg-white p-4">
               <>
+                {variant === "gather" ? (
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
                   <div className="text-sm font-semibold">미니언</div>
                   <div className="flex flex-wrap items-center gap-3 text-sm">
                     <div>
-                      <span className="text-xs text-zinc-600">보유</span>{" "}
-                      <span className="font-semibold">{minions?.owned ?? "—"}</span>
+                      <span className="text-xs text-zinc-600">수집 미니언</span>{" "}
+                      <span className="font-semibold">
+                        {minions?.owned ?? "—"}/{minions?.maxGatherOwned ?? 10}
+                      </span>
                     </div>
                     <div>
                       <span className="text-xs text-zinc-600">배치</span>{" "}
@@ -854,9 +982,9 @@ export function WorkshopsPanel() {
                       <span className="text-xs text-zinc-600">남음</span>{" "}
                       <span className="font-semibold">{minions?.free ?? "—"}</span>
                     </div>
-                    <div className="text-xs font-semibold text-zinc-500">미니언은 부화·구매 등으로 확보해.</div>
                   </div>
                 </div>
+                ) : null}
 
                 {(selected.kind ?? "GATHER") === "GATHER" || selected.kind === "PROCESS" ? (
                   <div className="mt-3 rounded-xl border border-zinc-200 bg-white px-3 py-3">
@@ -872,7 +1000,6 @@ export function WorkshopsPanel() {
                               {" "}
                               · 제작 속도{" "}
                               <span className="font-semibold">×{processTierCraftSpeedMult.toFixed(2)}</span>
-                              <span className="text-zinc-500"> (직업·시너지 별도)</span>
                             </span>
                           ) : null}
                           {selectedTier >= 5 ? (
@@ -886,11 +1013,6 @@ export function WorkshopsPanel() {
                               </span>
                             </span>
                           )}
-                        </div>
-                        <div className="mt-1 text-xs text-zinc-500">
-                          {(selected.kind ?? "GATHER") === "GATHER"
-                            ? "티어가 높을수록 `minTier` 조건을 만족하는 드랍이 추가로 열려."
-                            : "티어가 높을수록 가공 제작이 조금 더 빨라져. (미니언 직업·시너지 배율에 곱해져 적용돼.)"}
                         </div>
                       </div>
                       <button
@@ -927,58 +1049,30 @@ export function WorkshopsPanel() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="text-lg font-semibold">{selected.name}</div>
-                    <div className="text-xs text-zinc-500">{selected.id}</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900 disabled:opacity-50"
-                      disabled={!!busy}
-                      onClick={() => void openAssignModal()}
-                      title="원하는 미니언을 직접 선택해 배치/해제"
-                    >
-                      미니언 배치 관리
-                    </button>
-                    <div className="min-w-[120px] text-center">
-                      <div className="text-xs text-zinc-600">미니언</div>
-                      <div className="text-sm font-semibold">{selected.minionCount}</div>
+                  {variant === "gather" ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900 disabled:opacity-50"
+                        disabled={!!busy || (selected.kind ?? "GATHER") === "PROCESS"}
+                        onClick={() => void openAssignModal()}
+                      >
+                        미니언 배치 관리
+                      </button>
+                      <div className="min-w-[120px] text-center">
+                        <div className="text-xs text-zinc-600">미니언</div>
+                        <div className="text-sm font-semibold">{selected.minionCount}</div>
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
                 </div>
 
                 <div className="mt-4 grid gap-3 md:grid-cols-3">
                   {(() => {
                     const kind = selected.kind ?? "GATHER";
                     if (kind === "PROCESS") {
-                      const recipes = recipesByTypeId[selected.workshopTypeId ?? ""] ?? [];
-                      const pcs = getProcessCraftState(selected, recipes);
                       return (
                         <>
-                          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 md:col-span-3">
-                            <div className="text-xs font-semibold text-zinc-600">가공 제작</div>
-                            <div className="mt-1 text-sm text-zinc-800">
-                              {selected.minionCount <= 0 ? (
-                                "미니언을 배치하면 레시피 제작을 시작할 수 있어."
-                              ) : pcs.status === "idle" ? (
-                                <>
-                                  레시피에서 재료를 넣고 제작을 시작하면, 레시피에 설정된 시간만큼 지난 뒤 수령할 수 있어.{" "}
-                                  <span className="text-zinc-600">
-                                    시설 티어가 높을수록 제작이 조금 더 빨라지고, 미니언 직업·시너지 배율과 같이 적용돼.
-                                  </span>
-                                </>
-                              ) : pcs.status === "running" ? (
-                                <>
-                                  <span className="font-semibold">{pcs.recipeName}</span> 제작 중 · 남은{" "}
-                                  {formatDuration(Math.ceil(pcs.remainingMs / 1000))} · 총{" "}
-                                  {formatDuration(pcs.totalCraftSeconds)}
-                                </>
-                              ) : (
-                                <>
-                                  <span className="font-semibold">{pcs.recipeName}</span> 완료 · 아래{" "}
-                                  <span className="font-semibold">제작 수령</span>으로 결과를 받아.
-                                </>
-                              )}
-                            </div>
-                          </div>
                           <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 md:col-span-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="text-xs font-semibold text-zinc-600">숙련도</div>
@@ -989,23 +1083,6 @@ export function WorkshopsPanel() {
                             </div>
                           </div>
                         </>
-                      );
-                    }
-                    if (kind === "CONSUME") {
-                      return (
-                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 md:col-span-3">
-                          <div className="text-xs font-semibold text-zinc-600">2차 소모</div>
-                          <div className="mt-1 text-sm text-zinc-800">
-                            재료를 제출하면 즉시 소모되고 보상이 지급돼. (틱·대기 시간 없음)
-                          </div>
-                          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200 pt-2">
-                            <div className="text-xs font-semibold text-zinc-600">숙련도</div>
-                            <div className="text-xs text-zinc-600">
-                              Lv <span className="font-semibold">{selected.mastery?.level ?? 1}</span> · XP{" "}
-                              <span className="font-semibold">{selected.mastery?.xp ?? 0}</span>
-                            </div>
-                          </div>
-                        </div>
                       );
                     }
                     const m = workshopMetrics(selected);
@@ -1044,50 +1121,43 @@ export function WorkshopsPanel() {
                   })()}
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  {selected.kind === "PROCESS" ? (
-                    <>
-                      <button
-                        className="h-10 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
-                        disabled={
-                          !!busy ||
-                          selected.minionCount <= 0 ||
-                          (() => {
-                            const recipes = recipesByTypeId[selected.workshopTypeId ?? ""] ?? [];
-                            return getProcessCraftState(selected, recipes).status !== "ready";
-                          })()
-                        }
-                        onClick={async () => {
-                          setBusy("craft-complete");
-                          setError(null);
-                          try {
-                            const out = await postJson(`/api/workshops/craft/complete`, {
-                              workshopId: selected.id,
-                            });
-                            setLastCollectById((prev) => ({ ...prev, [selected.id]: out }));
-                            await refresh();
-                          } catch (e) {
-                            setError(e);
-                          } finally {
-                            setBusy(null);
-                          }
-                        }}
+                {selected.kind === "PROCESS" ? null : (
+                  <div className="mt-4">
+                    {gatherCollectToast && gatherCollectToast.cards.length > 0 ? (
+                      <div
+                        key={gatherCollectToast.key}
+                        className="workshops-collect-toast mb-3 rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-white px-4 py-3 shadow-md shadow-emerald-900/10"
                       >
-                        제작 수령
-                      </button>
-                      <div className="text-xs text-zinc-500">
-                        제작이 끝나면 재료는 이미 소모된 상태로 결과만 받아. (진행 중에는 수령할 수 없어)
+                        <div className="text-xs font-semibold text-emerald-900">이번에 받은 아이템</div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {gatherCollectToast.cards.map((c) => (
+                            <div
+                              key={`${c.itemId}-${gatherCollectToast.key}`}
+                              className="flex min-w-0 max-w-full items-center gap-2 rounded-xl border border-emerald-100 bg-white/90 px-2.5 py-2 shadow-sm"
+                            >
+                              <ItemIcon
+                                itemId={c.itemId}
+                                icon={dropIconByItemId.get(c.itemId)?.icon}
+                                iconSrc={dropIconByItemId.get(c.itemId)?.iconSrc}
+                                size={36}
+                              />
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-semibold text-zinc-900">
+                                  {c.itemName ?? c.itemId}
+                                </div>
+                                <div className="text-xs font-semibold tabular-nums text-emerald-800">
+                                  ×{c.qty.toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </>
-                  ) : (
-                    <>
+                    ) : null}
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
-                        disabled={
-                          !!busy ||
-                          selected.kind === "CONSUME" ||
-                          selected.minionCount <= 0
-                        }
+                        disabled={!!busy || !gatherCollectReady}
                         onClick={async () => {
                           setBusy("collect");
                           setError(null);
@@ -1095,8 +1165,60 @@ export function WorkshopsPanel() {
                             const r = await postJson<any>("/api/workshops/collect", {
                               workshopId: selected.id,
                             });
-                            setLastCollectById((prev) => ({ ...prev, [selected.id]: r }));
+                            const collectedAt =
+                              typeof r?.lastCollectedAt === "string"
+                                ? r.lastCollectedAt
+                                : new Date().toISOString();
+                            const masteryAfter = r?.mastery?.after;
+                            setWorkshops((prev) =>
+                              prev.map((w) =>
+                                w.id === selected.id
+                                  ? {
+                                      ...w,
+                                      lastCollectedAt: collectedAt,
+                                      ...(masteryAfter ? { mastery: masteryAfter } : {}),
+                                    }
+                                  : w,
+                              ),
+                            );
+                            const cards = collectCardsFromLast(r);
+                            if (gatherCollectToastTimerRef.current) {
+                              clearTimeout(gatherCollectToastTimerRef.current);
+                              gatherCollectToastTimerRef.current = null;
+                            }
+                            if (cards.length > 0) {
+                              setGatherCollectToast({ cards, key: Date.now() });
+                              gatherCollectToastTimerRef.current = setTimeout(() => {
+                                setGatherCollectToast(null);
+                                gatherCollectToastTimerRef.current = null;
+                              }, 2400);
+                            } else {
+                              setGatherCollectToast(null);
+                            }
                             await refresh();
+                            notifyTutorialRefresh();
+                            const grants = Array.isArray(r?.tutorialMinionGrants)
+                              ? r.tutorialMinionGrants.filter(
+                                  (g: { message?: string; jobType?: string }) =>
+                                    g?.jobType === "FISHER" && !!g?.message,
+                                )
+                              : [];
+                            const granted = grants.filter((g: { granted?: boolean }) => g?.granted);
+                            if (granted.length > 0 || grants.some((g: { granted?: boolean }) => !g.granted)) {
+                              window.dispatchEvent(new Event("auth_session_changed"));
+                              const msg = (granted.length > 0 ? granted : grants)
+                                .map((g: { message?: string }) => g.message)
+                                .filter(Boolean)
+                                .join(" ");
+                              setTutorialGrantMsg(msg);
+                              if (tutorialGrantTimerRef.current) {
+                                clearTimeout(tutorialGrantTimerRef.current);
+                              }
+                              tutorialGrantTimerRef.current = setTimeout(() => {
+                                setTutorialGrantMsg(null);
+                                tutorialGrantTimerRef.current = null;
+                              }, 5000);
+                            }
                           } catch (e) {
                             setError(e);
                           } finally {
@@ -1106,87 +1228,26 @@ export function WorkshopsPanel() {
                       >
                         수령하기
                       </button>
-                      <div className="text-xs text-zinc-500">
-                        {selected.kind === "CONSUME"
-                          ? "2차 소모처는 미니언이 배치된 경우에만 레시피로 재료를 제출하고 골드를 받을 수 있어."
-                          : selected.minionCount <= 0
-                            ? "수집 시설은 미니언이 1마리 이상 배치될 때만 시간이 쌓이고 수령할 수 있어."
-                            : "수령하면 틱만큼 시간이 진행되고 인벤토리에 들어가. 미수령으로 쌓이는 틱은 최대 8시간 분량까지만 반영돼."}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-950">
-                  <div className="border-b border-white/10 px-3 py-2 text-xs font-semibold text-white/70">
-                    {selected.kind === "PROCESS" ? "최근 가공 결과(선택한 시설)" : "최근 수령 결과(선택한 시설)"}
+                    </div>
                   </div>
-                  {(() => {
-                    const last = lastCollectById[selected.id] ?? null;
-                    const cards = collectCardsFromLast(last);
-                    const rewardGold = (last?.rewardGold ?? last?.payload?.rewardGold) as number | undefined;
-                    const hasCards = cards.length > 0;
-                    return (
-                      <div className="p-3">
-                        {hasCards ? (
-                          <div className="mb-3 grid gap-2 md:grid-cols-2">
-                            {cards.map((c) => (
-                              <div
-                                key={`${c.itemId}`}
-                                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2"
-                              >
-                                <div className="min-w-0">
-                                  <div className="truncate text-sm font-semibold text-white/95">
-                                    {c.itemName ?? c.itemId}
-                                  </div>
-                                  <div className="truncate text-[11px] text-white/60">
-                                    {c.itemId}
-                                    {c.category ? ` · ${c.category}` : ""}
-                                  </div>
-                                </div>
-                                <div className="ml-3 text-right">
-                                  <div className="text-sm font-semibold tabular-nums text-white/95">x{c.qty}</div>
-                                </div>
-                              </div>
-                            ))}
-                            {typeof rewardGold === "number" && rewardGold > 0 ? (
-                              <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-                                <div className="text-sm font-semibold text-amber-100">골드 보상</div>
-                                <div className="text-sm font-semibold tabular-nums text-amber-100">
-                                  +{rewardGold.toLocaleString()}G
-                                </div>
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-white/60">아직 수령 기록이 없어.</div>
-                        )}
-
-                        <pre className="max-h-[200px] overflow-auto rounded-xl bg-black/20 px-3 py-3 text-xs leading-5 text-white/80">
-                          {JSON.stringify(last ?? { hint: "아직 수령 기록이 없어." }, null, 2)}
-                        </pre>
-                      </div>
-                    );
-                  })()}
-                </div>
+                )}
 
                 <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4">
-                  {selected.kind === "PROCESS" || selected.kind === "CONSUME" ? (
+                  {selected.kind === "PROCESS" ? (
                     <>
                       <div className="text-sm font-semibold">제작</div>
-                      <div className="mt-1 text-xs text-zinc-600">
-                        {selected.minionCount <= 0
-                          ? "미니언을 1마리 이상 배치해야 레시피 생산이 가능해."
-                          : selected.kind === "CONSUME"
-                            ? "입력 재료를 제출하고 보상을 받아."
-                            : "제작 시작 시 재료가 바로 소모되고, 레시피에 설정된 시간(×수량)이 지나면 위에서 수령할 수 있어."}
-                      </div>
                       {(() => {
-                        const recipes = recipesByTypeId[selected.workshopTypeId ?? ""] ?? [];
+                        const allRecipes = recipesByTypeId[selected.workshopTypeId ?? ""] ?? [];
+                        const recipes =
+                          variant === "specialist"
+                            ? recipesForWorkshopTier(allRecipes, selectedTier)
+                            : allRecipes;
                         if (!recipes.length) {
                           return (
                             <div className="mt-3 text-sm text-zinc-500">
-                              레시피가 없어. (관리자 패널에서 recipes.json 적용)
+                              {allRecipes.length > 0 && variant === "specialist"
+                                ? `현재 시설 T${selectedTier}에서 제작 가능한 레시피가 없어요. 티어 업그레이드 후 다시 확인해 주세요.`
+                                : "레시피 없음"}
                             </div>
                           );
                         }
@@ -1212,13 +1273,10 @@ export function WorkshopsPanel() {
                         const matRows = Array.from(need.values()).sort((a, b) => b.maxNeed - a.maxNeed);
                         const materialsPanel =
                           matRows.length === 0 ? (
-                            <div className="text-sm text-zinc-500">이 시설 레시피에는 입력 재료가 없어.</div>
+                            <div className="text-sm text-zinc-500">—</div>
                           ) : (
                             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-                              <div className="text-xs text-zinc-600">
-                                보유량 / 레시피 1회 기준 최대 필요(레시피별 입력 중 최댓값)
-                              </div>
-                              <div className="mt-2 grid max-h-[min(72vh,720px)] gap-1 overflow-y-auto pr-1">
+                              <div className="grid max-h-[min(72vh,720px)] gap-1 overflow-y-auto pr-1">
                                 {matRows.map((row) => {
                                   const inv = invByItemId.get(row.itemId);
                                   const have = inv?.quantity ?? 0;
@@ -1247,128 +1305,20 @@ export function WorkshopsPanel() {
                             </div>
                           );
 
-                        const recipesPanel =
-                          selected.kind === "CONSUME" ? (
-                            recipes.map((r) => (
-                              <div key={r.id} className="rounded-xl border border-zinc-200 bg-white p-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <div className="text-sm font-semibold">{r.name}</div>
-                                  {(() => {
-                                    const needRt = Math.max(1, Math.min(5, Math.floor(r.minTier ?? 1)));
-                                    const tierOk = selectedTier >= needRt;
-                                    const materialsOk = (r.inputs ?? []).every((i) => {
-                                      const have = invByItemId.get(i.itemId)?.quantity ?? 0;
-                                      return have >= Math.max(0, Math.floor(i.quantity ?? 0));
-                                    });
-                                    const canDo = tierOk && materialsOk;
-                                    return (
-                                      <div
-                                        className={[
-                                          "rounded-full px-2 py-1 text-[10px] font-semibold",
-                                          canDo
-                                            ? "bg-emerald-100 text-emerald-900"
-                                            : !tierOk
-                                              ? "bg-amber-100 text-amber-950"
-                                              : "bg-zinc-100 text-zinc-600",
-                                        ].join(" ")}
-                                      >
-                                        {!tierOk
-                                          ? `티어 T${needRt}+ 필요`
-                                          : materialsOk
-                                            ? "제출 가능"
-                                            : "재료 부족"}
-                                      </div>
-                                    );
-                                  })()}
-                                  <div className="flex gap-2">
-                                    <button
-                                      className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900 disabled:opacity-50"
-                                      disabled={
-                                        !!busy ||
-                                        selected.minionCount <= 0 ||
-                                        selectedTier < Math.max(1, Math.min(5, Math.floor(r.minTier ?? 1))) ||
-                                        !(r.inputs ?? []).every((i) => {
-                                          const have = invByItemId.get(i.itemId)?.quantity ?? 0;
-                                          return have >= Math.max(0, Math.floor(i.quantity ?? 0));
-                                        })
-                                      }
-                                      onClick={async () => {
-                                        setBusy("craft-1");
-                                        setError(null);
-                                        try {
-                                          const out = await postJson(`/api/workshops/craft`, {
-                                            workshopId: selected.id,
-                                            recipeId: r.id,
-                                            quantity: 1,
-                                          });
-                                          setLastCollectById((prev) => ({ ...prev, [selected.id]: out }));
-                                          await refresh();
-                                        } catch (e) {
-                                          setError(e);
-                                        } finally {
-                                          setBusy(null);
-                                        }
-                                      }}
-                                    >
-                                      x1 제출
-                                    </button>
-                                    <button
-                                      className="h-9 rounded-xl bg-zinc-900 px-3 text-xs font-semibold text-white disabled:opacity-50"
-                                      disabled={
-                                        !!busy ||
-                                        selected.minionCount <= 0 ||
-                                        selectedTier < Math.max(1, Math.min(5, Math.floor(r.minTier ?? 1))) ||
-                                        !(r.inputs ?? []).every((i) => {
-                                          const have = invByItemId.get(i.itemId)?.quantity ?? 0;
-                                          return have >= Math.max(0, Math.floor(i.quantity ?? 0));
-                                        })
-                                      }
-                                      onClick={async () => {
-                                        setBusy("craft-5");
-                                        setError(null);
-                                        try {
-                                          const out = await postJson(`/api/workshops/craft`, {
-                                            workshopId: selected.id,
-                                            recipeId: r.id,
-                                            quantity: 5,
-                                          });
-                                          setLastCollectById((prev) => ({ ...prev, [selected.id]: out }));
-                                          await refresh();
-                                        } catch (e) {
-                                          setError(e);
-                                        } finally {
-                                          setBusy(null);
-                                        }
-                                      }}
-                                    >
-                                      x5 제출
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="mt-2 text-xs text-zinc-700">
-                                  최소 시설 티어 T{Math.max(1, Math.min(5, Math.floor(r.minTier ?? 1)))} · 입력:{" "}
-                                  {r.inputs.map((i) => `${i.itemId}x${i.quantity}`).join(" + ")} → 보상:{" "}
-                                  <span className="font-semibold">{(r.rewardGold ?? 0).toLocaleString()}G</span>
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            (() => {
-                              void clockTick;
-                              const pcs = getProcessCraftState(selected, recipes);
-                              const blockStart = pcs.status !== "idle";
-                              return recipes.map((r) => {
+                        const recipesPanel = (() => {
+                          void clockTick;
+                          const craftLocked =
+                            !!craftMotion ||
+                            recoveringStaleCraft ||
+                            (!!busy && busy.startsWith("craft"));
+                          return recipes.map((r) => {
                                 const perSec = Math.max(1, Math.floor(r.craftTimeSeconds ?? 60));
-                                const thisRunning =
-                                  pcs.status === "running" && pcs.recipeId === r.id ? pcs : null;
-                                const thisReady = pcs.status === "ready" && pcs.recipeId === r.id;
-                                const needRt = Math.max(1, Math.min(5, Math.floor(r.minTier ?? 1)));
-                                const tierOk = selectedTier >= needRt;
+                                const needRt = recipeMinTier(r);
                                 const materialsOk = (r.inputs ?? []).every((i) => {
                                   const have = invByItemId.get(i.itemId)?.quantity ?? 0;
                                   return have >= Math.max(0, Math.floor(i.quantity ?? 0));
                                 });
-                                const craftable = tierOk && materialsOk;
+                                const craftable = materialsOk;
                                 return (
                                   <div key={r.id} className="rounded-xl border border-zinc-200 bg-white p-3">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1377,75 +1327,51 @@ export function WorkshopsPanel() {
                                         <div
                                           className={[
                                             "rounded-full px-2 py-1 text-[10px] font-semibold",
-                                            craftable
-                                              ? "bg-emerald-100 text-emerald-900"
-                                              : !tierOk
-                                                ? "bg-amber-100 text-amber-950"
-                                                : "bg-zinc-100 text-zinc-600",
+                                            craftable ? "bg-emerald-100 text-emerald-900" : "bg-zinc-100 text-zinc-600",
                                           ].join(" ")}
                                         >
-                                          {!tierOk
-                                            ? `티어 T${needRt}+ 필요`
-                                            : materialsOk
-                                              ? "제작 가능"
-                                              : "재료 부족"}
+                                          {materialsOk ? "제작 가능" : "재료 부족"}
                                         </div>
                                       </div>
-                                      {thisRunning ? (
-                                        <div className="text-xs font-semibold text-indigo-700">
-                                          제작 중 · 남은{" "}
-                                          {formatDuration(Math.ceil(thisRunning.remainingMs / 1000))}
-                                        </div>
-                                      ) : thisReady ? (
-                                        <div className="text-xs font-semibold text-emerald-700">
-                                          완료 · 상단 「제작 수령」
-                                        </div>
-                                      ) : blockStart ? (
-                                        <div className="text-xs font-semibold text-zinc-500">
-                                          다른 레시피 제작 중
-                                        </div>
+                                      {craftMotion?.recipeId === r.id ? (
+                                        <div className="text-xs font-semibold text-amber-700">제작 준비 중…</div>
                                       ) : (
                                         <div className="flex gap-2">
                                           <button
                                             className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900 disabled:opacity-50"
-                                            disabled={!!busy || selected.minionCount <= 0 || blockStart || !craftable}
-                                            onClick={async () => {
-                                              setBusy("craft-start-1");
-                                              setError(null);
-                                              try {
-                                                await postJson(`/api/workshops/craft/start`, {
-                                                  workshopId: selected.id,
-                                                  recipeId: r.id,
-                                                  quantity: 1,
-                                                });
-                                                await refresh();
-                                              } catch (e) {
-                                                setError(e);
-                                              } finally {
-                                                setBusy(null);
-                                              }
+                                            disabled={
+                                              !!busy ||
+                                              craftLocked ||
+                                              !processCraftAllowed ||
+                                              !craftable
+                                            }
+                                            onClick={() => {
+                                              if (!selected) return;
+                                              startCraftMotion({
+                                                workshopId: selected.id,
+                                                recipeId: r.id,
+                                                recipeName: r.name,
+                                                quantity: 1,
+                                              });
                                             }}
                                           >
                                             x1 제작 시작
                                           </button>
                                           <button
                                             className="h-9 rounded-xl bg-zinc-900 px-3 text-xs font-semibold text-white disabled:opacity-50"
-                                            disabled={!!busy || selected.minionCount <= 0 || blockStart || !craftable}
-                                            onClick={async () => {
-                                              setBusy("craft-start-5");
-                                              setError(null);
-                                              try {
-                                                await postJson(`/api/workshops/craft/start`, {
-                                                  workshopId: selected.id,
-                                                  recipeId: r.id,
-                                                  quantity: 5,
-                                                });
-                                                await refresh();
-                                              } catch (e) {
-                                                setError(e);
-                                              } finally {
-                                                setBusy(null);
-                                              }
+                                            disabled={
+                                              craftLocked ||
+                                              !processCraftAllowed ||
+                                              !craftable
+                                            }
+                                            onClick={() => {
+                                              if (!selected) return;
+                                              startCraftMotion({
+                                                workshopId: selected.id,
+                                                recipeId: r.id,
+                                                recipeName: r.name,
+                                                quantity: 5,
+                                              });
                                             }}
                                           >
                                             x5 제작 시작
@@ -1466,9 +1392,8 @@ export function WorkshopsPanel() {
                                     </div>
                                   </div>
                                 );
-                              });
-                            })()
-                          );
+                          });
+                        })();
 
                         return (
                           <div className="mt-3 grid gap-4 lg:grid-cols-2 lg:items-start">
@@ -1477,7 +1402,12 @@ export function WorkshopsPanel() {
                               {materialsPanel}
                             </aside>
                             <section className="min-w-0">
-                              <div className="mb-2 text-xs font-semibold text-zinc-800">레시피</div>
+                              <div className="mb-2 flex flex-wrap items-baseline gap-2">
+                                <div className="text-xs font-semibold text-zinc-800">레시피</div>
+                                {variant === "specialist" ? (
+                                  <div className="text-[10px] text-zinc-500">시설 T{selectedTier} 이하</div>
+                                ) : null}
+                              </div>
                               <div className="grid max-h-[min(72vh,720px)] gap-2 overflow-y-auto pr-1">
                                 {recipesPanel}
                               </div>
@@ -1489,22 +1419,23 @@ export function WorkshopsPanel() {
                   ) : (
                     <>
                       <div className="text-sm font-semibold">드랍 테이블</div>
-                      <div className="mt-1 text-xs text-zinc-600">가중치 기반 확률(대략값) · 수량 범위</div>
                       <div className="mt-3 grid gap-2">
                         {(dropsByKey[selectedDropsKey] ?? []).length === 0 ? (
-                          <div className="text-sm text-zinc-500">드랍 정보가 없어.</div>
+                          <div className="text-sm text-zinc-500">—</div>
                         ) : (
                           (dropsByKey[selectedDropsKey] ?? []).map((d) => (
                             <div
                               key={`${d.itemId}:${Math.max(1, Math.min(5, Math.floor(d.minTier ?? 1)))}`}
                               className="grid grid-cols-12 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2"
                             >
-                              <div className="col-span-5 min-w-0">
-                                <div
-                                  className={`truncate text-sm font-semibold ${itemGradeNameClassName(d.grade ?? 1)}`}
-                                >
-                                  {d.itemName}
-                                </div>
+                              <div className="col-span-5 flex min-w-0 items-center gap-2">
+                                <ItemIcon itemId={d.itemId} icon={d.icon} iconSrc={d.iconSrc} size={40} />
+                                <div className="min-w-0">
+                                  <div
+                                    className={`truncate text-sm font-semibold ${itemGradeNameClassName(d.grade ?? 1)}`}
+                                  >
+                                    {d.itemName}
+                                  </div>
                                 <div className="text-xs text-zinc-500">
                                   {d.itemId} · {d.category}
                                   {d.gradeLabel ? (
@@ -1519,6 +1450,7 @@ export function WorkshopsPanel() {
                                       · 시설 Lv.{Math.max(1, Math.min(5, Math.floor(d.minTier ?? 1)))} 이상
                                     </span>
                                   ) : null}
+                                </div>
                                 </div>
                               </div>
                               <div className="col-span-4">
@@ -1546,78 +1478,87 @@ export function WorkshopsPanel() {
                   )}
                 </div>
               </>
-            ) : (
-              <div className="text-sm text-zinc-500">위 「내 부지」에서 시설의 「선택」을 눌러 주세요.</div>
-            )}
           </div>
-        )}
+        ) : null}
       </div>
 
-      {assignOpen && selected ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl">
+      {assignOpen && selected && variant === "gather" ? (
+        <div className="workshop-assign-overlay fixed inset-0 z-[60] flex items-end justify-center p-4 sm:items-center">
+          <button
+            type="button"
+            aria-label="닫기"
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setAssignOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="workshop-assign-title"
+            className="workshop-assign-modal game-modal relative z-[1] flex max-h-[min(90dvh,40rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl p-5 shadow-2xl"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold">미니언 배치 관리</div>
-                <div className="mt-1 text-xs text-zinc-600">
-                  시설: <span className="font-semibold">{selected.name}</span>
+                <div id="workshop-assign-title" className="text-sm font-semibold text-[var(--game-text)]">
+                  미니언 배치 관리
                 </div>
-                <div className="mt-2 text-[11px] leading-snug text-zinc-600">
-                  어떤 직업이든 배치할 수 있어. 특화 직업(
-                  {assignPreferredJobs.length ? assignPreferredJobs.join(", ") : "—"}) 미니언이 있으면 생산 보너스가 붙고,
-                  같은 특화 직업이 3·5·7·10명일 때 시너지가 쌓여.
+                <div className="mt-1 text-xs text-[var(--game-muted)]">
+                  {selected.name}
                 </div>
               </div>
-              <button
-                className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900"
-                onClick={() => setAssignOpen(false)}
-              >
+              <GameBtn variant="ghost" className="h-9 shrink-0 px-3 text-xs" onClick={() => setAssignOpen(false)}>
                 닫기
-              </button>
+              </GameBtn>
             </div>
 
             {assignBusy ? (
-              <div className="mt-4 text-sm text-zinc-600">불러오는 중…</div>
+              <div className="mt-4 text-sm text-[var(--game-muted)]">불러오는 중…</div>
             ) : (
-              <div className="mt-4">
-                <div className="text-xs font-semibold text-zinc-600">
-                  체크된 미니언이 이 시설에 배치돼. (현재 {checkedMinionIds.size}명)
-                </div>
-
-                <div className="mt-3 max-h-[420px] overflow-auto rounded-xl border border-zinc-200">
+              <div className="mt-4 min-h-0 flex-1 flex flex-col">
+                <div className="workshop-assign-modal__list mt-3 min-h-0 flex-1 overflow-auto rounded-xl border">
                   {(() => {
+                    const isGatherWs = (selected.kind ?? "GATHER") === "GATHER";
+                    const allowed = new Set(assignPreferredJobs);
+                    const jobOk = (m: MinionRow) =>
+                      !isGatherWs || allowed.size === 0 || allowed.has(m.jobType);
+
                     const eligible = allMinions.filter((m) => {
                       const assignedToThis = assignedMinionIds.has(m.id);
                       const isFree = !m.assignedWorkshop;
+                      if (!assignedToThis && !jobOk(m)) return false;
                       return isFree || assignedToThis;
                     });
                     const assignedHere = eligible.filter((m) => assignedMinionIds.has(m.id));
                     const available = eligible.filter((m) => !assignedMinionIds.has(m.id));
                     return eligible.length === 0 ? (
-                    <div className="p-4 text-sm text-zinc-500">미니언이 없어.</div>
+                    <div className="p-4 text-sm text-[var(--game-muted)]">미니언이 없어.</div>
                   ) : (
-                    <div className="divide-y divide-zinc-200">
+                    <div className="divide-y divide-[var(--game-border)]">
                       {assignedHere.length > 0 ? (
-                        <div className="bg-zinc-50 px-4 py-2 text-xs font-semibold text-zinc-700">
+                        <div className="workshop-assign-modal__group-head px-4 py-2 text-xs font-semibold">
                           현재 배치 중 ({assignedHere.length})
                         </div>
                       ) : (
-                        <div className="bg-zinc-50 px-4 py-2 text-xs font-semibold text-zinc-700">
+                        <div className="workshop-assign-modal__group-head px-4 py-2 text-xs font-semibold">
                           현재 배치 중 (0)
                         </div>
                       )}
                       {assignedHere.map((m) => {
                         const checked = checkedMinionIds.has(m.id);
                         return (
-                          <label key={m.id} className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3">
+                          <label
+                            key={m.id}
+                            className="workshop-assign-modal__row flex cursor-pointer items-center justify-between gap-3 px-4 py-3"
+                          >
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-semibold">Lv{m.level}</span>
-                                <span className={minionLetterGradeBadgeClassName(m.grade)}>
-                                  등급 {m.grade ?? "—"}
-                                </span>
-                                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-700">
-                                  {m.jobType}
+                                <span className="text-sm font-semibold text-[var(--game-text)]">Lv{m.level}</span>
+                                {m.combatStats ? (
+                                  <span className="text-xs font-semibold text-[var(--game-gold-bright)]">
+                                    CP {m.combatStats.combatPower}
+                                  </span>
+                                ) : null}
+                                <span className="workshop-assign-modal__job-badge rounded-full px-2 py-0.5 text-xs font-semibold">
+                                  {GATHER_MINION_JOB_LABEL[m.jobType] ?? m.jobType}
                                 </span>
                                 {assignedMinionIds.has(m.id) ? (
                                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">
@@ -1625,11 +1566,16 @@ export function WorkshopsPanel() {
                                   </span>
                                 ) : m.assignedWorkshop ? (
                                   <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900">
-                                    다른 곳 배치됨
+                                    다른 곳 배치됨 · {m.assignedWorkshop.workshopName}
                                   </span>
                                 ) : null}
                               </div>
-                              <div className="mt-1 text-[11px] font-mono text-zinc-500">{m.id}</div>
+                              {m.equippedWeapon ? (
+                                <div className="mt-1 text-[11px] text-[var(--game-muted)]">
+                                  {m.equippedWeapon.name}
+                                  {m.equippedWeapon.enhanceLevel > 0 ? ` +${m.equippedWeapon.enhanceLevel}` : ""}
+                                </div>
+                              ) : null}
                             </div>
                             <input
                               type="checkbox"
@@ -1644,24 +1590,34 @@ export function WorkshopsPanel() {
                           </label>
                         );
                       })}
-                      <div className="bg-zinc-50 px-4 py-2 text-xs font-semibold text-zinc-700">
+                      <div className="workshop-assign-modal__group-head px-4 py-2 text-xs font-semibold">
                         배치 가능 ({available.length})
                       </div>
                       {available.map((m) => {
                         const checked = checkedMinionIds.has(m.id);
                         return (
-                          <label key={m.id} className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3">
+                          <label
+                            key={m.id}
+                            className="workshop-assign-modal__row flex cursor-pointer items-center justify-between gap-3 px-4 py-3"
+                          >
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-semibold">Lv{m.level}</span>
-                                <span className={minionLetterGradeBadgeClassName(m.grade)}>
-                                  등급 {m.grade ?? "—"}
-                                </span>
-                                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-700">
-                                  {m.jobType}
+                                <span className="text-sm font-semibold text-[var(--game-text)]">Lv{m.level}</span>
+                                {m.combatStats ? (
+                                  <span className="text-xs font-semibold text-[var(--game-gold-bright)]">
+                                    CP {m.combatStats.combatPower}
+                                  </span>
+                                ) : null}
+                                <span className="workshop-assign-modal__job-badge rounded-full px-2 py-0.5 text-xs font-semibold">
+                                  {GATHER_MINION_JOB_LABEL[m.jobType] ?? m.jobType}
                                 </span>
                               </div>
-                              <div className="mt-1 text-[11px] font-mono text-zinc-500">{m.id}</div>
+                              {m.equippedWeapon ? (
+                                <div className="mt-1 text-[11px] text-[var(--game-muted)]">
+                                  {m.equippedWeapon.name}
+                                  {m.equippedWeapon.enhanceLevel > 0 ? ` +${m.equippedWeapon.enhanceLevel}` : ""}
+                                </div>
+                              ) : null}
                             </div>
                             <input
                               type="checkbox"
@@ -1681,27 +1637,42 @@ export function WorkshopsPanel() {
                   })()}
                 </div>
 
-                <div className="mt-4 flex gap-2">
-                  <button
-                    className="h-10 flex-1 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900"
-                    onClick={() => setAssignOpen(false)}
-                  >
+                <div className="mt-4 flex shrink-0 gap-2">
+                  <GameBtn variant="ghost" className="h-10 flex-1" onClick={() => setAssignOpen(false)}>
                     취소
-                  </button>
-                  <button
-                    className="h-10 flex-1 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                  </GameBtn>
+                  <GameBtn
+                    variant="gold"
+                    className="h-10 flex-1"
                     disabled={assignBusy}
                     onClick={() => void submitAssignModal()}
                   >
                     적용
-                  </button>
+                  </GameBtn>
                 </div>
               </div>
             )}
           </div>
         </div>
       ) : null}
-    </section>
+      </>
+      ) : null}
+
+      <CraftMotionOverlay
+        active={!!craftMotion}
+        recipeName={craftMotion?.recipeName ?? ""}
+        quantity={craftMotion?.quantity ?? 1}
+        onComplete={() => void onCraftMotionComplete()}
+      />
+
+      {craftReveal ? (
+        <CraftReveal
+          recipeName={craftReveal.recipeName}
+          cards={craftReveal.cards}
+          onClose={() => setCraftReveal(null)}
+        />
+      ) : null}
+    </GamePanel>
   );
 }
 

@@ -6,6 +6,9 @@ import { loadSeedData } from "@/server/seedData";
 import { clampItemGrade, defaultItemGradeForItemId } from "@/server/itemGrade";
 import { recipeMinTierFromSeedRow } from "@/server/recipeTier";
 import { referenceGoldPerUnit } from "@/server/itemReferenceGold";
+import { loadMerxatusRoyalPriceRows } from "@/server/merxatusRoyalCsv";
+import { upsertRoyalPricesFromMerxatusRows } from "@/server/applyMerxatusRoyalPrices";
+import { setUserSpecialistUnlockedTrue } from "@/server/userSpecialistDb";
 
 export const runtime = "nodejs";
 
@@ -39,10 +42,11 @@ async function runSeed() {
     create: { username: "dev_buyer" },
     update: {},
   });
+  await setUserSpecialistUnlockedTrue(prisma, buyer.id);
 
   await prisma.minionInventory.upsert({
     where: { userId: buyer.id },
-    create: { userId: buyer.id, owned: 1 },
+    create: { userId: buyer.id, owned: 1, gatherOwned: 1, dungeonOwned: 0 },
     update: {},
   });
 
@@ -62,9 +66,15 @@ async function runSeed() {
     });
   }
 
-  // Royal fixed prices (rare materials only)
+  // Royal: Merxatus-Price.csv 우선, 나머지 재료(≤레어)는 레퍼런스 골드 기반
+  const merxRows = await loadMerxatusRoyalPriceRows();
+  const merxIds = new Set(merxRows.map((r) => r.itemId));
+  if (merxRows.length > 0) {
+    await upsertRoyalPricesFromMerxatusRows(prisma, merxRows);
+  }
   for (const it of items) {
     if (!it.tradable || it.category !== "재료") continue;
+    if (merxIds.has(it.id)) continue;
     const grade = clampItemGrade(it.grade ?? defaultItemGradeForItemId(it.id));
     if (grade > 2) continue;
     const ref = referenceGoldPerUnit(it.id);
@@ -77,17 +87,15 @@ async function runSeed() {
     });
   }
 
-  // Black market baseline multipliers (materials only, ≤ rare by default)
+  // Black market: DB 배수는 1로 두고, 시세 변동은 서버 시간(UTC) 기준 5분 슬롯 로직으로 계산
   for (const it of items) {
     if (!it.tradable || it.category !== "재료") continue;
     const grade = clampItemGrade(it.grade ?? defaultItemGradeForItemId(it.id));
     if (grade > 2) continue;
-    // baseline around 1.0
-    const mult = 0.85 + Math.random() * 0.4; // 0.85~1.25
     await prisma.blackMarketPrice.upsert({
       where: { itemId: it.id },
-      create: { itemId: it.id, multiplier: mult },
-      update: { multiplier: mult },
+      create: { itemId: it.id, multiplier: 1 },
+      update: { multiplier: 1 },
     });
   }
 
@@ -218,7 +226,7 @@ async function runSeed() {
   }
 
   // Ensure the user has some items to sell (this seed treats listings as escrowed: inventory is reduced accordingly)
-  const oreId = "item_ore";
+  const oreId = "item_dark_iron";
   await prisma.inventoryStack.upsert({
     where: { userId_itemId: { userId: seller.id, itemId: oreId } },
     create: { userId: seller.id, itemId: oreId, quantity: 50 },

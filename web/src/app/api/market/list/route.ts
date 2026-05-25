@@ -41,12 +41,17 @@ export async function POST(req: Request) {
   if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
   try {
+    const data = parsed.data;
     const result = await createListing({
-      ...(parsed.data as any),
       sellerId: auth.userId,
-      itemId: (parsed.data as any).itemId ?? "item_ore",
-      quantity: (parsed.data as any).quantity ?? 1,
-    } as any);
+      saleType: data.saleType,
+      quantity: data.quantity ?? 1,
+      weaponInstanceId: data.weaponInstanceId,
+      itemId: data.itemId,
+      fixedPricePerUnit: data.saleType === "FIXED" ? data.fixedPricePerUnit : undefined,
+      fixedPriceTotal: data.saleType === "FIXED" ? data.fixedPriceTotal : undefined,
+      startPrice: data.saleType === "AUCTION" ? data.startPrice : undefined,
+    });
     return Response.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";

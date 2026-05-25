@@ -1,0 +1,8 @@
+ItemId,BuyPricePerUnit,SellPricePerUnit,Enabled
+item_stone,12,8,true
+item_dark_iron_ore,46,34,true
+item_dark_iron,52,38,true
+item_red_gold_ore,220,165,false
+item_red_gold,280,210,false
+item_gold_ore,900,650,false
+item_gold,1200,880,false

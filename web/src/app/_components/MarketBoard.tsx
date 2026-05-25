@@ -1,7 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
+import { ItemIcon } from "@/app/_components/ItemIcon";
+import { GameBtn, GamePanel } from "@/app/_components/gameUi";
 import { itemGradeNameClassName } from "@/server/itemGrade";
+import { useEscapeClose } from "@/shared/useEscapeClose";
+import { formatPanelError } from "@/shared/formatPanelError";
+import { useSessionUser } from "@/app/_components/SessionProvider";
+import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
+import {
+  MarketSellTab,
+  MARKET_SELL_CATEGORY_ALL,
+  MARKET_WEAPON_CATEGORY,
+  type SellInventoryRow,
+  type SellWeaponRow,
+} from "@/app/_components/MarketSellTab";
 
 type Listing = {
   id: string;
@@ -83,62 +97,71 @@ type MarketStats = {
 };
 
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  const json = (await res.json().catch(() => ({}))) as T;
-  if (!res.ok) throw json;
-  return json;
+  return apiGetJson<T>(url);
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const json = (await res.json().catch(() => ({}))) as T;
-  if (!res.ok) throw json;
-  return json;
+  return apiPostJson<T>(url, body);
 }
 
-function useLocalStorageString(key: string) {
-  const [value, setValue] = useState("");
+function fmtGold(n: number) {
+  return n.toLocaleString();
+}
 
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(key);
-      if (v) setValue(v);
-    } catch {}
-  }, [key]);
+function formatListingEnds(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
-  useEffect(() => {
-    function syncFromStorage() {
-      try {
-        const v = localStorage.getItem(key) ?? "";
-        setValue(v);
-      } catch {}
-    }
+function listingIconId(l: { itemId: string; weapon?: { baseItemId: string } | null }) {
+  return l.weapon?.baseItemId ?? l.itemId;
+}
 
-    window.addEventListener("storage", syncFromStorage);
-    window.addEventListener("dev_user_changed", syncFromStorage as EventListener);
-    return () => {
-      window.removeEventListener("storage", syncFromStorage);
-      window.removeEventListener("dev_user_changed", syncFromStorage as EventListener);
+function listingDisplayName(l: {
+  itemName: string;
+  itemGrade?: number;
+  weapon?: { name: string; enhanceLevel: number; grade?: number } | null;
+}) {
+  if (l.weapon) {
+    return {
+      name: l.weapon.name,
+      enhance: l.weapon.enhanceLevel,
+      grade: l.weapon.grade ?? l.itemGrade ?? 1,
     };
-  }, [key]);
-
-  useEffect(() => {
-    try {
-      if (value) localStorage.setItem(key, value);
-    } catch {}
-  }, [key, value]);
-
-  return [value, setValue] as const;
+  }
+  return { name: l.itemName, enhance: 0, grade: l.itemGrade ?? 1 };
 }
+
+function listingUnitPrice(l: Listing | MyListing): number | null {
+  if (l.saleType === "AUCTION") return l.startPrice;
+  if (l.fixedPriceTotal != null && l.quantity > 0) return Math.max(1, Math.floor(l.fixedPriceTotal / l.quantity));
+  return l.fixedPricePerUnit;
+}
+
+function listingPriceLabel(l: Listing | MyListing): { main: string; sub?: string } {
+  if (l.saleType === "AUCTION") {
+    const high = l.highestBid;
+    return {
+      main: high != null ? `${fmtGold(high)} G` : `${fmtGold(l.startPrice ?? 0)} G`,
+      sub: high != null ? `시작 ${fmtGold(l.startPrice ?? 0)} G` : "시작가",
+    };
+  }
+  if (l.fixedPriceTotal != null) {
+    return { main: `${fmtGold(l.fixedPriceTotal)} G`, sub: "일괄 구매" };
+  }
+  return { main: `${fmtGold(l.fixedPricePerUnit ?? 0)} G`, sub: "개당" };
+}
+
+const CATEGORY_ALL = "전체";
 
 export function MarketBoard() {
-  const [userId, setUserId] = useLocalStorageString("dev_userId");
-  const [tab, setTab] = useState<"MARKET" | "MINE">("MARKET");
+  const { user, loading: sessionLoading } = useSessionUser();
+  const userId = user?.id ?? "";
+  const [tab, setTab] = useState<"MARKET" | "SELL" | "MINE">("MARKET");
+  const [sellCategories, setSellCategories] = useState<string[]>([MARKET_SELL_CATEGORY_ALL]);
   const [q, setQ] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState(CATEGORY_ALL);
   const [saleType, setSaleType] = useState<"" | "FIXED" | "AUCTION">("");
   const [sort, setSort] = useState<"NEWEST" | "PRICE_ASC" | "ENDS_SOON">("NEWEST");
   const [bidAmount, setBidAmount] = useState(250);
@@ -148,7 +171,7 @@ export function MarketBoard() {
   const [statsBusy, setStatsBusy] = useState(false);
 
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<unknown>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [myListings, setMyListings] = useState<MyListing[]>([]);
 
@@ -159,6 +182,36 @@ export function MarketBoard() {
   const [editFixedTotal, setEditFixedTotal] = useState(1);
   const [editStartPrice, setEditStartPrice] = useState(1);
 
+  const closeEditModal = useCallback(() => {
+    setEditOpen(false);
+    setEditListing(null);
+  }, []);
+
+  useEscapeClose(editOpen && !!editListing, closeEditModal);
+
+  const closeStatsPanel = useCallback(() => {
+    setStatsItemId(null);
+    setStats(null);
+  }, []);
+  useEscapeClose(!!statsItemId, closeStatsPanel);
+
+  const tutorialMarketVisitRef = useRef(false);
+  useEffect(() => {
+    if (tutorialMarketVisitRef.current) return;
+    tutorialMarketVisitRef.current = true;
+    void (async () => {
+      try {
+        const res = await fetch("/api/tutorial/visit-market", {
+          method: "POST",
+          credentials: "same-origin",
+        });
+        if (res.ok) notifyTutorialRefresh();
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
+
   const queryUrl = useMemo(() => {
     const sp = new URLSearchParams();
     if (q.trim()) sp.set("q", q.trim());
@@ -168,6 +221,26 @@ export function MarketBoard() {
     return `/api/market/listings?${sp.toString()}`;
   }, [q, saleType, sort]);
 
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of listings) if (l.category) set.add(l.category);
+    return [CATEGORY_ALL, ...Array.from(set).sort()];
+  }, [listings]);
+
+  const filteredListings = useMemo(() => {
+    if (categoryFilter === CATEGORY_ALL) return listings;
+    return listings.filter((l) => l.category === categoryFilter);
+  }, [listings, categoryFilter]);
+
+  const activeCategories = tab === "SELL" ? sellCategories : categories;
+
+  const onSellInventoryLoaded = useCallback((inv: SellInventoryRow[], weapons: SellWeaponRow[]) => {
+    const set = new Set<string>();
+    for (const it of inv) if (it.category) set.add(it.category);
+    if (weapons.length > 0) set.add(MARKET_WEAPON_CATEGORY);
+    setSellCategories([MARKET_SELL_CATEGORY_ALL, ...Array.from(set).sort()]);
+  }, []);
+
   async function refresh() {
     setBusy(true);
     setError(null);
@@ -176,20 +249,32 @@ export function MarketBoard() {
         const r = await getJson<{ ok: boolean; listings: Listing[] }>(queryUrl);
         setListings(r.listings ?? []);
       } else {
+        if (!user) {
+          setMyListings([]);
+          return;
+        }
         const r = await getJson<MeState>("/api/me/state");
         setMyListings(r?.myListings ?? []);
       }
     } catch (e) {
-      setError(e);
+      if (!isUnauthorizedError(e)) setError(e);
     } finally {
       setBusy(false);
     }
   }
 
   useEffect(() => {
+    if (sessionLoading) return;
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryUrl, tab]);
+  }, [queryUrl, tab, user?.id, sessionLoading]);
+
+  useEffect(() => {
+    const pool = tab === "SELL" ? sellCategories : categories;
+    if (categoryFilter !== CATEGORY_ALL && !pool.includes(categoryFilter)) {
+      setCategoryFilter(CATEGORY_ALL);
+    }
+  }, [categories, sellCategories, categoryFilter, tab]);
 
   async function cancelMine(listingId: string) {
     setBusy(true);
@@ -236,7 +321,6 @@ export function MarketBoard() {
     setError(null);
     setEditListing(l);
     setEditOpen(true);
-
     if (l.saleType === "FIXED") {
       const mode: "UNIT" | "TOTAL" = l.fixedPriceTotal != null ? "TOTAL" : "UNIT";
       setEditFixedMode(mode);
@@ -283,415 +367,392 @@ export function MarketBoard() {
     }
   }
 
-  return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <div className="text-sm font-semibold">경매장</div>
-          <div className="text-sm text-zinc-600">
-            {tab === "MARKET" ? "경매장 물품 (전체 활성 매물)" : "내 판매 물품 (내 활성 매물)"}
+  function renderMarketRow(l: Listing) {
+    const d = listingDisplayName(l);
+    const price = listingPriceLabel(l);
+    const iconId = listingIconId(l);
+    const isMine = userId && userId === l.sellerId;
+
+    return (
+      <div key={l.id} className="market-row">
+        <button type="button" className="market-row__item" onClick={() => void openStats(l.itemId)} title="시세 보기">
+          <ItemIcon itemId={iconId} size={44} className="market-row__icon" />
+          <div className="market-row__info">
+            <div className="market-row__name-line">
+              <span className={`market-row__name ${itemGradeNameClassName(d.grade)}`}>{d.name}</span>
+              {d.enhance > 0 ? <span className="market-row__enh">+{d.enhance}</span> : null}
+            </div>
+            <div className="market-row__meta">
+              <span className={`market-row__badge market-row__badge--${l.saleType === "FIXED" ? "fixed" : "auction"}`}>
+                {l.saleType === "FIXED" ? "고정가" : "경매"}
+              </span>
+              <span className="market-row__cat">{l.category}</span>
+            </div>
+          </div>
+        </button>
+
+        <div className="market-row__qty" title="수량">
+          <span className="market-row__col-label">수량</span>
+          <span className="market-row__qty-val">{l.quantity.toLocaleString()}</span>
+        </div>
+
+        <div className="market-row__price">
+          <span className="market-row__col-label">가격</span>
+          <span className="market-row__price-main">{price.main}</span>
+          {price.sub ? <span className="market-row__price-sub">{price.sub}</span> : null}
+          {l.endsAt ? (
+            <span className="market-row__price-sub">만료 {formatListingEnds(l.endsAt)}</span>
+          ) : null}
+        </div>
+
+        <div className="market-row__action">
+          {l.saleType === "FIXED" ? (
+            <div className="market-row__buy">
+              {l.fixedPriceTotal == null ? (
+                <input
+                  type="number"
+                  className="market-input market-input--qty"
+                  min={1}
+                  max={l.quantity}
+                  value={buyQtyByListingId[l.id] ?? 1}
+                  onChange={(e) => {
+                    const v = Math.max(1, Math.floor(Number(e.target.value) || 1));
+                    setBuyQtyByListingId((prev) => ({ ...prev, [l.id]: Math.min(v, l.quantity) }));
+                  }}
+                  title="구매 수량"
+                />
+              ) : null}
+              <button
+                type="button"
+                className="market-btn market-btn--buy"
+                disabled={!!busy || !userId || !!isMine}
+                onClick={async () => {
+                  setBusy(true);
+                  setError(null);
+                  try {
+                    const qty = l.fixedPriceTotal != null ? l.quantity : (buyQtyByListingId[l.id] ?? 1);
+                    await postJson("/api/market/buy", { listingId: l.id, quantity: qty });
+                    await refresh();
+                  } catch (e) {
+                    setError(e);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                구매
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="market-btn market-btn--bid"
+              disabled={!!busy || !userId || !!isMine}
+              onClick={async () => {
+                setBusy(true);
+                setError(null);
+                try {
+                  await postJson("/api/market/bid", { listingId: l.id, amount: bidAmount });
+                  await refresh();
+                } catch (e) {
+                  setError(e);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              입찰
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function renderMyRow(l: MyListing) {
+    const d = listingDisplayName({
+      itemName: l.itemName,
+      itemGrade: l.itemGrade,
+      weapon: l.weaponInstance
+        ? { name: l.weaponInstance.name, enhanceLevel: l.weaponInstance.enhanceLevel, grade: l.weaponInstance.grade }
+        : null,
+    });
+    const price = listingPriceLabel(l);
+    const iconId = listingIconId({ itemId: l.itemId, weapon: l.weaponInstance ? { baseItemId: l.weaponInstance.baseItemId } : null });
+    const auctionLocked = l.saleType === "AUCTION" && (l.highestBid != null || l.highestBidderId != null);
+    const expired = l.endsAt ? new Date(l.endsAt).getTime() <= Date.now() : false;
+
+    return (
+      <div key={l.id} className="market-row market-row--mine">
+        <div className="market-row__item">
+          <ItemIcon itemId={iconId} size={44} className="market-row__icon" />
+          <div className="market-row__info">
+            <div className="market-row__name-line">
+              <span className={`market-row__name ${itemGradeNameClassName(d.grade)}`}>{d.name}</span>
+              {d.enhance > 0 ? <span className="market-row__enh">+{d.enhance}</span> : null}
+            </div>
+            <div className="market-row__meta">
+              <span className={`market-row__badge market-row__badge--${l.saleType === "FIXED" ? "fixed" : "auction"}`}>
+                {l.saleType === "FIXED" ? "고정가" : "경매"}
+              </span>
+              <span className="market-row__cat">{l.itemId}</span>
+            </div>
           </div>
         </div>
-        <div className="flex gap-2">
+
+        <div className="market-row__qty">
+          <span className="market-row__col-label">수량</span>
+          <span className="market-row__qty-val">{l.quantity.toLocaleString()}</span>
+        </div>
+
+        <div className="market-row__price">
+          <span className="market-row__col-label">가격</span>
+          <span className="market-row__price-main">{price.main}</span>
+          {price.sub ? <span className="market-row__price-sub">{price.sub}</span> : null}
+          {l.endsAt ? (
+            <span className={`market-row__price-sub ${expired ? "text-amber-300" : ""}`}>
+              {expired ? "만료됨 · " : "만료 "}
+              {formatListingEnds(l.endsAt)}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="market-row__action market-row__action--multi">
           <button
-            className={`h-10 rounded-xl px-4 text-sm font-semibold ${tab === "MARKET" ? "bg-zinc-900 text-white" : "border border-zinc-200 bg-white text-zinc-900"}`}
+            type="button"
+            className="market-btn market-btn--ghost"
+            disabled={!!busy || auctionLocked}
+            onClick={() => openEditListing(l)}
+            title={auctionLocked ? "입찰 후 수정 불가" : "가격 수정"}
+          >
+            수정
+          </button>
+          {l.saleType === "AUCTION" || (l.saleType === "FIXED" && expired) ? (
+            <button type="button" className="market-btn market-btn--ghost" disabled={!!busy} onClick={() => void settleMine(l.id)}>
+              {l.saleType === "FIXED" ? "회수" : "정산"}
+            </button>
+          ) : null}
+          <button type="button" className="market-btn market-btn--cancel" disabled={!!busy} onClick={() => void cancelMine(l.id)}>
+            취소
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <GamePanel className="market-board">
+      <div className="market-board__header">
+        <div>
+          <p className="game-label">거래소</p>
+          <h2 className="market-board__title">메르카투스 거래소</h2>
+          <p className="mt-1 text-xs text-[var(--game-muted)]">매물 등록 최대 20건 · 판매 기간 48시간</p>
+        </div>
+        <div className="market-board__tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "MARKET"}
+            className={`market-board__tab ${tab === "MARKET" ? "market-board__tab--active" : ""}`}
             onClick={() => setTab("MARKET")}
           >
-            경매장 물품
+            구매
           </button>
           <button
-            className={`h-10 rounded-xl px-4 text-sm font-semibold ${tab === "MINE" ? "bg-zinc-900 text-white" : "border border-zinc-200 bg-white text-zinc-900"}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === "SELL"}
+            className={`market-board__tab ${tab === "SELL" ? "market-board__tab--active" : ""}`}
+            onClick={() => setTab("SELL")}
+          >
+            판매
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "MINE"}
+            className={`market-board__tab ${tab === "MINE" ? "market-board__tab--active" : ""}`}
             onClick={() => setTab("MINE")}
           >
-            내 판매 물품
+            내 판매
+            {myListings.length > 0 ? (
+              <span className="market-board__tab-count">
+                {myListings.length}/20
+              </span>
+            ) : null}
           </button>
         </div>
-      </div>
-
-      {tab === "MARKET" ? (
-      <div className="mt-4 grid gap-3 md:grid-cols-5">
-        <div className="flex flex-col gap-2 md:col-span-2">
-          <label className="text-xs font-semibold text-zinc-600">검색</label>
-          <input
-            className="h-10 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="아이템 이름 / itemId / listingId"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-zinc-600">타입</label>
-          <select
-            className="h-10 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-            value={saleType}
-            onChange={(e) => setSaleType(e.target.value as any)}
-          >
-            <option value="">전체</option>
-            <option value="FIXED">고정가</option>
-            <option value="AUCTION">경매</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-zinc-600">정렬</label>
-          <select
-            className="h-10 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-            value={sort}
-            onChange={(e) => setSort(e.target.value as any)}
-          >
-            <option value="NEWEST">최신</option>
-            <option value="PRICE_ASC">가격 낮은순</option>
-            <option value="ENDS_SOON">종료 임박순</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold text-zinc-600">내 userId (세션)</label>
-          <input
-            className="h-10 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-700 outline-none"
-            value={userId}
-            readOnly
-          />
-          <div className="text-[11px] text-zinc-500">로그인하면 자동으로 채워져. 구매/입찰은 세션을 사용해.</div>
-        </div>
-      </div>
-      ) : (
-        <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
-          내 판매 물품 탭에서는 내가 올린 활성 매물을 보고 취소/정산할 수 있어.
-        </div>
-      )}
-
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button
-          className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
-          disabled={busy}
-          onClick={() => void refresh()}
-        >
-          새로고침
-        </button>
-        {tab === "MARKET" ? (
-          <>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-zinc-600">경매 입찰액</span>
-              <input
-                className="h-10 w-32 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                type="number"
-                value={bidAmount}
-                onChange={(e) => setBidAmount(Number(e.target.value))}
-                min={1}
-                step={1}
-              />
-            </div>
-            <div className="text-xs text-zinc-500">총 {listings.length}개</div>
-          </>
-        ) : (
-          <div className="text-xs text-zinc-500">총 {myListings.length}개</div>
-        )}
       </div>
 
       {error ? (
-        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          조회 실패: {typeof error === "string" ? error : JSON.stringify(error)}
-        </div>
+        <div className="market-alert market-alert--error">{formatPanelError(error)}</div>
       ) : null}
 
-      <div className="mt-4 grid gap-2">
-        {tab === "MARKET" ? (
-        listings.length === 0 ? (
-          <div className="text-sm text-zinc-500">매물이 없어. (시드 넣기/판매 등록 후 새로고침)</div>
-        ) : (
-          listings.map((l) => (
-            <div
-              key={l.id}
-              className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    className="truncate text-left text-sm font-semibold underline decoration-zinc-300 underline-offset-4"
-                    onClick={() => void openStats(l.itemId)}
-                    title="클릭해서 시세/거래 히스토리 보기"
-                  >
-                    {l.weapon ? (
-                      <>
-                        <span className={itemGradeNameClassName(l.weapon.grade ?? l.itemGrade ?? 1)}>
-                          {l.weapon.name}
-                        </span>
-                        {l.weapon.enhanceLevel > 0 ? (
-                          <span className="text-zinc-700">{` +${l.weapon.enhanceLevel}`}</span>
-                        ) : null}
-                      </>
-                    ) : (
-                      <span className={itemGradeNameClassName(l.itemGrade ?? 1)}>{l.itemName}</span>
-                    )}
-                  </button>
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-700">
-                    {l.saleType}
-                  </span>
-                  <span className="text-xs text-zinc-500">
-                    qty {l.quantity} · {l.itemId} · {l.category}
-                  </span>
-                </div>
-                {l.saleType === "FIXED" ? (
-                  l.fixedPriceTotal != null ? (
-                    <div className="mt-1 text-sm text-zinc-700">
-                      총액: {l.fixedPriceTotal}G (전체 구매만 가능) · 참고 단가{" "}
-                      {l.quantity > 0 ? Math.max(1, Math.floor(l.fixedPriceTotal / l.quantity)) : "-"}G/개
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-sm text-zinc-700">단가: {l.fixedPricePerUnit}G /개 (부분 구매 가능)</div>
-                  )
-                ) : (
-                  <div className="mt-1 text-sm text-zinc-700">
-                    시작가: {l.startPrice} · 최고가: {l.highestBid ?? "-"} · 종료:{" "}
-                    {l.endsAt ? new Date(l.endsAt).toLocaleTimeString() : "-"}
-                  </div>
-                )}
-                <div className="mt-1 text-xs text-zinc-500">listingId: {l.id}</div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {l.saleType === "FIXED" ? (
-                  <>
-                    {l.fixedPriceTotal != null ? (
-                      <div className="text-sm font-semibold text-zinc-800">수량 {l.quantity}</div>
-                    ) : (
-                      <input
-                        className="h-10 w-24 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                        type="number"
-                        min={1}
-                        max={l.quantity}
-                        value={buyQtyByListingId[l.id] ?? 1}
-                        onChange={(e) => {
-                          const v = Math.max(1, Math.floor(Number(e.target.value) || 1));
-                          setBuyQtyByListingId((prev) => ({ ...prev, [l.id]: Math.min(v, l.quantity) }));
-                        }}
-                        title="구매 수량"
-                      />
-                    )}
-                    <button
-                      className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
-                      disabled={busy || !userId || userId === l.sellerId}
-                      onClick={async () => {
-                        setBusy(true);
-                        setError(null);
-                        try {
-                          const qty = l.fixedPriceTotal != null ? l.quantity : (buyQtyByListingId[l.id] ?? 1);
-                          await postJson("/api/market/buy", { listingId: l.id, quantity: qty });
-                          await refresh();
-                        } catch (e) {
-                          setError(e);
-                        } finally {
-                          setBusy(false);
-                        }
-                      }}
-                    >
-                      구매
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
-                    disabled={busy || !userId || userId === l.sellerId}
-                    onClick={async () => {
-                      setBusy(true);
-                      setError(null);
-                      try {
-                        await postJson("/api/market/bid", { listingId: l.id, amount: bidAmount });
-                        await refresh();
-                      } catch (e) {
-                        setError(e);
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    입찰
-                  </button>
-                )}
-              </div>
+      <div className="market-board__layout">
+        {tab === "MARKET" || tab === "SELL" ? (
+          <aside className="market-board__sidebar" aria-label="카테고리">
+            <p className="market-sidebar__title">{tab === "SELL" ? "보유 분류" : "카테고리"}</p>
+            <div className="market-sidebar__list">
+              {activeCategories.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  className={`market-sidebar__item ${categoryFilter === cat ? "market-sidebar__item--active" : ""}`}
+                  onClick={() => setCategoryFilter(cat)}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
-          ))
-        )
+          </aside>
         ) : (
-          myListings.length === 0 ? (
-            <div className="text-sm text-zinc-500">내 판매중 매물이 없어.</div>
-          ) : (
-            myListings.map((l) => (
-              <div
-                key={l.id}
-                className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="truncate text-sm font-semibold">
-                      {l.weaponInstance ? (
-                        <>
-                          <span className={itemGradeNameClassName(l.weaponInstance.grade ?? l.itemGrade ?? 1)}>
-                            {l.weaponInstance.name}
-                          </span>
-                          {l.weaponInstance.enhanceLevel > 0 ? (
-                            <span className="text-zinc-700">{` +${l.weaponInstance.enhanceLevel}`}</span>
-                          ) : null}
-                        </>
-                      ) : (
-                        <span className={itemGradeNameClassName(l.itemGrade ?? 1)}>{l.itemName}</span>
-                      )}
-                    </div>
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-700">
-                      {l.saleType}
-                    </span>
-                    <span className="text-xs text-zinc-500">qty {l.quantity} · {l.itemId}</span>
-                  </div>
-                  <div className="mt-1 text-xs text-zinc-500">listingId: {l.id}</div>
-                  {l.saleType === "AUCTION" ? (
-                    <div className="mt-1 text-sm text-zinc-700">
-                      시작가: {l.startPrice} · 최고가: {l.highestBid ?? "-"} · 종료:{" "}
-                      {l.endsAt ? new Date(l.endsAt).toLocaleTimeString() : "-"}
-                    </div>
-                  ) : l.fixedPriceTotal != null ? (
-                    <div className="mt-1 text-sm text-zinc-700">총액: {l.fixedPriceTotal}G</div>
-                  ) : (
-                    <div className="mt-1 text-sm text-zinc-700">단가: {l.fixedPricePerUnit}G /개</div>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
-                    disabled={
-                      busy ||
-                      (l.saleType === "AUCTION" && (l.highestBid != null || l.highestBidderId != null))
-                    }
-                    onClick={() => openEditListing(l)}
-                    title={
-                      l.saleType === "AUCTION" && (l.highestBid != null || l.highestBidderId != null)
-                        ? "입찰이 있으면 경매 시작가 수정이 불가"
-                        : "가격 수정"
-                    }
-                  >
-                    수정
-                  </button>
-                  {l.saleType === "AUCTION" ? (
-                    <button
-                      className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
-                      disabled={busy}
-                      onClick={() => void settleMine(l.id)}
-                    >
-                      정산
-                    </button>
-                  ) : null}
-                  <button
-                    className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
-                    disabled={busy}
-                    onClick={() => void cancelMine(l.id)}
-                  >
-                    취소
-                  </button>
-                </div>
-              </div>
-            ))
-          )
+          <aside className="market-board__sidebar market-board__sidebar--hint">
+            <p className="market-sidebar__title">내 판매</p>
+            <p className="market-sidebar__hint">등록한 매물의 가격 수정·정산·취소를 할 수 있어요. 매물은 48시간 후 만료됩니다.</p>
+          </aside>
         )}
+
+        <div className="market-board__main">
+          <div className="market-toolbar">
+            <div className="market-toolbar__search">
+              <input
+                className="market-input market-input--search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={
+                  tab === "MARKET" ? "아이템 이름 검색…" : tab === "SELL" ? "보유 아이템 검색…" : "내 매물은 아래 목록에서 확인"
+                }
+                disabled={tab === "MINE"}
+              />
+            </div>
+            {tab === "MARKET" ? (
+              <>
+                <select className="market-input market-input--select" value={saleType} onChange={(e) => setSaleType(e.target.value as "" | "FIXED" | "AUCTION")}>
+                  <option value="">전체 거래</option>
+                  <option value="FIXED">고정가</option>
+                  <option value="AUCTION">경매</option>
+                </select>
+                <select className="market-input market-input--select" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+                  <option value="NEWEST">최신순</option>
+                  <option value="PRICE_ASC">가격 낮은순</option>
+                  <option value="ENDS_SOON">마감 임박</option>
+                </select>
+                <div className="market-toolbar__bid">
+                  <label className="market-toolbar__bid-label">입찰액</label>
+                  <input
+                    type="number"
+                    className="market-input market-input--bid"
+                    value={bidAmount}
+                    min={1}
+                    onChange={(e) => setBidAmount(Math.max(1, Math.floor(Number(e.target.value) || 1)))}
+                  />
+                </div>
+              </>
+            ) : null}
+            <GameBtn variant="ghost" disabled={!!busy} onClick={() => void refresh()}>
+              {busy ? "…" : "새로고침"}
+            </GameBtn>
+          </div>
+
+          <div className="market-table-head" aria-hidden>
+            <span className="market-table-head__item">아이템</span>
+            <span className="market-table-head__qty">수량</span>
+            <span className="market-table-head__price">가격</span>
+            <span className="market-table-head__action">{tab === "MARKET" ? "구매" : tab === "SELL" ? "판매" : "관리"}</span>
+          </div>
+
+          <div className="market-list">
+            {tab === "MARKET" ? (
+              filteredListings.length === 0 ? (
+                <div className="market-empty">등록된 매물이 없습니다.</div>
+              ) : (
+                filteredListings.map((l) => renderMarketRow(l))
+              )
+            ) : tab === "SELL" ? (
+              <MarketSellTab
+                userId={userId}
+                busy={busy}
+                setBusy={setBusy}
+                onError={setError}
+                onListed={() => {
+                  setTab("MINE");
+                  void refresh();
+                }}
+                onInventoryLoaded={onSellInventoryLoaded}
+                searchQuery={q}
+                categoryFilter={categoryFilter}
+              />
+            ) : myListings.length === 0 ? (
+              <div className="market-empty">판매 중인 매물이 없습니다. 판매 탭에서 등록해 보세요.</div>
+            ) : (
+              myListings.map((l) => renderMyRow(l))
+            )}
+          </div>
+
+          <div className="market-board__footer">
+            <span>
+              {tab === "MARKET" ? `${filteredListings.length}건` : tab === "SELL" ? "보유 목록" : `${myListings.length}건`}
+              {(tab === "MARKET" || tab === "SELL") && categoryFilter !== CATEGORY_ALL ? ` · ${categoryFilter}` : ""}
+            </span>
+            {userId ? null : <span className="market-board__session market-board__session--warn">로그인 필요</span>}
+          </div>
+        </div>
       </div>
 
       {statsItemId ? (
-        <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
-          <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
-            <div className="text-sm font-semibold">
-              시세 · 거래 히스토리{" "}
-              <span className="text-xs font-semibold text-zinc-500">({statsItemId})</span>
+        <div className="market-stats-panel">
+          <div className="market-stats-panel__head">
+            <div>
+              <p className="game-label">시세</p>
+              <h3 className="market-stats-panel__title">
+                <span className={itemGradeNameClassName(stats?.item?.grade ?? 1)}>{stats?.item?.name ?? statsItemId}</span>
+              </h3>
             </div>
             <div className="flex gap-2">
-              <button
-                className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900 disabled:opacity-50"
-                disabled={statsBusy}
-                onClick={() => void openStats(statsItemId)}
-              >
+              <GameBtn variant="ghost" disabled={statsBusy} onClick={() => void openStats(statsItemId)}>
                 새로고침
-              </button>
-              <button
-                className="h-9 rounded-xl bg-zinc-900 px-3 text-xs font-semibold text-white"
-                onClick={() => {
-                  setStatsItemId(null);
-                  setStats(null);
-                }}
-              >
+              </GameBtn>
+              <GameBtn variant="ghost" onClick={closeStatsPanel}>
                 닫기
-              </button>
+              </GameBtn>
             </div>
           </div>
-
-          <div className="grid gap-4 p-4 md:grid-cols-2">
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <div className="text-sm font-semibold">
-                <span className={itemGradeNameClassName(stats?.item?.grade ?? 1)}>{stats?.item?.name ?? "아이템"}</span>{" "}
-                <span className="text-xs font-semibold text-zinc-500">{stats?.item?.category ?? ""}</span>
+          <div className="market-stats-panel__grid">
+            <div className="market-stats-summary">
+              <div className="market-stats-summary__cell">
+                <span className="market-stats-summary__label">최근 거래</span>
+                <span className="market-stats-summary__val">{stats?.summary.trades ?? (statsBusy ? "…" : 0)}</span>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <div className="text-xs font-semibold text-zinc-600">최근 거래 수</div>
-                  <div className="mt-1 font-semibold">{stats?.summary.trades ?? (statsBusy ? "…" : 0)}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-zinc-600">거래량(수량)</div>
-                  <div className="mt-1 font-semibold">{stats?.summary.volume ?? (statsBusy ? "…" : 0)}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-zinc-600">최근 단가</div>
-                  <div className="mt-1 font-semibold">
-                    {statsBusy ? "…" : stats?.summary.lastUnitPrice?.toFixed(2) ?? "-"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-zinc-600">평균 단가(최근)</div>
-                  <div className="mt-1 font-semibold">
-                    {statsBusy ? "…" : stats?.summary.avgUnitPrice?.toFixed(2) ?? "-"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-zinc-600">최저 단가</div>
-                  <div className="mt-1 font-semibold">
-                    {statsBusy ? "…" : stats?.summary.minUnitPrice?.toFixed(2) ?? "-"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-zinc-600">최고 단가</div>
-                  <div className="mt-1 font-semibold">
-                    {statsBusy ? "…" : stats?.summary.maxUnitPrice?.toFixed(2) ?? "-"}
-                  </div>
-                </div>
+              <div className="market-stats-summary__cell">
+                <span className="market-stats-summary__label">거래량</span>
+                <span className="market-stats-summary__val">{stats?.summary.volume ?? (statsBusy ? "…" : 0)}</span>
               </div>
-              <div className="mt-3 text-xs text-zinc-600">
-                단가 = 거래 총액 / 거래 수량. (지금은 단일 매물 거래라 정확)
+              <div className="market-stats-summary__cell">
+                <span className="market-stats-summary__label">최근 단가</span>
+                <span className="market-stats-summary__val market-stats-summary__val--gold">
+                  {statsBusy ? "…" : stats?.summary.lastUnitPrice != null ? `${fmtGold(Math.round(stats.summary.lastUnitPrice))} G` : "—"}
+                </span>
+              </div>
+              <div className="market-stats-summary__cell">
+                <span className="market-stats-summary__label">평균 단가</span>
+                <span className="market-stats-summary__val market-stats-summary__val--gold">
+                  {statsBusy ? "…" : stats?.summary.avgUnitPrice != null ? `${fmtGold(Math.round(stats.summary.avgUnitPrice))} G` : "—"}
+                </span>
               </div>
             </div>
-
-            <div className="rounded-xl border border-zinc-200 bg-white p-4">
-              <div className="text-sm font-semibold">최근 거래</div>
-              <div className="mt-3 grid gap-2">
+            <div className="market-stats-trades">
+              <p className="market-stats-trades__title">최근 거래 내역</p>
+              <div className="market-stats-trades__list">
                 {statsBusy ? (
-                  <div className="text-sm text-zinc-500">불러오는 중…</div>
+                  <p className="market-empty">불러오는 중…</p>
                 ) : !stats?.trades?.length ? (
-                  <div className="text-sm text-zinc-500">거래 기록이 아직 없어. (구매/정산 후 생김)</div>
+                  <p className="market-empty">거래 기록 없음</p>
                 ) : (
                   stats.trades.map((t) => (
-                    <div
-                      key={t.transactionId}
-                      className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-zinc-700">
-                          {new Date(t.createdAt).toLocaleString()} · {t.saleType}
-                        </div>
-                        <div className="text-[11px] text-zinc-500 truncate">
-                          seller {t.sellerId} → buyer {t.buyerId}
-                        </div>
-                      </div>
-                      <div className="ml-3 text-right">
-                        <div className="text-sm font-semibold tabular-nums">{t.unitPrice.toFixed(2)} /개</div>
-                        <div className="text-xs text-zinc-600 tabular-nums">
-                          총 {t.grossGold} · qty {t.quantity}
-                        </div>
-                      </div>
+                    <div key={t.transactionId} className="market-stats-trade">
+                      <span className="market-stats-trade__time">{new Date(t.createdAt).toLocaleString()}</span>
+                      <span className="market-stats-trade__price">{fmtGold(Math.round(t.unitPrice))} G/개</span>
+                      <span className="market-stats-trade__qty">×{t.quantity}</span>
                     </div>
                   ))
                 )}
@@ -702,119 +763,84 @@ export function MarketBoard() {
       ) : null}
 
       {editOpen && editListing ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold">내 매물 가격 수정</div>
-                <div className="mt-1 text-xs text-zinc-600">
-                  {editListing.weaponInstance ? (
-                    <>
-                      <span
-                        className={itemGradeNameClassName(
-                          editListing.weaponInstance.grade ?? editListing.itemGrade ?? 1,
-                        )}
-                      >
-                        {editListing.weaponInstance.name}
-                      </span>
-                      {editListing.weaponInstance.enhanceLevel > 0 ? (
-                        <span className="text-zinc-700">{` +${editListing.weaponInstance.enhanceLevel}`}</span>
-                      ) : null}
-                    </>
-                  ) : (
-                    <span className={itemGradeNameClassName(editListing.itemGrade ?? 1)}>{editListing.itemName}</span>
-                  )}{" "}
-                  · <span className="font-mono">{editListing.id}</span> · {editListing.saleType}
-                </div>
-              </div>
-              <button
-                className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900"
-                onClick={() => {
-                  setEditOpen(false);
-                  setEditListing(null);
-                }}
-              >
+        <div className="market-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && closeEditModal()}>
+          <div className="market-modal" role="dialog" aria-modal="true">
+            <div className="market-modal__head">
+              <h3 className="market-modal__title">매물 가격 수정</h3>
+              <button type="button" className="market-btn market-btn--ghost" onClick={closeEditModal}>
                 닫기
               </button>
             </div>
-
-            <div className="mt-4 grid gap-3">
+            <p className="market-modal__item">
+              {editListing.weaponInstance ? (
+                <>
+                  <span className={itemGradeNameClassName(editListing.weaponInstance.grade ?? editListing.itemGrade ?? 1)}>
+                    {editListing.weaponInstance.name}
+                  </span>
+                  {editListing.weaponInstance.enhanceLevel > 0 ? ` +${editListing.weaponInstance.enhanceLevel}` : ""}
+                </>
+              ) : (
+                <span className={itemGradeNameClassName(editListing.itemGrade ?? 1)}>{editListing.itemName}</span>
+              )}
+            </p>
+            <div className="market-modal__form">
               {editListing.saleType === "FIXED" ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="flex flex-col gap-1 sm:col-span-2">
-                    <label className="text-xs font-semibold text-zinc-600">고정가 타입</label>
-                    <select
-                      className="h-10 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                      value={editFixedMode}
-                      onChange={(e) => setEditFixedMode(e.target.value as any)}
-                    >
-                      <option value="UNIT">단가(부분 구매 가능)</option>
-                      <option value="TOTAL">총액(전체 구매만)</option>
+                <>
+                  <label className="market-modal__label">
+                    가격 유형
+                    <select className="market-input" value={editFixedMode} onChange={(e) => setEditFixedMode(e.target.value as "UNIT" | "TOTAL")}>
+                      <option value="UNIT">단가 (부분 구매)</option>
+                      <option value="TOTAL">총액 (일괄)</option>
                     </select>
-                  </div>
-
+                  </label>
                   {editFixedMode === "UNIT" ? (
-                    <div className="flex flex-col gap-1 sm:col-span-2">
-                      <label className="text-xs font-semibold text-zinc-600">단가</label>
+                    <label className="market-modal__label">
+                      단가 (G)
                       <input
-                        className="h-10 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
                         type="number"
+                        className="market-input"
                         min={1}
                         value={editFixedUnit}
                         onChange={(e) => setEditFixedUnit(Math.max(1, Math.floor(Number(e.target.value) || 1)))}
                       />
-                    </div>
+                    </label>
                   ) : (
-                    <div className="flex flex-col gap-1 sm:col-span-2">
-                      <label className="text-xs font-semibold text-zinc-600">총액</label>
+                    <label className="market-modal__label">
+                      총액 (G)
                       <input
-                        className="h-10 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
                         type="number"
+                        className="market-input"
                         min={1}
                         value={editFixedTotal}
                         onChange={(e) => setEditFixedTotal(Math.max(1, Math.floor(Number(e.target.value) || 1)))}
                       />
-                      <div className="mt-1 text-[11px] text-zinc-500">총액 고정가는 구매자가 수량을 나눠 살 수 없어.</div>
-                    </div>
+                    </label>
                   )}
-                </div>
+                </>
               ) : (
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-zinc-600">시작가</label>
+                <label className="market-modal__label">
+                  시작가 (G)
                   <input
-                    className="h-10 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
                     type="number"
+                    className="market-input"
                     min={1}
                     value={editStartPrice}
                     onChange={(e) => setEditStartPrice(Math.max(1, Math.floor(Number(e.target.value) || 1)))}
                   />
-                  <div className="mt-1 text-[11px] text-zinc-500">경매는 입찰이 있으면 수정이 막혀.</div>
-                </div>
+                </label>
               )}
             </div>
-
-            <div className="mt-4 flex gap-2">
-              <button
-                className="h-10 flex-1 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900"
-                onClick={() => {
-                  setEditOpen(false);
-                  setEditListing(null);
-                }}
-              >
+            <div className="market-modal__actions">
+              <GameBtn variant="ghost" onClick={closeEditModal}>
                 취소
-              </button>
-              <button
-                className="h-10 flex-1 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
-                disabled={busy}
-                onClick={() => void submitEdit()}
-              >
+              </GameBtn>
+              <GameBtn variant="gold" disabled={!!busy} onClick={() => void submitEdit()}>
                 저장
-              </button>
+              </GameBtn>
             </div>
           </div>
         </div>
       ) : null}
-    </section>
+    </GamePanel>
   );
 }
-

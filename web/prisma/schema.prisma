@@ -63,6 +63,8 @@ enum MinionJobType {
   UNASSIGNED
   MINER
   FISHER
+  ARCHAEOLOGIST
+  EXPLORER
   LUMBERJACK
   HERBALIST
   BLACKSMITH
@@ -75,18 +77,19 @@ enum MinionJobType {
   MAGE
 }
 
-/** 미니언 개체 등급 (전투·시장 표시용) */
-enum MinionGrade {
-  S
-  A
-  B
-  C
-  D
+/** 플레이어 전문 직업(가공 시설 제작 권한). 미니언 직업과 별개 */
+enum SpecialistProfession {
+  BLACKSMITH
+  ALCHEMIST
+  JEWELER
 }
 
 model User {
   id        String   @id @default(cuid())
   username  String   @unique
+  /** Google OAuth `sub` */
+  googleId  String?  @unique
+  email     String?  @unique
   createdAt DateTime @default(now())
 
   /** 사용 가능한 부지 칸 수 (1~3). 1이면 슬롯 0만, 3이면 0·1·2 전부 */
@@ -98,6 +101,13 @@ model User {
   infamyPoints Int @default(0)
   /** 명예로 하사되는 칭호(표시용) */
   honorTitle   String?
+
+  /** 0..N-1 = 진행 중 단계, 100 = 튜토리얼 완료 (`shared/tutorial`) */
+  tutorialStep Int @default(0)
+
+  /** 퀘스트 등으로 해제되면 전문 직업을 1회 선택할 수 있음 */
+  specialistUnlocked   Boolean               @default(false)
+  specialistProfession SpecialistProfession?
 
   wallet    Wallet?
   botBudget BotBudget?
@@ -253,10 +263,12 @@ model UserItemEnhancement {
 }
 
 model MinionInventory {
-  userId    String   @id
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  owned     Int      @default(1)
-  updatedAt DateTime @updatedAt
+  userId       String   @id
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  owned        Int      @default(1)
+  gatherOwned  Int      @default(1)
+  dungeonOwned Int      @default(0)
+  updatedAt    DateTime @updatedAt
 }
 
 model Minion {
@@ -266,11 +278,20 @@ model Minion {
 
   level Int @default(1)
   jobType MinionJobType @default(UNASSIGNED)
-  grade MinionGrade @default(D)
 
   // 개별 무기 장착(던전 전투에 사용)
   equippedWeaponInstanceId String?
   equippedWeaponInstance   WeaponInstance? @relation(fields: [equippedWeaponInstanceId], references: [id], onDelete: SetNull)
+
+  /** 방어구(스택 아이템 id) — 투구·갑옷·하의·신발 */
+  equippedHelmetItemId String?
+  equippedHelmet       Item? @relation("MinionEquippedHelmet", fields: [equippedHelmetItemId], references: [id], onDelete: SetNull)
+  equippedChestItemId  String?
+  equippedChest        Item? @relation("MinionEquippedChest", fields: [equippedChestItemId], references: [id], onDelete: SetNull)
+  equippedPantsItemId  String?
+  equippedPants        Item? @relation("MinionEquippedPants", fields: [equippedPantsItemId], references: [id], onDelete: SetNull)
+  equippedBootsItemId  String?
+  equippedBoots        Item? @relation("MinionEquippedBoots", fields: [equippedBootsItemId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -283,6 +304,10 @@ model Minion {
 
   @@index([userId])
   @@index([equippedWeaponInstanceId])
+  @@index([equippedHelmetItemId])
+  @@index([equippedChestItemId])
+  @@index([equippedPantsItemId])
+  @@index([equippedBootsItemId])
 }
 
 model WeaponInstance {
@@ -425,6 +450,10 @@ model Item {
   equippedOnWorkshops WorkshopInstance[] @relation("WorkshopEquippedTool")
   weaponInstances WeaponInstance[]
   toolInstances ToolInstance[]
+  minionsEquippedHelmet Minion[] @relation("MinionEquippedHelmet")
+  minionsEquippedChest  Minion[] @relation("MinionEquippedChest")
+  minionsEquippedPants  Minion[] @relation("MinionEquippedPants")
+  minionsEquippedBoots  Minion[] @relation("MinionEquippedBoots")
 
   recipeInputs  RecipeInput[]
   recipeOutputs RecipeOutput[]
@@ -590,6 +619,8 @@ model DungeonRun {
   floor Int @default(1)
   /** PUSH_LUCK: 누적 보상(정산 전). 예: [{"itemId":"item_slime_gel","qty":3}] */
   pendingLootJson String @default("[]")
+  /** PUSH_LUCK: 파티원 층간 유지 HP. 예: [{"minionId":"…","hp":80,"maxHp":120,"label":"전사 1"}] */
+  partyHpJson String @default("[]")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   party DungeonPartyMember[]

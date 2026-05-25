@@ -1,0 +1,37 @@
+{
+  "weapon_wood_sword": {
+    "name": "나무 검",
+    "grade": 1,
+    "atk": 1,
+    "magic": 0,
+    "icon": "Icon_Wood_Sword"
+  },
+  "weapon_stone_sword": {
+    "name": "돌 검",
+    "grade": 1,
+    "atk": 1.5,
+    "magic": 0,
+    "icon": "Icon_Stone_Sword"
+  },
+  "weapon_red_gold_sword": {
+    "name": "적빛 검",
+    "grade": 2,
+    "atk": 2.5,
+    "magic": 0,
+    "icon": "Icon_Red_Gold_Sword"
+  },
+  "weapon_steel_sword": {
+    "name": "철 검",
+    "grade": 2,
+    "atk": 2.5,
+    "magic": 0,
+    "icon": "Icon_Steel_Sword"
+  },
+  "weapon_gold_sword": {
+    "name": "금 검",
+    "grade": 3,
+    "atk": 5,
+    "magic": 0,
+    "icon": "Icon_Gold_Sword"
+  }
+}

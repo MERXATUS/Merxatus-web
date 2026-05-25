@@ -1,14 +1,15 @@
-import { clearSessionCookie } from "@/server/session";
+import { NextResponse } from "next/server";
+import { SESSION_COOKIE_NAME } from "@/server/session";
 
 export const runtime = "nodejs";
 
 export async function POST() {
-  return new Response(JSON.stringify({ ok: true }), {
-    status: 200,
-    headers: {
-      "content-type": "application/json",
-      "set-cookie": clearSessionCookie(),
-    },
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(SESSION_COOKIE_NAME, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
   });
+  return res;
 }
-

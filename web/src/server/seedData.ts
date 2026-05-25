@@ -10,6 +10,7 @@ const ItemSchema = z.object({
   tradable: z.boolean().default(true),
   /** 1=일반 … 8=초월. 생략 시 시드가 `defaultItemGradeForItemId`로 채움 */
   grade: z.number().int().min(1).max(8).optional(),
+  icon: z.string().min(1).optional(),
 });
 
 const DropSchema = z.object({

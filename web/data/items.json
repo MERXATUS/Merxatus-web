@@ -1,610 +1,432 @@
 [
   {
-    "id": "item_ore",
-    "name": "철광석",
-    "category": "재료",
-    "tradable": true,
-    "grade": 1
-  },
-  {
     "id": "item_stone",
     "name": "돌",
     "category": "재료",
     "tradable": true,
-    "grade": 1
+    "grade": 1,
+    "icon": "Icon_Stone"
   },
   {
-    "id": "item_bread",
-    "name": "빵",
-    "category": "음식",
-    "tradable": true,
-    "grade": 1
-  },
-  {
-    "id": "item_sword",
-    "name": "낡은 검",
-    "category": "무기",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_herb",
-    "name": "약초",
+    "id": "item_red_gold_ore",
+    "name": "적금 원석",
     "category": "재료",
     "tradable": true,
-    "grade": 2
+    "grade": 2,
+    "icon": "Icon_Red_Gold_Ore"
   },
   {
-    "id": "item_wood",
-    "name": "나무",
+    "id": "item_gold_ore",
+    "name": "금 원석",
     "category": "재료",
     "tradable": true,
-    "grade": 1
+    "grade": 3,
+    "icon": "Icon_Gold_Ore"
   },
   {
-    "id": "item_mushroom",
-    "name": "버섯",
+    "id": "item_red_gold",
+    "name": "적금",
     "category": "재료",
     "tradable": true,
-    "grade": 1
-  },
-  {
-    "id": "item_fish",
-    "name": "물고기",
-    "category": "재료",
-    "tradable": true,
-    "grade": 1
-  },
-  {
-    "id": "item_shark",
-    "name": "상어",
-    "category": "재료",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_whale",
-    "name": "고래",
-    "category": "재료",
-    "tradable": true,
-    "grade": 3
-  },
-  {
-    "id": "item_iron",
-    "name": "철",
-    "category": "재료",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_slime_gel",
-    "name": "슬라임의 점액",
-    "category": "재료",
-    "tradable": true,
-    "grade": 1
-  },
-  {
-    "id": "item_rune_low",
-    "name": "하급 룬",
-    "category": "재료",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_slime_king_sig",
-    "name": "슬라임 킹의 문양",
-    "category": "재료",
-    "tradable": true,
-    "grade": 3
+    "grade": 2,
+    "icon": "Icon_Red_Gold"
   },
   {
     "id": "item_gold",
     "name": "금",
     "category": "재료",
     "tradable": true,
-    "grade": 3
+    "grade": 3,
+    "icon": "Icon_Gold"
   },
   {
-    "id": "item_diamond",
-    "name": "다이아",
+    "id": "item_fish",
+    "name": "잡어",
     "category": "재료",
     "tradable": true,
-    "grade": 4
+    "grade": 1,
+    "icon": "Icon_Fish"
   },
   {
-    "id": "item_pickaxe",
-    "name": "곡괭이",
-    "category": "도구",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_sickle",
-    "name": "낫",
-    "category": "도구",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_fishing_rod",
-    "name": "낚싯대",
-    "category": "도구",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_accessory",
-    "name": "초보자 목걸이",
-    "category": "악세서리",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_enhance_scroll",
-    "name": "강화권",
-    "category": "소모품",
-    "tradable": true,
-    "grade": 3
-  },
-  {
-    "id": "item_stew",
-    "name": "스튜",
-    "category": "음식",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_magic_stone",
-    "name": "마석",
+    "id": "item_second_fish",
+    "name": "2단계 물고기",
     "category": "재료",
     "tradable": true,
-    "grade": 3
+    "grade": 2,
+    "icon": "Icon_Second_Fish"
   },
   {
-    "id": "item_magic_stone_low",
-    "name": "하급 마정석",
+    "id": "item_white_fish",
+    "name": "백어",
     "category": "재료",
     "tradable": true,
-    "grade": 2
+    "grade": 3,
+    "icon": "Icon_White_Fish"
   },
   {
-    "id": "item_magic_stone_mid",
-    "name": "중급 마정석",
+    "id": "item_lesser_mana_stone",
+    "name": "하급 마석",
     "category": "재료",
     "tradable": true,
-    "grade": 3
+    "grade": 1,
+    "icon": "Icon_Lesser_Mana_Stone"
   },
   {
-    "id": "item_magic_stone_high",
-    "name": "상급 마정석",
+    "id": "item_mana_stone",
+    "name": "중급 마석",
     "category": "재료",
     "tradable": true,
-    "grade": 4
+    "grade": 3,
+    "icon": "Icon_Mana_Stone"
   },
   {
-    "id": "item_magic_stone_top",
-    "name": "최상급 마정석",
+    "id": "item_greater_mana_stone",
+    "name": "상급 마석",
     "category": "재료",
     "tradable": true,
-    "grade": 6
+    "grade": 5,
+    "icon": "Icon_Greater_Mana_Stone"
   },
   {
-    "id": "item_mithril",
-    "name": "미스릴",
+    "id": "item_minion_ticket",
+    "name": "미니언 고용권",
+    "category": "미니언고용권",
+    "tradable": true,
+    "grade": 6,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "item_lesser_recovery_potion",
+    "name": "체력 회복 물약",
+    "category": "물약",
+    "tradable": true,
+    "grade": 1,
+    "icon": "Icon_Lesser_Recovery_Potion"
+  },
+  {
+    "id": "item_recovery_potion",
+    "name": "체력 회복 포션",
+    "category": "물약",
+    "tradable": true,
+    "grade": 3,
+    "icon": "Icon_Recovery_Potion"
+  },
+  {
+    "id": "item_greater_recovery_flask",
+    "name": "체력 회복의 비약",
+    "category": "물약",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Greater_Recovery_Flask"
+  },
+  {
+    "id": "item_enhance_scroll_low",
+    "name": "하급 강화 주문서",
     "category": "재료",
     "tradable": true,
-    "grade": 3
+    "grade": 2,
+    "icon": "Icon_Enhance_Scroll_Low"
   },
   {
-    "id": "item_titanium",
-    "name": "티타늄",
+    "id": "item_enhance_scroll_mid",
+    "name": "중급 강화 주문서",
     "category": "재료",
     "tradable": true,
-    "grade": 4
+    "grade": 3,
+    "icon": "Icon_Enhance_Scroll_Mid"
   },
   {
-    "id": "item_ethernium",
-    "name": "에테르늄",
+    "id": "item_enhance_scroll_high",
+    "name": "상급 강화 주문서",
     "category": "재료",
     "tradable": true,
-    "grade": 6
+    "grade": 5,
+    "icon": "Icon_Enhance_Scroll_High"
   },
   {
-    "id": "item_jellyfish",
-    "name": "해파리",
+    "id": "item_paper",
+    "name": "종이",
     "category": "재료",
     "tradable": true,
-    "grade": 1
+    "grade": 2,
+    "icon": "Icon_Paper"
   },
   {
-    "id": "item_shell",
-    "name": "조개껍데기",
+    "id": "item_enchanted_paper",
+    "name": "마력이 깃든 종이",
     "category": "재료",
     "tradable": true,
-    "grade": 1
+    "grade": 4,
+    "icon": "Icon_Enchanted_Paper"
   },
   {
-    "id": "item_mystery_box",
-    "name": "알 수 없는 상자",
+    "id": "item_chest",
+    "name": "상자",
+    "category": "Chest",
+    "tradable": true,
+    "grade": 2,
+    "icon": "Icon_Chest"
+  },
+  {
+    "id": "item_herb",
+    "name": "약초",
     "category": "재료",
     "tradable": true,
-    "grade": 2
+    "grade": 1,
+    "icon": "Icon_Herb"
   },
   {
-    "id": "item_one_eye_fish",
-    "name": "외눈 물고기",
+    "id": "item_leather",
+    "name": "가죽",
     "category": "재료",
     "tradable": true,
-    "grade": 3
+    "grade": 2,
+    "icon": "Icon_Leather"
   },
   {
-    "id": "item_abyss_fish",
-    "name": "심연의 물고기",
-    "category": "재료",
-    "tradable": true,
-    "grade": 4
-  },
-  {
-    "id": "item_treasure_box",
-    "name": "보물 상자",
-    "category": "재료",
-    "tradable": true,
-    "grade": 4
-  },
-  {
-    "id": "item_tamoe",
-    "name": "탐어",
-    "category": "재료",
-    "tradable": true,
-    "grade": 7
-  },
-  {
-    "id": "item_mermaid",
-    "name": "인어",
-    "category": "재료",
-    "tradable": true,
-    "grade": 7
-  },
-  {
-    "id": "item_oak",
-    "name": "참나무",
-    "category": "재료",
-    "tradable": true,
-    "grade": 1
-  },
-  {
-    "id": "item_maple",
-    "name": "단풍나무",
-    "category": "재료",
-    "tradable": true,
-    "grade": 1
-  },
-  {
-    "id": "item_hard_tree",
-    "name": "단단한 거목",
-    "category": "재료",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_world_tree_branch",
-    "name": "세계수의 가지",
-    "category": "재료",
-    "tradable": true,
-    "grade": 3
-  },
-  {
-    "id": "item_thunder_tree",
-    "name": "천둥에 맞은 나무",
-    "category": "재료",
-    "tradable": true,
-    "grade": 3
-  },
-  {
-    "id": "item_world_tree_root",
-    "name": "세계수의 뿌리",
-    "category": "재료",
-    "tradable": true,
-    "grade": 4
-  },
-  {
-    "id": "item_magic_tree",
-    "name": "마력이 깃든 나무",
-    "category": "재료",
-    "tradable": true,
-    "grade": 4
-  },
-  {
-    "id": "item_ancient_wood",
-    "name": "고대목",
-    "category": "재료",
-    "tradable": true,
-    "grade": 5
-  },
-  {
-    "id": "item_dark_wood",
-    "name": "어둠이 서린 나무",
-    "category": "재료",
-    "tradable": true,
-    "grade": 5
-  },
-  {
-    "id": "item_weed",
-    "name": "잡초",
-    "category": "재료",
-    "tradable": true,
-    "grade": 1
-  },
-  {
-    "id": "item_poppy",
-    "name": "양귀비",
-    "category": "재료",
-    "tradable": true,
-    "grade": 1
-  },
-  {
-    "id": "item_poison_herb",
-    "name": "독초",
-    "category": "재료",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_mandrake",
-    "name": "만드라고라",
-    "category": "재료",
-    "tradable": true,
-    "grade": 3
-  },
-  {
-    "id": "item_snow_flower",
-    "name": "설산의 꽃",
-    "category": "재료",
-    "tradable": true,
-    "grade": 4
-  },
-  {
-    "id": "item_immortal_herb",
-    "name": "불사초",
-    "category": "재료",
-    "tradable": true,
-    "grade": 5
-  },
-  {
-    "id": "item_wood_sword",
-    "name": "목검",
+    "id": "weapon_wood_sword",
+    "name": "나무 검",
     "category": "무기",
     "tradable": true,
-    "grade": 2
+    "grade": 1,
+    "icon": "Icon_Wood_Sword"
   },
   {
-    "id": "item_iron_sword",
-    "name": "철검",
+    "id": "weapon_stone_sword",
+    "name": "돌 검",
     "category": "무기",
     "tradable": true,
-    "grade": 3
+    "grade": 1,
+    "icon": "Icon_Stone_Sword"
   },
   {
-    "id": "item_mithril_sword",
-    "name": "미스릴 검",
+    "id": "weapon_red_gold_sword",
+    "name": "적빛 검",
     "category": "무기",
     "tradable": true,
-    "grade": 4
+    "grade": 2,
+    "icon": "Icon_Red_Gold_Sword"
   },
   {
-    "id": "item_titanium_sword",
-    "name": "티타늄 검",
+    "id": "weapon_steel_sword",
+    "name": "철 검",
     "category": "무기",
     "tradable": true,
-    "grade": 5
+    "grade": 2,
+    "icon": "Icon_Steel_Sword"
   },
   {
-    "id": "item_ether_sword",
-    "name": "에테르 스워드",
+    "id": "weapon_gold_sword",
+    "name": "금 검",
     "category": "무기",
     "tradable": true,
-    "grade": 6
+    "grade": 3,
+    "icon": "Icon_Gold_Sword"
   },
   {
-    "id": "item_wood_bow",
-    "name": "목궁",
-    "category": "무기",
+    "id": "armor_leather_helmet",
+    "name": "가죽 투구",
+    "category": "방어구",
     "tradable": true,
-    "grade": 2
+    "grade": 1,
+    "icon": "Icon_Leather_Helmet"
   },
   {
-    "id": "item_steel_bow",
-    "name": "강철궁",
-    "category": "무기",
+    "id": "armor_crimson_helmet",
+    "name": "적빛 투구",
+    "category": "방어구",
     "tradable": true,
-    "grade": 3
+    "grade": 2,
+    "icon": "Icon_Crimson_Helmet"
   },
   {
-    "id": "item_mithril_bow",
-    "name": "미스릴 궁",
-    "category": "무기",
+    "id": "armor_iron_helmet",
+    "name": "철 투구",
+    "category": "방어구",
     "tradable": true,
-    "grade": 4
+    "grade": 3,
+    "icon": "Icon_Iron_Helmet"
   },
   {
-    "id": "item_titanium_bow",
-    "name": "티타늄 궁",
-    "category": "무기",
+    "id": "armor_golden_helmet",
+    "name": "금 투구",
+    "category": "방어구",
     "tradable": true,
-    "grade": 5
+    "grade": 3,
+    "icon": "Icon_Golden_Helmet"
   },
   {
-    "id": "item_ether_bow",
-    "name": "에테르 보우",
-    "category": "무기",
+    "id": "armor_leather_armor",
+    "name": "가죽 갑옷",
+    "category": "방어구",
     "tradable": true,
-    "grade": 6
+    "grade": 1,
+    "icon": "Icon_Leather_Armor"
   },
   {
-    "id": "item_wood_staff",
-    "name": "나무 지팡이",
-    "category": "무기",
+    "id": "armor_crimson_armor",
+    "name": "적빛 갑옷",
+    "category": "방어구",
     "tradable": true,
-    "grade": 2
+    "grade": 2,
+    "icon": "Icon_Crimson_Armor"
   },
   {
-    "id": "item_magic_staff",
-    "name": "마력이 깃든 지팡이",
-    "category": "무기",
+    "id": "armor_iron_armor",
+    "name": "철 갑옷",
+    "category": "방어구",
     "tradable": true,
-    "grade": 3
+    "grade": 3,
+    "icon": "Icon_Iron_Armor"
   },
   {
-    "id": "item_mithril_staff",
-    "name": "미스릴 지팡이",
-    "category": "무기",
+    "id": "armor_golden_armor",
+    "name": "금 갑옷",
+    "category": "방어구",
     "tradable": true,
-    "grade": 4
+    "grade": 3,
+    "icon": "Icon_Golden_Armor"
   },
   {
-    "id": "item_titanium_staff",
-    "name": "티타늄 지팡이",
-    "category": "무기",
+    "id": "armor_leather_pants",
+    "name": "가죽 바지",
+    "category": "방어구",
     "tradable": true,
-    "grade": 5
+    "grade": 1,
+    "icon": "Icon_Leather_Pants"
   },
   {
-    "id": "item_ether_staff",
-    "name": "에테르 스태프",
-    "category": "무기",
+    "id": "armor_crimson_pants",
+    "name": "적빛 바지",
+    "category": "방어구",
     "tradable": true,
-    "grade": 6
+    "grade": 2,
+    "icon": "Icon_Crimson_Pants"
   },
   {
-    "id": "item_pickaxe_t1",
-    "name": "기본 곡괭이",
+    "id": "armor_iron_pants",
+    "name": "철 바지",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 3,
+    "icon": "Icon_Iron_Pants"
+  },
+  {
+    "id": "armor_golden_pants",
+    "name": "금 바지",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 3,
+    "icon": "Icon_Golden_Pants"
+  },
+  {
+    "id": "armor_leather_boots",
+    "name": "가죽 신발",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 1,
+    "icon": "Icon_Leather_Boots"
+  },
+  {
+    "id": "armor_crimson_boots",
+    "name": "적빛 신발",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 2,
+    "icon": "Icon_Crimson_Boots"
+  },
+  {
+    "id": "armor_iron_boots",
+    "name": "철 신발",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 3,
+    "icon": "Icon_Iron_Boots"
+  },
+  {
+    "id": "armor_golden_boots",
+    "name": "금 신발",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 3,
+    "icon": "Icon_Golden_Boots"
+  },
+  {
+    "id": "tool_wood_pickaxe",
+    "name": "나무 곡괭이",
     "category": "도구",
     "tradable": true,
-    "grade": 2
+    "grade": 1,
+    "icon": "Icon_Wood_Pickaxe"
   },
   {
-    "id": "item_pickaxe_t2",
-    "name": "강철 곡괭이",
+    "id": "tool_stone_pickaxe",
+    "name": "돌 곡괭이",
     "category": "도구",
     "tradable": true,
-    "grade": 3
+    "grade": 1,
+    "icon": "Icon_Stone_Pickaxe"
   },
   {
-    "id": "item_pickaxe_t3",
-    "name": "미스릴 곡괭이",
+    "id": "tool_red_gold_pickaxe",
+    "name": "적빛 곡괭이",
     "category": "도구",
     "tradable": true,
-    "grade": 4
+    "grade": 2,
+    "icon": "Icon_Red_Gold_Pickaxe"
   },
   {
-    "id": "item_pickaxe_t4",
-    "name": "티타늄 곡괭이",
+    "id": "tool_steel_pickaxe",
+    "name": "철 곡괭이",
     "category": "도구",
     "tradable": true,
-    "grade": 5
+    "grade": 2,
+    "icon": "Icon_Steel_Pickaxe"
   },
   {
-    "id": "item_pickaxe_t5",
-    "name": "에테르 곡괭이",
+    "id": "tool_gold_pickaxe",
+    "name": "금 곡괭이",
     "category": "도구",
     "tradable": true,
-    "grade": 6
+    "grade": 3,
+    "icon": "Icon_Gold_Pickaxe"
   },
   {
-    "id": "item_goblin_bag",
-    "name": "고블린의 숨겨진 가방",
-    "category": "재료",
-    "tradable": true,
-    "grade": 4
-  },
-  {
-    "id": "item_pickaxe_goblin",
-    "name": "황금 고블린의 곡괭이",
-    "category": "도구",
-    "tradable": true,
-    "grade": 8
-  },
-  {
-    "id": "item_sickle_t1",
-    "name": "약초꾼의 낫",
-    "category": "도구",
-    "tradable": true,
-    "grade": 2
-  },
-  {
-    "id": "item_sickle_t2",
-    "name": "철제 낫",
-    "category": "도구",
-    "tradable": true,
-    "grade": 3
-  },
-  {
-    "id": "item_sickle_t3",
-    "name": "미스릴 낫",
-    "category": "도구",
-    "tradable": true,
-    "grade": 4
-  },
-  {
-    "id": "item_sickle_t4",
-    "name": "티타늄 낫",
-    "category": "도구",
-    "tradable": true,
-    "grade": 5
-  },
-  {
-    "id": "item_sickle_t5",
-    "name": "에테르 낫",
-    "category": "도구",
-    "tradable": true,
-    "grade": 6
-  },
-  {
-    "id": "item_sickle_harvest",
-    "name": "수확의 낫",
-    "category": "도구",
-    "tradable": true,
-    "grade": 7
-  },
-  {
-    "id": "item_rod_t1",
+    "id": "tool_wooden_rod",
     "name": "나무 낚싯대",
     "category": "도구",
     "tradable": true,
-    "grade": 2
+    "grade": 1,
+    "icon": "Icon_Wooden_Rod"
   },
   {
-    "id": "item_rod_t2",
-    "name": "튼튼한 낚싯대",
+    "id": "tool_scarlet_rod",
+    "name": "적빛 낚싯대",
     "category": "도구",
     "tradable": true,
-    "grade": 3
+    "grade": 2,
+    "icon": "Icon_Scarlet_Rod"
   },
   {
-    "id": "item_rod_t3",
-    "name": "미스릴 낚싯대",
+    "id": "tool_iron_rod",
+    "name": "철 낚싯대",
     "category": "도구",
     "tradable": true,
-    "grade": 4
+    "grade": 2,
+    "icon": "Icon_Iron_Rod"
   },
   {
-    "id": "item_rod_t4",
-    "name": "티타늄 낚싯대",
+    "id": "tool_golden_rod",
+    "name": "금 낚싯대",
     "category": "도구",
     "tradable": true,
-    "grade": 5
+    "grade": 3,
+    "icon": "Icon_Golden_Rod"
   },
   {
-    "id": "item_rod_t5",
-    "name": "에테르 낚싯대",
-    "category": "도구",
-    "tradable": true,
-    "grade": 6
-  },
-  {
-    "id": "item_minion_egg",
-    "name": "미니언 알",
-    "category": "소비",
+    "id": "item_minor_mana_stone",
+    "name": "item_minor_mana_stone",
+    "category": "재료",
     "tradable": true,
     "grade": 1
   }

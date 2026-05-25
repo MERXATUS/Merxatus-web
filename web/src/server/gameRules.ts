@@ -1,20 +1,10 @@
 export const GAME_RULES = {
-  /** 내 부지(마을)에 설치 가능한 시설 칸 수 */
-  plot: {
-    maxSlots: 3,
-    /**
-     * 추가 부지 칸 해제 비용 (첫 칸=슬롯0 무료).
-     * 인덱스 = 해제 후 사용 가능해지는 마지막 슬롯 인덱스에 해당하는 칸을 여는 비용이 아니라,
-     * `unlockGoldAfterSlotCount[n]` = 현재 n칸까지 열려 있을 때 다음 칸을 열 때 필요한 골드.
-     */
-    unlockGoldAfterSlotCount: [1000, 10_000] as const,
-  },
   workshop: {
+    /** 유저당 WorkshopInstance 최대 개수 (부지 슬롯 대신 단순 상한) */
+    maxInstancesPerUser: 20,
     tickSeconds: 60,
     /** 수집(GATHER) 시설: 미수령으로 쌓이는 경과 시간 상한(밀리초). 초과 구간은 틱·드랍에 반영하지 않음 */
     maxBankedRealTimeMs: 8 * 60 * 60 * 1000,
-    // 느리게 성장: 유지비를 올려 골드 싱크 강화
-    upkeepGoldPerTickPerMinion: 3,
     /**
      * 시설 티어(1~5) 골드 업그레이드 비용: tier N -> N+1
      * 수집(GATHER)·가공(PROCESS) 공통
@@ -42,33 +32,19 @@ export const GAME_RULES = {
       rareWeightMultiplier: 1.5,
       /** 시설(WorkshopType) 이름별 허용 도구 itemId (WorkshopType.id는 cuid라 name이 더 안정적) */
       allowedToolItemIdsByWorkshopName: {
-        광산: ["item_pickaxe", "item_pickaxe_t1", "item_pickaxe_t2", "item_pickaxe_t3", "item_pickaxe_t4", "item_pickaxe_t5", "item_pickaxe_goblin"],
-        낚시터: ["item_fishing_rod", "item_rod_t1", "item_rod_t2", "item_rod_t3", "item_rod_t4", "item_rod_t5"],
-        산: ["item_sickle_t1", "item_sickle_t2", "item_sickle_t3", "item_sickle_t4", "item_sickle_t5", "item_sickle_harvest"],
+        광산: ["tool_wood_pickaxe", "tool_stone_pickaxe", "tool_red_gold_pickaxe", "tool_steel_pickaxe", "tool_gold_pickaxe"],
+        낚시터: ["tool_wooden_rod", "tool_scarlet_rod", "tool_iron_rod", "tool_golden_rod"],
       } as const,
     },
   },
   combat: {
     /** 무기 전투력(미니언 개별 장착) */
     weaponPowerByItemId: {
-      item_sword: 5,
-      item_wood_sword: 4,
-      item_iron_sword: 7,
-      item_mithril_sword: 11,
-      item_titanium_sword: 16,
-      item_ether_sword: 23,
-
-      item_wood_bow: 4,
-      item_steel_bow: 7,
-      item_mithril_bow: 11,
-      item_titanium_bow: 16,
-      item_ether_bow: 23,
-
-      item_wood_staff: 4,
-      item_magic_staff: 7,
-      item_mithril_staff: 11,
-      item_titanium_staff: 16,
-      item_ether_staff: 23,
+      weapon_wood_sword: 1,
+      weapon_stone_sword: 2,
+      weapon_red_gold_sword: 3,
+      weapon_steel_sword: 3,
+      weapon_gold_sword: 5,
     } as const,
     /** 장착 무기 강화 1단계당 추가 전투력(베이스 무기 파워에 가산) */
     weaponLevelPowerPerLevel: 1,
@@ -81,15 +57,12 @@ export const GAME_RULES = {
     /** 전투 특성 랭크 1당 전투력 보너스 */
     fighterTraitPowerPerRank: 3,
   },
-  /** 미니언 획득(부화) 시 등급 가중치 · 던전 전투력 보정 */
+  /** 미니언 보유 상한 */
   minion: {
-    maxLevel: 100,
-    /** 동시 보유 가능 미니언 수 상한 */
-    maxOwned: 10,
-    /** 부활/동기화 시 S~D 롤(합이 꼭 100일 필요 없음) */
-    gradeBirthWeights: { S: 2, A: 8, B: 18, C: 32, D: 40 } as const,
-    /** 던전 파티 전투력에 합산 (등급별) */
-    gradeCombatPower: { S: 14, A: 10, B: 6, C: 3, D: 0 } as const,
+    /** 수집·작업장용 미니언 보유 상한 */
+    maxGatherOwned: 10,
+    /** 던전용 미니언(전사·궁수·마법사) 보유 상한 */
+    maxDungeonOwned: 10,
   },
   /**
    * 마을 시설별 “특화 직업” 미니언 보너스 · 시너지(3/5/7/10명).
@@ -107,28 +80,16 @@ export const GAME_RULES = {
     craftSpeedMultMax: 2.2,
     craftSpeedMultMin: 0.85,
   },
-  minionUpgrade: {
-    // 강화 비용(골드+재료): nextLevel = currentLevel + 1
-    gold: { base: 500, growth: 1.35 },
-    // 재료 요구치(레벨 기반) - MVP용 단순 룰
-    materials: {
-      stonePerNextLevel: 1,
-      oreEveryNLevels: 2,
-      oreQty: 1,
-    },
-  },
-  /** 장착 무기 강화(미니언 단위, weaponLevel 0부터 시작) */
+  /** 장착 무기 강화 — `data/weapon_enhance_levels.json` (CSV 동기화) */
   weaponUpgrade: {
     maxLevel: 15,
-    gold: { base: 150, growth: 1.28 },
-    materials: {
-      stonePerNextLevel: 2,
-      oreEveryNLevels: 3,
-      oreQty: 1,
-    },
   },
   market: {
     feeBps: 1000, // 10%
+    /** 유저당 동시 ACTIVE 매물 상한 */
+    maxActiveListingsPerUser: 20,
+    /** 매물(고정가·경매) 판매 기간 — 등록 시점부터 */
+    listingDurationSeconds: 48 * 60 * 60,
   },
   reputation: {
     /** 명예가 이 이상이면 암시장 이용 불가 */
@@ -137,7 +98,8 @@ export const GAME_RULES = {
     infamyBlocksRoyalAt: 20_000,
   },
   auction: {
-    baseDurationSeconds: 10 * 60,
+    /** 신규 경매 endsAt — `market.listingDurationSeconds`와 동일하게 유지 */
+    baseDurationSeconds: 48 * 60 * 60,
     extendWindowSeconds: 60,
     extendBySeconds: 5 * 60,
     minBid: {
@@ -168,9 +130,9 @@ export const GAME_RULES = {
     seedWalletGold: 200_000,
     /** 초기 인벤(판매 유동성): 여러 아이템 소량 */
     seedStacks: [
-      { itemId: "item_ore", quantity: 25 },
-      { itemId: "item_bread", quantity: 10 },
-      { itemId: "item_herb", quantity: 10 },
+      { itemId: "item_dark_iron_ore", quantity: 25 },
+      { itemId: "item_stone", quantity: 40 },
+      { itemId: "item_red_gold_ore", quantity: 8 },
     ],
   },
   chat: {

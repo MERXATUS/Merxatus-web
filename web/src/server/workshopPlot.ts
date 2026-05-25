@@ -1,180 +1,86 @@
 import { prisma } from "@/server/db";
 import { GAME_RULES } from "@/server/gameRules";
 
-export const PLOT_MAX_SLOTS = GAME_RULES.plot.maxSlots;
+export const MAX_WORKSHOPS_PER_USER = GAME_RULES.workshop.maxInstancesPerUser;
 
-/** 다음 부지 칸을 열 때 필요한 골드. 이미 최대면 null */
-export function goldForNextPlotUnlock(plotSlotsUnlocked: number): number | null {
-  const max = PLOT_MAX_SLOTS;
-  if (plotSlotsUnlocked >= max) return null;
-  const idx = plotSlotsUnlocked - 1;
-  const arr = GAME_RULES.plot.unlockGoldAfterSlotCount;
-  const g = arr[idx];
-  return typeof g === "number" ? g : null;
-}
-
-function plotNeedsMigration(
-  rows: Array<{ plotSlot: number | null }>,
-): boolean {
-  const max = PLOT_MAX_SLOTS;
-  if (rows.length > max) return true;
+function needsPlotSlotReindex(rows: Array<{ plotSlot: number | null }>): boolean {
   if (rows.some((w) => w.plotSlot == null)) return true;
   const slots = rows.map((w) => w.plotSlot as number);
-  if (new Set(slots).size !== slots.length) return true;
-  if (slots.some((s) => s < 0 || s >= max)) return true;
-  return false;
+  return new Set(slots).size !== slots.length;
 }
 
 /**
- * 레거시(슬롯 없음·중복·칸 수 초과) 데이터를 부지 규칙에 맞게 정리합니다.
- * - 최대 maxSlots개만 유지(생성 순 앞선 것), 나머지 삭제
- * - 슬롯이 비어 있으면 0부터 순서대로 부여
- * - 사용 중인 최대 슬롯에 맞춰 plotSlotsUnlocked 보정(레거시 유저 박탈 방지)
+ * 시설 목록 정리: 개수 상한 초과분 삭제(오래된 것부터), plotSlot은 표시 순서용 0..n-1로 재부여.
+ * (DB 컬럼 plotSlot은 유지하되 부지 잠금은 사용하지 않음)
  */
 export async function migrateUserWorkshopPlot(userId: string): Promise<void> {
-  const max = PLOT_MAX_SLOTS;
+  const max = MAX_WORKSHOPS_PER_USER;
   await prisma.$transaction(async (tx) => {
     const all = await tx.workshopInstance.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
     });
-
     if (all.length === 0) return;
 
     let keep = all;
-    let dropped = false;
-    if (plotNeedsMigration(all)) {
-      keep = all.slice(0, max);
+    if (all.length > max) {
       const drop = all.slice(max);
-      if (drop.length) {
-        dropped = true;
-        await tx.workshopInstance.deleteMany({
-          where: { id: { in: drop.map((d) => d.id) } },
-        });
-      }
+      keep = all.slice(0, max);
+      await tx.workshopInstance.deleteMany({
+        where: { id: { in: drop.map((d) => d.id) } },
+      });
+    }
+
+    if (needsPlotSlotReindex(keep)) {
       for (let i = 0; i < keep.length; i++) {
         await tx.workshopInstance.update({
-          where: { id: keep[i].id },
+          where: { id: keep[i]!.id },
           data: { plotSlot: i },
         });
       }
     }
-
-    const maxUsedSlot = keep.reduce((m, w) => Math.max(m, w.plotSlot ?? 0), 0);
-    const neededUnlock = Math.min(max, Math.max(1, maxUsedSlot + 1));
-
-    const user = await tx.user.findUnique({
-      where: { id: userId },
-      select: { plotSlotsUnlocked: true },
-    });
-    if (!user) return;
-
-    if (neededUnlock > user.plotSlotsUnlocked || dropped) {
-      await tx.user.update({
-        where: { id: userId },
-        data: { plotSlotsUnlocked: Math.min(max, Math.max(user.plotSlotsUnlocked, neededUnlock)) },
-      });
-    }
   });
 }
 
-export async function unlockNextPlotSlot(userId: string): Promise<
-  { ok: true; plotSlotsUnlocked: number } | { ok: false; error: string }
-> {
-  const max = PLOT_MAX_SLOTS;
-  try {
-    type TxOk = { plotSlotsUnlocked: number };
-    type TxErr = { err: string };
-    const out = await prisma.$transaction(async (tx): Promise<TxOk | TxErr> => {
-      const user = await tx.user.findUnique({
-        where: { id: userId },
-        select: { plotSlotsUnlocked: true },
-      });
-      if (!user) return { err: "USER_NOT_FOUND" };
-      if (user.plotSlotsUnlocked >= max) return { err: "PLOT_FULLY_UNLOCKED" };
-
-      const cost = goldForNextPlotUnlock(user.plotSlotsUnlocked);
-      if (cost == null || cost <= 0) return { err: "INVALID_UNLOCK_STATE" };
-
-      const wallet = await tx.wallet.findUnique({ where: { userId } });
-      if (!wallet) return { err: "WALLET_NOT_FOUND" };
-      if (wallet.goldAvailable < cost) return { err: "INSUFFICIENT_GOLD" };
-
-      await tx.wallet.update({
-        where: { userId },
-        data: { goldAvailable: { decrement: cost } },
-      });
-
-      const next = user.plotSlotsUnlocked + 1;
-      await tx.user.update({
-        where: { id: userId },
-        data: { plotSlotsUnlocked: next },
-      });
-
-      return { plotSlotsUnlocked: next };
-    });
-
-    if ("err" in out) return { ok: false, error: out.err };
-    return { ok: true, plotSlotsUnlocked: out.plotSlotsUnlocked };
-  } catch {
-    return { ok: false, error: "TRANSACTION_FAILED" };
-  }
-}
-
-export async function installWorkshopOnPlot(input: {
+export async function installWorkshopForUser(input: {
   userId: string;
-  plotSlot: number;
   workshopTypeId: string;
 }): Promise<{ ok: true; workshopId: string } | { ok: false; error: string }> {
-  const max = PLOT_MAX_SLOTS;
-  if (!Number.isFinite(input.plotSlot) || input.plotSlot < 0 || input.plotSlot >= max) {
-    return { ok: false, error: "INVALID_SLOT" };
-  }
-
   const type = await prisma.workshopType.findUnique({
     where: { id: input.workshopTypeId },
   });
   if (!type) return { ok: false, error: "WORKSHOP_TYPE_NOT_FOUND" };
 
-  const user = await prisma.user.findUnique({
-    where: { id: input.userId },
-    select: { plotSlotsUnlocked: true },
-  });
+  const user = await prisma.user.findUnique({ where: { id: input.userId } });
   if (!user) return { ok: false, error: "USER_NOT_FOUND" };
-  if (input.plotSlot >= user.plotSlotsUnlocked) {
-    return { ok: false, error: "PLOT_LOCKED" };
-  }
-
-  const occupied = await prisma.workshopInstance.findFirst({
-    where: { userId: input.userId, plotSlot: input.plotSlot },
-  });
-  if (occupied) return { ok: false, error: "SLOT_OCCUPIED" };
-
-  const count = await prisma.workshopInstance.count({
-    where: { userId: input.userId },
-  });
-  if (count >= max) return { ok: false, error: "PLOT_FULL" };
 
   try {
-    const workshopId = await prisma.$transaction(async (tx) => {
+    const workshopId = await prisma.$transaction(async (tx): Promise<string> => {
+      const list = await tx.workshopInstance.findMany({
+        where: { userId: input.userId },
+        orderBy: [{ plotSlot: "asc" }, { createdAt: "asc" }],
+      });
+      if (list.length >= MAX_WORKSHOPS_PER_USER) {
+        throw new Error("WORKSHOP_CAP");
+      }
+
+      const nextSlot =
+        list.length === 0 ? 0 : Math.max(...list.map((w) => (typeof w.plotSlot === "number" ? w.plotSlot : -1))) + 1;
+
       const created = await tx.workshopInstance.create({
         data: {
           userId: input.userId,
           workshopTypeId: input.workshopTypeId,
-          plotSlot: input.plotSlot,
+          plotSlot: nextSlot,
           minionCount: 0,
           lastCollectedAt: new Date(),
         },
       });
       return created.id;
     });
-
     return { ok: true, workshopId };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "UNKNOWN";
-    if (msg === "WALLET_NOT_FOUND" || msg === "INSUFFICIENT_GOLD") {
-      return { ok: false, error: msg };
-    }
+    if (e instanceof Error && e.message === "WORKSHOP_CAP") return { ok: false, error: "PLOT_FULL" };
     return { ok: false, error: "TRANSACTION_FAILED" };
   }
 }

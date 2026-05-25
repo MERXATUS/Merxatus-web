@@ -1,7 +1,12 @@
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db";
-import { ensureWorkshopsForUser } from "@/server/ensureWorkshopsForUser";
-import { createSessionCookie } from "@/server/session";
+import { ensureUserBootstrap } from "@/server/ensureUserBootstrap";
+import {
+  SESSION_COOKIE_NAME,
+  SESSION_MAX_AGE_SEC,
+  createSessionToken,
+} from "@/server/session";
 
 export const runtime = "nodejs";
 
@@ -24,34 +29,18 @@ export async function POST(req: Request) {
       update: {},
     });
 
-    await prisma.wallet.upsert({
-      where: { userId: user.id },
-      create: { userId: user.id, goldAvailable: 1000, goldLocked: 0 },
-      update: {},
+    await ensureUserBootstrap(user.id);
+
+    const res = NextResponse.json({ ok: true, user: { id: user.id, username: user.username } });
+    res.cookies.set(SESSION_COOKIE_NAME, createSessionToken(user.id), {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: SESSION_MAX_AGE_SEC,
     });
-
-    await prisma.minionInventory.upsert({
-      where: { userId: user.id },
-      create: { userId: user.id, owned: 1 },
-      update: {},
-    });
-
-    await ensureWorkshopsForUser(user.id);
-
-    const cookie = createSessionCookie(user.id);
-    return new Response(
-      JSON.stringify({ ok: true, user: { id: user.id, username: user.username } }),
-      {
-        status: 200,
-        headers: {
-          "content-type": "application/json",
-          "set-cookie": cookie,
-        },
-      },
-    );
+    return res;
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";
     return Response.json({ ok: false, error: message }, { status: 500 });
   }
 }
-

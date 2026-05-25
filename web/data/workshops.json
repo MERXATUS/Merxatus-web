@@ -5,274 +5,154 @@
     "drops": [
       {
         "itemId": "item_stone",
-        "weight": 55,
+        "weight": 10000,
         "minQty": 1,
-        "maxQty": 3,
+        "maxQty": 1,
         "minTier": 1
       },
       {
-        "itemId": "item_ore",
-        "weight": 45,
-        "minQty": 1,
-        "maxQty": 2,
-        "minTier": 1
-      },
-      {
-        "itemId": "item_magic_stone_low",
-        "weight": 18,
+        "itemId": "item_stone",
+        "weight": 10000,
         "minQty": 1,
         "maxQty": 1,
         "minTier": 2
       },
       {
-        "itemId": "item_mithril",
-        "weight": 14,
+        "itemId": "item_red_gold_ore",
+        "weight": 100,
+        "minQty": 1,
+        "maxQty": 1,
+        "minTier": 2
+      },
+      {
+        "itemId": "item_stone",
+        "weight": 10000,
         "minQty": 1,
         "maxQty": 1,
         "minTier": 3
       },
       {
-        "itemId": "item_magic_stone_mid",
-        "weight": 6,
+        "itemId": "item_red_gold_ore",
+        "weight": 200,
         "minQty": 1,
         "maxQty": 1,
         "minTier": 3
       },
       {
-        "itemId": "item_titanium",
-        "weight": 6,
+        "itemId": "item_gold_ore",
+        "weight": 10,
         "minQty": 1,
         "maxQty": 1,
-        "minTier": 4
-      },
-      {
-        "itemId": "item_magic_stone_high",
-        "weight": 3,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 4
-      },
-      {
-        "itemId": "item_ethernium",
-        "weight": 2,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 5
-      },
-      {
-        "itemId": "item_magic_stone_top",
-        "weight": 1,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 5
+        "minTier": 3
       }
     ]
   },
   {
-    "id": "workshop_fishing",
+    "id": "workshop_fishery",
     "name": "낚시터",
     "drops": [
       {
         "itemId": "item_fish",
-        "weight": 55,
+        "weight": 10000,
         "minQty": 1,
-        "maxQty": 2,
+        "maxQty": 1,
         "minTier": 1
       },
       {
-        "itemId": "item_jellyfish",
-        "weight": 25,
-        "minQty": 1,
-        "maxQty": 2,
-        "minTier": 1
-      },
-      {
-        "itemId": "item_shell",
-        "weight": 20,
-        "minQty": 1,
-        "maxQty": 2,
-        "minTier": 1
-      },
-      {
-        "itemId": "item_shark",
-        "weight": 12,
+        "itemId": "item_fish",
+        "weight": 10000,
         "minQty": 1,
         "maxQty": 1,
         "minTier": 2
       },
       {
-        "itemId": "item_mystery_box",
-        "weight": 4,
+        "itemId": "item_second_fish",
+        "weight": 100,
         "minQty": 1,
         "maxQty": 1,
         "minTier": 2
       },
       {
-        "itemId": "item_whale",
-        "weight": 3,
+        "itemId": "item_fish",
+        "weight": 10000,
         "minQty": 1,
         "maxQty": 1,
         "minTier": 3
       },
       {
-        "itemId": "item_one_eye_fish",
-        "weight": 4,
+        "itemId": "item_second_fish",
+        "weight": 200,
         "minQty": 1,
         "maxQty": 1,
         "minTier": 3
       },
       {
-        "itemId": "item_abyss_fish",
-        "weight": 2,
+        "itemId": "item_white_fish",
+        "weight": 10,
         "minQty": 1,
         "maxQty": 1,
-        "minTier": 4
-      },
-      {
-        "itemId": "item_treasure_box",
-        "weight": 2,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 4
-      },
-      {
-        "itemId": "item_tamoe",
-        "weight": 1,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 5
-      },
-      {
-        "itemId": "item_mermaid",
-        "weight": 1,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 5
+        "minTier": 3
       }
     ]
   },
   {
-    "id": "workshop_mountain",
-    "name": "산",
+    "id": "workshop_exploration",
+    "name": "탐험",
     "drops": [
       {
-        "itemId": "item_weed",
-        "weight": 55,
+        "itemId": "item_paper",
+        "weight": 10000,
         "minQty": 1,
-        "maxQty": 2,
-        "minTier": 1
-      },
-      {
-        "itemId": "item_poppy",
-        "weight": 45,
-        "minQty": 1,
-        "maxQty": 2,
+        "maxQty": 1,
         "minTier": 1
       },
       {
         "itemId": "item_herb",
-        "weight": 22,
+        "weight": 10000,
         "minQty": 1,
-        "maxQty": 2,
-        "minTier": 2
+        "maxQty": 1,
+        "minTier": 1
       },
       {
-        "itemId": "item_poison_herb",
-        "weight": 10,
+        "itemId": "item_paper",
+        "weight": 10000,
         "minQty": 1,
         "maxQty": 1,
         "minTier": 2
       },
       {
-        "itemId": "item_mandrake",
-        "weight": 6,
+        "itemId": "item_chest",
+        "weight": 100,
+        "minQty": 1,
+        "maxQty": 1,
+        "minTier": 2
+      },
+      {
+        "itemId": "item_paper",
+        "weight": 10000,
         "minQty": 1,
         "maxQty": 1,
         "minTier": 3
       },
       {
-        "itemId": "item_snow_flower",
-        "weight": 3,
+        "itemId": "item_chest",
+        "weight": 100,
         "minQty": 1,
         "maxQty": 1,
-        "minTier": 4
+        "minTier": 3
       },
       {
-        "itemId": "item_immortal_herb",
-        "weight": 1,
+        "itemId": "item_enchanted_paper",
+        "weight": 100,
         "minQty": 1,
         "maxQty": 1,
-        "minTier": 5
+        "minTier": 3
       }
     ]
   },
   {
-    "id": "workshop_lumberyard",
-    "name": "벌목장",
-    "drops": [
-      {
-        "itemId": "item_oak",
-        "weight": 55,
-        "minQty": 1,
-        "maxQty": 3,
-        "minTier": 1
-      },
-      {
-        "itemId": "item_maple",
-        "weight": 45,
-        "minQty": 1,
-        "maxQty": 3,
-        "minTier": 1
-      },
-      {
-        "itemId": "item_hard_tree",
-        "weight": 18,
-        "minQty": 1,
-        "maxQty": 2,
-        "minTier": 2
-      },
-      {
-        "itemId": "item_world_tree_branch",
-        "weight": 8,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 3
-      },
-      {
-        "itemId": "item_thunder_tree",
-        "weight": 6,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 3
-      },
-      {
-        "itemId": "item_world_tree_root",
-        "weight": 3,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 4
-      },
-      {
-        "itemId": "item_magic_tree",
-        "weight": 3,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 4
-      },
-      {
-        "itemId": "item_ancient_wood",
-        "weight": 2,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 5
-      },
-      {
-        "itemId": "item_dark_wood",
-        "weight": 2,
-        "minQty": 1,
-        "maxQty": 1,
-        "minTier": 5
-      }
-    ]
+    "id": "workshop_archaeology",
+    "name": "고고학",
+    "drops": []
   }
 ]

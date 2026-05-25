@@ -1,0 +1,17 @@
+ArmorID,Name,Category,Grade,HP,Def,Icon
+Armor_Leather_Helmet,가죽 투구,Helmet,1,5,0,Icon_Leather_Helmet
+Armor_Crimson_Helmet,적빛 투구,Helmet,2,10,0,Icon_Crimson_Helmet
+Armor_Iron_Helmet,철 투구,Helmet,3,20,5,Icon_Iron_Helmet
+Armor_Golden_Helmet,금 투구,Helmet,3,25,10,Icon_Golden_Helmet
+Armor_Leather_Armor,가죽 갑옷,Armor,1,5,0,Icon_Leather_Armor
+Armor_Crimson_Armor,적빛 갑옷,Armor,2,10,0,Icon_Crimson_Armor
+Armor_Iron_Armor,철 갑옷,Armor,3,20,5,Icon_Iron_Armor
+Armor_Golden_Armor,금 갑옷,Armor,3,25,10,Icon_Golden_Armor
+Armor_Leather_Pants,가죽 바지,Pants,1,5,0,Icon_Leather_Pants
+Armor_Crimson_Pants,적빛 바지,Pants,2,10,0,Icon_Crimson_Pants
+Armor_Iron_Pants,철 바지,Pants,3,20,5,Icon_Iron_Pants
+Armor_Golden_Pants,금 바지,Pants,3,25,10,Icon_Golden_Pants
+Armor_Leather_Boots,가죽 신발,Boots,1,5,0,Icon_Leather_Boots
+Armor_Crimson_Boots,적빛 신발,Boots,2,10,0,Icon_Crimson_Boots
+Armor_Iron_Boots,철 신발,Boots,3,20,5,Icon_Iron_Boots
+Armor_Golden_Boots,금 신발,Boots,3,25,10,Icon_Golden_Boots

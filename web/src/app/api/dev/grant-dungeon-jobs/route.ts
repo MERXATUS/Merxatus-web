@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
+import { countDungeonMinions, MAX_DUNGEON_MINIONS, syncMinionInventoryCaps } from "@/server/minionCapacity";
 
 export const runtime = "nodejs";
 
@@ -20,10 +21,8 @@ export async function POST(req: Request) {
 
   try {
     const out = await prisma.$transaction(async (tx) => {
-      const MAX_OWNED = 10;
-
-      const existingCount = await tx.minion.count({ where: { userId } });
-      const canCreate = Math.max(0, MAX_OWNED - existingCount);
+      const dungeonCount = await countDungeonMinions(tx, userId);
+      const canCreate = Math.max(0, MAX_DUNGEON_MINIONS - dungeonCount);
 
       // Prefer reusing existing minions (so we don't exceed MAX and get auto-trimmed).
       // Choose ones not assigned to workshop.
@@ -46,17 +45,12 @@ export async function POST(req: Request) {
       const need = Math.max(0, 3 - ids.length);
       const createN = Math.min(need, canCreate);
       for (let i = 0; i < createN; i++) {
-        const m = await tx.minion.create({ data: { userId, jobType: jobs[ids.length]!, grade: "D", level: 1 } });
+        const m = await tx.minion.create({ data: { userId, jobType: jobs[ids.length]!, level: 1 } });
         ids.push(m.id);
       }
 
       // Make sure owned >= actual minion count (clamped) so ensure() won't delete our picks.
-      const countAfter = await tx.minion.count({ where: { userId } });
-      await tx.minionInventory.upsert({
-        where: { userId },
-        create: { userId, owned: Math.min(MAX_OWNED, Math.max(1, countAfter)) },
-        update: { owned: Math.min(MAX_OWNED, Math.max(1, countAfter)) },
-      });
+      await syncMinionInventoryCaps(tx, userId);
 
       return { created: createN, reused: reusable.length, minionIds: ids };
     });

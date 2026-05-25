@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/server/db";
+import { itemIconFieldsForItemId } from "@/server/itemCatalog";
+import { activeListingVisibilityWhere, expireStaleActiveListings } from "@/server/market";
 
 export const runtime = "nodejs";
 
@@ -22,18 +24,25 @@ export async function GET(req: Request) {
 
   const { q, saleType, sort, take } = parsed.data;
 
+  await expireStaleActiveListings({ limit: 100 });
+
   const where: any = {
     status: "ACTIVE",
-    ...(saleType ? { saleType } : {}),
-    ...(q
-      ? {
-          OR: [
-            { id: { contains: q } },
-            { item: { name: { contains: q } } },
-            { itemId: { contains: q } },
-          ],
-        }
-      : {}),
+    AND: [
+      activeListingVisibilityWhere(),
+      ...(saleType ? [{ saleType }] : []),
+      ...(q
+        ? [
+            {
+              OR: [
+                { id: { contains: q } },
+                { item: { name: { contains: q } } },
+                { itemId: { contains: q } },
+              ],
+            },
+          ]
+        : []),
+    ],
   };
 
   const orderBy =
@@ -50,36 +59,43 @@ export async function GET(req: Request) {
     take: take ?? 50,
   });
 
-  return Response.json({
-    ok: true,
-    listings: listings.map((l) => ({
-      id: l.id,
-      saleType: l.saleType,
-      status: l.status,
-      sellerId: l.sellerId,
-      itemId: l.itemId,
-      itemName: l.item.name,
-      itemGrade: l.item.grade,
-      category: l.item.category,
-      weapon: l.weaponInstance
-        ? {
-            id: l.weaponInstance.id,
-            baseItemId: l.weaponInstance.baseItemId,
-            name: l.weaponInstance.baseItem.name,
-            enhanceLevel: l.weaponInstance.enhanceLevel,
-            status: l.weaponInstance.status,
-            grade: l.weaponInstance.baseItem.grade,
-          }
-        : null,
-      quantity: l.quantity,
-      fixedPricePerUnit: l.fixedPricePerUnit,
-      fixedPriceTotal: l.fixedPriceTotal,
-      startPrice: l.startPrice,
-      endsAt: l.endsAt,
-      highestBid: l.highestBid,
-      highestBidderId: l.highestBidderId,
-      createdAt: l.createdAt,
-    })),
-  });
+  const mapped = await Promise.all(
+    listings.map(async (l) => {
+      const iconItemId = l.weaponInstance?.baseItemId ?? l.itemId;
+      const iconFields = await itemIconFieldsForItemId(iconItemId);
+      return {
+        id: l.id,
+        saleType: l.saleType,
+        status: l.status,
+        sellerId: l.sellerId,
+        itemId: l.itemId,
+        itemName: l.item.name,
+        itemGrade: l.item.grade,
+        category: l.item.category,
+        icon: iconFields.icon,
+        iconSrc: iconFields.iconSrc,
+        weapon: l.weaponInstance
+          ? {
+              id: l.weaponInstance.id,
+              baseItemId: l.weaponInstance.baseItemId,
+              name: l.weaponInstance.baseItem.name,
+              enhanceLevel: l.weaponInstance.enhanceLevel,
+              status: l.weaponInstance.status,
+              grade: l.weaponInstance.baseItem.grade,
+            }
+          : null,
+        quantity: l.quantity,
+        fixedPricePerUnit: l.fixedPricePerUnit,
+        fixedPriceTotal: l.fixedPriceTotal,
+        startPrice: l.startPrice,
+        endsAt: l.endsAt,
+        highestBid: l.highestBid,
+        highestBidderId: l.highestBidderId,
+        createdAt: l.createdAt,
+      };
+    }),
+  );
+
+  return Response.json({ ok: true, listings: mapped });
 }
 

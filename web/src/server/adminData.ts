@@ -1,6 +1,8 @@
+import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { normalizeMerxatusItemId, parseCsvRows } from "@/server/merxatusRoyalCsv";
 
 const ItemSchema = z.object({
   id: z.string().min(1),
@@ -8,6 +10,8 @@ const ItemSchema = z.object({
   category: z.string().min(1),
   tradable: z.boolean().default(true),
   grade: z.number().int().min(1).max(8).optional(),
+  /** `public/Items` 아래 PNG stem. 비우면 `id`와 동일한 파일명을 씀 */
+  icon: z.string().min(1).optional(),
 });
 
 const DropSchema = z.object({
@@ -54,6 +58,63 @@ export type AdminRecipes = z.infer<typeof RecipeSchema>[];
 
 function dataPath(...parts: string[]) {
   return path.join(process.cwd(), "data", ...parts);
+}
+
+function normalizeCategoryFromCsv(raw: string) {
+  const s = String(raw ?? "").trim();
+  const k = s.toLowerCase();
+  if (k === "material" || k === "재료") return "재료";
+  if (k === "potion" || k === "물약") return "물약";
+  if (k === "minion_ticket" || k === "미니언고용권" || k === "ticket") {
+    return "미니언고용권";
+  }
+  if (k === "weapon" || k === "무기") return "무기";
+  if (k === "tool" || k === "도구") return "도구";
+  return s || "재료";
+}
+
+function categoryForItemId(id: string, explicitCategoryRaw: string) {
+  if (id.startsWith("weapon_")) return "무기";
+  if (id.startsWith("tool_")) return "도구";
+  const explicit = String(explicitCategoryRaw ?? "").trim();
+  if (explicit) return normalizeCategoryFromCsv(explicit);
+  return "재료";
+}
+
+function parseBoolFromCsv(raw: string) {
+  const v = String(raw ?? "").trim().toLowerCase();
+  return v === "true" || v === "1" || v === "y" || v === "yes";
+}
+
+function parseIntFromCsv(raw: string, def = 1) {
+  const n = Number.parseInt(String(raw ?? "").trim(), 10);
+  return Number.isFinite(n) ? n : def;
+}
+
+/** `data/csv-templates/items.csv` 행을 게임 아이템 형식으로 파싱 */
+export async function readItemsCsvTemplate() {
+  const p = dataPath("csv-templates", "items.csv");
+  if (!existsSync(p)) {
+    return { path: p, data: [] as z.infer<typeof ItemSchema>[] };
+  }
+  const raw = await readFile(p, "utf8");
+  const rows = parseCsvRows(raw);
+  const data = rows
+    .map((row) => {
+      const id = normalizeMerxatusItemId(row.Id ?? row.id ?? row.ItemId ?? row.itemId ?? "");
+      if (!id) return null;
+      const iconRaw = String(row.Icon ?? row.icon ?? "").trim();
+      return {
+        id,
+        name: String(row.Name ?? row.name ?? id).trim() || id,
+        category: categoryForItemId(id, row.Category ?? row.category ?? ""),
+        tradable: parseBoolFromCsv(row.Tradable ?? row.tradable ?? "true"),
+        grade: parseIntFromCsv(row.Grade ?? row.grade ?? "1", 1),
+        ...(iconRaw ? { icon: iconRaw } : {}),
+      };
+    })
+    .filter((x) => x !== null);
+  return { path: p, data: z.array(ItemSchema).parse(data) };
 }
 
 export async function readItemsJson() {

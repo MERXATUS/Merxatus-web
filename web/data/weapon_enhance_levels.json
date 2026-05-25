@@ -1,0 +1,107 @@
+[
+  {
+    "targetLevel": 1,
+    "gold": 150,
+    "scrollItemId": null,
+    "scrollQty": 0,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 2,
+    "gold": 195,
+    "scrollItemId": null,
+    "scrollQty": 0,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 3,
+    "gold": 254,
+    "scrollItemId": null,
+    "scrollQty": 0,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 4,
+    "gold": 330,
+    "scrollItemId": null,
+    "scrollQty": 0,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 5,
+    "gold": 429,
+    "scrollItemId": null,
+    "scrollQty": 0,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 6,
+    "gold": 643,
+    "scrollItemId": "item_enhance_scroll_low",
+    "scrollQty": 1,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 7,
+    "gold": 964,
+    "scrollItemId": "item_enhance_scroll_low",
+    "scrollQty": 1,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 8,
+    "gold": 1446,
+    "scrollItemId": "item_enhance_scroll_low",
+    "scrollQty": 1,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 9,
+    "gold": 2169,
+    "scrollItemId": "item_enhance_scroll_low",
+    "scrollQty": 2,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 10,
+    "gold": 3254,
+    "scrollItemId": "item_enhance_scroll_low",
+    "scrollQty": 2,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 11,
+    "gold": 6507,
+    "scrollItemId": "item_enhance_scroll_mid",
+    "scrollQty": 1,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 12,
+    "gold": 13014,
+    "scrollItemId": "item_enhance_scroll_mid",
+    "scrollQty": 1,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 13,
+    "gold": 26027,
+    "scrollItemId": "item_enhance_scroll_mid",
+    "scrollQty": 2,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 14,
+    "gold": 52053,
+    "scrollItemId": "item_enhance_scroll_mid",
+    "scrollQty": 2,
+    "successRate": 100
+  },
+  {
+    "targetLevel": 15,
+    "gold": 104105,
+    "scrollItemId": "item_enhance_scroll_mid",
+    "scrollQty": 3,
+    "successRate": 100
+  }
+]

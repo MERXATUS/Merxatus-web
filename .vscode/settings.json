@@ -56,5 +56,14 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "My project (3).sln"
+    "dotnet.defaultSolution": "My project (3).sln",
+    "npm.autoDetect": "on",
+    "npm.packageManager": "npm",
+    "npm.enableScriptExplorer": true,
+    "npm.scriptExplorerAction": "run",
+    "npm.enableRunFromFolder": true,
+    "search.exclude": {
+        "**/web/node_modules": true,
+        "**/web/.next": true
+    }
 }

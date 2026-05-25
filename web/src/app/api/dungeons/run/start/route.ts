@@ -3,6 +3,7 @@ import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
 import { loadDungeons } from "@/server/dungeonData";
 import { DUNGEON_JOB_TYPES } from "@/server/minionJobs";
+import { initializeDungeonRunPartyHp } from "@/server/dungeonRun";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,11 @@ export async function POST(req: Request) {
     const { dungeons } = await loadDungeons();
     const def = dungeons.find((d) => d.id === dungeonId);
     if (!def) return Response.json({ ok: false, error: "DUNGEON_NOT_FOUND" }, { status: 404 });
+
+    const maxParty = def.maxPartySize ?? 1;
+    if (ids.length > maxParty) {
+      return Response.json({ ok: false, error: "PARTY_TOO_LARGE" }, { status: 400 });
+    }
 
     const run = await prisma.$transaction(async (tx) => {
       // stop existing running run (single active run per user)
@@ -99,7 +105,11 @@ export async function POST(req: Request) {
     });
 
     if ((run as any)?.ok === false) return Response.json(run, { status: 400 });
-    return Response.json({ ok: true, runId: (run as any).id });
+    const runId = (run as { id: string }).id;
+    if (def.mode === "PUSH_LUCK") {
+      await initializeDungeonRunPartyHp(auth.userId, runId);
+    }
+    return Response.json({ ok: true, runId });
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";
     return Response.json({ ok: false, error: message }, { status: 400 });

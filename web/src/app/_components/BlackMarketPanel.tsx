@@ -1,33 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ItemIcon } from "@/app/_components/ItemIcon";
+import { GameBtn, GamePanel, GamePanelTitle } from "@/app/_components/gameUi";
+import { GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
+import { useSessionUser } from "@/app/_components/SessionProvider";
+import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import { itemGradeLabel, itemGradeNameClassName } from "@/server/itemGrade";
 
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { credentials: "include" });
-  const json = (await res.json().catch(() => ({}))) as T;
-  if (!res.ok) throw json;
-  return json;
+  return apiGetJson<T>(url);
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    credentials: "include",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const json = (await res.json().catch(() => ({}))) as T;
-  if (!res.ok) throw json;
-  return json;
+  return apiPostJson<T>(url, body);
 }
 
 function formatErr(e: unknown) {
   if (!e) return "오류";
   if (typeof e === "string") return e;
-  if (typeof e === "object" && e && "error" in e && typeof (e as any).error === "string") {
-    const code = (e as any).error as string;
+  if (typeof e === "object" && e && "error" in e && typeof (e as { error: string }).error === "string") {
+    const code = (e as { error: string }).error;
     if (code === "HONOR_TOO_HIGH_FOR_BLACKMARKET") return "명예가 높아 암시장을 이용할 수 없어요.";
+    if (code === "INSUFFICIENT_ITEMS") return "보유 수량이 부족해요.";
+    if (code === "INSUFFICIENT_GOLD") return "골드가 부족해요.";
+    if (code === "BAD_REQUEST") return "요청 수량이 올바르지 않아요. (1~1,000, 보유·골드 범위 내)";
+    if (code === "UNAUTHORIZED") return "로그인이 필요합니다.";
     return code;
   }
   try {
@@ -37,6 +35,8 @@ function formatErr(e: unknown) {
   }
 }
 
+const BLACK_TRADE_QTY_MAX = 1_000;
+
 type BlackRow = {
   itemId: string;
   name: string;
@@ -45,6 +45,10 @@ type BlackRow = {
   pricePerUnit: number;
   eventApplied: boolean;
   ownedQty: number;
+  priceDeltaPct: number | null;
+  priceDeltaDir: "up" | "down" | "flat";
+  icon?: string | null;
+  iconSrc?: string;
 };
 
 type BlackPrices = {
@@ -59,27 +63,210 @@ type BlackPrices = {
   items: BlackRow[];
 };
 
+function clampQty(n: number) {
+  return Math.min(BLACK_TRADE_QTY_MAX, Math.max(1, Math.floor(n)));
+}
+
+function maxBuyQty(gold: number, pricePerUnit: number) {
+  if (pricePerUnit <= 0) return 1;
+  return clampQty(Math.floor(gold / pricePerUnit));
+}
+
+function maxSellQty(owned: number) {
+  if (owned <= 0) return 0;
+  return clampQty(owned);
+}
+
+function fmtGold(n: number) {
+  return n.toLocaleString();
+}
+
+function PriceDeltaBadge({ dir, pct }: { dir: BlackRow["priceDeltaDir"]; pct: number | null }) {
+  if (pct == null) return null;
+  if (dir === "up") {
+    return (
+      <span className="black-delta black-delta--up">
+        <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden>
+          <path d="M6 2 L10 8 H2 Z" fill="currentColor" />
+        </svg>
+        +{Math.abs(pct)}%
+      </span>
+    );
+  }
+  if (dir === "down") {
+    return (
+      <span className="black-delta black-delta--down">
+        <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden>
+          <path d="M6 10 L10 4 H2 Z" fill="currentColor" />
+        </svg>
+        −{Math.abs(pct)}%
+      </span>
+    );
+  }
+  return <span className="black-delta black-delta--flat">±0%</span>;
+}
+
+type BlackItemRowProps = {
+  row: BlackRow;
+  gold: number;
+  locked: boolean;
+  busy: boolean;
+  qty: number;
+  onQtyChange: (itemId: string, qty: number) => void;
+  onTrade: (side: "buy" | "sell", itemId: string, quantity: number) => Promise<void>;
+};
+
+function BlackItemRow({ row, gold, locked, busy, qty, onQtyChange, onTrade }: BlackItemRowProps) {
+  const owned = Math.max(0, row.ownedQty ?? 0);
+  const buyMax = maxBuyQty(gold, row.pricePerUnit);
+  const sellMax = maxSellQty(owned);
+  const buyQty = Math.min(qty, buyMax);
+  const sellQty = sellMax > 0 ? Math.min(qty, sellMax) : 0;
+  const buyTotal = buyQty * row.pricePerUnit;
+  const sellTotal = sellQty * row.pricePerUnit;
+
+  function step(delta: number) {
+    onQtyChange(row.itemId, clampQty(qty + delta));
+  }
+
+  return (
+    <article className="black-row">
+      <div className="black-row__item">
+        <ItemIcon itemId={row.itemId} icon={row.icon} iconSrc={row.iconSrc} size={44} className="black-row__icon" />
+        <div className="black-row__meta">
+          <div className="black-row__name-line">
+            <span className={`black-row__name ${itemGradeNameClassName(row.grade)}`}>{row.name}</span>
+            <span className="black-row__grade">{itemGradeLabel(row.grade)}</span>
+            {row.eventApplied ? <span className="black-row__event">이벤트</span> : null}
+          </div>
+          <span className="black-row__owned">보유 {fmtGold(owned)}</span>
+        </div>
+      </div>
+
+      <div className="black-row__price">
+        <span className="black-row__price-label">시세</span>
+        <span className="black-row__price-val">{fmtGold(row.pricePerUnit)}G</span>
+        <PriceDeltaBadge dir={row.priceDeltaDir} pct={row.priceDeltaPct} />
+      </div>
+
+      <div className="black-row__qty">
+        <span className="black-row__price-label black-row__price-label--mobile">수량</span>
+        <div className="black-qty">
+          <button type="button" className="black-qty__btn" disabled={busy || locked || qty <= 1} onClick={() => step(-1)} aria-label="수량 감소">
+            −
+          </button>
+          <input
+            className="black-qty__input"
+            inputMode="numeric"
+            value={String(qty)}
+            disabled={busy || locked}
+            onChange={(e) => onQtyChange(row.itemId, clampQty(Number(e.target.value || 1)))}
+          />
+          <button type="button" className="black-qty__btn" disabled={busy || locked || qty >= BLACK_TRADE_QTY_MAX} onClick={() => step(1)} aria-label="수량 증가">
+            +
+          </button>
+        </div>
+      </div>
+
+      <div className="black-row__actions">
+        <div className="black-trade black-trade--sell">
+          <button
+            type="button"
+            className="black-trade__max"
+            disabled={busy || locked || sellMax < 1}
+            onClick={() => onQtyChange(row.itemId, sellMax)}
+            title={`보유 전부 (${fmtGold(sellMax)}개)`}
+          >
+            전부
+          </button>
+          <button
+            type="button"
+            className="black-trade__btn black-trade__btn--sell"
+            disabled={busy || locked || sellMax < 1}
+            onClick={() => void onTrade("sell", row.itemId, sellQty)}
+          >
+            판매
+          </button>
+          <span className="black-trade__hint">{sellMax > 0 ? `+${fmtGold(sellTotal)}G` : "—"}</span>
+        </div>
+        <div className="black-trade black-trade--buy">
+          <button
+            type="button"
+            className="black-trade__max"
+            disabled={busy || locked || buyMax < 1}
+            onClick={() => onQtyChange(row.itemId, buyMax)}
+            title={`골드 한도 (${fmtGold(buyMax)}개)`}
+          >
+            전부
+          </button>
+          <GameBtn variant="ghost" className="black-trade__btn" disabled={busy || locked || buyMax < 1} onClick={() => void onTrade("buy", row.itemId, buyQty)}>
+            구매
+          </GameBtn>
+          <span className="black-trade__hint">{buyMax > 0 ? `−${fmtGold(buyTotal)}G` : "—"}</span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export function BlackMarketPanel() {
+  const { user, loading: sessionLoading } = useSessionUser();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [black, setBlack] = useState<BlackPrices | null>(null);
   const [qtyByItemId, setQtyByItemId] = useState<Record<string, number>>({});
 
-  const header = useMemo(() => {
-    const ev = black?.event;
-    const evText = ev ? `${ev.kind === "BOOM" ? "폭등" : "폭락"} ×${ev.multiplier}` : "이벤트 없음";
-    return {
-      title: "지하도시(암시장)",
-      subtitle: `악명 ${black?.infamyPoints?.toLocaleString?.() ?? "—"} · 거래가능 등급 ≤ ${black?.maxGrade ?? "—"} · ${evText}`,
-    };
-  }, [black?.infamyPoints, black?.maxGrade, black?.event]);
-
-  async function refresh() {
+  const refresh = useCallback(async () => {
+    if (!user) {
+      setBlack(null);
+      setError(null);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const r = await getJson<BlackPrices>("/api/blackmarket/prices");
       setBlack(r);
+    } catch (e) {
+      setBlack(null);
+      if (!isUnauthorizedError(e)) setError(e);
+    } finally {
+      setBusy(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (sessionLoading) return;
+    void refresh();
+  }, [refresh, sessionLoading]);
+
+  useEffect(() => {
+    if (sessionLoading || !user) return;
+    const t = setInterval(() => void refresh(), 45_000);
+    return () => clearInterval(t);
+  }, [refresh, sessionLoading, user]);
+
+  const infamySubtitle = useMemo(() => {
+    return `악명 ${black?.infamyPoints?.toLocaleString?.() ?? "—"} · 거래 등급 ≤ ${black?.maxGrade ?? "—"}`;
+  }, [black?.infamyPoints, black?.maxGrade]);
+
+  const eventLabel = useMemo(() => {
+    const ev = black?.event;
+    if (!ev) return null;
+    return ev.kind === "BOOM" ? `폭등 ×${ev.multiplier}` : `폭락 ×${ev.multiplier}`;
+  }, [black?.event]);
+
+  function qtyFor(itemId: string) {
+    const q = qtyByItemId[itemId];
+    return typeof q === "number" && Number.isFinite(q) && q > 0 ? Math.floor(q) : 1;
+  }
+
+  async function handleTrade(side: "buy" | "sell", itemId: string, quantity: number) {
+    setBusy(true);
+    setError(null);
+    try {
+      await postJson(side === "buy" ? "/api/blackmarket/buy" : "/api/blackmarket/sell", { itemId, quantity });
+      await refresh();
     } catch (e) {
       setError(e);
     } finally {
@@ -87,157 +274,71 @@ export function BlackMarketPanel() {
     }
   }
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void refresh();
-  }, []);
-
-  function qtyFor(itemId: string) {
-    const q = qtyByItemId[itemId];
-    return typeof q === "number" && Number.isFinite(q) && q > 0 ? Math.floor(q) : 1;
-  }
+  const items = black?.items ?? [];
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold text-zinc-100">{header.title}</div>
-          <div className="mt-1 text-xs text-zinc-300">{header.subtitle}</div>
-          <div className="mt-2 text-[11px] font-semibold text-zinc-300">이벤트 기반 변동 시세 · 거래 시 악명 · 악명으로 상위 등급 해금</div>
+    <GamePanel className="black-panel">
+      <header className="black-header">
+        <div className="black-header__main">
+          <GamePanelTitle hint="황실 중가 기준 · 5분마다 ±10% 변동">지하도시(암시장)</GamePanelTitle>
+          <p className="black-header__sub">{infamySubtitle}</p>
+          <p className="black-header__note">직전 5분 슬롯 대비 등락률(▲상승 ▼하락) · 거래 시 악명</p>
         </div>
-        <button
-          className="h-9 rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 text-xs font-semibold text-zinc-100 hover:bg-zinc-900/60 disabled:opacity-50"
-          disabled={busy}
-          onClick={() => void refresh()}
-        >
-          새로고침
-        </button>
-      </div>
-
-      {error ? (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-          오류: {formatErr(error)}
-        </div>
-      ) : null}
-
-      <div
-        className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 p-4 text-zinc-100 shadow-sm"
-        style={{
-          backgroundImage:
-            "radial-gradient(1200px 500px at 20% 0%, rgba(124,58,237,0.18), transparent 60%), radial-gradient(900px 400px at 90% 20%, rgba(34,197,94,0.12), transparent 55%), radial-gradient(900px 600px at 40% 110%, rgba(244,63,94,0.10), transparent 60%), repeating-radial-gradient(circle at 10% 20%, rgba(255,255,255,0.04) 0 1px, transparent 1px 3px)",
-        }}
-      >
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.35),rgba(0,0,0,0.70))]" />
-        <div className="relative grid gap-2">
-          {black?.locked ? (
-            <div className="mb-2 rounded-2xl border border-zinc-700 bg-black/40 px-3 py-2 text-sm text-zinc-200">
-              명예가 높아 현재 <span className="font-semibold">암시장 거래(구매/판매)</span>가 잠겨 있어요.
+        <div className="black-header__stats">
+          {eventLabel ? (
+            <div className="black-stat black-stat--event">
+              <span className="black-stat__label">이벤트</span>
+              <span className="black-stat__val">{eventLabel}</span>
             </div>
           ) : null}
-          {(black?.items ?? []).length === 0 ? (
-            <div className="rounded-2xl border border-zinc-800 bg-black/30 px-3 py-3 text-sm text-zinc-300">
-              거래 가능한 아이템이 없어요.
-            </div>
-          ) : (
-            (black?.items ?? []).map((row) => {
-              const q = qtyFor(row.itemId);
-              const gold = black?.goldAvailable ?? 0;
-              const maxBuy = row.pricePerUnit > 0 ? Math.max(1, Math.floor(gold / row.pricePerUnit)) : 1;
-              return (
-                <div
-                  key={row.itemId}
-                  className="grid grid-cols-12 items-center gap-2 rounded-2xl border border-zinc-800 bg-black/30 px-3 py-2 backdrop-blur-[2px]"
-                >
-                  <div className="col-span-5 min-w-0">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <div className={`truncate text-sm font-semibold ${itemGradeNameClassName(row.grade)}`}>
-                        {row.name}
-                      </div>
-                      <span className="shrink-0 rounded-full border border-zinc-700 bg-zinc-950/60 px-2 py-0.5 text-[10px] font-semibold text-zinc-100">
-                        {itemGradeLabel(row.grade)}
-                      </span>
-                      {row.eventApplied ? (
-                        <span className="shrink-0 rounded-full bg-fuchsia-500/15 px-2 py-0.5 text-[10px] font-semibold text-fuchsia-200">
-                          이벤트
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="mt-1 text-[11px] font-semibold tabular-nums text-zinc-200">
-                      시세 {row.pricePerUnit.toLocaleString()}G
-                    </div>
-                  </div>
-                  <div className="col-span-3 text-right text-xs font-semibold tabular-nums text-zinc-100" />
-                  <div className="col-span-2">
-                    <input
-                      className="h-9 w-full rounded-xl border border-zinc-700 bg-zinc-950/60 px-2 text-xs font-semibold text-zinc-100"
-                      inputMode="numeric"
-                      value={String(q)}
-                      onChange={(e) => {
-                        const n = Math.max(1, Math.floor(Number(e.target.value || 1)));
-                        setQtyByItemId((prev) => ({ ...prev, [row.itemId]: n }));
-                      }}
-                    />
-                  </div>
-                  <div className="col-span-2 flex justify-end gap-2">
-                    <div className="flex items-center gap-2 pr-1 text-[11px] font-semibold text-zinc-300">
-                      <span className="tabular-nums">보유 {Math.max(0, row.ownedQty ?? 0).toLocaleString()}</span>
-                      <button
-                        className="rounded-lg border border-zinc-700 bg-zinc-950/60 px-2 py-1 text-[10px] font-semibold text-zinc-100 hover:bg-zinc-900/60 disabled:opacity-50"
-                        disabled={busy || !!black?.locked}
-                        onClick={() => setQtyByItemId((prev) => ({ ...prev, [row.itemId]: maxBuy }))}
-                        title="현재 골드로 살 수 있는 최대 수량"
-                      >
-                        MAX
-                      </button>
-                    </div>
-                    <button
-                      className="h-9 rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 text-xs font-semibold text-zinc-100 hover:bg-zinc-900/60 disabled:opacity-50"
-                      disabled={busy || !!black?.locked}
-                      onClick={() =>
-                        void (async () => {
-                          setBusy(true);
-                          setError(null);
-                          try {
-                            await postJson("/api/blackmarket/buy", { itemId: row.itemId, quantity: q });
-                            await refresh();
-                          } catch (e) {
-                            setError(e);
-                          } finally {
-                            setBusy(false);
-                          }
-                        })()
-                      }
-                    >
-                      구매
-                    </button>
-                    <button
-                      className="h-9 rounded-xl bg-fuchsia-600 px-3 text-xs font-semibold text-white hover:bg-fuchsia-700 disabled:opacity-50"
-                      disabled={busy || !!black?.locked}
-                      onClick={() =>
-                        void (async () => {
-                          setBusy(true);
-                          setError(null);
-                          try {
-                            await postJson("/api/blackmarket/sell", { itemId: row.itemId, quantity: q });
-                            await refresh();
-                          } catch (e) {
-                            setError(e);
-                          } finally {
-                            setBusy(false);
-                          }
-                        })()
-                      }
-                    >
-                      판매
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
+          <div className="black-stat">
+            <span className="black-stat__label">보유 골드</span>
+            <span className="black-stat__val">{fmtGold(black?.goldAvailable ?? 0)}G</span>
+          </div>
+          <GameBtn variant="ghost" disabled={busy} onClick={() => void refresh()}>
+            {busy ? "…" : "새로고침"}
+          </GameBtn>
         </div>
-      </div>
-    </section>
+      </header>
+
+      {error ? <div className="black-alert black-alert--error">오류: {formatErr(error)}</div> : null}
+
+      {sessionLoading ? <GamePanelLoading label="세션 확인 중…" /> : null}
+
+      {!sessionLoading && !user ? (
+        <GamePanelInfo>로그인이 필요합니다. 화면 오른쪽 위에서 Google 로그인을 진행해 주세요.</GamePanelInfo>
+      ) : null}
+
+      {!sessionLoading && user && black?.locked ? (
+        <div className="black-alert black-alert--warn">명예가 높아 암시장 거래(구매·판매)가 잠겨 있어요.</div>
+      ) : null}
+
+      {!sessionLoading && user && items.length === 0 ? (
+        <p className="black-empty">거래 가능한 아이템이 없어요.</p>
+      ) : null}
+
+      {!sessionLoading && user && items.length > 0 ? (
+        <div className="black-list">
+          <div className="black-list__head" aria-hidden>
+            <span>아이템</span>
+            <span>시세</span>
+            <span>수량</span>
+            <span>거래</span>
+          </div>
+          {items.map((row) => (
+            <BlackItemRow
+              key={row.itemId}
+              row={row}
+              gold={black?.goldAvailable ?? 0}
+              locked={!!black?.locked}
+              busy={busy}
+              qty={qtyFor(row.itemId)}
+              onQtyChange={(itemId, next) => setQtyByItemId((prev) => ({ ...prev, [itemId]: next }))}
+              onTrade={handleTrade}
+            />
+          ))}
+        </div>
+      ) : null}
+    </GamePanel>
   );
 }
-

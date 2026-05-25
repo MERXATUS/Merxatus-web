@@ -1,0 +1,4 @@
+PotionID,Name,Grade,Effect_Type,Effect_Value
+Item_Lesser_Recovery_Potion,하급 회복 물약,1,HP_Recovery,10
+Item_Recovery_Potion,중급 회복 포션,2,HP_Recovery,10%
+Item_Greater_Recovery_Flask,상급 회복 영약,4,HP_Recovery,30%

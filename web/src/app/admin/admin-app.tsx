@@ -99,14 +99,20 @@ export default function AdminApp() {
   const [items, setItems] = useState<ItemRow[]>([]);
   const [workshops, setWorkshops] = useState<WorkshopRow[]>([]);
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
+  const [loadedOnce, setLoadedOnce] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<Json>(null);
   const [error, setError] = useState<Json>(null);
   const [botDash, setBotDash] = useState<Json>(null);
   const [ensureBotCount, setEnsureBotCount] = useState("5");
+  const [grantGoldUsername, setGrantGoldUsername] = useState("dev_buyer");
   const [seedResult, setSeedResult] = useState<Json>(null);
   const [refStoneGold, setRefStoneGold] = useState("10");
   const [refRarityGrowth, setRefRarityGrowth] = useState(String(RARITY_REFERENCE_GROWTH));
+  const [tab, setTab] = useState<"items" | "workshops" | "recipes" | "raw">("items");
+  const [itemQuery, setItemQuery] = useState("");
+  const [workshopQuery, setWorkshopQuery] = useState("");
+  const [selectedWorkshopId, setSelectedWorkshopId] = useState<string>("");
 
   useEffect(() => {
     try {
@@ -176,6 +182,29 @@ export default function AdminApp() {
     return map;
   }, [recipes]);
 
+  useEffect(() => {
+    if (!selectedWorkshopId && workshops.length > 0) setSelectedWorkshopId(workshops[0]?.id ?? "");
+  }, [selectedWorkshopId, workshops]);
+
+  const filteredItems = useMemo(() => {
+    const q = itemQuery.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((it) => {
+      const id = String(it.id ?? "").toLowerCase();
+      const name = String(it.name ?? "").toLowerCase();
+      const category = String(it.category ?? "").toLowerCase();
+      return id.includes(q) || name.includes(q) || category.includes(q);
+    });
+  }, [items, itemQuery]);
+
+  const filteredWorkshops = useMemo(() => {
+    const q = workshopQuery.trim().toLowerCase();
+    if (!q) return workshops;
+    return workshops.filter((ws) => String(ws.name ?? "").toLowerCase().includes(q) || String(ws.id ?? "").toLowerCase().includes(q));
+  }, [workshops, workshopQuery]);
+
+  const selectedWorkshop = useMemo(() => workshops.find((w) => w.id === selectedWorkshopId) ?? null, [workshops, selectedWorkshopId]);
+
   async function run(label: string, fn: () => Promise<any>) {
     setBusy(label);
     setError(null);
@@ -227,6 +256,8 @@ export default function AdminApp() {
                     setItems((items.items ?? []).map(normalizeItemGradeForAdmin));
                     setWorkshops(workshops.workshops ?? []);
                     setRecipes(recipes.recipes ?? []);
+                    setLoadedOnce(true);
+                    setTab("items");
                     return { ok: true };
                   })
                 }
@@ -237,10 +268,52 @@ export default function AdminApp() {
                 className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
                 disabled={!token || !!busy}
                 onClick={() =>
+                  run("apply-from-files", async () => {
+                    // 서버가 읽는 `web/data/*.json` 기준으로 즉시 DB 반영 (내가 수정한 최신 파일 반영용)
+                    const applied = await adminFetch("POST", "/api/admin/apply", token, {});
+                    return { ok: true, applied };
+                  })
+                }
+                title="현재 코드(파일)에 들어있는 items/workshops/recipes를 그대로 DB에 반영"
+              >
+                코드 데이터 즉시 적용(DB)
+              </button>
+              <button
+                className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
+                disabled={!token || !!busy || !loadedOnce}
+                onClick={() =>
                   run("apply", () => adminFetch("POST", "/api/admin/apply", token, {}))
                 }
               >
                 DB에 적용
+              </button>
+              <button
+                className="h-10 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                disabled={!token || !!busy || !loadedOnce}
+                onClick={() =>
+                  run("save+apply", async () => {
+                    if (!loadedOnce) throw { ok: false, error: "먼저 '파일 불러오기'를 눌러 데이터를 불러와줘." };
+
+                    // keep textareas in sync
+                    setItemsText(JSON.stringify(items, null, 2));
+                    setWorkshopsText(JSON.stringify(workshops, null, 2));
+                    setRecipesText(JSON.stringify(recipes, null, 2));
+
+                    // Apply to DB (and try saving files on server if possible)
+                    const applied = await adminFetch("POST", "/api/admin/apply", token, {
+                      saveFiles: true,
+                      items,
+                      workshops,
+                      recipes,
+                    });
+                    return {
+                      ok: true,
+                      applied,
+                    };
+                  })
+                }
+              >
+                통합 저장(파일+DB)
               </button>
             </div>
           </div>
@@ -256,6 +329,38 @@ export default function AdminApp() {
               <div className="mt-1 text-xs text-zinc-600">DevPanel 기능을 관리자 패널로 통합했어. (로컬 개발용)</div>
             </div>
             <div className="flex flex-wrap gap-2">
+              <button
+                className="h-10 rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-950 disabled:opacity-50"
+                disabled={!token || !!busy}
+                onClick={() =>
+                  run("grant-gold", async () => {
+                    const username = grantGoldUsername.trim();
+                    if (!username) throw { ok: false, error: "유저명을 입력해 주세요." };
+                    return adminFetch("POST", "/api/admin/wallet/grant", token, {
+                      username,
+                      amount: 100_000,
+                    });
+                  })
+                }
+              >
+                골드 10만 지급
+              </button>
+              <button
+                className="h-10 rounded-xl border border-violet-300 bg-violet-50 px-4 text-sm font-semibold text-violet-950 disabled:opacity-50"
+                disabled={!token || !!busy}
+                onClick={() =>
+                  run("grant-all-items", async () => {
+                    const username = grantGoldUsername.trim();
+                    if (!username) throw { ok: false, error: "유저명을 입력해 주세요." };
+                    return adminFetch("POST", "/api/admin/inventory/grant-all-items", token, {
+                      username,
+                      quantityPerItem: 1,
+                    });
+                  })
+                }
+              >
+                items.csv 전체 1개씩 지급
+              </button>
               <button
                 className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white disabled:opacity-50"
                 disabled={!!busy}
@@ -276,6 +381,23 @@ export default function AdminApp() {
               >
                 시드 결과 지우기
               </button>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-end gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+            <div className="flex min-w-[180px] flex-col gap-1">
+              <label className="text-[11px] font-semibold text-zinc-600" htmlFor="grant-gold-username">
+                골드 지급 대상 유저명
+              </label>
+              <input
+                id="grant-gold-username"
+                className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                value={grantGoldUsername}
+                onChange={(e) => setGrantGoldUsername(e.target.value)}
+                placeholder="dev_buyer"
+              />
+            </div>
+            <div className="text-xs text-zinc-600">
+              골드: <span className="font-semibold">100,000G</span> 추가 · items.csv 항목을 종류당 1개씩 인벤에 추가
             </div>
           </div>
           {seedResult ? (
@@ -654,6 +776,7 @@ export default function AdminApp() {
                   run("sync-to-text", async () => {
                     setItemsText(JSON.stringify(items, null, 2));
                     setWorkshopsText(JSON.stringify(workshops, null, 2));
+                    setRecipesText(JSON.stringify(recipes, null, 2));
                     return { ok: true };
                   })
                 }
@@ -663,46 +786,317 @@ export default function AdminApp() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-6 md:grid-cols-2">
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">아이템</div>
+          <div className="mt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
-                  className="h-9 rounded-xl bg-zinc-900 px-3 text-xs font-semibold text-white disabled:opacity-50"
-                  disabled={!!busy}
-                  onClick={() =>
-                    setItems((prev) => [
-                      ...prev,
-                      {
-                        id: `item_new_${prev.length + 1}`,
-                        name: "새 아이템",
-                        category: "재료",
-                        tradable: true,
-                        grade: 1,
-                      },
-                    ])
-                  }
+                  className={[
+                    "h-9 rounded-xl border px-3 text-sm font-semibold",
+                    tab === "items" ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white text-zinc-900",
+                  ].join(" ")}
+                  onClick={() => setTab("items")}
                 >
-                  + 아이템 추가
+                  아이템
+                </button>
+                <button
+                  className={[
+                    "h-9 rounded-xl border px-3 text-sm font-semibold",
+                    tab === "workshops" ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white text-zinc-900",
+                  ].join(" ")}
+                  onClick={() => setTab("workshops")}
+                >
+                  마을 시설(드랍)
+                </button>
+                <button
+                  className={[
+                    "h-9 rounded-xl border px-3 text-sm font-semibold",
+                    tab === "recipes" ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white text-zinc-900",
+                  ].join(" ")}
+                  onClick={() => setTab("recipes")}
+                >
+                  레시피
+                </button>
+                <button
+                  className={[
+                    "h-9 rounded-xl border px-3 text-sm font-semibold",
+                    tab === "raw" ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white text-zinc-900",
+                  ].join(" ")}
+                  onClick={() => setTab("raw")}
+                >
+                  원본 텍스트
                 </button>
               </div>
 
-              <div className="mt-3 grid gap-2">
-                {items.length === 0 ? (
-                  <div className="text-sm text-zinc-500">아이템이 없어.</div>
-                ) : (
-                  items.map((it, idx) => (
-                    <div key={`${it.id}-${idx}`} className="rounded-xl border border-zinc-200 bg-white p-3">
-                      <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_minmax(140px,200px)_auto]">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-900 disabled:opacity-50"
+                  disabled={!token || !!busy}
+                  onClick={() =>
+                    run("save-all-form", async () => {
+                      const savedItems = await adminFetch("PUT", "/api/admin/data/items", token, items);
+                      const savedWorkshops = await adminFetch("PUT", "/api/admin/data/workshops", token, workshops);
+                      const savedRecipes = await adminFetch("PUT", "/api/admin/data/recipes", token, recipes);
+                      setItemsText(JSON.stringify(items, null, 2));
+                      setWorkshopsText(JSON.stringify(workshops, null, 2));
+                      setRecipesText(JSON.stringify(recipes, null, 2));
+                      return { ok: true, saved: { items: savedItems?.path, workshops: savedWorkshops?.path, recipes: savedRecipes?.path } };
+                    })
+                  }
+                >
+                  모두 저장(파일)
+                </button>
+              </div>
+            </div>
+
+            {tab === "items" ? (
+              <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold">아이템</div>
+                    <div className="mt-1 text-xs text-zinc-600">검색해서 빠르게 찾고, 표에서 바로 수정해.</div>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="flex flex-col gap-1">
+                      <div className="text-[11px] font-semibold text-zinc-600">검색</div>
+                      <input
+                        className="h-9 w-[260px] rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                        value={itemQuery}
+                        onChange={(e) => setItemQuery(e.target.value)}
+                        placeholder="id / 이름 / 카테고리"
+                      />
+                    </div>
+                    <button
+                      className="h-9 rounded-xl bg-zinc-900 px-3 text-sm font-semibold text-white disabled:opacity-50"
+                      disabled={!!busy}
+                      onClick={() =>
+                        setItems((prev) => [
+                          ...prev,
+                          { id: `item_new_${prev.length + 1}`, name: "새 아이템", category: "재료", tradable: true, grade: 1 },
+                        ])
+                      }
+                    >
+                      + 추가
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200">
+                  <div className="max-h-[520px] overflow-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="sticky top-0 bg-zinc-50">
+                        <tr className="text-[11px] font-semibold text-zinc-600">
+                          <th className="border-b border-zinc-200 px-3 py-2">id</th>
+                          <th className="border-b border-zinc-200 px-3 py-2">이름</th>
+                          <th className="border-b border-zinc-200 px-3 py-2">카테고리</th>
+                          <th className="border-b border-zinc-200 px-3 py-2">등급</th>
+                          <th className="border-b border-zinc-200 px-3 py-2">거래</th>
+                          <th className="border-b border-zinc-200 px-3 py-2 text-right">액션</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredItems.length === 0 ? (
+                          <tr>
+                            <td className="px-3 py-3 text-sm text-zinc-500" colSpan={6}>
+                              검색 결과가 없어.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredItems.map((it) => {
+                            const idx = items.findIndex((x) => x === it);
+                            return (
+                              <tr key={`${it.id}-${idx}`} className="odd:bg-white even:bg-zinc-50/40">
+                                <td className="border-b border-zinc-100 px-3 py-2">
+                                  <input
+                                    className="h-9 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                    value={it.id}
+                                    onChange={(e) =>
+                                      setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, id: e.target.value } : p)))
+                                    }
+                                  />
+                                </td>
+                                <td className="border-b border-zinc-100 px-3 py-2">
+                                  <input
+                                    className="h-9 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                    value={it.name}
+                                    onChange={(e) =>
+                                      setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, name: e.target.value } : p)))
+                                    }
+                                  />
+                                </td>
+                                <td className="border-b border-zinc-100 px-3 py-2">
+                                  <input
+                                    className="h-9 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                    value={it.category}
+                                    onChange={(e) =>
+                                      setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, category: e.target.value } : p)))
+                                    }
+                                  />
+                                </td>
+                                <td className="border-b border-zinc-100 px-3 py-2">
+                                  <select
+                                    className="h-9 w-full rounded-xl border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                    value={Math.max(1, Math.min(8, Math.floor(it.grade ?? 1)))}
+                                    onChange={(e) => {
+                                      const v = Math.max(1, Math.min(8, Math.floor(Number(e.target.value) || 1)));
+                                      setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, grade: v } : p)));
+                                    }}
+                                  >
+                                    {ITEM_GRADE_LABELS.map((label, gi) => (
+                                      <option key={label} value={gi + 1}>
+                                        {gi + 1}. {label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="border-b border-zinc-100 px-3 py-2">
+                                  <label className="flex items-center gap-2 text-xs font-semibold text-zinc-700">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!it.tradable}
+                                      onChange={(e) =>
+                                        setItems((prev) =>
+                                          prev.map((p, i) => (i === idx ? { ...p, tradable: e.target.checked } : p)),
+                                        )
+                                      }
+                                    />
+                                    가능
+                                  </label>
+                                </td>
+                                <td className="border-b border-zinc-100 px-3 py-2 text-right">
+                                  <button
+                                    className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900"
+                                    onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
+                                  >
+                                    삭제
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  <button
+                    className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
+                    disabled={!token || !!busy}
+                    onClick={() =>
+                      run("save-items-form", async () => {
+                        const r = await adminFetch("PUT", "/api/admin/data/items", token, items);
+                        setItemsText(JSON.stringify(items, null, 2));
+                        return r;
+                      })
+                    }
+                  >
+                    아이템 저장(파일)
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {tab === "workshops" ? (
+              <div className="mt-4 grid gap-4 lg:grid-cols-[320px_1fr]">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                  <div className="text-sm font-semibold">시설 목록</div>
+                  <div className="mt-2">
+                    <input
+                      className="h-9 w-full rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                      value={workshopQuery}
+                      onChange={(e) => setWorkshopQuery(e.target.value)}
+                      placeholder="id / 이름 검색"
+                    />
+                  </div>
+                  <div className="mt-3 max-h-[520px] overflow-auto rounded-xl border border-zinc-200">
+                    <div className="divide-y divide-zinc-100">
+                      {filteredWorkshops.map((ws) => (
+                        <button
+                          key={ws.id}
+                          className={[
+                            "flex w-full items-start justify-between gap-2 px-3 py-2 text-left",
+                            ws.id === selectedWorkshopId ? "bg-zinc-900 text-white" : "bg-white text-zinc-900 hover:bg-zinc-50",
+                          ].join(" ")}
+                          onClick={() => setSelectedWorkshopId(ws.id)}
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold">{ws.name}</div>
+                            <div className={["truncate font-mono text-[11px]", ws.id === selectedWorkshopId ? "text-white/70" : "text-zinc-500"].join(" ")}>
+                              {ws.id}
+                            </div>
+                          </div>
+                          <div className={["text-xs font-semibold", ws.id === selectedWorkshopId ? "text-white/80" : "text-zinc-600"].join(" ")}>
+                            {ws.drops?.length ?? 0} drops
+                          </div>
+                        </button>
+                      ))}
+                      {filteredWorkshops.length === 0 ? (
+                        <div className="px-3 py-3 text-sm text-zinc-500">검색 결과가 없어.</div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      className="h-9 flex-1 rounded-xl bg-zinc-900 px-3 text-sm font-semibold text-white disabled:opacity-50"
+                      disabled={!!busy}
+                      onClick={() =>
+                        setWorkshops((prev) => [
+                          ...prev,
+                          {
+                            id: `workshop_new_${prev.length + 1}`,
+                            name: "새 시설",
+                            drops: [{ itemId: items[0]?.id ?? "item_dark_iron_ore", weight: 1, minQty: 1, maxQty: 1, minTier: 1 }],
+                          },
+                        ])
+                      }
+                    >
+                      + 시설 추가
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                  {!selectedWorkshop ? (
+                    <div className="text-sm text-zinc-500">왼쪽에서 시설을 선택해줘.</div>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <div className="text-sm font-semibold">시설 편집</div>
+                          <div className="mt-1 text-xs text-zinc-600">
+                            드랍 가중치 합: {workshopDropTotalWeight(selectedWorkshop)}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900"
+                            onClick={() =>
+                              setWorkshops((prev) => prev.map((p) => (p.id === selectedWorkshop.id ? { ...p, drops: [...p.drops, { itemId: items[0]?.id ?? "item_dark_iron_ore", weight: 1, minQty: 1, maxQty: 1, minTier: 1 }] } : p)))
+                            }
+                          >
+                            + 드랍 추가
+                          </button>
+                          <button
+                            className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900"
+                            onClick={() => {
+                              setWorkshops((prev) => prev.filter((p) => p.id !== selectedWorkshop.id));
+                              setSelectedWorkshopId("");
+                            }}
+                          >
+                            시설 삭제
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid gap-2 md:grid-cols-2">
                         <div className="flex flex-col gap-1">
                           <div className="text-[11px] font-semibold text-zinc-600">id</div>
                           <input
                             className="h-9 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                            value={it.id}
+                            value={selectedWorkshop.id}
                             onChange={(e) =>
-                              setItems((prev) =>
-                                prev.map((p, i) => (i === idx ? { ...p, id: e.target.value } : p)),
-                              )
+                              setWorkshops((prev) => prev.map((p) => (p.id === selectedWorkshop.id ? { ...p, id: e.target.value } : p)))
                             }
                           />
                         </div>
@@ -710,396 +1104,251 @@ export default function AdminApp() {
                           <div className="text-[11px] font-semibold text-zinc-600">name</div>
                           <input
                             className="h-9 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                            value={it.name}
+                            value={selectedWorkshop.name}
                             onChange={(e) =>
-                              setItems((prev) =>
-                                prev.map((p, i) => (i === idx ? { ...p, name: e.target.value } : p)),
-                              )
+                              setWorkshops((prev) => prev.map((p) => (p.id === selectedWorkshop.id ? { ...p, name: e.target.value } : p)))
                             }
                           />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <div className="text-[11px] font-semibold text-zinc-600">category</div>
-                          <input
-                            className="h-9 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                            value={it.category}
-                            onChange={(e) =>
-                              setItems((prev) =>
-                                prev.map((p, i) => (i === idx ? { ...p, category: e.target.value } : p)),
-                              )
-                            }
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <div className="text-[11px] font-semibold text-zinc-600">등급</div>
-                          <select
-                            className="h-9 rounded-xl border border-zinc-200 bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                            value={Math.max(1, Math.min(8, Math.floor(it.grade ?? 1)))}
-                            onChange={(e) => {
-                              const v = Math.max(1, Math.min(8, Math.floor(Number(e.target.value) || 1)));
-                              setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, grade: v } : p)));
-                            }}
-                          >
-                            {ITEM_GRADE_LABELS.map((label, gi) => (
-                              <option key={label} value={gi + 1}>
-                                {gi + 1}. {label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="flex items-end justify-end gap-2">
-                          <label className="flex items-center gap-2 text-xs font-semibold text-zinc-700">
-                            <input
-                              type="checkbox"
-                              checked={!!it.tradable}
-                              onChange={(e) =>
-                                setItems((prev) =>
-                                  prev.map((p, i) => (i === idx ? { ...p, tradable: e.target.checked } : p)),
-                                )
-                              }
-                            />
-                            거래가능
-                          </label>
-                          <button
-                            className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900"
-                            onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
-                          >
-                            삭제
-                          </button>
                         </div>
                       </div>
-                    </div>
-                  ))
-                )}
-              </div>
 
-              <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold">아이템 적정 기준가(희귀도 반영)</div>
-                    <div className="mt-1 text-xs text-zinc-600">
-                      돌(`item_stone`)을 기준으로, 등급별 배수로 자동 계산한 참고값이에요.
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-end gap-2">
-                    <div className="flex flex-col gap-1">
-                      <div className="text-[11px] font-semibold text-zinc-600">돌 기준가(G)</div>
-                      <input
-                        className="h-9 w-28 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                        inputMode="numeric"
-                        value={refStoneGold}
-                        onChange={(e) => setRefStoneGold(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <div className="text-[11px] font-semibold text-zinc-600">등급 배수(성장)</div>
-                      <input
-                        className="h-9 w-28 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                        inputMode="decimal"
-                        value={refRarityGrowth}
-                        onChange={(e) => setRefRarityGrowth(e.target.value)}
-                      />
-                    </div>
-                    <div className="pb-1 text-[11px] font-semibold text-zinc-500">
-                      현재: 돌 {refTable.base.toLocaleString()}G · 배수 ×{refTable.growth}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200">
-                  <div className="max-h-[420px] overflow-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="sticky top-0 bg-zinc-50">
-                        <tr className="text-[11px] font-semibold text-zinc-600">
-                          <th className="border-b border-zinc-200 px-3 py-2">이름</th>
-                          <th className="border-b border-zinc-200 px-3 py-2">카테고리</th>
-                          <th className="border-b border-zinc-200 px-3 py-2">등급</th>
-                          <th className="border-b border-zinc-200 px-3 py-2 text-right">적정 기준가(G)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {refTable.rows.length === 0 ? (
-                          <tr>
-                            <td className="px-3 py-3 text-sm text-zinc-500" colSpan={4}>
-                              아이템을 불러오면 표가 채워져요.
-                            </td>
-                          </tr>
-                        ) : (
-                          refTable.rows.map((r) => (
-                            <tr key={r.id} className="odd:bg-white even:bg-zinc-50/40">
-                              <td className="border-b border-zinc-100 px-3 py-2">
-                                <div className="font-semibold text-zinc-900">{r.name}</div>
-                                <div className="text-[11px] text-zinc-500">{r.id}</div>
-                              </td>
-                              <td className="border-b border-zinc-100 px-3 py-2 text-zinc-700">{r.category}</td>
-                              <td className="border-b border-zinc-100 px-3 py-2 text-zinc-700">
-                                {r.grade}. {r.gradeLabel}
-                              </td>
-                              <td className="border-b border-zinc-100 px-3 py-2 text-right font-semibold tabular-nums text-zinc-900">
-                                {r.recommendedGold.toLocaleString()}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 flex gap-2">
-                <button
-                  className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
-                  disabled={!token || !!busy}
-                  onClick={() =>
-                    run("save-items-form", async () => {
-                      const r = await adminFetch("PUT", "/api/admin/data/items", token, items);
-                      setItemsText(JSON.stringify(items, null, 2));
-                      return r;
-                    })
-                  }
-                >
-                  아이템 저장(파일)
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">마을 시설</div>
-                <button
-                  className="h-9 rounded-xl bg-zinc-900 px-3 text-xs font-semibold text-white disabled:opacity-50"
-                  disabled={!!busy}
-                  onClick={() =>
-                    setWorkshops((prev) => [
-                      ...prev,
-                      {
-                        id: `workshop_new_${prev.length + 1}`,
-                        name: "새 시설",
-                        drops: [{ itemId: items[0]?.id ?? "item_ore", weight: 1, minQty: 1, maxQty: 1, minTier: 1 }],
-                      },
-                    ])
-                  }
-                >
-                  + 시설 추가
-                </button>
-              </div>
-
-              <div className="mt-3 grid gap-3">
-                {workshops.length === 0 ? (
-                  <div className="text-sm text-zinc-500">등록된 시설이 없어.</div>
-                ) : (
-                  workshops.map((ws, widx) => {
-                    const total = workshopDropTotalWeight(ws);
-                    return (
-                      <div key={`${ws.id}-${widx}`} className="rounded-2xl border border-zinc-200 bg-white p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold">마을 시설</div>
-                            <div className="text-xs text-zinc-500">드랍 가중치 합: {total}</div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900"
-                              onClick={() =>
-                                setWorkshops((prev) =>
-                                  prev.map((p, i) =>
-                                    i === widx
-                                      ? {
-                                          ...p,
-                                          drops: [
-                                            ...p.drops,
-                                            {
-                                              itemId: items[0]?.id ?? "item_ore",
-                                              weight: 1,
-                                              minQty: 1,
-                                              maxQty: 1,
-                                            },
-                                          ],
+                      <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200">
+                        <div className="max-h-[520px] overflow-auto">
+                          <table className="w-full text-left text-sm">
+                            <thead className="sticky top-0 bg-zinc-50">
+                              <tr className="text-[11px] font-semibold text-zinc-600">
+                                <th className="border-b border-zinc-200 px-3 py-2">itemId</th>
+                                <th className="border-b border-zinc-200 px-3 py-2">weight</th>
+                                <th className="border-b border-zinc-200 px-3 py-2">minTier</th>
+                                <th className="border-b border-zinc-200 px-3 py-2">min</th>
+                                <th className="border-b border-zinc-200 px-3 py-2">max</th>
+                                <th className="border-b border-zinc-200 px-3 py-2 text-right">액션</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(selectedWorkshop.drops ?? []).map((d, didx) => {
+                                const total = workshopDropTotalWeight(selectedWorkshop);
+                                const chance = total > 0 ? (Math.max(0, d.weight) / total) * 100 : 0;
+                                const itemMissing = !itemIdSet.has(d.itemId);
+                                return (
+                                  <tr key={`${selectedWorkshop.id}-${didx}`} className={["odd:bg-white even:bg-zinc-50/40", itemMissing ? "bg-amber-50" : ""].join(" ")}>
+                                    <td className="border-b border-zinc-100 px-3 py-2">
+                                      <div className="flex flex-col gap-1">
+                                        <input
+                                          className={[
+                                            "h-9 w-full rounded-xl border px-3 text-sm outline-none focus:ring-2",
+                                            itemMissing ? "border-amber-300 bg-white focus:ring-amber-200" : "border-zinc-200 bg-white focus:ring-zinc-200",
+                                          ].join(" ")}
+                                          value={d.itemId}
+                                          onChange={(e) =>
+                                            setWorkshops((prev) =>
+                                              prev.map((p) =>
+                                                p.id === selectedWorkshop.id
+                                                  ? { ...p, drops: p.drops.map((dd, j) => (j === didx ? { ...dd, itemId: e.target.value } : dd)) }
+                                                  : p,
+                                              ),
+                                            )
+                                          }
+                                        />
+                                        <div className="text-[11px] text-zinc-600">확률: {Math.round(chance * 10) / 10}%</div>
+                                      </div>
+                                    </td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">
+                                      <input
+                                        className="h-9 w-24 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                        type="number"
+                                        value={d.weight}
+                                        onChange={(e) => {
+                                          const v = normalizeNumber(e.target.value, 0);
+                                          setWorkshops((prev) =>
+                                            prev.map((p) =>
+                                              p.id === selectedWorkshop.id ? { ...p, drops: p.drops.map((dd, j) => (j === didx ? { ...dd, weight: v } : dd)) } : p,
+                                            ),
+                                          );
+                                        }}
+                                      />
+                                    </td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">
+                                      <input
+                                        className="h-9 w-20 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                        type="number"
+                                        value={Math.max(1, Math.min(5, Math.floor(d.minTier ?? 1)))}
+                                        onChange={(e) => {
+                                          const v = Math.max(1, Math.min(5, Math.floor(normalizeNumber(e.target.value, 1))));
+                                          setWorkshops((prev) =>
+                                            prev.map((p) =>
+                                              p.id === selectedWorkshop.id ? { ...p, drops: p.drops.map((dd, j) => (j === didx ? { ...dd, minTier: v } : dd)) } : p,
+                                            ),
+                                          );
+                                        }}
+                                      />
+                                    </td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">
+                                      <input
+                                        className="h-9 w-20 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                        type="number"
+                                        value={d.minQty}
+                                        onChange={(e) => {
+                                          const v = Math.max(1, Math.floor(normalizeNumber(e.target.value, 1)));
+                                          setWorkshops((prev) =>
+                                            prev.map((p) =>
+                                              p.id === selectedWorkshop.id ? { ...p, drops: p.drops.map((dd, j) => (j === didx ? { ...dd, minQty: v } : dd)) } : p,
+                                            ),
+                                          );
+                                        }}
+                                      />
+                                    </td>
+                                    <td className="border-b border-zinc-100 px-3 py-2">
+                                      <input
+                                        className="h-9 w-20 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                        type="number"
+                                        value={d.maxQty}
+                                        onChange={(e) => {
+                                          const v = Math.max(1, Math.floor(normalizeNumber(e.target.value, 1)));
+                                          setWorkshops((prev) =>
+                                            prev.map((p) =>
+                                              p.id === selectedWorkshop.id ? { ...p, drops: p.drops.map((dd, j) => (j === didx ? { ...dd, maxQty: v } : dd)) } : p,
+                                            ),
+                                          );
+                                        }}
+                                      />
+                                    </td>
+                                    <td className="border-b border-zinc-100 px-3 py-2 text-right">
+                                      <button
+                                        className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900"
+                                        onClick={() =>
+                                          setWorkshops((prev) =>
+                                            prev.map((p) =>
+                                              p.id === selectedWorkshop.id ? { ...p, drops: p.drops.filter((_, j) => j !== didx) } : p,
+                                            ),
+                                          )
                                         }
-                                      : p,
-                                  ),
-                                )
-                              }
-                            >
-                              + 드랍 추가
-                            </button>
-                            <button
-                              className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900"
-                              onClick={() => setWorkshops((prev) => prev.filter((_, i) => i !== widx))}
-                            >
-                              시설 삭제
-                            </button>
-                          </div>
+                                      >
+                                        삭제
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
+                      </div>
 
-                        <div className="mt-3 grid gap-2 md:grid-cols-2">
-                          <div className="flex flex-col gap-1">
-                            <div className="text-[11px] font-semibold text-zinc-600">id</div>
-                            <input
-                              className="h-9 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                              value={ws.id}
-                              onChange={(e) =>
-                                setWorkshops((prev) =>
-                                  prev.map((p, i) => (i === widx ? { ...p, id: e.target.value } : p)),
-                                )
-                              }
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <div className="text-[11px] font-semibold text-zinc-600">name</div>
-                            <input
-                              className="h-9 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                              value={ws.name}
-                              onChange={(e) =>
-                                setWorkshops((prev) =>
-                                  prev.map((p, i) => (i === widx ? { ...p, name: e.target.value } : p)),
-                                )
-                              }
-                            />
-                          </div>
-                        </div>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
+                          disabled={!token || !!busy}
+                          onClick={() =>
+                            run("save-workshops-form", async () => {
+                              const r = await adminFetch("PUT", "/api/admin/data/workshops", token, workshops);
+                              setWorkshopsText(JSON.stringify(workshops, null, 2));
+                              return r;
+                            })
+                          }
+                        >
+                          시설 저장(파일)
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : null}
 
-                        <div className="mt-3 grid gap-2">
-                          {ws.drops.map((d, didx) => {
-                            const chance = total > 0 ? (Math.max(0, d.weight) / total) * 100 : 0;
-                            const itemMissing = !itemIdSet.has(d.itemId);
+            {tab === "recipes" ? (
+              <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+                <div className="text-sm font-semibold">레시피</div>
+                <div className="mt-1 text-xs text-zinc-600">
+                  레시피는 시설별로 묶어서 보여줘. (고급 편집은 “원본 텍스트” 탭)
+                </div>
+
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {recipeWorkshopNames.map((wn) => {
+                    const arr = recipesByWorkshop.get(wn) ?? [];
+                    return (
+                      <div key={wn} className="rounded-2xl border border-zinc-200 bg-white p-4">
+                        <div className="text-sm font-semibold">{wn}</div>
+                        <div className="mt-2 space-y-2">
+                          {arr.map((r, ridx) => {
+                            const idx = recipes.findIndex((x) => x === r);
                             return (
-                              <div
-                                key={`${ws.id}-${didx}`}
-                                className={[
-                                  "rounded-xl border p-3",
-                                  itemMissing ? "border-amber-300 bg-amber-50" : "border-zinc-200 bg-white",
-                                ].join(" ")}
-                              >
-                                <div className="grid gap-2 md:grid-cols-[1fr_90px_70px_90px_90px_auto]">
-                                  <div className="flex flex-col gap-1">
-                                    <div className="text-[11px] font-semibold text-zinc-600">
-                                      itemId {itemMissing ? "(아이템 없음!)" : ""}
+                              <div key={`${wn}-${r.name}-${ridx}`} className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <input
+                                    className="h-9 flex-1 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                    value={r.name}
+                                    onChange={(e) => setRecipes((prev) => prev.map((p, i) => (i === idx ? { ...p, name: e.target.value } : p)))}
+                                  />
+                                  <button
+                                    className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900"
+                                    onClick={() => setRecipes((prev) => prev.filter((_, i) => i !== idx))}
+                                  >
+                                    삭제
+                                  </button>
+                                </div>
+                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                  <div className="rounded-xl border border-zinc-200 bg-white p-2">
+                                    <div className="text-[11px] font-semibold text-zinc-600">inputs</div>
+                                    <div className="mt-1 space-y-1">
+                                      {(r.inputs ?? []).map((inp, ii) => (
+                                        <div key={`${idx}-in-${ii}`} className="flex gap-2">
+                                          <input
+                                            className="h-9 flex-1 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                            value={inp.itemId}
+                                            onChange={(e) =>
+                                              setRecipes((prev) =>
+                                                prev.map((p, i) =>
+                                                  i === idx
+                                                    ? { ...p, inputs: p.inputs.map((x, j) => (j === ii ? { ...x, itemId: e.target.value } : x)) }
+                                                    : p,
+                                                ),
+                                              )
+                                            }
+                                          />
+                                          <input
+                                            className="h-9 w-24 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                            type="number"
+                                            value={inp.quantity}
+                                            onChange={(e) =>
+                                              setRecipes((prev) =>
+                                                prev.map((p, i) =>
+                                                  i === idx
+                                                    ? { ...p, inputs: p.inputs.map((x, j) => (j === ii ? { ...x, quantity: Math.max(1, Math.floor(normalizeNumber(e.target.value, 1))) } : x)) }
+                                                    : p,
+                                                ),
+                                              )
+                                            }
+                                          />
+                                        </div>
+                                      ))}
                                     </div>
-                                    <input
-                                      className="h-9 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                                      value={d.itemId}
-                                      onChange={(e) =>
-                                        setWorkshops((prev) =>
-                                          prev.map((p, i) =>
-                                            i === widx
-                                              ? {
-                                                  ...p,
-                                                  drops: p.drops.map((dd, j) =>
-                                                    j === didx ? { ...dd, itemId: e.target.value } : dd,
+                                  </div>
+                                  <div className="rounded-xl border border-zinc-200 bg-white p-2">
+                                    <div className="text-[11px] font-semibold text-zinc-600">outputs</div>
+                                    <div className="mt-1 space-y-1">
+                                      {(r.outputs ?? []).length === 0 ? (
+                                        <div className="text-xs text-zinc-500">없음</div>
+                                      ) : (
+                                        (r.outputs ?? []).map((out, oi) => (
+                                          <div key={`${idx}-out-${oi}`} className="flex gap-2">
+                                            <input
+                                              className="h-9 flex-1 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
+                                              value={out.itemId}
+                                              onChange={(e) =>
+                                                setRecipes((prev) =>
+                                                  prev.map((p, i) =>
+                                                    i === idx
+                                                      ? { ...p, outputs: (p.outputs ?? []).map((x, j) => (j === oi ? { ...x, itemId: e.target.value } : x)) }
+                                                      : p,
                                                   ),
-                                                }
-                                              : p,
-                                          ),
-                                        )
-                                      }
-                                    />
-                                    <div className="text-xs text-zinc-600">확률: {Math.round(chance * 10) / 10}%</div>
-                                  </div>
-
-                                  <div className="flex flex-col gap-1">
-                                    <div className="text-[11px] font-semibold text-zinc-600">weight</div>
-                                    <input
-                                      className="h-9 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                                      type="number"
-                                      value={d.weight}
-                                      onChange={(e) => {
-                                        const v = normalizeNumber(e.target.value, 0);
-                                        setWorkshops((prev) =>
-                                          prev.map((p, i) =>
-                                            i === widx
-                                              ? {
-                                                  ...p,
-                                                  drops: p.drops.map((dd, j) => (j === didx ? { ...dd, weight: v } : dd)),
-                                                }
-                                              : p,
-                                          ),
-                                        );
-                                      }}
-                                    />
-                                  </div>
-
-                                  <div className="flex flex-col gap-1">
-                                    <div className="text-[11px] font-semibold text-zinc-600">minTier</div>
-                                    <input
-                                      className="h-9 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                                      type="number"
-                                      value={Math.max(1, Math.min(5, Math.floor(d.minTier ?? 1)))}
-                                      onChange={(e) => {
-                                        const v = Math.max(1, Math.min(5, Math.floor(normalizeNumber(e.target.value, 1))));
-                                        setWorkshops((prev) =>
-                                          prev.map((p, i) =>
-                                            i === widx
-                                              ? {
-                                                  ...p,
-                                                  drops: p.drops.map((dd, j) => (j === didx ? { ...dd, minTier: v } : dd)),
-                                                }
-                                              : p,
-                                          ),
-                                        );
-                                      }}
-                                      title="이 드랍이 활성화되는 최소 수집 시설 티어(1~5)"
-                                    />
-                                  </div>
-
-                                  <div className="flex flex-col gap-1">
-                                    <div className="text-[11px] font-semibold text-zinc-600">min</div>
-                                    <input
-                                      className="h-9 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                                      type="number"
-                                      value={d.minQty}
-                                      onChange={(e) => {
-                                        const v = Math.max(1, Math.floor(normalizeNumber(e.target.value, 1)));
-                                        setWorkshops((prev) =>
-                                          prev.map((p, i) =>
-                                            i === widx
-                                              ? {
-                                                  ...p,
-                                                  drops: p.drops.map((dd, j) => (j === didx ? { ...dd, minQty: v } : dd)),
-                                                }
-                                              : p,
-                                          ),
-                                        );
-                                      }}
-                                    />
-                                  </div>
-
-                                  <div className="flex flex-col gap-1">
-                                    <div className="text-[11px] font-semibold text-zinc-600">max</div>
-                                    <input
-                                      className="h-9 rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-200"
-                                      type="number"
-                                      value={d.maxQty}
-                                      onChange={(e) => {
-                                        const v = Math.max(1, Math.floor(normalizeNumber(e.target.value, 1)));
-                                        setWorkshops((prev) =>
-                                          prev.map((p, i) =>
-                                            i === widx
-                                              ? {
-                                                  ...p,
-                                                  drops: p.drops.map((dd, j) => (j === didx ? { ...dd, maxQty: v } : dd)),
-                                                }
-                                              : p,
-                                          ),
-                                        );
-                                      }}
-                                    />
-                                  </div>
-
-                                  <div className="flex items-end justify-end">
-                                    <button
-                                      className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900"
-                                      onClick={() =>
-                                        setWorkshops((prev) =>
-                                          prev.map((p, i) =>
-                                            i === widx ? { ...p, drops: p.drops.filter((_, j) => j !== didx) } : p,
-                                          ),
-                                        )
-                                      }
-                                    >
-                                      드랍 삭제
-                                    </button>
+                                                )
+                                              }
+                                            />
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -1108,93 +1357,84 @@ export default function AdminApp() {
                         </div>
                       </div>
                     );
-                  })
-                )}
-              </div>
+                  })}
+                </div>
 
-              <div className="mt-3 flex gap-2">
-                <button
-                  className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
-                  disabled={!token || !!busy}
-                  onClick={() =>
-                    run("save-workshops-form", async () => {
-                      const r = await adminFetch("PUT", "/api/admin/data/workshops", token, workshops);
-                      setWorkshopsText(JSON.stringify(workshops, null, 2));
-                      return r;
-                    })
-                  }
-                >
-                  마을·시설 데이터 저장(파일)
-                </button>
-                <button
-                  className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
-                  disabled={!token || !!busy}
-                  onClick={() =>
-                    run("save-recipes-form", async () => {
-                      const r = await adminFetch("PUT", "/api/admin/data/recipes", token, recipes);
-                      setRecipesText(JSON.stringify(recipes, null, 2));
-                      return r;
-                    })
-                  }
-                >
-                  레시피 저장(파일)
-                </button>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 disabled:opacity-50"
+                    disabled={!token || !!busy}
+                    onClick={() =>
+                      run("save-recipes-form", async () => {
+                        const r = await adminFetch("PUT", "/api/admin/data/recipes", token, recipes);
+                        setRecipesText(JSON.stringify(recipes, null, 2));
+                        return r;
+                      })
+                    }
+                  >
+                    레시피 저장(파일)
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : null}
+
+            {tab === "raw" ? (
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold">items.json</div>
+                    <button
+                      className="text-xs font-semibold text-zinc-700 underline decoration-zinc-300 underline-offset-4 disabled:opacity-50"
+                      disabled={!token || !!busy}
+                      onClick={() =>
+                        run("save-items", async () => {
+                          const json = JSON.parse(itemsText);
+                          return await adminFetch("PUT", "/api/admin/data/items", token, json);
+                        })
+                      }
+                    >
+                      저장
+                    </button>
+                  </div>
+                  <textarea
+                    className="mt-3 h-[520px] w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs leading-5 outline-none focus:ring-2 focus:ring-zinc-200"
+                    value={itemsText}
+                    onChange={(e) => setItemsText(e.target.value)}
+                    spellCheck={false}
+                    placeholder='예: [{"id":"item_dark_iron_ore","name":"흑철 원석","category":"재료","tradable":true}]'
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold">workshops.json</div>
+                    <button
+                      className="text-xs font-semibold text-zinc-700 underline decoration-zinc-300 underline-offset-4 disabled:opacity-50"
+                      disabled={!token || !!busy}
+                      onClick={() =>
+                        run("save-workshops", async () => {
+                          const json = JSON.parse(workshopsText);
+                          return await adminFetch("PUT", "/api/admin/data/workshops", token, json);
+                        })
+                      }
+                    >
+                      저장
+                    </button>
+                  </div>
+                  <textarea
+                    className="mt-3 h-[520px] w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs leading-5 outline-none focus:ring-2 focus:ring-zinc-200"
+                    value={workshopsText}
+                    onChange={(e) => setWorkshopsText(e.target.value)}
+                    spellCheck={false}
+                    placeholder='예: [{"id":"workshop_mine","name":"광산","drops":[{"itemId":"item_stone","weight":55,"minQty":1,"maxQty":3}]}]'
+                  />
+                </div>
+              </div>
+            ) : null}
+
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">items.json</div>
-              <button
-                className="text-xs font-semibold text-zinc-700 underline decoration-zinc-300 underline-offset-4 disabled:opacity-50"
-                disabled={!token || !!busy}
-                onClick={() =>
-                  run("save-items", async () => {
-                    const json = JSON.parse(itemsText);
-                    return await adminFetch("PUT", "/api/admin/data/items", token, json);
-                  })
-                }
-              >
-                저장
-              </button>
-            </div>
-            <textarea
-              className="mt-3 h-[520px] w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs leading-5 outline-none focus:ring-2 focus:ring-zinc-200"
-              value={itemsText}
-              onChange={(e) => setItemsText(e.target.value)}
-              spellCheck={false}
-              placeholder='예: [{"id":"item_ore","name":"철광석","category":"재료","tradable":true}]'
-            />
-          </div>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">workshops.json</div>
-              <button
-                className="text-xs font-semibold text-zinc-700 underline decoration-zinc-300 underline-offset-4 disabled:opacity-50"
-                disabled={!token || !!busy}
-                onClick={() =>
-                  run("save-workshops", async () => {
-                    const json = JSON.parse(workshopsText);
-                    return await adminFetch("PUT", "/api/admin/data/workshops", token, json);
-                  })
-                }
-              >
-                저장
-              </button>
-            </div>
-            <textarea
-              className="mt-3 h-[520px] w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 p-3 font-mono text-xs leading-5 outline-none focus:ring-2 focus:ring-zinc-200"
-              value={workshopsText}
-              onChange={(e) => setWorkshopsText(e.target.value)}
-              spellCheck={false}
-              placeholder='예: [{"id":"workshop_mine","name":"광산","drops":[{"itemId":"item_ore","weight":70,"minQty":1,"maxQty":2}]}]'
-            />
-          </div>
-        </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1214,8 +1454,8 @@ export default function AdminApp() {
                     {
                       workshopName: recipeWorkshopNames[0] ?? "대장간",
                       name: `새 레시피 ${prev.length + 1}`,
-                      inputs: [{ itemId: itemOptions[0]?.id ?? "item_ore", quantity: 1 }],
-                      outputs: [{ itemId: itemOptions[0]?.id ?? "item_ore", weight: 0, minQty: 1, maxQty: 1 }],
+                      inputs: [{ itemId: itemOptions[0]?.id ?? "item_dark_iron_ore", quantity: 1 }],
+                      outputs: [{ itemId: itemOptions[0]?.id ?? "item_dark_iron_ore", weight: 0, minQty: 1, maxQty: 1 }],
                       rewardGold: 0,
                     },
                   ])
@@ -1360,7 +1600,7 @@ export default function AdminApp() {
                                                   ...p,
                                                   inputs: [
                                                     ...(p.inputs ?? []),
-                                                    { itemId: itemOptions[0]?.id ?? "item_ore", quantity: 1 },
+                                                    { itemId: itemOptions[0]?.id ?? "item_dark_iron_ore", quantity: 1 },
                                                   ],
                                                 }
                                               : p,
@@ -1468,7 +1708,7 @@ export default function AdminApp() {
                                                       outputs: [
                                                         ...(p.outputs ?? []),
                                                         {
-                                                          itemId: itemOptions[0]?.id ?? "item_ore",
+                                                          itemId: itemOptions[0]?.id ?? "item_dark_iron_ore",
                                                           weight: 0,
                                                           minQty: 1,
                                                           maxQty: 1,
@@ -1680,7 +1920,6 @@ export default function AdminApp() {
             spellCheck={false}
           />
         </section>
-
         <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-950">
           <div className="border-b border-white/10 px-4 py-3 text-xs font-semibold text-white/70">
             결과

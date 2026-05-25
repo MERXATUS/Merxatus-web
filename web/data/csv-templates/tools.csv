@@ -1,0 +1,10 @@
+ToolID,Name,Category,Grade,Gathering_Speed,Yield_Amount,Luck,Icon
+Tool_Wood_Pickaxe,나무 곡괭이,Tool,1,0,0,0,Icon_Wood_Pickaxe
+Tool_Stone_Pickaxe,돌 곡괭이,Tool,1,10,0,0,Icon_Stone_Pickaxe
+Tool_Red_Gold_Pickaxe,적빛 곡괭이,Tool,2,15,0,0,Icon_Red_Gold_Pickaxe
+Tool_Steel_Pickaxe,철 곡괭이,Tool,2,15,0,0,Icon_Steel_Pickaxe
+Tool_Gold_Pickaxe,금 곡괭이,Tool,3,20,1,5,Icon_Gold_Pickaxe
+Tool_Wooden_Rod,나무 낚싯대,Tool,1,0,0,0,Icon_Wooden_Rod
+Tool_Scarlet_Rod,적빛 낚싯대,Tool,2,10,0,0,Icon_Scarlet_Rod
+Tool_Iron_Rod,철 낚싯대,Tool,2,15,0,0,Icon_Iron_Rod
+Tool_Golden_Rod,금 낚싯대,Tool,3,20,0,5,Icon_Golden_Rod

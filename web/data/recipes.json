@@ -1,20 +1,18 @@
 [
   {
     "workshopName": "대장간",
-    "name": "검 제작",
+    "name": "적금",
+    "minTier": 2,
+    "craftTimeSeconds": 60,
     "inputs": [
       {
-        "itemId": "item_stone",
-        "quantity": 1
-      },
-      {
-        "itemId": "item_wood",
-        "quantity": 1
+        "itemId": "item_red_gold_ore",
+        "quantity": 10
       }
     ],
     "outputs": [
       {
-        "itemId": "item_sword",
+        "itemId": "item_red_gold",
         "minQty": 1,
         "maxQty": 1
       }
@@ -23,731 +21,18 @@
   },
   {
     "workshopName": "대장간",
-    "name": "목검 제작 (T1)",
+    "name": "금",
+    "minTier": 3,
+    "craftTimeSeconds": 60,
     "inputs": [
       {
-        "itemId": "item_oak",
-        "quantity": 4
+        "itemId": "item_gold_ore",
+        "quantity": 10
       }
     ],
     "outputs": [
-      {
-        "itemId": "item_wood_sword",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "철검 제작 (T2)",
-    "inputs": [
-      {
-        "itemId": "item_iron",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_hard_tree",
-        "quantity": 2
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_iron_sword",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "미스릴 검 제작 (T3)",
-    "inputs": [
-      {
-        "itemId": "item_mithril",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_hard_tree",
-        "quantity": 2
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_mithril_sword",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "티타늄 검 제작 (T4)",
-    "inputs": [
-      {
-        "itemId": "item_titanium",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_world_tree_root",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_titanium_sword",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "에테르 스워드 제작 (T5)",
-    "inputs": [
-      {
-        "itemId": "item_ethernium",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_ancient_wood",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_ether_sword",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "목궁 제작 (T1)",
-    "inputs": [
-      {
-        "itemId": "item_oak",
-        "quantity": 4
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_wood_bow",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "강철궁 제작 (T2)",
-    "inputs": [
-      {
-        "itemId": "item_iron",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_hard_tree",
-        "quantity": 2
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_steel_bow",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "미스릴 궁 제작 (T3)",
-    "inputs": [
-      {
-        "itemId": "item_mithril",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_world_tree_branch",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_mithril_bow",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "티타늄 궁 제작 (T4)",
-    "inputs": [
-      {
-        "itemId": "item_titanium",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_world_tree_root",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_titanium_bow",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "에테르 보우 제작 (T5)",
-    "inputs": [
-      {
-        "itemId": "item_ethernium",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_ancient_wood",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_ether_bow",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "나무 지팡이 제작 (T1)",
-    "inputs": [
-      {
-        "itemId": "item_maple",
-        "quantity": 4
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_wood_staff",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "마력이 깃든 지팡이 제작 (T2)",
-    "inputs": [
-      {
-        "itemId": "item_magic_stone_low",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_world_tree_branch",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_magic_staff",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "미스릴 지팡이 제작 (T3)",
-    "inputs": [
-      {
-        "itemId": "item_magic_stone_mid",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_thunder_tree",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_mithril_staff",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "티타늄 지팡이 제작 (T4)",
-    "inputs": [
-      {
-        "itemId": "item_magic_stone_high",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_magic_tree",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_titanium_staff",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "에테르 스태프 제작 (T5)",
-    "inputs": [
-      {
-        "itemId": "item_magic_stone_top",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_dark_wood",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_ether_staff",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "기본 곡괭이 제작 (T1)",
-    "inputs": [
-      {
-        "itemId": "item_stone",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_oak",
-        "quantity": 2
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_pickaxe_t1",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "강철 곡괭이 제작 (T2)",
-    "inputs": [
-      {
-        "itemId": "item_iron",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_hard_tree",
-        "quantity": 2
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_pickaxe_t2",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "미스릴 곡괭이 제작 (T3)",
-    "inputs": [
-      {
-        "itemId": "item_mithril",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_world_tree_branch",
-        "quantity": 1
-      },
-      {
-        "itemId": "item_hard_tree",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_pickaxe_t3",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "티타늄 곡괭이 제작 (T4)",
-    "inputs": [
-      {
-        "itemId": "item_titanium",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_world_tree_root",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_pickaxe_t4",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "에테르 곡괭이 제작 (T5)",
-    "inputs": [
-      {
-        "itemId": "item_ethernium",
-        "quantity": 3
-      },
-      {
-        "itemId": "item_ancient_wood",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_pickaxe_t5",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "황금 고블린의 곡괭이 제작 (T5)",
-    "inputs": [
-      {
-        "itemId": "item_goblin_bag",
-        "quantity": 1
-      },
-      {
-        "itemId": "item_dark_wood",
-        "quantity": 2
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_pickaxe_goblin",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "약초꾼의 낫 제작 (T1)",
-    "inputs": [
-      {
-        "itemId": "item_stone",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_oak",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_sickle_t1",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "철제 낫 제작 (T2)",
-    "inputs": [
-      {
-        "itemId": "item_iron",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_hard_tree",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_sickle_t2",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "미스릴 낫 제작 (T3)",
-    "inputs": [
-      {
-        "itemId": "item_mithril",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_world_tree_branch",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_sickle_t3",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "티타늄 낫 제작 (T4)",
-    "inputs": [
-      {
-        "itemId": "item_titanium",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_world_tree_root",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_sickle_t4",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "에테르 낫 제작 (T5)",
-    "inputs": [
-      {
-        "itemId": "item_ethernium",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_ancient_wood",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_sickle_t5",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "수확의 낫 제작 (T5)",
-    "inputs": [
-      {
-        "itemId": "item_magic_stone_top",
-        "quantity": 1
-      },
-      {
-        "itemId": "item_ethernium",
-        "quantity": 1
-      },
-      {
-        "itemId": "item_immortal_herb",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_sickle_harvest",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "나무 낚싯대 제작 (T1)",
-    "inputs": [
-      {
-        "itemId": "item_oak",
-        "quantity": 3
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_rod_t1",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "튼튼한 낚싯대 제작 (T2)",
-    "inputs": [
-      {
-        "itemId": "item_iron",
-        "quantity": 1
-      },
-      {
-        "itemId": "item_hard_tree",
-        "quantity": 2
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_rod_t2",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "미스릴 낚싯대 제작 (T3)",
-    "inputs": [
-      {
-        "itemId": "item_mithril",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_world_tree_branch",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_rod_t3",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "티타늄 낚싯대 제작 (T4)",
-    "inputs": [
-      {
-        "itemId": "item_titanium",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_world_tree_root",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_rod_t4",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "대장간",
-    "name": "에테르 낚싯대 제작 (T5)",
-    "inputs": [
-      {
-        "itemId": "item_ethernium",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_ancient_wood",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_rod_t5",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "제련소",
-    "name": "광석 제련",
-    "inputs": [
-      {
-        "itemId": "item_ore",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_stone",
-        "weight": 60,
-        "minQty": 1,
-        "maxQty": 2
-      },
-      {
-        "itemId": "item_iron",
-        "weight": 25,
-        "minQty": 1,
-        "maxQty": 1
-      },
       {
         "itemId": "item_gold",
-        "weight": 10,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_diamond",
-        "weight": 5,
         "minQty": 1,
         "maxQty": 1
       }
@@ -755,138 +40,451 @@
     "rewardGold": 0
   },
   {
-    "workshopName": "납품소",
-    "name": "돌 납품 (x10)",
+    "workshopName": "대장간",
+    "name": "돌검",
+    "minTier": 1,
+    "craftTimeSeconds": 60,
     "inputs": [
       {
         "itemId": "item_stone",
         "quantity": 10
       }
     ],
-    "outputs": [],
-    "rewardGold": 80
+    "outputs": [
+      {
+        "itemId": "weapon_stone_sword",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
   },
   {
-    "workshopName": "납품소",
-    "name": "물고기 납품 (x5)",
+    "workshopName": "대장간",
+    "name": "적빛 검",
+    "minTier": 2,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_red_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "weapon_red_gold_sword",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "금 검",
+    "minTier": 3,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "weapon_gold_sword",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "돌 곡괭이",
+    "minTier": 1,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_stone",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "tool_stone_pickaxe",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "적빛 곡괭이",
+    "minTier": 2,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_red_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "tool_red_gold_pickaxe",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "금 곡괭이",
+    "minTier": 3,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "tool_gold_pickaxe",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "가죽 투구",
+    "minTier": 1,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_leather",
+        "quantity": 15
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_leather_helmet",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "적빛 투구",
+    "minTier": 2,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_red_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_crimson_helmet",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "금 투구",
+    "minTier": 4,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_golden_helmet",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "가죽 갑옷",
+    "minTier": 1,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_leather",
+        "quantity": 15
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_leather_armor",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "적빛 갑옷",
+    "minTier": 2,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_red_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_crimson_armor",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "금 갑옷",
+    "minTier": 4,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_golden_armor",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "가죽 바지",
+    "minTier": 1,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_leather",
+        "quantity": 15
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_leather_pants",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "적빛 바지",
+    "minTier": 2,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_red_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_crimson_pants",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "금 바지",
+    "minTier": 4,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_golden_pants",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "가죽 신발",
+    "minTier": 1,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_leather",
+        "quantity": 15
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_leather_boots",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "적빛 신발",
+    "minTier": 2,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_red_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_crimson_boots",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "대장간",
+    "name": "금 신발",
+    "minTier": 4,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_gold",
+        "quantity": 10
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "armor_golden_boots",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "공방",
+    "name": "체력 회복 물약",
+    "minTier": 1,
+    "craftTimeSeconds": 60,
     "inputs": [
       {
         "itemId": "item_fish",
+        "quantity": 3
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "item_lesser_recovery_potion",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "공방",
+    "name": "체력 회복 포션",
+    "minTier": 3,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_white_fish",
+        "quantity": 3
+      },
+      {
+        "itemId": "item_herb",
+        "quantity": 3
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "item_recovery_potion",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "공방",
+    "name": "하급 강화 주문서",
+    "minTier": 1,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_paper",
+        "quantity": 1
+      },
+      {
+        "itemId": "item_minor_mana_stone",
+        "quantity": 3
+      }
+    ],
+    "outputs": [
+      {
+        "itemId": "item_enhance_scroll_low",
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "rewardGold": 0
+  },
+  {
+    "workshopName": "공방",
+    "name": "중급 강화 주문서",
+    "minTier": 3,
+    "craftTimeSeconds": 60,
+    "inputs": [
+      {
+        "itemId": "item_enchanted_paper",
+        "quantity": 1
+      },
+      {
+        "itemId": "item_mana_stone",
         "quantity": 5
       }
     ],
-    "outputs": [],
-    "rewardGold": 60
-  },
-  {
-    "workshopName": "납품소",
-    "name": "낡은 검 납품 (x1)",
-    "inputs": [
-      {
-        "itemId": "item_sword",
-        "quantity": 1
-      }
-    ],
-    "outputs": [],
-    "rewardGold": 200
-  },
-  {
-    "workshopName": "세공소",
-    "name": "목걸이 제작",
-    "inputs": [
-      {
-        "itemId": "item_wood",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_stone",
-        "quantity": 1
-      }
-    ],
     "outputs": [
       {
-        "itemId": "item_accessory",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "공방",
-    "name": "강화권 제작",
-    "inputs": [
-      {
-        "itemId": "item_herb",
-        "quantity": 2
-      },
-      {
-        "itemId": "item_stone",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_enhance_scroll",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "주점",
-    "name": "스튜 만들기",
-    "inputs": [
-      {
-        "itemId": "item_fish",
-        "quantity": 1
-      },
-      {
-        "itemId": "item_mushroom",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_stew",
-        "minQty": 1,
-        "maxQty": 1
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "분해소",
-    "name": "낡은 검 분해",
-    "inputs": [
-      {
-        "itemId": "item_sword",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_magic_stone",
-        "minQty": 1,
-        "maxQty": 2
-      }
-    ],
-    "rewardGold": 0
-  },
-  {
-    "workshopName": "공방",
-    "name": "새 레시피 42",
-    "inputs": [
-      {
-        "itemId": "item_abyss_fish",
-        "quantity": 1
-      }
-    ],
-    "outputs": [
-      {
-        "itemId": "item_abyss_fish",
-        "weight": 0,
+        "itemId": "item_enhance_scroll_mid",
         "minQty": 1,
         "maxQty": 1
       }

@@ -30,13 +30,15 @@ export function allowedArchetypesForJob(jobType: string): WeaponArchetype[] | nu
       return [];
     case "WARRIOR":
     case "MINER":
+    case "FISHER":
+    case "ARCHAEOLOGIST":
     case "LUMBERJACK":
     case "BLACKSMITH":
     case "COOK":
     case "SCRAPPER":
       return ["SWORD"];
     case "ARCHER":
-    case "FISHER":
+    case "EXPLORER":
       return ["BOW"];
     case "MAGE":
     case "HERBALIST":

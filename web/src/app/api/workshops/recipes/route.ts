@@ -37,7 +37,6 @@ export async function GET(req: Request) {
     recipes: recipes.map((r) => ({
       id: r.id,
       name: r.name,
-      rewardGold: r.rewardGold,
       minTier: Math.max(1, Math.min(5, Math.floor(r.minTier ?? 1))),
       craftTimeSeconds: Math.max(1, Math.floor(r.craftTimeSeconds ?? 60)),
       inputs: r.inputs.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
