@@ -32,8 +32,8 @@ npm run apply:merxatus-csv   # JSON 갱신
 
 ## 3. Vercel Cron
 
-`vercel.json`에 5분마다 `/api/bots/tick` 호출이 설정되어 있습니다.  
-Vercel 대시보드에서 `CRON_SECRET`을 설정하면 `Authorization: Bearer …` 헤더가 자동 전달됩니다.
+`vercel.json`에 **하루 1회**(UTC 0시) `/api/bots/tick` 호출이 설정되어 있습니다.  
+Vercel **Hobby**는 5분 간격 cron을 지원하지 않습니다. 더 자주 돌리려면 `/admin`에서 수동 틱 또는 [cron-job.org](https://cron-job.org) 등 외부 cron + `CRON_SECRET`을 사용하세요.
 
 ## 4. Google OAuth
 
