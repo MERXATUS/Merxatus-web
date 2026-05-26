@@ -2,8 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/server/db";
 import { collectWorkshop } from "@/server/workshops";
 import { requireUserId } from "@/server/auth";
-import { tryTutorialGatherCollect, getTutorialState } from "@/server/tutorialProgress";
-import { ensureTutorialFisherReward } from "@/server/tutorialMinionGrants";
+import { tryTutorialGatherCollect } from "@/server/tutorialProgress";
 import { GATHER_TUTORIAL_WORKSHOPS } from "@/shared/tutorial";
 
 export const runtime = "nodejs";
@@ -29,29 +28,16 @@ export async function POST(req: Request) {
     });
     const wsName = ws?.workshopType?.name ?? "";
     let tutorialMinionGrants: Awaited<ReturnType<typeof tryTutorialGatherCollect>>["minionGrants"] = [];
+    let tutorialAdvanced = false;
     if (GATHER_TUTORIAL_WORKSHOPS.includes(wsName as (typeof GATHER_TUTORIAL_WORKSHOPS)[number])) {
       const tut = await tryTutorialGatherCollect(prisma, auth.userId, wsName);
       tutorialMinionGrants = [...(tut.minionGrants ?? [])];
+      tutorialAdvanced = tut.advanced;
     }
 
-    const tutState = await getTutorialState(prisma, auth.userId);
-    if (tutState.step >= 1 && !tutState.done) {
-      const fisher = await ensureTutorialFisherReward(prisma, auth.userId, tutState.step);
-      if (fisher.granted || fisher.message) {
-        const hasFisher = tutorialMinionGrants.some((g) => g.jobType === "FISHER");
-        if (!hasFisher || fisher.granted) {
-          tutorialMinionGrants = [
-            ...tutorialMinionGrants.filter((g) => g.jobType !== "FISHER"),
-            fisher,
-          ];
-        }
-      }
-    }
-
-    return Response.json({ ...result, tutorialMinionGrants });
+    return Response.json({ ...result, tutorialMinionGrants, tutorialAdvanced });
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
 }
-

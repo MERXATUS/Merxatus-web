@@ -283,7 +283,16 @@ export function SettingsPanel(props: SettingsPanelProps) {
             </section>
           ) : null}
 
-          <p className="settings-footer">Merxatus</p>
+          <p className="settings-footer">
+            Merxatus ·{" "}
+            <a href="/terms" className="settings-footer__link">
+              이용약관
+            </a>
+            {" · "}
+            <a href="/privacy" className="settings-footer__link">
+              개인정보
+            </a>
+          </p>
         </div>
       </div>
     </div>

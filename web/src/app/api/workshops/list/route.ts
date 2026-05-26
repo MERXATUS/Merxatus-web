@@ -22,7 +22,11 @@ export async function GET(req: Request) {
     if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
     const userId = auth.userId;
 
-    await ensureWorkshopsForUser(userId);
+    try {
+      await ensureWorkshopsForUser(userId);
+    } catch (e) {
+      console.warn("[workshops/list] ensureWorkshopsForUser skipped:", e);
+    }
 
     const workshops = await prisma.workshopInstance.findMany({
       where: { userId },

@@ -1,4 +1,4 @@
-import { prisma } from "@/server/db";
+import { prisma, runPrismaTransaction } from "@/server/db";
 import { GAME_RULES } from "@/server/gameRules";
 
 export const MAX_WORKSHOPS_PER_USER = GAME_RULES.workshop.maxInstancesPerUser;
@@ -15,7 +15,7 @@ function needsPlotSlotReindex(rows: Array<{ plotSlot: number | null }>): boolean
  */
 export async function migrateUserWorkshopPlot(userId: string): Promise<void> {
   const max = MAX_WORKSHOPS_PER_USER;
-  await prisma.$transaction(async (tx) => {
+  await runPrismaTransaction(async (tx) => {
     const all = await tx.workshopInstance.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
@@ -55,7 +55,7 @@ export async function installWorkshopForUser(input: {
   if (!user) return { ok: false, error: "USER_NOT_FOUND" };
 
   try {
-    const workshopId = await prisma.$transaction(async (tx): Promise<string> => {
+    const workshopId = await runPrismaTransaction(async (tx): Promise<string> => {
       const list = await tx.workshopInstance.findMany({
         where: { userId: input.userId },
         orderBy: [{ plotSlot: "asc" }, { createdAt: "asc" }],

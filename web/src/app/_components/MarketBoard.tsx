@@ -195,6 +195,15 @@ export function MarketBoard() {
   }, []);
   useEscapeClose(!!statsItemId, closeStatsPanel);
 
+  const [saleNotice, setSaleNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get("tab");
+    if (t === "sell") setTab("SELL");
+    else if (t === "mine") setTab("MINE");
+  }, []);
+
   const tutorialMarketVisitRef = useRef(false);
   useEffect(() => {
     if (tutorialMarketVisitRef.current) return;
@@ -546,8 +555,13 @@ export function MarketBoard() {
         <div>
           <p className="game-label">거래소</p>
           <h2 className="market-board__title">메르카투스 거래소</h2>
-          <p className="mt-1 text-xs text-[var(--game-muted)]">매물 등록 최대 20건 · 판매 기간 48시간</p>
+          <p className="mt-1 text-xs text-[var(--game-muted)]">매물 등록 최대 20건 · 판매 기간 48시간 · 수수료 10%</p>
         </div>
+        {saleNotice ? (
+          <p className="mt-2 w-full rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-100 md:col-span-2">
+            {saleNotice}
+          </p>
+        ) : null}
         <div className="market-board__tabs" role="tablist">
           <button
             type="button"
@@ -674,7 +688,8 @@ export function MarketBoard() {
                 busy={busy}
                 setBusy={setBusy}
                 onError={setError}
-                onListed={() => {
+                onListed={(message) => {
+                  if (message) setSaleNotice(message);
                   setTab("MINE");
                   void refresh();
                 }}

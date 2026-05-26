@@ -4,6 +4,12 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+
+  if (process.env.NODE_ENV === "production") {
+    const { validateProductionEnv } = await import("@/server/productionEnv");
+    validateProductionEnv();
+  }
+
   if (process.env.NODE_ENV !== "development") return;
   if (process.env.BOT_AUTO_TICK !== "1") return;
 

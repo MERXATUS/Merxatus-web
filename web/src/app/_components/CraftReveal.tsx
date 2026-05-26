@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { GameBtn } from "@/app/_components/gameUi";
 import { useEscapeClose } from "@/shared/useEscapeClose";
@@ -14,12 +15,27 @@ export type CraftRevealCard = {
   instanceId?: string;
 };
 
+export type CraftValueHintsView = {
+  royalSellPerUnit: number | null;
+  marketAvgPerUnit: number | null;
+  inputCostGold: number;
+  estimatedProfitRoyal: number | null;
+  estimatedProfitMarket: number | null;
+};
+
+function fmtGold(n: number | null | undefined) {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return `${Math.floor(n).toLocaleString()} G`;
+}
+
 export function CraftReveal(props: {
   recipeName: string;
   cards: CraftRevealCard[];
+  valueHints?: CraftValueHintsView | null;
   onClose: () => void;
 }) {
-  const { recipeName, cards, onClose } = props;
+  const router = useRouter();
+  const { recipeName, cards, valueHints, onClose } = props;
   const [mounted, setMounted] = useState(false);
   const [phase, setPhase] = useState<"flash" | "reveal">("flash");
 
@@ -42,6 +58,8 @@ export function CraftReveal(props: {
   const tools = cards.filter(isTool);
   const materials = cards.filter((c) => !isWeapon(c) && !isTool(c));
   const featured = weapons.length > 0 ? weapons : tools.length > 0 ? tools : cards;
+
+  const sellParams = new URLSearchParams({ tab: "sell" });
 
   const ui = (
     <div
@@ -75,7 +93,7 @@ export function CraftReveal(props: {
 
               <div className="craft-reveal-featured">
                 {featured.map((c) => (
-                  <div key={c.itemId} className="craft-reveal-featured__item">
+                  <div key={`${c.itemId}-${c.instanceId ?? "stack"}`} className="craft-reveal-featured__item">
                     <div className="craft-reveal-featured__icon">
                       <ItemIcon itemId={c.itemId} size={96} />
                     </div>
@@ -84,6 +102,27 @@ export function CraftReveal(props: {
                   </div>
                 ))}
               </div>
+
+              {valueHints ? (
+                <div className="craft-reveal-value">
+                  <p className="craft-reveal-value__row">
+                    <span>황실 매입가</span>
+                    <span>{fmtGold(valueHints.royalSellPerUnit)}</span>
+                  </p>
+                  <p className="craft-reveal-value__row">
+                    <span>최근 거래가(평균)</span>
+                    <span>{fmtGold(valueHints.marketAvgPerUnit)}</span>
+                  </p>
+                  <p className="craft-reveal-value__row">
+                    <span>재료비(추정)</span>
+                    <span>−{fmtGold(valueHints.inputCostGold)}</span>
+                  </p>
+                  <p className="craft-reveal-value__row craft-reveal-value__row--profit">
+                    <span>예상 순이익(시장)</span>
+                    <span>{fmtGold(valueHints.estimatedProfitMarket)}</span>
+                  </p>
+                </div>
+              ) : null}
 
               {materials.length > 0 ? (
                 <div className="craft-reveal-materials">
@@ -101,9 +140,16 @@ export function CraftReveal(props: {
               ) : null}
 
               <div className="craft-reveal-card__actions">
-                <GameBtn variant="gold" onClick={onClose}>
-                  확인
+                <GameBtn
+                  variant="gold"
+                  onClick={() => {
+                    onClose();
+                    router.push(`/market?${sellParams.toString()}`);
+                  }}
+                >
+                  거래소에 올리기
                 </GameBtn>
+                <GameBtn onClick={onClose}>인벤에 보관</GameBtn>
               </div>
             </>
           )}

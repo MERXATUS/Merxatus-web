@@ -7,6 +7,7 @@ import { itemGradeNameClassName } from "@/server/itemGrade";
 import { itemIconSrc } from "@/shared/itemIcon";
 import { useEscapeClose } from "@/shared/useEscapeClose";
 import { formatPanelError } from "@/shared/formatPanelError";
+import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
 import { apiGetJson, apiPostJson } from "@/shared/sessionClient";
 
 export type SellInventoryRow = {
@@ -73,7 +74,7 @@ type Props = {
   busy: boolean;
   setBusy: (v: boolean) => void;
   onError: (e: unknown) => void;
-  onListed: () => void;
+  onListed: (message?: string) => void;
   onInventoryLoaded?: (inventory: SellInventoryRow[], weapons: SellWeaponRow[]) => void;
   searchQuery: string;
   categoryFilter: string;
@@ -85,6 +86,7 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
   const [activeListingCount, setActiveListingCount] = useState(0);
   const [maxActiveListings, setMaxActiveListings] = useState(20);
   const [loadBusy, setLoadBusy] = useState(false);
+  const [listNotice, setListNotice] = useState<string | null>(null);
 
   const [sellOpen, setSellOpen] = useState(false);
   const [sellItem, setSellItem] = useState<SellInventoryRow | null>(null);
@@ -202,8 +204,16 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
     const qty = isWeapon ? 1 : Math.max(1, Math.floor(sellQty));
     if (!isWeapon && sellItem && qty > sellItem.quantity) throw new Error("수량이 부족해.");
 
+    const itemLabel = isWeapon ? sellWeapon!.name : sellItem!.name;
+    const price =
+      sellType === "FIXED"
+        ? sellPriceMode === "UNIT"
+          ? Math.max(1, Math.floor(sellUnitPrice)) * qty
+          : Math.max(1, Math.floor(sellTotalPrice))
+        : Math.max(1, Math.floor(sellStartPrice));
+
     if (sellType === "FIXED") {
-      await postJson("/api/market/list", {
+      const r = await postJson<{ tutorialAdvanced?: boolean }>("/api/market/list", {
         ...(isWeapon ? { weaponInstanceId: sellWeapon!.id } : { itemId: sellItem!.itemId, quantity: qty }),
         quantity: qty,
         saleType: "FIXED",
@@ -211,17 +221,22 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
           ? { fixedPricePerUnit: Math.max(1, Math.floor(sellUnitPrice)) }
           : { fixedPriceTotal: Math.max(1, Math.floor(sellTotalPrice)) }),
       });
+      if (r.tutorialAdvanced) notifyTutorialRefresh();
     } else {
-      await postJson("/api/market/list", {
+      const r = await postJson<{ tutorialAdvanced?: boolean }>("/api/market/list", {
         ...(isWeapon ? { weaponInstanceId: sellWeapon!.id } : { itemId: sellItem!.itemId, quantity: qty }),
         saleType: "AUCTION",
         startPrice: Math.max(1, Math.floor(sellStartPrice)),
       });
+      if (r.tutorialAdvanced) notifyTutorialRefresh();
     }
 
     closeSellModal();
     await load();
-    onListed();
+    const fee = Math.floor(price * 0.1);
+    const notice = `✓ ${itemLabel} ${qty}개 · ${fmtGold(price)} G에 등록 (판매 시 순 +${fmtGold(price - fee)} G 예상)`;
+    setListNotice(notice);
+    onListed(notice);
   }
 
   function renderStackRow(it: SellInventoryRow) {
@@ -305,8 +320,9 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
 
   return (
     <>
+      {listNotice ? <p className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-100">{listNotice}</p> : null}
       <p className="mb-3 text-xs text-[var(--game-muted)]">
-        등록 매물 {activeListingCount}/{maxActiveListings} · 판매 기간 48시간
+        등록 매물 {activeListingCount}/{maxActiveListings} · 판매 기간 48시간 · 수수료 10%
         {atListingCap ? <span className="ml-2 text-amber-300">등록 한도에 도달했어요.</span> : null}
       </p>
       {filteredWeapons.map((w) => renderWeaponRow(w))}

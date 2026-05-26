@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { requireUserId } from "@/server/auth";
 import { runProcessCraft } from "@/server/crafting";
+import { buildCraftValueHints } from "@/server/craftValueHints";
+import { prisma } from "@/server/db";
+import { prismaKnownErrorResponse } from "@/server/prismaHttp";
+import { tryTutorialFirstCraft } from "@/server/tutorialProgress";
 
 export const runtime = "nodejs";
 
@@ -26,8 +30,17 @@ export async function POST(req: Request) {
       recipeId: parsed.data.recipeId,
       quantity: parsed.data.quantity,
     });
-    return Response.json(result);
+    const valueHints = await buildCraftValueHints({
+      recipeId: result.recipeId,
+      quantity: result.quantity,
+      produced: result.produced,
+      craftedInstances: result.craftedInstances,
+    });
+    const tutorial = await tryTutorialFirstCraft(prisma, auth.userId);
+    return Response.json({ ...result, valueHints, tutorialAdvanced: tutorial.advanced });
   } catch (e) {
+    const r = prismaKnownErrorResponse(e);
+    if (r) return r;
     const message = e instanceof Error ? e.message : "UNKNOWN";
     return Response.json({ ok: false, error: message }, { status: 400 });
   }

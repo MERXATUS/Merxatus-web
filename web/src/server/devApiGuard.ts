@@ -7,3 +7,14 @@ export function assertDevApiAllowed():
   }
   return { ok: true };
 }
+
+export function devOnlyResponse() {
+  return Response.json({ ok: false, error: "DEV_ONLY" }, { status: 403 });
+}
+
+/** dev 라우트 핸들러 시작부에서 사용 */
+export function guardDevApi() {
+  const dev = assertDevApiAllowed();
+  if (!dev.ok) return devOnlyResponse();
+  return null;
+}

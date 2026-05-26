@@ -4,6 +4,7 @@ import { requireUserId } from "@/server/auth";
 import { getUserSpecialistRow, setUserSpecialistProfession } from "@/server/userSpecialistDb";
 import { tryTutorialSpecialistChosen } from "@/server/tutorialProgress";
 import { ensureSpecialistWorkshopsForUser } from "@/server/ensureSpecialistWorkshops";
+import { invalidateWorkshopEnsureCache } from "@/server/ensureWorkshopsForUser";
 import type { SpecialistProfessionSlug } from "@/shared/specialistProfession";
 
 export const runtime = "nodejs";
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
   }
 
   await setUserSpecialistProfession(prisma, auth.userId, parsed.data.profession);
+  invalidateWorkshopEnsureCache(auth.userId);
   await tryTutorialSpecialistChosen(prisma, auth.userId);
 
   const workshops = await ensureSpecialistWorkshopsForUser(

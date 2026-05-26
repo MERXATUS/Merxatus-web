@@ -33,6 +33,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("auth_refresh") === "1") {
+      params.delete("auth_refresh");
+      const qs = params.toString();
+      window.history.replaceState(null, "", qs ? `/?${qs}` : "/");
+    }
     void refresh();
     const onChanged = () => void refresh();
     window.addEventListener(SESSION_CHANGED_EVENT, onChanged);

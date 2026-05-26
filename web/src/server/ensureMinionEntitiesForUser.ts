@@ -1,4 +1,4 @@
-import { prisma } from "@/server/db";
+import { prisma, runPrismaTransaction } from "@/server/db";
 import type { MinionJobType } from "@prisma/client";
 import { createMinionWithBirth } from "@/server/minionInsert";
 import { GATHER_JOB_TYPES } from "@/server/minionJobs";
@@ -72,10 +72,20 @@ async function trimPoolExcess(
   }
 }
 
+const ensureCooldownMs = 60_000;
+const lastEnsureAt = new Map<string, number>();
+
 /**
  * 수집·던전 미니언 풀별 상한을 맞추고, 신규 유저는 수집 미니언 1마리를 보장한다.
  */
-export async function ensureMinionEntitiesForUser(userId: string) {
+export async function ensureMinionEntitiesForUser(userId: string, options?: { force?: boolean }) {
+  const now = Date.now();
+  const last = lastEnsureAt.get(userId) ?? 0;
+  if (!options?.force && now - last < ensureCooldownMs) {
+    return { ok: true as const, created: 0, skipped: true as const };
+  }
+  lastEnsureAt.set(userId, now);
+
   await cleanupLegacyProcessMinions(userId);
 
   await trimPoolExcess(userId, gatherMinionWhere(userId), MAX_GATHER_MINIONS);
@@ -86,7 +96,7 @@ export async function ensureMinionEntitiesForUser(userId: string) {
 
   let created = 0;
   if (gatherCount === 0 && dungeonCount === 0) {
-    await prisma.$transaction(async (tx) => {
+    await runPrismaTransaction(async (tx) => {
       const jobs = [...GATHER_JOB_TYPES] as MinionJobType[];
       const row = {
         level: 1,

@@ -9,10 +9,14 @@ import { referenceGoldPerUnit } from "@/server/itemReferenceGold";
 import { loadMerxatusRoyalPriceRows } from "@/server/merxatusRoyalCsv";
 import { upsertRoyalPricesFromMerxatusRows } from "@/server/applyMerxatusRoyalPrices";
 import { setUserSpecialistUnlockedTrue } from "@/server/userSpecialistDb";
+import { guardDevApi } from "@/server/devApiGuard";
 
 export const runtime = "nodejs";
 
 export async function POST() {
+  const blocked = guardDevApi();
+  if (blocked) return blocked;
+
   try {
     return await runSeed();
   } catch (e) {

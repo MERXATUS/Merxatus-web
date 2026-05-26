@@ -541,6 +541,70 @@ body {
   opacity: 0.88;
 }
 
+.home-gold-header__meta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--game-muted);
+}
+
+.home-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.game-card--main {
+  min-height: 7.25rem;
+  padding: 1.05rem 1.1rem;
+  border-width: 1px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+
+.game-card--main .game-card-title {
+  font-size: 1.02rem;
+}
+
+.game-card--compact {
+  min-height: 5.5rem;
+}
+
+.game-card--compact .game-card-sub {
+  font-size: 0.72rem;
+}
+
+.craft-reveal-value {
+  margin-top: 1rem;
+  border: 1px solid rgba(245, 215, 142, 0.18);
+  border-radius: 0.85rem;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.75rem 0.85rem;
+  font-size: 0.82rem;
+}
+
+.craft-reveal-value__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.18rem 0;
+  color: var(--game-muted);
+}
+
+.craft-reveal-value__row--profit {
+  margin-top: 0.25rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--game-gold-bright);
+  font-weight: 700;
+}
+
+.craft-reveal-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
 .home-brand-header {
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--game-border);
@@ -919,6 +983,16 @@ body {
   text-align: center;
   color: var(--game-gold);
   opacity: 0.7;
+}
+
+.settings-footer__link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.settings-footer__link:hover {
+  opacity: 1;
 }
 
 /* Chat */

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CraftMotionOverlay } from "@/app/_components/CraftMotionOverlay";
-import { CraftReveal, type CraftRevealCard } from "@/app/_components/CraftReveal";
+import { CraftReveal, type CraftRevealCard, type CraftValueHintsView } from "@/app/_components/CraftReveal";
 import { useEscapeClose } from "@/shared/useEscapeClose";
 import { GAME_RULES } from "@/server/gameRules";
 import { itemGradeNameClassName } from "@/server/itemGrade";
@@ -209,9 +209,11 @@ export function WorkshopsPanel({ variant = "gather" }: { variant?: WorkshopsPane
   } | null>(null);
   const pendingCraftRef = useRef<typeof craftMotion>(null);
   const craftRunInFlightRef = useRef(false);
+  const refreshInFlightRef = useRef(false);
   const [craftReveal, setCraftReveal] = useState<{
     recipeName: string;
     cards: CraftRevealCard[];
+    valueHints?: CraftValueHintsView | null;
   } | null>(null);
 
   const nowMsRef = useRef(Date.now());
@@ -232,8 +234,8 @@ export function WorkshopsPanel({ variant = "gather" }: { variant?: WorkshopsPane
   }, [selectedWorkshopId]);
 
   useEffect(() => {
-    if (!user) {
-      setWorkshopTypes([]);
+    if (!user || variant !== "gather") {
+      if (variant !== "gather") setWorkshopTypes([]);
       return;
     }
     void getJson<{ ok: boolean; types: WorkshopTypeOption[] }>("/api/workshops/types")
@@ -241,7 +243,7 @@ export function WorkshopsPanel({ variant = "gather" }: { variant?: WorkshopsPane
         if (r?.ok && Array.isArray(r.types)) setWorkshopTypes(r.types);
       })
       .catch(() => setWorkshopTypes([]));
-  }, [user?.id]);
+  }, [user?.id, variant]);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -253,6 +255,7 @@ export function WorkshopsPanel({ variant = "gather" }: { variant?: WorkshopsPane
 
   async function refresh(options?: { silent?: boolean }) {
     const silent = options?.silent === true;
+    if (refreshInFlightRef.current) return;
     if (!user) {
       if (!silent) {
         setBusy(null);
@@ -264,53 +267,82 @@ export function WorkshopsPanel({ variant = "gather" }: { variant?: WorkshopsPane
       }
       return;
     }
+    refreshInFlightRef.current = true;
     if (!silent) setBusy("refresh");
     if (!silent) setError(null);
     try {
-      const [r, m, me] = await Promise.all([
-        getJson<{
-          ok: boolean;
-          tickSeconds: number;
-          workshopMaxCount?: number;
-          workshops: Workshop[];
-        }>("/api/workshops/list"),
-        getJson<{
-          ok: boolean;
-          owned: number;
-          assigned: number;
-          free: number;
-          nextPrice: number;
-          maxGatherOwned?: number;
-        }>(`/api/minions/state`),
-        getJson<{
-          ok: boolean;
-          wallet: { goldAvailable: number; goldLocked: number };
-          inventory?: Array<{ itemId: string; name: string; quantity: number }>;
-          specialistUnlocked?: boolean;
-          specialistProfession?: string | null;
-        }>(`/api/me/state`),
-      ]);
-      setTickSeconds(r.tickSeconds ?? 60);
-      setWorkshops(r.workshops ?? []);
-      if (m?.ok)
-        setMinions({
-          owned: m.owned,
-          assigned: m.assigned,
-          free: m.free,
-          nextPrice: m.nextPrice,
-          maxGatherOwned: m.maxGatherOwned ?? 10,
-        });
-      if ((me as any)?.ok) setWallet({ goldAvailable: me.wallet?.goldAvailable ?? 0, goldLocked: me.wallet?.goldLocked ?? 0 });
-      if ((me as any)?.ok) setInventory((me as any).inventory ?? []);
-      if ((me as any)?.ok) {
-        setSpecialistUnlocked(Boolean((me as any).specialistUnlocked));
-        setSpecialistProfession(
-          (me as any).specialistProfession != null ? String((me as any).specialistProfession) : null,
-        );
+      if (variant === "gather") {
+        const [r, m, me] = await Promise.all([
+          getJson<{
+            ok: boolean;
+            tickSeconds: number;
+            workshopMaxCount?: number;
+            workshops: Workshop[];
+          }>("/api/workshops/list"),
+          getJson<{
+            ok: boolean;
+            owned: number;
+            assigned: number;
+            free: number;
+            nextPrice: number;
+            maxGatherOwned?: number;
+          }>(`/api/minions/state`),
+          getJson<{
+            ok: boolean;
+            wallet: { goldAvailable: number; goldLocked: number };
+            inventory?: Array<{ itemId: string; name: string; quantity: number }>;
+            specialistUnlocked?: boolean;
+            specialistProfession?: string | null;
+          }>(`/api/me/state`),
+        ]);
+        setTickSeconds(r.tickSeconds ?? 60);
+        setWorkshops(r.workshops ?? []);
+        if (m?.ok) {
+          setMinions({
+            owned: m.owned,
+            assigned: m.assigned,
+            free: m.free,
+            nextPrice: m.nextPrice,
+            maxGatherOwned: m.maxGatherOwned ?? 10,
+          });
+        }
+        if ((me as any)?.ok) {
+          setWallet({ goldAvailable: me.wallet?.goldAvailable ?? 0, goldLocked: me.wallet?.goldLocked ?? 0 });
+          setInventory((me as any).inventory ?? []);
+          setSpecialistUnlocked(Boolean((me as any).specialistUnlocked));
+          setSpecialistProfession(
+            (me as any).specialistProfession != null ? String((me as any).specialistProfession) : null,
+          );
+        }
+      } else {
+        const [r, panel] = await Promise.all([
+          getJson<{
+            ok: boolean;
+            tickSeconds: number;
+            workshopMaxCount?: number;
+            workshops: Workshop[];
+          }>("/api/workshops/list"),
+          getJson<{
+            ok: boolean;
+            wallet: { goldAvailable: number; goldLocked: number };
+            inventory: Array<{ itemId: string; name: string; quantity: number }>;
+            specialistUnlocked: boolean;
+            specialistProfession: string | null;
+          }>("/api/me/workshop-panel"),
+        ]);
+        setTickSeconds(r.tickSeconds ?? 60);
+        setWorkshops(r.workshops ?? []);
+        if (panel.ok) {
+          setWallet(panel.wallet);
+          setInventory(panel.inventory ?? []);
+          setSpecialistUnlocked(panel.specialistUnlocked);
+          setSpecialistProfession(panel.specialistProfession);
+        }
       }
     } catch (e) {
       if (!silent && !isUnauthorizedError(e)) setError(e);
     } finally {
+      refreshInFlightRef.current = false;
       if (!silent) setBusy(null);
     }
   }
@@ -355,7 +387,11 @@ export function WorkshopsPanel({ variant = "gather" }: { variant?: WorkshopsPane
         ),
       );
       if (cards.length > 0) {
-        setCraftReveal({ recipeName: m.recipeName, cards });
+        const valueHints = (done as { valueHints?: CraftValueHintsView | null }).valueHints ?? null;
+        setCraftReveal({ recipeName: m.recipeName, cards, valueHints });
+        if ((done as { tutorialAdvanced?: boolean }).tutorialAdvanced) {
+          notifyTutorialRefresh();
+        }
       }
       window.dispatchEvent(new Event("auth_session_changed"));
       await refresh({ silent: true });
@@ -487,17 +523,16 @@ export function WorkshopsPanel({ variant = "gather" }: { variant?: WorkshopsPane
     if (sessionLoading) return;
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, sessionLoading]);
+  }, [user?.id, sessionLoading, variant]);
 
-  // 자동 새로고침: 골드/인벤 변동이 실시간처럼 보이게
   useEffect(() => {
-    if (sessionLoading || !user) return;
+    if (sessionLoading || !user || variant !== "gather") return;
     const t = setInterval(() => {
       void refresh({ silent: true });
-    }, 2500);
+    }, 15000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, variant]);
 
   const invByItemId = useMemo(() => {
     const m = new Map<string, { itemId: string; name: string; quantity: number }>();
@@ -547,33 +582,36 @@ export function WorkshopsPanel({ variant = "gather" }: { variant?: WorkshopsPane
     const workshopId = selected.id;
     staleCraftRecoverRef.current = true;
     setRecoveringStaleCraft(true);
-    void (async () => {
-      try {
-        await postJson("/api/workshops/craft/complete", {
-          workshopId,
-          forceReady: true,
-        });
-        setWorkshops((prev) =>
-          prev.map((w) =>
-            w.id === workshopId
-              ? {
-                  ...w,
-                  processCraftRecipeId: null,
-                  processCraftEndsAt: null,
-                  processCraftQuantity: 0,
-                }
-              : w,
-          ),
-        );
-        window.dispatchEvent(new Event("auth_session_changed"));
-        await refresh({ silent: true });
-      } catch {
-        /* 무시 — 제작 시 CRAFT_IN_PROGRESS로 안내 */
-      } finally {
-        staleCraftRecoverRef.current = false;
-        setRecoveringStaleCraft(false);
-      }
-    })();
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          await postJson("/api/workshops/craft/complete", {
+            workshopId,
+            forceReady: true,
+          });
+          setWorkshops((prev) =>
+            prev.map((w) =>
+              w.id === workshopId
+                ? {
+                    ...w,
+                    processCraftRecipeId: null,
+                    processCraftEndsAt: null,
+                    processCraftQuantity: 0,
+                  }
+                : w,
+            ),
+          );
+          window.dispatchEvent(new Event("auth_session_changed"));
+          await refresh({ silent: true });
+        } catch {
+          /* 무시 — 제작 시 CRAFT_IN_PROGRESS로 안내 */
+        } finally {
+          staleCraftRecoverRef.current = false;
+          setRecoveringStaleCraft(false);
+        }
+      })();
+    }, 400);
+    return () => window.clearTimeout(timer);
   }, [
     variant,
     selected?.id,
@@ -623,12 +661,6 @@ export function WorkshopsPanel({ variant = "gather" }: { variant?: WorkshopsPane
     }
     if (orderedVisibleWorkshops[0]) setSelectedWorkshopId(orderedVisibleWorkshops[0].id);
   }, [variant, specialistProfession, selectedWorkshopId, visibleWorkshops, orderedVisibleWorkshops]);
-
-  useEffect(() => {
-    if (variant !== "specialist") return;
-    void refresh({ silent: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant, specialistProfession]);
 
   const selectGatherActivity = useCallback(
     async (name: (typeof GATHER_ACTIVITY_NAMES)[number]) => {
@@ -1669,6 +1701,7 @@ export function WorkshopsPanel({ variant = "gather" }: { variant?: WorkshopsPane
         <CraftReveal
           recipeName={craftReveal.recipeName}
           cards={craftReveal.cards}
+          valueHints={craftReveal.valueHints}
           onClose={() => setCraftReveal(null)}
         />
       ) : null}

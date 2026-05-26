@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import type { MinionJobType } from "@prisma/client";
 import { useEscapeClose } from "@/shared/useEscapeClose";
 import { useSessionUser } from "@/app/_components/SessionProvider";
@@ -365,6 +366,14 @@ export function DungeonsPanel() {
               <GameStat label="승" value={run?.run?.wins ?? 0} />
               <GameStat label="패" value={run?.run?.losses ?? 0} />
             </div>
+            {run?.combat?.partyPower != null && run.combat.partyPower < 120 ? (
+              <p className="mt-2 text-[11px] leading-snug text-[var(--game-muted)]">
+                더 깊은 층은 더 높은 전투력이 필요해요.{" "}
+                <Link href="/market" className="font-semibold text-[var(--game-gold-bright)] underline-offset-2 hover:underline">
+                  거래소에서 장비 구매
+                </Link>
+              </p>
+            ) : null}
           </GamePanel>
 
           <GamePanel className="!p-3">

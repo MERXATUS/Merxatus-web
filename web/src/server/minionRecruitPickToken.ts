@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { MinionJobType } from "@prisma/client";
-import { readEnv } from "@/server/envUtil";
+import { getSessionSecret } from "@/server/secrets";
 import type { MinionCsvKind } from "@/server/minionCsvData";
 
 const PICK_TOKEN_TTL_MS = 10 * 60 * 1000;
@@ -29,9 +29,7 @@ function base64urlDecode(s: string) {
 }
 
 function getSecret() {
-  const s = readEnv("SESSION_SECRET") || readEnv("ADMIN_TOKEN");
-  if (!s) throw new Error("SESSION_SECRET_NOT_SET");
-  return s;
+  return getSessionSecret();
 }
 
 function sign(input: string) {

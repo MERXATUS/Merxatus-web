@@ -44,9 +44,19 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return json;
 }
 
+function actionButtonLabel(current: TutorialStepDef): string {
+  if (current.id === "choose_specialist") return "아래에서 직업 선택";
+  if (!current.action) return "진행";
+  if (current.action.kind === "route") {
+    return current.id === "list_on_market" ? "거래소 판매 탭" : "거래소로 이동";
+  }
+  return current.action.panel === "specialist" ? "전문 작업장 열기" : "수집 화면 열기";
+}
+
 type TutorialPanelProps = {
   loggedIn: boolean;
   onOpenGather: () => void;
+  onOpenSpecialist?: () => void;
   onSpecialistChosen?: () => void;
 };
 
@@ -67,14 +77,9 @@ export function TutorialPanel(props: TutorialPanelProps) {
       setState(r);
       const grants = r.minionGrants ?? [];
       const granted = grants.filter((g) => g.granted);
-      const fisherPending =
-        (r.step ?? 0) >= 1 &&
-        !grants.some((g) => g.jobType === "FISHER" && g.granted);
       if (granted.length > 0) {
         setGrantBanner(granted.map((g) => g.message).join(" "));
         window.dispatchEvent(new Event("auth_session_changed"));
-      } else if (fisherPending && grants.some((g) => g.jobType === "FISHER" && g.message)) {
-        setGrantBanner(grants.find((g) => g.jobType === "FISHER")?.message ?? "");
       } else {
         setGrantBanner(null);
       }
@@ -102,7 +107,8 @@ export function TutorialPanel(props: TutorialPanelProps) {
   async function goCurrent() {
     if (!current?.action) return;
     if (current.action.kind === "panel") {
-      props.onOpenGather();
+      if (current.action.panel === "specialist") props.onOpenSpecialist?.();
+      else props.onOpenGather();
     } else if (current.action.kind === "route") {
       router.push(current.action.path);
     }
@@ -126,6 +132,7 @@ export function TutorialPanel(props: TutorialPanelProps) {
       props.onSpecialistChosen?.();
       await load();
       if (workshopMsg) setGrantBanner(workshopMsg);
+      window.dispatchEvent(new Event("tutorial_refresh"));
       window.dispatchEvent(new Event("auth_session_changed"));
     } finally {
       setPickBusy(null);
@@ -137,9 +144,11 @@ export function TutorialPanel(props: TutorialPanelProps) {
       <div className="tutorial-panel__head">
         <div>
           <p className="game-label">튜토리얼</p>
-          <h2 className="tutorial-panel__title">Merxatus 시작하기</h2>
+          <h2 className="tutorial-panel__title">장인·상인 시작하기</h2>
         </div>
-        <span className="tutorial-panel__pct">{state.progressPercent}%</span>
+        <span className="tutorial-panel__pct">
+          {stepIndex + 1}/{TUTORIAL_STEPS.length} · {state.progressPercent}%
+        </span>
       </div>
 
       <ol className="tutorial-panel__list">
@@ -178,9 +187,7 @@ export function TutorialPanel(props: TutorialPanelProps) {
               ))}
             </div>
           ) : current.action ? (
-            <GameBtn onClick={() => void goCurrent()}>
-              {current.action.kind === "route" ? "거래소로 이동" : "수집 화면 열기"}
-            </GameBtn>
+            <GameBtn onClick={() => void goCurrent()}>{actionButtonLabel(current)}</GameBtn>
           ) : null}
         </div>
       ) : null}

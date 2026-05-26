@@ -131,9 +131,9 @@ function slotLabel(slotId: MinionEquipSlotId) {
   return MINION_EQUIP_SLOTS.find((s) => s.id === slotId)?.label ?? slotId;
 }
 
-export function MinionManagementPanel() {
+export function MinionManagementPanel(props: { initialTab?: MinionTab } = {}) {
   const { user, loading: sessionLoading } = useSessionUser();
-  const [tab, setTab] = useState<MinionTab>("gather");
+  const [tab, setTab] = useState<MinionTab>(props.initialTab ?? "gather");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -149,6 +149,10 @@ export function MinionManagementPanel() {
   const [initialLoading, setInitialLoading] = useState(true);
 
   const equipMode = equipModeMinionId != null;
+
+  useEffect(() => {
+    if (props.initialTab) setTab(props.initialTab);
+  }, [props.initialTab]);
 
   async function refresh() {
     if (!user) return;
@@ -396,7 +400,7 @@ export function MinionManagementPanel() {
             className={`minion-tab ${tab === "gather" ? "minion-tab--active" : ""}`}
             onClick={() => setTab("gather")}
           >
-            수집 미니언
+            일꾼 (수집)
             <span className="minion-tab__count">
               {gatherMinions.length}/{maxGatherOwned}명
             </span>
@@ -408,7 +412,7 @@ export function MinionManagementPanel() {
             className={`minion-tab ${tab === "dungeon" ? "minion-tab--active" : ""}`}
             onClick={() => setTab("dungeon")}
           >
-            던전 미니언
+            용병 (던전)
             <span className="minion-tab__count">
               {dungeonMinions.length}/{maxDungeonOwned}명
             </span>
@@ -456,7 +460,7 @@ export function MinionManagementPanel() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-[var(--game-text)]">
-                      Lv{m.level} · {jobLabel(m.jobType)}
+                      {tab === "gather" ? jobLabel(m.jobType) : `Lv${m.level} · ${jobLabel(m.jobType)}`}
                     </span>
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-[11px] text-[var(--game-muted)]">
@@ -519,7 +523,9 @@ export function MinionManagementPanel() {
                       {jobLabel(selected!.jobType)}
                     </h3>
                   </div>
-                  <p className="mt-0.5 text-xs text-[var(--game-muted)]">Lv {selected!.level}</p>
+                  {tab === "dungeon" && isDungeonMinionJob(selected!.jobType) ? (
+                    <p className="mt-0.5 text-xs text-[var(--game-muted)]">Lv {selected!.level}</p>
+                  ) : null}
                 </div>
 
                 {detailCombatStats ? <MinionStatPanel stats={detailCombatStats} compact /> : null}

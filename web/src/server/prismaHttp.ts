@@ -11,22 +11,62 @@ export function prismaKnownErrorResponse(e: unknown): Response | null {
         error: "DB_CONNECTION_FAILED",
         message: msg,
         hint:
-          "DATABASE_URL을 Supabase Session pooler(aws-...pooler...:5432)로 설정했는지 확인하고 Redeploy 하세요. Vercel Runtime Logs에 더 자세한 원인이 나옵니다.",
+          "Supabase: DATABASE_URL은 Transaction pooler :6543 + ?pgbouncer=true&connection_limit=1 (5432/session pooler 사용 금지).",
       },
       { status: 503 },
     );
   }
 
-  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2022") {
-    return Response.json(
-      {
-        ok: false,
-        error: "DB_SCHEMA_OUT_OF_DATE",
-        message:
-          "DB가 최신 스키마와 맞지 않아요. 터미널에서 프로젝트 web 폴더로 이동한 뒤 npx prisma db push 를 실행하고 서버를 재시작하세요.",
-      },
-      { status: 503 },
-    );
+  if (e instanceof Prisma.PrismaClientUnknownRequestError) {
+    const msg = String(e.message ?? "");
+    if (msg.includes("Unable to start a transaction") || msg.includes("Transaction already closed")) {
+      return Response.json(
+        {
+          ok: false,
+          error: "DB_TRANSACTION_BUSY",
+          message: msg,
+          hint: "DB 연결이 바쁩니다. 잠시 후 다시 시도하세요.",
+        },
+        { status: 503 },
+      );
+    }
+    if (msg.includes("prepared statement") || msg.includes("42P05")) {
+      return Response.json(
+        {
+          ok: false,
+          error: "DB_POOLER_MISCONFIG",
+          message: msg,
+          hint:
+            "DATABASE_URL 포트를 6543으로, 끝에 ?pgbouncer=true&connection_limit=1 을 붙이세요. 5432+pgbouncer 조합은 사용하지 마세요.",
+        },
+        { status: 503 },
+      );
+    }
+  }
+
+  if (e instanceof Prisma.PrismaClientKnownRequestError) {
+    if (e.code === "P2028" || e.code === "P2034") {
+      return Response.json(
+        {
+          ok: false,
+          error: "DB_TRANSACTION_BUSY",
+          message: e.message,
+          hint: "DB 연결이 바쁩니다. 잠시 후 다시 시도하세요.",
+        },
+        { status: 503 },
+      );
+    }
+    if (e.code === "P2022") {
+      return Response.json(
+        {
+          ok: false,
+          error: "DB_SCHEMA_OUT_OF_DATE",
+          message:
+            "DB가 최신 스키마와 맞지 않아요. 터미널에서 프로젝트 web 폴더로 이동한 뒤 npx prisma db push 를 실행하고 서버를 재시작하세요.",
+        },
+        { status: 503 },
+      );
+    }
   }
   return null;
 }

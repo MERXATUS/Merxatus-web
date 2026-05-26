@@ -7,8 +7,12 @@ const nextConfig: NextConfig = {
   webpack(config, { dev }) {
     if (dev) {
       const prev = config.watchOptions?.ignored;
+      const base = Array.isArray(prev) ? prev : prev ? [prev] : [];
       const ignored = [
-        ...(Array.isArray(prev) ? prev : prev ? [prev] : []),
+        ...base.filter(
+          (p): p is string | RegExp =>
+            (typeof p === "string" && p.length > 0) || p instanceof RegExp,
+        ),
         "**/.cursor/**",
         "**/agent-transcripts/**",
         "../.cursor/**",

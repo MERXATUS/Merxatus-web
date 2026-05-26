@@ -6,12 +6,24 @@ function fmtInt(n: unknown) {
   return Math.floor(x).toLocaleString();
 }
 
+function fmtSignedGold(n: number | null | undefined) {
+  if (n == null || !Number.isFinite(n)) return null;
+  const v = Math.floor(n);
+  if (v === 0) return "오늘 ±0 G";
+  return v > 0 ? `오늘 +${fmtInt(v)} G` : `오늘 ${fmtInt(v)} G`;
+}
+
 type HomeGoldHeaderProps = {
   gold: number | null;
+  todayNetGold?: number | null;
+  activeListings?: number | null;
 };
 
 export function HomeGoldHeader(props: HomeGoldHeaderProps) {
   const goldAmount = props.gold != null ? fmtInt(props.gold) : "—";
+  const todayLabel = fmtSignedGold(props.todayNetGold ?? null);
+  const listingsLabel =
+    props.activeListings != null ? `매물 ${fmtInt(props.activeListings)}건` : null;
 
   return (
     <div className="home-gold-header" aria-label="보유 골드">
@@ -24,6 +36,11 @@ export function HomeGoldHeader(props: HomeGoldHeaderProps) {
           {goldAmount}
           <span className="home-gold-header__unit">G</span>
         </span>
+        {todayLabel || listingsLabel ? (
+          <span className="home-gold-header__meta">
+            {[todayLabel, listingsLabel].filter(Boolean).join(" · ")}
+          </span>
+        ) : null}
       </div>
     </div>
   );

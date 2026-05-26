@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "postinstall": "prisma generate",
-    "dev": "set NEXT_DISABLE_TURBOPACK=1 && next dev",
+    "dev": "node scripts/start-dev.mjs",
     "bots:tick": "node --env-file=.env ./scripts/bot-tick-once.mjs",
     "bots:tick:loop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/bot-tick-loop.ps1",
     "validate:minion-csv": "node scripts/validate-minion-csv.mjs",

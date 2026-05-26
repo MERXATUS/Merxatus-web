@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
 import { countDungeonMinions, MAX_DUNGEON_MINIONS, syncMinionInventoryCaps } from "@/server/minionCapacity";
+import { guardDevApi } from "@/server/devApiGuard";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,8 @@ const BodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const blocked = guardDevApi();
+  if (blocked) return blocked;
   const json = await req.json().catch(() => null);
   const parsed = BodySchema.safeParse(json);
   if (!parsed.success) return Response.json({ ok: false, error: "BAD_REQUEST" }, { status: 400 });

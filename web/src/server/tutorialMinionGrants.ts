@@ -167,23 +167,10 @@ export async function syncTutorialMinionsForStep(db: Db, userId: string, tutoria
 
 
   if (tutorialStep === 0) {
-
     grants.push(await grantTutorialMinionIfNeeded(db, userId, "MINER"));
-
   }
-
-
-
-  if (tutorialStep >= 1) {
-
-    grants.push(await grantTutorialMinionIfNeeded(db, userId, "FISHER"));
-
-  }
-
-
 
   return grants;
-
 }
 
 

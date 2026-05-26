@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { prisma } from "@/server/db";
+import { getSessionSecret } from "@/server/secrets";
 import { readEnv } from "@/server/envUtil";
 import { ensureUserBootstrap } from "@/server/ensureUserBootstrap";
 
@@ -28,9 +29,18 @@ export function getGoogleAuthConfig(req: Request): GoogleAuthConfig | null {
   if (!clientId || !clientSecret) return null;
 
   const origin = new URL(req.url).origin;
-  const redirectUri = normalizeRedirectUri(
-    readEnv("GOOGLE_REDIRECT_URI") || `${origin}/api/auth/google/callback`,
-  );
+  const envRedirect = readEnv("GOOGLE_REDIRECT_URI");
+  let redirectUri = `${origin}/api/auth/google/callback`;
+  if (envRedirect) {
+    try {
+      if (new URL(envRedirect).origin === origin) {
+        redirectUri = envRedirect;
+      }
+    } catch {
+      /* 현재 접속 origin 사용 */
+    }
+  }
+  redirectUri = normalizeRedirectUri(redirectUri);
 
   return { clientId, clientSecret, redirectUri };
 }
@@ -52,9 +62,7 @@ export function resolveOAuthRedirectUri(req: Request, config: GoogleAuthConfig) 
 }
 
 function getStateSecret() {
-  const s = readEnv("SESSION_SECRET") || readEnv("ADMIN_TOKEN");
-  if (!s) throw new Error("SESSION_SECRET_NOT_SET");
-  return s;
+  return getSessionSecret();
 }
 
 function signState(payload: string) {

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
 import { setUserSpecialistUnlockedTrue } from "@/server/userSpecialistDb";
+import { guardDevApi } from "@/server/devApiGuard";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,9 @@ function jsonError(status: number, body: Record<string, unknown>) {
 /** 로컬 개발용: 전문 직업 선택 퀘스트를 생략하고 해제 플래그만 켠다. */
 export async function POST(req: Request) {
   try {
+    const blocked = guardDevApi();
+    if (blocked) return blocked;
+
     const raw = await req.json().catch(() => ({}));
     const parsed = BodySchema.safeParse(raw);
     if (!parsed.success) {

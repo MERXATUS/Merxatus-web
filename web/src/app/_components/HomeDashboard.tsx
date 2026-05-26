@@ -15,33 +15,30 @@ import { HomeSettingsButton } from "@/app/_components/HomeSettingsButton";
 import { SettingsPanel } from "@/app/_components/SettingsPanel";
 import { TutorialPanel, notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
 import { GameCard, GamePanel, type GameAccent } from "@/app/_components/gameUi";
-import { GamePanelError, GamePanelLoading } from "@/app/_components/panelFeedback";
-import {
-  playerMatchesProcessWorkshop,
-  SPECIALIST_LABEL,
-  type SpecialistProfessionSlug,
-} from "@/shared/specialistProfession";
+import { GamePanelError } from "@/app/_components/panelFeedback";
+import { SPECIALIST_LABEL, type SpecialistProfessionSlug } from "@/shared/specialistProfession";
 import { googleAuthErrorMessage } from "@/shared/googleAuthErrors";
 import { useEscapeClose } from "@/shared/useEscapeClose";
 import { apiGetJson, apiPostJson, notifySessionChanged } from "@/shared/sessionClient";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 
-type MeState = {
+type MeSummary = {
   ok: true;
   username?: string | null;
-  wallet: { goldAvailable: number; goldLocked: number };
-  inventory: Array<{ itemId: string; name: string; category: string; quantity: number }>;
-  myListings?: Array<unknown>;
-  weaponInstances?: Array<unknown>;
-
   specialistProfession?: string | null;
+  wallet: { goldAvailable: number; goldLocked: number };
+  market: { activeListingCount: number; maxActiveListings: number };
+  todayNetGold: number;
+  inventory: { kindCount: number; totalQty: number; weaponCount: number };
+  gather: { workshopCount: number; minionsPlaced: number; minionOwned: number; maxMinions: number };
+  specialist: {
+    workshopCount: number;
+    crafting: { recipeName: string; remainingMs: number } | null;
+  };
+  mercenaries: { count: number; maxCount: number; topLevel: number | null };
+  dungeon: { active: boolean; name: string | null };
 };
 
-type MinionsList = { ok: true; minions: Array<{ id: string }> };
-type WorkshopsList = {
-  ok: true;
-  workshops: Array<{ id: string; name: string; minionCount: number; kind?: string }>;
-};
 type RunState = {
   ok: true;
   active: boolean;
@@ -76,6 +73,7 @@ function SummaryCard(props: {
   metric?: string;
   accent?: GameAccent;
   glyph?: string;
+  size?: "main" | "default" | "compact";
   onClick: () => void;
 }) {
   return (
@@ -84,6 +82,7 @@ function SummaryCard(props: {
       subtitle={props.subtitle}
       metric={props.metric}
       accent={props.accent}
+      size={props.size}
       icon={props.glyph ? <MenuGlyph label={props.glyph} /> : undefined}
       onClick={props.onClick}
     />
@@ -182,6 +181,8 @@ type PanelKey =
   | "royal"
   | "blackmarket";
 
+type MinionPanelTab = "gather" | "dungeon";
+
 const HOME_PANEL_STORAGE_KEY = "merxatus_home_panel_v1";
 const PANEL_KEYS: PanelKey[] = ["inventory", "gather", "specialist", "minions", "royal", "blackmarket"];
 
@@ -201,46 +202,45 @@ function writeStoredPanel(key: PanelKey | null) {
 
 export function HomeDashboard() {
   const router = useRouter();
-  const { user: sessionUser, refresh: refreshSession } = useSessionUser();
+  const { user: sessionUser } = useSessionUser();
   const [active, setActive] = useState<PanelKey | null>(null);
+  const [minionPanelTab, setMinionPanelTab] = useState<MinionPanelTab>("dungeon");
   const lastSummaryRefreshRef = useRef(0);
   const [error, setError] = useState<any>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
-  const [me, setMe] = useState<MeState | null>(null);
-  const [minions, setMinions] = useState<MinionsList | null>(null);
-  const [workshops, setWorkshops] = useState<WorkshopsList | null>(null);
+  const [summary, setSummary] = useState<MeSummary | null>(null);
   const [runState, setRunState] = useState<RunState | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
 
-  const openPanel = useCallback((key: PanelKey) => {
+  const openPanel = useCallback((key: PanelKey, opts?: { minionTab?: MinionPanelTab }) => {
+    if (opts?.minionTab) setMinionPanelTab(opts.minionTab);
     writeStoredPanel(key);
     setActive(key);
   }, []);
 
   async function refreshSummary() {
     setError(null);
+    if (!sessionUser) {
+      setSummary(null);
+      setRunState(null);
+      setSummaryLoading(false);
+      return;
+    }
     try {
-      const loggedIn = await refreshSession();
-      if (!loggedIn) {
-        setMe(null);
-        setMinions(null);
-        setWorkshops(null);
-        setRunState(null);
-        return;
-      }
-      const [meState, minionList, wsList, rs] = await Promise.allSettled([
-        getJson<MeState>("/api/me/state"),
-        getJson<MinionsList>("/api/minions/list"),
-        getJson<WorkshopsList>("/api/workshops/list"),
+      const [summaryRes, rs] = await Promise.allSettled([
+        getJson<MeSummary>("/api/me/summary"),
         getJson<RunState>("/api/dungeons/run/state"),
       ]);
-      if (meState.status === "fulfilled") setMe(meState.value);
-      else if (!loggedIn) setMe(null);
-      if (minionList.status === "fulfilled") setMinions(minionList.value);
-      if (wsList.status === "fulfilled") setWorkshops(wsList.value);
-      if (rs.status === "fulfilled") setRunState(rs.value);
+      if (summaryRes.status === "fulfilled") {
+        setSummary(summaryRes.value);
+      } else {
+        setError(summaryRes.reason);
+      }
+      if (rs.status === "rejected") {
+        console.warn("[HomeDashboard] dungeon run state failed", rs.reason);
+      }
     } catch (e) {
       setError(e);
     } finally {
@@ -283,6 +283,7 @@ export function HomeDashboard() {
     window.addEventListener("focus", onChanged);
     window.addEventListener("pageshow", onChanged);
     lastSummaryRefreshRef.current = Date.now();
+    setSummaryLoading(true);
     void refreshSummary();
     return () => {
       window.removeEventListener("auth_session_changed", onChanged);
@@ -290,54 +291,39 @@ export function HomeDashboard() {
       window.removeEventListener("pageshow", onChanged);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    void refreshSummary();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionUser?.id]);
 
-  const gold = me?.wallet?.goldAvailable ?? null;
-  const invQtySum = useMemo(() => {
-    if (!me?.inventory) return null;
-    return me.inventory.reduce((a, b) => a + Math.max(0, Math.floor(b.quantity ?? 0)), 0);
-  }, [me?.inventory]);
-  const invKinds = useMemo(() => {
-    if (!me?.inventory) return null;
-    return me.inventory.reduce((acc, r) => acc + (Math.max(0, Math.floor(r.quantity ?? 0)) > 0 ? 1 : 0), 0);
-  }, [me?.inventory]);
-  const myListingsCount = (me?.myListings?.length ?? null) as number | null;
-  const weaponInstanceCount = (me?.weaponInstances?.length ?? null) as number | null;
-  const minionCount = minions?.minions?.length ?? null;
+  const gold = summary?.wallet?.goldAvailable ?? null;
+  const specialistProfession = summary?.specialistProfession ?? null;
 
-  const gatherWorkshopRows = useMemo(
-    () => (workshops?.workshops ?? []).filter((w) => (w.kind ?? "GATHER") === "GATHER"),
-    [workshops?.workshops],
-  );
+  const metricPlaceholder = summaryLoading ? "…" : "—";
+  const specialistWorkshopCount = summary?.specialist.workshopCount ?? null;
+  const craftingMetric = useMemo(() => {
+    const c = summary?.specialist.crafting;
+    if (!c) return null;
+    const sec = Math.ceil(c.remainingMs / 1000);
+    const mm = String(Math.floor(sec / 60)).padStart(2, "0");
+    const ss = String(sec % 60).padStart(2, "0");
+    return `${c.recipeName} (${mm}:${ss})`;
+  }, [summary?.specialist.crafting]);
 
-  const gatherMinionsPlaced = useMemo(() => {
-    return gatherWorkshopRows.reduce((a, w) => a + Math.max(0, Math.floor(w.minionCount ?? 0)), 0);
-  }, [gatherWorkshopRows]);
-
-  const specialistWorkshopCount = useMemo(() => {
-    const prof = me?.specialistProfession ?? null;
-    if (!prof) return null;
-    return (workshops?.workshops ?? []).filter(
-      (w) => w.kind === "PROCESS" && playerMatchesProcessWorkshop(w.name, prof),
-    ).length;
-  }, [workshops?.workshops, me?.specialistProfession]);
-
-  const dungeonStatus = runState?.active ? `진행중: ${runState.dungeon?.name ?? "던전"}` : "대기";
   const dungeonMetric = useMemo(() => {
-    if (!runState) return "—";
-    if (!runState.active) return "대기";
-    const pp = runState.combat?.partyPower;
-    const wr = runState.combat?.clearChance;
-    const wrPct = typeof wr === "number" && Number.isFinite(wr) ? `${Math.round(wr * 100)}%` : "—";
-    return pp != null ? `${fmtInt(pp)} · ${wrPct}` : `진행중`;
-  }, [runState]);
+    if (runState?.active && runState.combat) {
+      const pp = runState.combat.partyPower;
+      const wr = runState.combat.clearChance;
+      const wrPct = typeof wr === "number" && Number.isFinite(wr) ? `${Math.round(wr * 100)}%` : "—";
+      return pp != null ? `전투력 ${fmtInt(pp)} · ${wrPct}` : "진행 중";
+    }
+    if (summary?.dungeon.active && summary.dungeon.name) return summary.dungeon.name;
+    return "대기";
+  }, [runState, summary?.dungeon]);
 
-  const specialistProfession = me?.specialistProfession ?? null;
+  const mercenaryMetric = useMemo(() => {
+    const m = summary?.mercenaries;
+    if (!m) return metricPlaceholder;
+    const lv = m.topLevel != null ? ` · Lv${m.topLevel}` : "";
+    return `${fmtInt(m.count)}/${fmtInt(m.maxCount)}명${lv}`;
+  }, [summary?.mercenaries, metricPlaceholder]);
 
   useEscapeClose(chatOpen, () => setChatOpen(false));
   useEscapeClose(settingsOpen, () => setSettingsOpen(false));
@@ -347,7 +333,7 @@ export function HomeDashboard() {
     setLogoutBusy(true);
     try {
       await apiPostJson("/api/auth/logout", {});
-      setMe(null);
+      setSummary(null);
       notifySessionChanged();
       setSettingsOpen(false);
     } finally {
@@ -375,18 +361,23 @@ export function HomeDashboard() {
             <HomeSettingsButton active={settingsOpen} onClick={() => setSettingsOpen((v) => !v)} />
             <AuthTopBar />
           </div>
-          <HomeGoldHeader gold={gold} />
+          <HomeGoldHeader
+            gold={gold}
+            todayNetGold={summary?.todayNetGold}
+            activeListings={summary?.market.activeListingCount}
+          />
           <header className="home-brand-header">
             <p className="game-wordmark">Merxatus</p>
           </header>
           <CommanderProfilePanel
-            username={sessionUser?.username ?? me?.username ?? null}
+            username={sessionUser?.username ?? summary?.username ?? null}
             specialistProfession={specialistProfession}
           />
 
           <TutorialPanel
             loggedIn={!!sessionUser}
             onOpenGather={() => openPanel("gather")}
+            onOpenSpecialist={() => openPanel("specialist")}
             onSpecialistChosen={() => {
               void refreshSummary();
               notifyTutorialRefresh();
@@ -397,108 +388,118 @@ export function HomeDashboard() {
           <div className="min-w-0 space-y-6">
             {error ? <GamePanelError error={error} /> : null}
 
-            {summaryLoading ? (
-              <GamePanelLoading label="게임 정보를 불러오는 중…" />
-            ) : (
-            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <SummaryCard
-            glyph="◆"
-            accent="gold"
-            title="인벤토리"
-            subtitle="재료·고용권·무기 목록 확인"
-            metric={
-              invKinds != null && invQtySum != null
-                ? `${fmtInt(invKinds)}종 · ${fmtInt(invQtySum)}개${weaponInstanceCount != null ? ` · 무기 ${fmtInt(weaponInstanceCount)}` : ""}`
-                : "—"
-            }
-            onClick={() => openPanel("inventory")}
-          />
-          <SummaryCard
-            glyph="＋"
-            accent="amber"
-            title="강화소"
-            subtitle="무기 강화 · 재료 소모"
-            metric={
-              weaponInstanceCount != null
-                ? `무기 ${fmtInt(weaponInstanceCount)}개`
-                : "—"
-            }
-            onClick={() => router.push("/enhance")}
-          />
-          <SummaryCard
-            glyph="⛏"
-            accent="emerald"
-            title="수집"
-            subtitle="광산·낚시터·탐험·고고학 수집·미니언"
-            metric={
-              workshops?.workshops
-                ? `${fmtInt(gatherWorkshopRows.length)}개 · 미니언 ${fmtInt(gatherMinionsPlaced)}`
-                : "—"
-            }
-            onClick={() => openPanel("gather")}
-          />
-          <SummaryCard
-            glyph="⚒"
-            accent="amber"
-            title="전문 작업장"
-            subtitle={
-              specialistProfession
-                ? `${SPECIALIST_LABEL[specialistProfession as SpecialistProfessionSlug] ?? specialistProfession} 전용 가공`
-                : "직업 선택 시 작업장 자동 개방"
-            }
-            metric={
-              specialistProfession != null && specialistWorkshopCount != null
-                ? `${fmtInt(specialistWorkshopCount)}개`
-                : "—"
-            }
-            onClick={() => openPanel("specialist")}
-          />
-          <SummaryCard
-            glyph="⚔"
-            accent="rose"
-            title="던전"
-            subtitle="파티 전투력/승률/수령"
-            metric={runState?.active ? `${runState.dungeon?.name ?? "던전"} · ${dungeonMetric}` : dungeonStatus}
-            onClick={() => router.push("/dungeon")}
-          />
-          <SummaryCard
-            glyph="●"
-            accent="indigo"
-            title="미니언"
-            subtitle="무기 장착 · 배치"
-            metric={minionCount != null ? `${fmtInt(minionCount)}명` : "—"}
-            onClick={() => openPanel("minions")}
-          />
-          <SummaryCard
-            glyph="¤"
-            accent="sky"
-            title="거래소"
-            subtitle="구매 · 판매 · 내 매물"
-            metric={
-              invQtySum != null
-                ? `${myListingsCount != null ? `${fmtInt(myListingsCount)}건 · ` : ""}${invKinds != null ? `${fmtInt(invKinds)}종` : "—"} · ${fmtInt(invQtySum)}개`
-                : "—"
-            }
-            onClick={() => router.push("/market")}
-          />
-          <SummaryCard
-            glyph="♛"
-            accent="gold"
-            title="황실"
-            subtitle="고정가 거래 · 명예/칭호"
-            metric="열기"
-            onClick={() => openPanel("royal")}
-          />
-          <SummaryCard
-            glyph="☾"
-            accent="violet"
-            title="지하도시(암시장)"
-            subtitle="변동 시세 · 악명/해금"
-            metric="열기"
-            onClick={() => openPanel("blackmarket")}
-          />
+            <section className="home-dashboard">
+              <div className="home-dashboard__main grid grid-cols-1 gap-3 md:grid-cols-2">
+                <SummaryCard
+                  glyph="⚒"
+                  accent="amber"
+                  size="main"
+                  title="전문 작업장"
+                  subtitle={
+                    specialistProfession
+                      ? `${SPECIALIST_LABEL[specialistProfession as SpecialistProfessionSlug] ?? specialistProfession} · 만들고 팔 준비`
+                      : "직업 선택 후 가공 시설 개방"
+                  }
+                  metric={
+                    craftingMetric ??
+                    (specialistWorkshopCount != null
+                      ? `시설 ${fmtInt(specialistWorkshopCount)}개`
+                      : metricPlaceholder)
+                  }
+                  onClick={() => openPanel("specialist")}
+                />
+                <SummaryCard
+                  glyph="¤"
+                  accent="sky"
+                  size="main"
+                  title="거래소"
+                  subtitle="사고 · 팔고 · 시세 보기"
+                  metric={
+                    summary
+                      ? `매물 ${fmtInt(summary.market.activeListingCount)}건`
+                      : metricPlaceholder
+                  }
+                  onClick={() => router.push("/market")}
+                />
+              </div>
+
+              <div className="home-dashboard__secondary grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <SummaryCard
+                  glyph="◆"
+                  accent="gold"
+                  size="compact"
+                  title="인벤토리"
+                  subtitle="재료 · 완성품 · 고용권"
+                  metric={
+                    summary
+                      ? `${fmtInt(summary.inventory.kindCount)}종 · ${fmtInt(summary.inventory.totalQty)}개`
+                      : metricPlaceholder
+                  }
+                  onClick={() => openPanel("inventory")}
+                />
+                <SummaryCard
+                  glyph="＋"
+                  accent="amber"
+                  size="compact"
+                  title="강화소"
+                  subtitle="무기 가치 올리기"
+                  metric={summary ? `무기 ${fmtInt(summary.inventory.weaponCount)}개` : metricPlaceholder}
+                  onClick={() => router.push("/enhance")}
+                />
+                <SummaryCard
+                  glyph="♛"
+                  accent="gold"
+                  size="compact"
+                  title="황실"
+                  subtitle="빠른 매입 · 안정 가격"
+                  metric="열기"
+                  onClick={() => openPanel("royal")}
+                />
+              </div>
+
+              <div className="home-dashboard__sub grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <SummaryCard
+                  glyph="⛏"
+                  accent="emerald"
+                  size="compact"
+                  title="수집"
+                  subtitle="일꾼 배치 · 재료 공장"
+                  metric={
+                    summary
+                      ? `${fmtInt(summary.gather.minionsPlaced)}/${fmtInt(summary.gather.maxMinions)} 배치`
+                      : metricPlaceholder
+                  }
+                  onClick={() => openPanel("gather")}
+                />
+                <SummaryCard
+                  glyph="⚔"
+                  accent="rose"
+                  size="compact"
+                  title="던전"
+                  subtitle="깊을수록 희귀 재료 · 장비 필요"
+                  metric={dungeonMetric}
+                  onClick={() => router.push("/dungeon")}
+                />
+                <SummaryCard
+                  glyph="●"
+                  accent="indigo"
+                  size="compact"
+                  title="용병"
+                  subtitle="던전 파티 · 장비 · 레벨"
+                  metric={mercenaryMetric}
+                  onClick={() => openPanel("minions", { minionTab: "dungeon" })}
+                />
+                <SummaryCard
+                  glyph="☾"
+                  accent="violet"
+                  size="compact"
+                  title="지하도시(암시장)"
+                  subtitle="변동 시세 · 고위험"
+                  metric="열기"
+                  onClick={() => openPanel("blackmarket")}
+                />
+              </div>
             </section>
-            )}
           </div>
         </div>
 
@@ -554,7 +555,7 @@ export function HomeDashboard() {
                 : active === "specialist"
                   ? "전문 작업장"
                   : active === "minions"
-                      ? "미니언 관리"
+                      ? "용병"
                       : active === "royal"
                             ? "황실"
                             : active === "blackmarket"
@@ -580,7 +581,7 @@ export function HomeDashboard() {
           ) : active === "specialist" ? (
             <WorkshopsPanel variant="specialist" />
           ) : active === "minions" ? (
-            <MinionManagementPanel />
+            <MinionManagementPanel initialTab={minionPanelTab} />
           ) : active === "royal" ? (
             <RoyalPanel />
           ) : active === "blackmarket" ? (
@@ -592,13 +593,13 @@ export function HomeDashboard() {
           open={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           loggedIn={!!sessionUser}
-          username={sessionUser?.username ?? me?.username ?? null}
+          username={sessionUser?.username ?? summary?.username ?? null}
           userId={sessionUser?.id ?? null}
           logoutBusy={logoutBusy}
           onLogout={handleLogout}
           onRefresh={refreshSummary}
           onUsernameChanged={(username) => {
-            setMe((prev) => (prev ? { ...prev, username } : prev));
+            setSummary((prev) => (prev ? { ...prev, username } : prev));
           }}
         />
       </main>

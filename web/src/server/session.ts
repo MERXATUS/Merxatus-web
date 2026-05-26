@@ -1,10 +1,31 @@
 import crypto from "node:crypto";
-import { readEnv } from "@/server/envUtil";
+import { getSessionSecret } from "@/server/secrets";
 
 export const SESSION_COOKIE_NAME = "sid";
 export const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 30;
 
 const COOKIE_NAME = SESSION_COOKIE_NAME;
+
+/** Vercel(HTTPS)에서 세션 쿠키가 안 붙는 경우 방지 */
+export function sessionCookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge,
+    secure: process.env.NODE_ENV === "production",
+  };
+}
+
+export function clearSessionCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: 0,
+    secure: process.env.NODE_ENV === "production",
+  };
+}
 
 function base64urlEncode(buf: Buffer) {
   return buf
@@ -20,17 +41,10 @@ function base64urlDecode(s: string) {
   return Buffer.from(b64, "base64");
 }
 
-function getSessionSecret() {
-  // 개발 편의: SESSION_SECRET 없으면 ADMIN_TOKEN을 폴백으로 사용
-  const s = readEnv("SESSION_SECRET") || readEnv("ADMIN_TOKEN");
-  if (!s) throw new Error("SESSION_SECRET_NOT_SET");
-  return s;
-}
-
 type SessionPayload = {
   v: 1;
   userId: string;
-  iat: number; // epoch ms
+  iat: number;
 };
 
 function sign(input: string) {
@@ -47,11 +61,13 @@ export function createSessionToken(userId: string) {
 
 export function createSessionCookie(userId: string) {
   const value = createSessionToken(userId);
-  return `${COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SEC}`;
+  const opts = sessionCookieOptions(SESSION_MAX_AGE_SEC);
+  return `${COOKIE_NAME}=${value}; Path=${opts.path}; HttpOnly; SameSite=Lax; Max-Age=${opts.maxAge}${opts.secure ? "; Secure" : ""}`;
 }
 
 export function clearSessionCookie() {
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  const opts = clearSessionCookieOptions();
+  return `${COOKIE_NAME}=; Path=${opts.path}; HttpOnly; SameSite=Lax; Max-Age=0${opts.secure ? "; Secure" : ""}`;
 }
 
 export function getSessionUserId(req: Request): string | null {

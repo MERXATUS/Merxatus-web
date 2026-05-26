@@ -1,11 +1,13 @@
-import { prisma } from "@/server/db";
+import { prisma, PRISMA_TX_OPTS } from "@/server/db";
 import { GAME_RULES } from "@/server/gameRules";
 
-async function feeBpsForSeller(userId: string) {
+type MarketDb = Pick<typeof prisma, "user">;
+
+async function feeBpsForSeller(userId: string, db: MarketDb = prisma) {
   // 명예 점수로 경매장 수수료 감면
   //  - 50k: 1%p 감면, 150k: 3%p 감면, 300k: 5%p 감면
   //  - 최저 수수료: 1% (100bps)
-  const user = await prisma.user.findUnique({
+  const user = await db.user.findUnique({
     where: { id: userId },
     select: { honorPoints: true },
   });
@@ -130,7 +132,7 @@ export async function buyFixedListing(input: { listingId: string; buyerId: strin
     const grossGold = hasTotal ? listing.fixedPriceTotal! : listing.fixedPricePerUnit! * buyQty;
     if (buyerWallet.goldAvailable < grossGold) throw new Error("INSUFFICIENT_GOLD");
 
-    const feeBps = await feeBpsForSeller(listing.sellerId);
+    const feeBps = await feeBpsForSeller(listing.sellerId, tx);
     const { feeGold, netGold } = feeSplit(grossGold, feeBps);
 
     await tx.wallet.update({
@@ -170,7 +172,7 @@ export async function buyFixedListing(input: { listingId: string; buyerId: strin
     });
 
     return { ok: true as const };
-  });
+  }, PRISMA_TX_OPTS);
 }
 
 export async function buyFixedListingPartial(input: { listingId: string; buyerId: string; quantity: number }) {
@@ -202,7 +204,7 @@ export async function buyFixedListingPartial(input: { listingId: string; buyerId
     const grossGold = hasTotal ? listing.fixedPriceTotal! : listing.fixedPricePerUnit! * buyQty;
     if (buyerWallet.goldAvailable < grossGold) throw new Error("INSUFFICIENT_GOLD");
 
-    const feeBps = await feeBpsForSeller(listing.sellerId);
+    const feeBps = await feeBpsForSeller(listing.sellerId, tx);
     const { feeGold, netGold } = feeSplit(grossGold, feeBps);
 
     await tx.wallet.update({
@@ -257,7 +259,7 @@ export async function buyFixedListingPartial(input: { listingId: string; buyerId
     });
 
     return { ok: true as const, bought: buyQty, remaining, grossGold, itemId: listing.itemId };
-  });
+  }, PRISMA_TX_OPTS);
 }
 
 export async function placeAuctionBid(input: { listingId: string; bidderId: string; amount: number }) {
@@ -329,7 +331,7 @@ export async function placeAuctionBid(input: { listingId: string; bidderId: stri
     });
 
     return { ok: true as const, endsAt: newEndsAt };
-  });
+  }, PRISMA_TX_OPTS);
 }
 
 export async function settleAuctionListing(input: { listingId: string }) {
@@ -358,7 +360,7 @@ export async function settleAuctionListing(input: { listingId: string }) {
     if (!bidderWallet) throw new Error("BIDDER_WALLET_NOT_FOUND");
     if (bidderWallet.goldLocked < listing.highestBid) throw new Error("BID_LOCK_MISMATCH");
 
-    const feeBps = await feeBpsForSeller(listing.sellerId);
+    const feeBps = await feeBpsForSeller(listing.sellerId, tx);
     const { feeGold, netGold } = feeSplit(listing.highestBid, feeBps);
 
     // Consume locked gold (finalize payment)
@@ -408,7 +410,7 @@ export async function settleAuctionListing(input: { listingId: string }) {
     });
 
     return { ok: true as const, status: "SOLD" as const, winnerId: listing.highestBidderId };
-  });
+  }, PRISMA_TX_OPTS);
 }
 
 export async function createListing(input: {
@@ -506,7 +508,7 @@ export async function createListing(input: {
     });
 
     return { ok: true as const, listingId: listing.id };
-  });
+  }, PRISMA_TX_OPTS);
 }
 
 export async function settleExpiredFixedListing(input: { listingId: string }) {
@@ -521,7 +523,7 @@ export async function settleExpiredFixedListing(input: { listingId: string }) {
     await returnListingEscrowToSeller(tx, listing);
     await tx.listing.update({ where: { id: listing.id }, data: { status: "EXPIRED" } });
     return { ok: true as const, status: "EXPIRED" as const };
-  });
+  }, PRISMA_TX_OPTS);
 }
 
 export async function settleListing(input: { listingId: string }) {
@@ -553,6 +555,6 @@ export async function cancelListing(input: { listingId: string; sellerId: string
 
     await tx.listing.update({ where: { id: listing.id }, data: { status: "CANCELLED" } });
     return { ok: true as const };
-  });
+  }, PRISMA_TX_OPTS);
 }
 

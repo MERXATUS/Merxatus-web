@@ -1,5 +1,5 @@
 import type { MinionJobType, PrismaClient, SpecialistProfession } from "@prisma/client";
-import { prisma } from "@/server/db";
+import { prisma, runPrismaTransaction } from "@/server/db";
 import { GAME_RULES } from "@/server/gameRules";
 import type { RolledOption } from "@/server/itemOptions";
 import { rollOptionsForCraft, serializeOptions } from "@/server/itemOptions";
@@ -240,7 +240,7 @@ export async function craftRecipe(input: {
 
   const qty = Math.max(1, Math.floor(input.quantity));
 
-  return prisma.$transaction(async (tx) => {
+  return runPrismaTransaction(async (tx) => {
     const workshop = await tx.workshopInstance.findUnique({
       where: { id: input.workshopId },
       include: { workshopType: true },
@@ -287,7 +287,7 @@ export async function startProcessCraft(input: {
 }) {
   const qty = Math.max(1, Math.floor(input.quantity));
 
-  return prisma.$transaction(async (tx) => {
+  return runPrismaTransaction(async (tx) => {
     const workshop = await tx.workshopInstance.findUnique({
       where: { id: input.workshopId },
       include: { workshopType: true },
@@ -425,7 +425,7 @@ export async function completeProcessCraft(input: {
   workshopId: string;
   forceReady?: boolean;
 }) {
-  return prisma.$transaction(async (tx) =>
+  return runPrismaTransaction(async (tx) =>
     completeProcessCraftInTx(tx, input, { forceReady: input.forceReady }),
   );
 }
@@ -439,7 +439,7 @@ export async function runProcessCraft(input: {
 }) {
   const qty = Math.max(1, Math.floor(input.quantity));
 
-  return prisma.$transaction(async (tx) => {
+  return runPrismaTransaction(async (tx) => {
     let workshop = await tx.workshopInstance.findUnique({
       where: { id: input.workshopId },
       include: { workshopType: true },

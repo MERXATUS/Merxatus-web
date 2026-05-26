@@ -13,7 +13,9 @@ import {
 import {
   SESSION_COOKIE_NAME,
   SESSION_MAX_AGE_SEC,
+  clearSessionCookieOptions,
   createSessionToken,
+  sessionCookieOptions,
 } from "@/server/session";
 
 export const runtime = "nodejs";
@@ -22,19 +24,13 @@ function redirectHome(req: Request, authError?: string) {
   const home = new URL("/", req.url);
   if (authError) home.searchParams.set("auth_error", authError);
   const res = NextResponse.redirect(home);
-  res.cookies.set(OAUTH_STATE_COOKIE, "", {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
-  res.cookies.set(OAUTH_REDIRECT_COOKIE, "", {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
+  res.cookies.set(OAUTH_STATE_COOKIE, "", clearOAuthCookieOptions());
+  res.cookies.set(OAUTH_REDIRECT_COOKIE, "", clearOAuthCookieOptions());
   return res;
+}
+
+function clearOAuthCookieOptions() {
+  return { ...clearSessionCookieOptions(), maxAge: 0 };
 }
 
 export async function GET(req: Request) {
@@ -66,25 +62,10 @@ export async function GET(req: Request) {
     const profile = await fetchGoogleUserInfo(accessToken);
     const user = await findOrCreateGoogleUser(profile);
 
-    const res = NextResponse.redirect(new URL("/", req.url));
-    res.cookies.set(SESSION_COOKIE_NAME, createSessionToken(user.id), {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: SESSION_MAX_AGE_SEC,
-    });
-    res.cookies.set(OAUTH_STATE_COOKIE, "", {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
-    res.cookies.set(OAUTH_REDIRECT_COOKIE, "", {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
+    const res = NextResponse.redirect(new URL("/?auth_refresh=1", req.url));
+    res.cookies.set(SESSION_COOKIE_NAME, createSessionToken(user.id), sessionCookieOptions(SESSION_MAX_AGE_SEC));
+    res.cookies.set(OAUTH_STATE_COOKIE, "", clearOAuthCookieOptions());
+    res.cookies.set(OAUTH_REDIRECT_COOKIE, "", clearOAuthCookieOptions());
     return res;
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown";

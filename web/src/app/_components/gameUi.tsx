@@ -49,11 +49,19 @@ export function GameCard(props: {
   metric?: string;
   accent?: GameAccent;
   icon?: ReactNode;
+  size?: "main" | "default" | "compact";
+  ctaLabel?: string;
+  className?: string;
   onClick: () => void;
 }) {
   const accent = props.accent ?? "default";
+  const size = props.size ?? "default";
   return (
-    <button type="button" onClick={props.onClick} className={`game-card group ${accentBar[accent]}`}>
+    <button
+      type="button"
+      onClick={props.onClick}
+      className={`game-card group ${accentBar[accent]} game-card--${size} ${props.className ?? ""}`.trim()}
+    >
       <div className="flex items-start gap-3">
         {props.icon ? (
           <div className="game-card-icon shrink-0" aria-hidden>
@@ -68,7 +76,7 @@ export function GameCard(props: {
             </div>
             {props.metric ? <div className="game-card-metric shrink-0">{props.metric}</div> : null}
           </div>
-          <div className="game-card-cta">열기 →</div>
+          <div className="game-card-cta">{props.ctaLabel ?? "열기 →"}</div>
         </div>
       </div>
     </button>
