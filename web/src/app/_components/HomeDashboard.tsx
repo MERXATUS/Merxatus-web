@@ -229,17 +229,17 @@ export function HomeDashboard() {
       return;
     }
     try {
-      const [summaryRes, rs] = await Promise.allSettled([
-        getJson<MeSummary>("/api/me/summary"),
-        getJson<RunState>("/api/dungeons/run/state"),
-      ]);
-      if (summaryRes.status === "fulfilled") {
-        setSummary(summaryRes.value);
+      const summaryRes = await getJson<MeSummary>("/api/me/summary");
+      setSummary(summaryRes);
+      if (summaryRes.dungeon?.active) {
+        void getJson<RunState>("/api/dungeons/run/state")
+          .then((rs) => {
+            if (rs?.active) setRunState(rs);
+            else setRunState(null);
+          })
+          .catch(() => setRunState(null));
       } else {
-        setError(summaryRes.reason);
-      }
-      if (rs.status === "rejected") {
-        console.warn("[HomeDashboard] dungeon run state failed", rs.reason);
+        setRunState(null);
       }
     } catch (e) {
       setError(e);
@@ -275,7 +275,7 @@ export function HomeDashboard() {
   useEffect(() => {
     function onChanged() {
       const now = Date.now();
-      if (now - lastSummaryRefreshRef.current < 4000) return;
+      if (now - lastSummaryRefreshRef.current < 8000) return;
       lastSummaryRefreshRef.current = now;
       void refreshSummary();
     }
@@ -511,7 +511,7 @@ export function HomeDashboard() {
           }`}
         >
           <div className="flex min-h-0 flex-1 flex-col p-4">
-            <ChatPanel layout="drawer" onMinimize={() => setChatOpen(false)} />
+            <ChatPanel layout="drawer" onMinimize={() => setChatOpen(false)} pollingEnabled={chatOpen} />
           </div>
         </div>
 

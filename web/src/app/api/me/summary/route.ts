@@ -2,7 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
 import { getUserSpecialistRow } from "@/server/userSpecialistDb";
-import { playerMatchesProcessWorkshop } from "@/shared/specialistProfession";
+import { processWorkshopNamesForProfession, type SpecialistProfessionSlug } from "@/shared/specialistProfession";
 import { GAME_RULES } from "@/server/gameRules";
 import { countDungeonMinions, countGatherMinions, gatherMinionWhere, dungeonMinionWhere } from "@/server/minionCapacity";
 import { prismaKnownErrorResponse } from "@/server/prismaHttp";
@@ -13,13 +13,6 @@ export const runtime = "nodejs";
 const QuerySchema = z.object({
   userId: z.string().min(1).optional(),
 });
-
-function todayKey(d = new Date()) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
-}
 
 export async function GET(req: Request) {
   try {
@@ -34,20 +27,27 @@ export async function GET(req: Request) {
     const dayStart = new Date();
     dayStart.setHours(0, 0, 0, 0);
 
+    const userLite = await getUserSpecialistRow(prisma, userId);
+    const prof = userLite?.specialistProfession ?? null;
+    const specialistWorkshopNames = prof
+      ? [...processWorkshopNamesForProfession(prof as SpecialistProfessionSlug)]
+      : [];
+
     const [
-      userLite,
       userAccount,
       wallet,
       invAgg,
       weaponCount,
       listingCount,
       todayTxs,
-      workshops,
+      gatherWorkshopCount,
+      specialistWorkshopCount,
       gatherAssigned,
       dungeonMinions,
       activeRun,
+      gatherCount,
+      dungeonCount,
     ] = await Promise.all([
-      getUserSpecialistRow(prisma, userId),
       prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
       prisma.wallet.findUnique({ where: { userId } }),
       prisma.inventoryStack.aggregate({
@@ -63,12 +63,19 @@ export async function GET(req: Request) {
           OR: [{ buyerId: userId }, { sellerId: userId }],
         },
         select: { buyerId: true, sellerId: true, grossGold: true, netGold: true },
+        take: 200,
       }),
-      prisma.workshopInstance.findMany({
-        where: { userId },
-        include: { workshopType: true },
-        orderBy: [{ plotSlot: "asc" }, { createdAt: "asc" }],
+      prisma.workshopInstance.count({
+        where: { userId, workshopType: { kind: "GATHER" } },
       }),
+      specialistWorkshopNames.length
+        ? prisma.workshopInstance.count({
+            where: {
+              userId,
+              workshopType: { kind: "PROCESS", name: { in: specialistWorkshopNames } },
+            },
+          })
+        : Promise.resolve(0),
       prisma.workshopAssignment.count({
         where: { workshop: { userId }, minion: gatherMinionWhere(userId) },
       }),
@@ -76,12 +83,15 @@ export async function GET(req: Request) {
         where: dungeonMinionWhere(userId),
         select: { level: true },
         orderBy: [{ level: "desc" }],
-        take: 20,
+        take: 1,
       }),
       prisma.dungeonRun.findFirst({
         where: { userId, status: "RUNNING" },
         orderBy: { startedAt: "desc" },
+        select: { dungeonId: true },
       }),
+      countGatherMinions(prisma, userId),
+      countDungeonMinions(prisma, userId),
     ]);
 
     let todayNetGold = 0;
@@ -90,34 +100,35 @@ export async function GET(req: Request) {
       else if (t.buyerId === userId) todayNetGold -= t.grossGold;
     }
 
-    const prof = userLite?.specialistProfession ?? null;
-    const gatherRows = workshops.filter((w) => w.workshopType.kind === "GATHER");
-    const specialistRows = prof
-      ? workshops.filter(
-          (w) => w.workshopType.kind === "PROCESS" && playerMatchesProcessWorkshop(w.workshopType.name, prof),
-        )
-      : [];
-
     let crafting: { recipeName: string; remainingMs: number } | null = null;
-    for (const w of specialistRows) {
-      if (!w.processCraftRecipeId || !w.processCraftEndsAt) continue;
-      const recipe = await prisma.recipe.findUnique({
-        where: { id: w.processCraftRecipeId },
-        select: { name: true },
+    if (specialistWorkshopNames.length > 0) {
+      const craftingWs = await prisma.workshopInstance.findFirst({
+        where: {
+          userId,
+          processCraftRecipeId: { not: null },
+          processCraftEndsAt: { not: null },
+          workshopType: { kind: "PROCESS", name: { in: specialistWorkshopNames } },
+        },
+        select: { processCraftRecipeId: true, processCraftEndsAt: true },
+        orderBy: { processCraftEndsAt: "asc" },
       });
-      const remainingMs = Math.max(0, w.processCraftEndsAt.getTime() - Date.now());
-      crafting = {
-        recipeName: recipe?.name ?? "제작 중",
-        remainingMs,
-      };
-      break;
+      if (craftingWs?.processCraftRecipeId && craftingWs.processCraftEndsAt) {
+        const recipe = await prisma.recipe.findUnique({
+          where: { id: craftingWs.processCraftRecipeId },
+          select: { name: true },
+        });
+        crafting = {
+          recipeName: recipe?.name ?? "제작 중",
+          remainingMs: Math.max(0, craftingWs.processCraftEndsAt.getTime() - Date.now()),
+        };
+      }
     }
 
-    const gatherCount = await countGatherMinions(prisma, userId);
-    const dungeonCount = await countDungeonMinions(prisma, userId);
-
-    const { dungeons } = await loadDungeons();
-    const dungeonNames = new Map(dungeons.map((d) => [d.id, d.name]));
+    let dungeonName: string | null = null;
+    if (activeRun) {
+      const { dungeons } = await loadDungeons();
+      dungeonName = dungeons.find((d) => d.id === activeRun.dungeonId)?.name ?? activeRun.dungeonId;
+    }
 
     return Response.json({
       ok: true,
@@ -138,13 +149,13 @@ export async function GET(req: Request) {
         weaponCount,
       },
       gather: {
-        workshopCount: gatherRows.length,
+        workshopCount: gatherWorkshopCount,
         minionsPlaced: gatherAssigned,
         minionOwned: gatherCount,
         maxMinions: GAME_RULES.minion.maxGatherOwned,
       },
       specialist: {
-        workshopCount: specialistRows.length,
+        workshopCount: specialistWorkshopCount,
         crafting,
       },
       mercenaries: {
@@ -154,7 +165,7 @@ export async function GET(req: Request) {
       },
       dungeon: {
         active: !!activeRun,
-        name: activeRun ? dungeonNames.get(activeRun.dungeonId) ?? activeRun.dungeonId : null,
+        name: dungeonName,
       },
     });
   } catch (e) {
