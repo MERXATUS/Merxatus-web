@@ -3,7 +3,7 @@ import { grantLootToUser } from "@/server/grantLootToUser";
 import { boxOpenDropsForItem } from "@/server/boxOpenData";
 import { isLootBoxItemId, lootBoxRollCount } from "@/shared/boxOpen";
 
-type OpenTx = Pick<PrismaClient, "inventoryStack" | "item" | "weaponInstance">;
+type OpenTx = Pick<PrismaClient, "inventoryStack" | "item" | "weaponInstance" | "armorInstance">;
 
 export type BoxOpenLootEntry = { itemId: string; qty: number; itemName?: string };
 
