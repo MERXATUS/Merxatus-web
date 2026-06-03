@@ -19,6 +19,18 @@ export function prismaKnownErrorResponse(e: unknown): Response | null {
 
   if (e instanceof Prisma.PrismaClientUnknownRequestError) {
     const msg = String(e.message ?? "");
+    if (msg.includes("Timed out fetching a new connection from the connection pool")) {
+      return Response.json(
+        {
+          ok: false,
+          error: "DB_POOL_TIMEOUT",
+          message: msg,
+          hint:
+            "Supabase Transaction pooler(6543) DATABASE_URL에 connection_limit=8 이상·pool_timeout=30 권장. Vercel 환경변수에 connection_limit=1만 있으면 앱이 자동 보정하지만 재배포가 필요할 수 있어요.",
+        },
+        { status: 503 },
+      );
+    }
     if (msg.includes("Unable to start a transaction") || msg.includes("Transaction already closed")) {
       return Response.json(
         {

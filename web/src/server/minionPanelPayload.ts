@@ -13,7 +13,7 @@ const minionInclude = {
 } as const;
 
 export async function loadMinionPanelPayload(userId: string) {
-  void ensureMinionEntitiesForUser(userId).catch((e) => {
+  await ensureMinionEntitiesForUser(userId).catch((e) => {
     console.warn("[minionPanelPayload] ensureMinionEntitiesForUser", e);
   });
 

@@ -27,15 +27,20 @@ export function normalizeDatabaseUrl(raw: string | undefined): string {
   if (port === "6543") {
     url.searchParams.set("pgbouncer", "true");
     const isDev = process.env.NODE_ENV === "development";
+    const envLimit = Number(process.env.PRISMA_CONNECTION_LIMIT ?? "");
     const limitRaw = url.searchParams.get("connection_limit");
     const limit = limitRaw ? Number(limitRaw) : NaN;
-    // Vercel 등 프로덕션: 인스턴스당 1연결. 로컬 dev는 패널 API가 동시에 여러 개 떠서 1이면 ~10초 대기.
+    const minProd = Number.isFinite(envLimit) && envLimit > 0 ? Math.floor(envLimit) : 8;
+    // Promise.all로 동시 쿼리가 많음 — limit=1이면 pool timeout(10s) 빈번. dev는 10, prod는 최소 8.
     if (isDev) {
-      if (!Number.isFinite(limit) || limit <= 1) {
+      if (!Number.isFinite(limit) || limit < 5) {
         url.searchParams.set("connection_limit", "10");
       }
-    } else if (!url.searchParams.has("connection_limit")) {
-      url.searchParams.set("connection_limit", "1");
+    } else if (!Number.isFinite(limit) || limit < minProd) {
+      url.searchParams.set("connection_limit", String(minProd));
+    }
+    if (!url.searchParams.has("pool_timeout")) {
+      url.searchParams.set("pool_timeout", "30");
     }
     return url.toString();
   }

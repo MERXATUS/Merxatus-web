@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     const auth = requireUserId(req, parsed.data.userId ?? null);
     if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
-    void ensureMinionEntitiesForUser(auth.userId).catch((e) => {
+    await ensureMinionEntitiesForUser(auth.userId).catch((e) => {
       console.warn("[api/minions/list] ensureMinionEntitiesForUser", e);
     });
 

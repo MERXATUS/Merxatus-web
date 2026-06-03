@@ -6,7 +6,8 @@
 
 | 변수 | 필수 | 설명 |
 |------|------|------|
-| `DATABASE_URL` | ✅ | Supabase `:6543?pgbouncer=true&connection_limit=1` (앱 런타임) |
+| `DATABASE_URL` | ✅ | Supabase Transaction pooler `:6543?pgbouncer=true` (앱이 `connection_limit`·`pool_timeout` 자동 보정, 또는 `connection_limit=8&pool_timeout=30` 명시) |
+| `PRISMA_CONNECTION_LIMIT` | 선택 | 풀 상한 오버라이드 (기본 8) |
 | `DIRECT_URL` | ✅ (마이그레이션) | Supabase **Direct** `:5432` — `migrate deploy` 전용 |
 | `SESSION_SECRET` | ✅ | 32자+ 랜덤 (ADMIN_TOKEN과 **다르게**) |
 | `ADMIN_TOKEN` | ✅ | `/admin`·수동 봇 틱 |
