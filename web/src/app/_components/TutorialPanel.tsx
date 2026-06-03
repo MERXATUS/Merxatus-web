@@ -2,16 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { GameBtn, GamePanel } from "@/app/_components/gameUi";
-import {
-  SPECIALIST_LABEL,
-  type SpecialistProfessionSlug,
-} from "@/shared/specialistProfession";
+import { GameBtn } from "@/app/_components/gameUi";
 import { TUTORIAL_STEPS, type TutorialStepDef } from "@/shared/tutorial";
 
 type TutorialMinionGrant = {
   granted: boolean;
-  jobType: string;
   message: string;
 };
 
@@ -32,38 +27,23 @@ async function getJson<T>(url: string): Promise<T> {
   return json;
 }
 
-async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-    credentials: "same-origin",
-  });
-  const json = (await res.json().catch(() => ({}))) as T;
-  if (!res.ok) throw json;
-  return json;
-}
-
 function actionButtonLabel(current: TutorialStepDef): string {
-  if (current.id === "choose_specialist") return "아래에서 직업 선택";
   if (!current.action) return "진행";
   if (current.action.kind === "route") {
-    return current.id === "list_on_market" ? "거래소 판매 탭" : "거래소로 이동";
+    return current.id === "list_on_market" ? "판매 탭" : "거래소";
   }
-  return current.action.panel === "specialist" ? "전문 작업장 열기" : "수집 화면 열기";
+  return "던전";
 }
 
 type TutorialPanelProps = {
   loggedIn: boolean;
-  onOpenGather: () => void;
-  onOpenSpecialist?: () => void;
-  onSpecialistChosen?: () => void;
+  compact?: boolean;
+  onOpenDungeon?: () => void;
 };
 
 export function TutorialPanel(props: TutorialPanelProps) {
   const router = useRouter();
   const [state, setState] = useState<TutorialStateResp | null>(null);
-  const [pickBusy, setPickBusy] = useState<string | null>(null);
   const [grantBanner, setGrantBanner] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -78,14 +58,10 @@ export function TutorialPanel(props: TutorialPanelProps) {
       const grants = r.minionGrants ?? [];
       const granted = grants.filter((g) => g.granted);
       if (granted.length > 0) {
-        setGrantBanner(granted.map((g) => g.message).join(" "));
-        window.dispatchEvent(new Event("auth_session_changed"));
-      } else {
-        setGrantBanner(null);
+        setGrantBanner(granted.map((g) => g.message).filter(Boolean).join(" "));
       }
     } catch {
       setState(null);
-      setGrantBanner(null);
     }
   }, [props.loggedIn]);
 
@@ -107,94 +83,34 @@ export function TutorialPanel(props: TutorialPanelProps) {
   async function goCurrent() {
     if (!current?.action) return;
     if (current.action.kind === "panel") {
-      if (current.action.panel === "specialist") props.onOpenSpecialist?.();
-      else props.onOpenGather();
+      props.onOpenDungeon?.();
     } else if (current.action.kind === "route") {
       router.push(current.action.path);
     }
   }
 
-  async function pickSpecialist(profession: SpecialistProfessionSlug) {
-    setPickBusy(profession);
-    try {
-      const r = await postJson<{
-        ok: boolean;
-        workshopsInstalled?: string[];
-        workshopsSkipped?: string[];
-      }>("/api/user/specialist", { profession });
-      let workshopMsg: string | null = null;
-      if (r?.workshopsInstalled?.length) {
-        workshopMsg = `${SPECIALIST_LABEL[profession]} 전문 작업장이 열렸어요: ${r.workshopsInstalled.join(", ")}`;
-      } else if (r?.workshopsSkipped?.length) {
-        workshopMsg =
-          "전문 직업은 선택됐지만 일부 작업장 데이터가 아직 없어요. 관리자 시드 후 새로고침 해 주세요.";
-      }
-      props.onSpecialistChosen?.();
-      await load();
-      if (workshopMsg) setGrantBanner(workshopMsg);
-      window.dispatchEvent(new Event("tutorial_refresh"));
-      window.dispatchEvent(new Event("auth_session_changed"));
-    } finally {
-      setPickBusy(null);
-    }
-  }
-
   return (
-    <GamePanel className="tutorial-panel">
-      <div className="tutorial-panel__head">
-        <div>
-          <p className="game-label">튜토리얼</p>
-          <h2 className="tutorial-panel__title">장인·상인 시작하기</h2>
-        </div>
-        <span className="tutorial-panel__pct">
-          {stepIndex + 1}/{TUTORIAL_STEPS.length} · {state.progressPercent}%
-        </span>
+    <div className="tutorial-strip">
+      <span className="tutorial-strip__pct">
+        {stepIndex + 1}/{TUTORIAL_STEPS.length}
+        {!props.compact ? ` · ${state.progressPercent}%` : ""}
+      </span>
+      <div className="tutorial-strip__body min-w-0">
+        <span className="tutorial-strip__title">{current?.title ?? "튜토리얼"}</span>
+        {current?.hint ? <span className="tutorial-strip__hint">{current.hint}</span> : null}
+        {grantBanner ? <span className="tutorial-strip__grant">{grantBanner}</span> : null}
       </div>
-
-      <ol className="tutorial-panel__list">
-        {TUTORIAL_STEPS.map((s, i) => {
-          const done = i < stepIndex;
-          const active = i === stepIndex;
-          return (
-            <li
-              key={s.id}
-              className={`tutorial-panel__item ${done ? "tutorial-panel__item--done" : ""} ${active ? "tutorial-panel__item--active" : ""}`}
-            >
-              <span className="tutorial-panel__bullet">{done ? "✓" : i + 1}</span>
-              <span className="tutorial-panel__item-title">{s.title}</span>
-            </li>
-          );
-        })}
-      </ol>
-
-      {grantBanner ? <p className="tutorial-panel__grant">{grantBanner}</p> : null}
-
-      {current ? (
-        <div className="tutorial-panel__current">
-          <p className="tutorial-panel__hint">{current.hint}</p>
-          {current.id === "choose_specialist" ? (
-            <div className="tutorial-panel__specialist-pick">
-              {(["BLACKSMITH", "ALCHEMIST", "JEWELER"] as const).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className="tutorial-panel__specialist-btn"
-                  disabled={!!pickBusy}
-                  onClick={() => void pickSpecialist(p)}
-                >
-                  {pickBusy === p ? "…" : SPECIALIST_LABEL[p]}
-                </button>
-              ))}
-            </div>
-          ) : current.action ? (
-            <GameBtn onClick={() => void goCurrent()}>{actionButtonLabel(current)}</GameBtn>
-          ) : null}
-        </div>
+      {current?.action ? (
+        <GameBtn className="tutorial-strip__btn h-7 px-2.5 text-[11px]" onClick={() => void goCurrent()}>
+          {actionButtonLabel(current)}
+        </GameBtn>
       ) : null}
-    </GamePanel>
+    </div>
   );
 }
 
 export function notifyTutorialRefresh() {
-  window.dispatchEvent(new Event("tutorial_refresh"));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("tutorial_refresh"));
+  }
 }

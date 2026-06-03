@@ -1,0 +1,9 @@
+StageOrder,StageName,DungeonId,MaxFloors,Grade,GradeLabel,SetId,EquipFromLv,FullSetTargetLv,FirstPieceFloor,FullSetFloorRange,BossFloor,DropMode,PreviewSet,Notes
+1,슬라임의 숲,dungeon_slime_forest,10,1,일반,leather,1,18~20,1,7~9,10,direct,crimson,1층부터 가죽 세트·후반 크림슨 맛보기
+2,고블린 굴,dungeon_goblin_den,14,2,레어,crimson,20,38~42,1,10~13,14,direct,iron,
+3,늑대들의 계곡,dungeon_wolf_ravine,16,3,유니크,iron,40,62~65,1,12~15,16,direct,golden,
+4,망자의 무덤,dungeon_crypt_of_dead,18,4,영웅,golden,65,88~92,1,14~17,18,direct,,영웅 전용 세트 추가 전 금 세트
+5,화염 협곡,dungeon_scorch_rift,20,5,전설,golden,90,125~135,1,16~19,20,direct,,
+6,얼음 요새,dungeon_frost_citadel,22,5,전설,golden,90,125~135,1,18~21,22,direct,,
+7,용의 둥지,dungeon_dragon_roost,24,6,신화,golden,140,180~190,1,20~23,24,direct,,유니크 위주·전설 세트 임시
+8,심연의 균열,dungeon_void_rift,26,6,신화,golden,140,180~190,1,22~25,26,direct,,레이드 파편은 재료 드랍표 유지

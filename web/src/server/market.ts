@@ -3,7 +3,7 @@ import { GAME_RULES } from "@/server/gameRules";
 
 type MarketDb = Pick<typeof prisma, "user">;
 
-async function feeBpsForSeller(userId: string, db: MarketDb = prisma) {
+export async function feeBpsForSeller(userId: string, db: MarketDb = prisma) {
   // 명예 점수로 경매장 수수료 감면
   //  - 50k: 1%p 감면, 150k: 3%p 감면, 300k: 5%p 감면
   //  - 최저 수수료: 1% (100bps)
@@ -52,6 +52,24 @@ export function activeListingVisibilityWhere(now: Date = new Date()) {
       { endsAt: null, createdAt: { gt: legacyCutoff } },
     ],
   };
+}
+
+/** 판매자가 정산(낙찰금 수령)해야 하는 경매 매물 — 만료·낙찰됐지만 ACTIVE */
+export function sellerAuctionPendingSettlementWhere(userId: string, now: Date = new Date()) {
+  const stale = staleActiveListingWhere(now);
+  return {
+    sellerId: userId,
+    status: stale.status,
+    saleType: "AUCTION" as const,
+    highestBid: { not: null },
+    highestBidderId: { not: null },
+    OR: stale.OR,
+  };
+}
+
+export async function estimateSellerNetGold(userId: string, grossGold: number, db: MarketDb = prisma) {
+  const feeBps = await feeBpsForSeller(userId, db);
+  return feeSplit(grossGold, feeBps).netGold;
 }
 
 /** 만료됐지만 status=ACTIVE 로 남은 매물 */

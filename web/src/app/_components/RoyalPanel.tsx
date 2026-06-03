@@ -6,6 +6,8 @@ import { GameBtn, GamePanel, GamePanelTitle } from "@/app/_components/gameUi";
 import { GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
+import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
+import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import { itemGradeLabel, itemGradeNameClassName } from "@/server/itemGrade";
 
 async function getJson<T>(url: string): Promise<T> {
@@ -188,7 +190,7 @@ function RoyalItemRow({ row, gold, locked, busy, qty, onQtyChange, onTrade }: Ro
   );
 }
 
-export function RoyalPanel() {
+export function RoyalPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const { user, loading: sessionLoading } = useSessionUser();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -219,6 +221,13 @@ export function RoyalPanel() {
     void refresh();
   }, [refresh, sessionLoading]);
 
+  useEffect(() => {
+    if (!embedded) return;
+    const onFrameRefresh = () => void refresh();
+    window.addEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
+    return () => window.removeEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
+  }, [embedded, refresh]);
+
   const honorSubtitle = useMemo(() => {
     const honor = royal?.honorPoints?.toLocaleString?.() ?? "—";
     const title = royal?.honorTitle ? ` · ${royal.honorTitle}` : "";
@@ -246,41 +255,45 @@ export function RoyalPanel() {
   const items = royal?.items ?? [];
 
   return (
-    <GamePanel className="royal-panel">
-      <header className="royal-header">
-        <div className="royal-header__main">
-          <GamePanelTitle hint="재료 매입·매각 · 거래 시 명예">황실</GamePanelTitle>
-          <p className="royal-header__sub">{honorSubtitle}</p>
-        </div>
-        <div className="royal-header__stats">
-          <div className="royal-stat">
-            <span className="royal-stat__label">보유 골드</span>
-            <span className="royal-stat__val">{fmtGold(royal?.goldAvailable ?? 0)}G</span>
+    <GamePanel className={`royal-panel ${embedded ? "royal-panel--fit panel-fit" : ""}`}>
+      {!embedded ? (
+        <header className="royal-header">
+          <div className="royal-header__main">
+            <GamePanelTitle hint="재료 매입·매각 · 거래 시 명예">황실</GamePanelTitle>
+            <p className="royal-header__sub">{honorSubtitle}</p>
           </div>
-          <GameBtn variant="ghost" disabled={busy} onClick={() => void refresh()}>
-            {busy ? "…" : "새로고침"}
-          </GameBtn>
-        </div>
-      </header>
+          <div className="royal-header__stats">
+            <div className="royal-stat">
+              <span className="royal-stat__label">보유 골드</span>
+              <span className="royal-stat__val">{fmtGold(royal?.goldAvailable ?? 0)}G</span>
+            </div>
+            <GameBtn variant="ghost" disabled={busy} onClick={() => void refresh()}>
+              {busy ? "…" : "새로고침"}
+            </GameBtn>
+          </div>
+        </header>
+      ) : (
+        <p className="royal-header__sub mb-1 text-[10px]">{honorSubtitle}</p>
+      )}
 
       {error ? <div className="royal-alert royal-alert--error">오류: {formatErr(error)}</div> : null}
 
-      {sessionLoading ? <GamePanelLoading label="세션 확인 중…" /> : null}
+      {!embedded && sessionLoading ? <GamePanelLoading label="세션 확인 중…" /> : null}
 
-      {!sessionLoading && !user ? (
+      {!embedded && !sessionLoading && !user ? (
         <GamePanelInfo>로그인이 필요합니다. 화면 오른쪽 위에서 Google 로그인을 진행해 주세요.</GamePanelInfo>
       ) : null}
 
-      {!sessionLoading && user && royal?.locked ? (
+      {(embedded || !sessionLoading) && user && royal?.locked ? (
         <div className="royal-alert royal-alert--warn">악명이 높아 황실 거래(구매·판매)가 잠겨 있어요.</div>
       ) : null}
 
-      {!sessionLoading && user && items.length === 0 ? (
+      {(embedded || !sessionLoading) && user && items.length === 0 ? (
         <p className="royal-empty">황실 가격표가 비어 있어요. 시드 또는 관리자 apply를 실행하세요.</p>
       ) : null}
 
-      {!sessionLoading && user && items.length > 0 ? (
-        <div className="royal-list">
+      {(embedded || !sessionLoading) && user && items.length > 0 ? (
+        <div className={embedded ? "panel-scroll-region royal-list" : "royal-list"}>
           <div className="royal-list__head" aria-hidden>
             <span>아이템</span>
             <span>판매가</span>

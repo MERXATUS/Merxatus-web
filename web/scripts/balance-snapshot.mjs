@@ -115,9 +115,9 @@ function laborScore(minions, matching) {
   return (minions + matching * w.matchingBonusPerMinion) * syn;
 }
 
-/** 틱당 드랍 기대값 (가중치 롤, laborScore 반영) */
+/** 틱당 드랍 기대값 (가중치 롤, laborScore 반영) — Tier = 해당 시설 티어 전용 테이블 */
 function expectedDropsPerTick(drops, tier, labor) {
-  const pool = drops.filter((d) => (d.minTier ?? 1) <= tier);
+  const pool = drops.filter((d) => (d.minTier ?? 1) === tier);
   const totalW = pool.reduce((a, d) => a + d.weight, 0);
   if (totalW <= 0) return {};
   const out = {};
@@ -276,7 +276,7 @@ async function main() {
   const issues = [
     "item_enhance_scroll_*: +6~ 강화 필수, 드랍/획득처 CSV 미정",
     "item_slime_king_sig: 보스 드랍, items.json 미등록",
-    "item_minor_mana_stone: 던전 드랍, 소비처 없음",
+    "item_lesser_mana_stone: 던전 드랍 · 하급 강화 주문서 재료",
     "미니언 레벨업 시스템 제거 → Lv1 고정",
     "궁수/마법사 무기·레시피 없음 → 전사만 유효",
     "10인 풀파티 전제 vs 설계(1/3/5인) 불일치",

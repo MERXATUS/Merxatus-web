@@ -1,0 +1,266 @@
+[
+  {
+    "id": "raid_boss_slime_king",
+    "name": "슬라임킹",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "encounters": [
+      {
+        "monsterId": "slime_king",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 7000,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_enhance_scroll_low",
+        "weight": 3000,
+        "minQty": 1,
+        "maxQty": 2
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_goblin_chieftain",
+    "name": "고블린 우두머리",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "encounters": [
+      {
+        "monsterId": "goblin_chieftain",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 6500,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "item_enhance_scroll_mid",
+        "weight": 3500,
+        "minQty": 1,
+        "maxQty": 2
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_wolf_alpha",
+    "name": "늑대 왕",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "encounters": [
+      {
+        "monsterId": "wolf_alpha",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 5500,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "item_enhance_scroll_mid",
+        "weight": 4500,
+        "minQty": 1,
+        "maxQty": 2
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_skeleton_lord",
+    "name": "망자의 군주",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "encounters": [
+      {
+        "monsterId": "skeleton_lord",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 6500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_enhance_scroll_mid",
+        "weight": 3500,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_flame_tyrant",
+    "name": "화염 폭군",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "encounters": [
+      {
+        "monsterId": "flame_tyrant",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 5500,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "item_enhance_scroll_high",
+        "weight": 4500,
+        "minQty": 1,
+        "maxQty": 2
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_frost_titan",
+    "name": "서리 거인",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "encounters": [
+      {
+        "monsterId": "frost_titan",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 5500,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "item_enhance_scroll_high",
+        "weight": 4500,
+        "minQty": 1,
+        "maxQty": 2
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_elder_dragon",
+    "name": "고룡",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "encounters": [
+      {
+        "monsterId": "elder_dragon",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 5000,
+        "minQty": 3,
+        "maxQty": 4
+      },
+      {
+        "itemId": "item_enhance_scroll_high",
+        "weight": 5000,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_void_harbinger",
+    "name": "심연 사자",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "encounters": [
+      {
+        "monsterId": "void_harbinger",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 4500,
+        "minQty": 3,
+        "maxQty": 5
+      },
+      {
+        "itemId": "item_raid_shard",
+        "weight": 3500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_enhance_scroll_high",
+        "weight": 2000,
+        "minQty": 1,
+        "maxQty": 2
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_void_overlord",
+    "name": "공허 거상",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "encounters": [
+      {
+        "monsterId": "void_overlord",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_raid_shard",
+        "weight": 10000,
+        "minQty": 3,
+        "maxQty": 5
+      },
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 6000,
+        "minQty": 3,
+        "maxQty": 5
+      },
+      {
+        "itemId": "item_enhance_scroll_high",
+        "weight": 4000,
+        "minQty": 2,
+        "maxQty": 4
+      }
+    ],
+    "phaseDrops": []
+  }
+]

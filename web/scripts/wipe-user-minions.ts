@@ -21,12 +21,8 @@ void (async () => {
     await tx.minion.deleteMany({ where: { userId: user.id } });
     await tx.minionInventory.upsert({
       where: { userId: user.id },
-      create: { userId: user.id, owned: 0 },
-      update: { owned: 0 },
-    });
-    await tx.workshopInstance.updateMany({
-      where: { userId: user.id },
-      data: { minionCount: 0 },
+      create: { userId: user.id, owned: 0, dungeonOwned: 0 },
+      update: { owned: 0, dungeonOwned: 0 },
     });
   });
 

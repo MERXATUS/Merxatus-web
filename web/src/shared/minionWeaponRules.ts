@@ -1,3 +1,5 @@
+import type { MinionCombatClass } from "@/shared/minionDerivedClass";
+
 /** 무기 베이스 아이템 id 패턴으로 구분 (검 / 활 / 지팡이) */
 export type WeaponArchetype = "SWORD" | "BOW" | "STAFF";
 
@@ -28,6 +30,8 @@ export function allowedArchetypesForJob(jobType: string): WeaponArchetype[] | nu
   switch (jobType) {
     case "UNASSIGNED":
       return [];
+    case "ADVENTURER":
+      return ["SWORD"];
     case "WARRIOR":
     case "MINER":
     case "FISHER":
@@ -56,4 +60,32 @@ export function canMinionEquipWeapon(jobType: string, baseItemId: string): boole
   const allowed = allowedArchetypesForJob(jobType);
   if (allowed == null) return false;
   return allowed.includes(arch);
+}
+
+/** 전투 클래스 기준 착용 가능 무기 (던전 미니언) */
+export function allowedArchetypesForCombatClass(combatClass: MinionCombatClass): WeaponArchetype[] {
+  switch (combatClass) {
+    case "ADVENTURER":
+      return ["SWORD", "BOW", "STAFF"];
+    case "SWORDSMAN":
+    case "WARRIOR":
+    case "WIND_BLADE":
+    case "MAGIC_BLADE":
+    case "SHIELD_BLADE":
+      return ["SWORD"];
+    default:
+      return [];
+  }
+}
+
+export function allowedWeaponKindsLabelForCombatClass(combatClass: MinionCombatClass): string {
+  const a = allowedArchetypesForCombatClass(combatClass);
+  if (a.length === 0) return "착용 불가";
+  return a.map((x) => ARCHETYPE_LABEL[x]).join(" · ");
+}
+
+export function canMinionEquipWeaponForClass(combatClass: MinionCombatClass, baseItemId: string): boolean {
+  const arch = weaponArchetypeFromBaseItemId(baseItemId);
+  if (arch == null) return false;
+  return allowedArchetypesForCombatClass(combatClass).includes(arch);
 }

@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Merxatus",
-  description: "경제 시뮬레이션 — 수집, 거래, 황실과 암시장",
+  description: "경제 시뮬레이션 — 던전·무탑·레이드, 거래, 황실과 암시장",
 };
 
 export default function RootLayout({

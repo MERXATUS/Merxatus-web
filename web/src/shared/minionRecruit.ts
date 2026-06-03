@@ -24,7 +24,15 @@ export type MinionHatchResult = {
   minion: {
     id: string;
     level: number;
-    jobType: string;
+    pool: string;
+    baseStats: {
+      strength: number;
+      agility: number;
+      intelligence: number;
+      endurance: number;
+    };
+    combatClass: string;
+    combatClassLabel: string;
   };
   recruit: {
     itemId: string;
@@ -40,7 +48,8 @@ export const MINION_RECRUITED_EVENT = "minion_recruited";
 
 export type MinionRecruitedDetail = {
   minionId: string;
-  jobType: string;
+  pool?: string;
+  combatClass?: string;
 };
 
 export function dispatchMinionRecruited(detail: MinionRecruitedDetail) {

@@ -2,8 +2,8 @@
   "slime": {
     "name": "슬라임",
     "grade": 1,
-    "hp": 5,
-    "atk": 1,
+    "hp": 70,
+    "atk": 5,
     "magic": 0,
     "as": 1,
     "def": 0
@@ -11,28 +11,145 @@
   "goblin": {
     "name": "고블린",
     "grade": 1,
-    "hp": 8,
-    "atk": 2,
+    "hp": 90,
+    "atk": 7,
     "magic": 0,
     "as": 1,
-    "def": 0
+    "def": 1
+  },
+  "wolf": {
+    "name": "사나운 늑대",
+    "grade": 2,
+    "hp": 110,
+    "atk": 9,
+    "magic": 0,
+    "as": 1,
+    "def": 2
+  },
+  "skeleton": {
+    "name": "스켈레톤",
+    "grade": 2,
+    "hp": 130,
+    "atk": 11,
+    "magic": 0,
+    "as": 1,
+    "def": 3
+  },
+  "fire_salamander": {
+    "name": "화염 도롱뇽",
+    "grade": 3,
+    "hp": 150,
+    "atk": 10,
+    "magic": 8,
+    "as": 1,
+    "def": 2
+  },
+  "ice_wisp": {
+    "name": "얼음 정령",
+    "grade": 3,
+    "hp": 170,
+    "atk": 9,
+    "magic": 10,
+    "as": 1,
+    "def": 3
+  },
+  "dragon_whelp": {
+    "name": "어린 용",
+    "grade": 4,
+    "hp": 200,
+    "atk": 14,
+    "magic": 4,
+    "as": 1,
+    "def": 4
+  },
+  "void_spawn": {
+    "name": "공허 원생",
+    "grade": 4,
+    "hp": 230,
+    "atk": 16,
+    "magic": 8,
+    "as": 1,
+    "def": 3
   },
   "slime_king": {
     "name": "슬라임킹",
     "grade": 2,
-    "hp": 50,
-    "atk": 3,
-    "magic": 3,
+    "hp": 220,
+    "atk": 10,
+    "magic": 4,
     "as": 1,
-    "def": 0
+    "def": 2
   },
   "goblin_chieftain": {
     "name": "고블린 우두머리",
     "grade": 3,
-    "hp": 100,
-    "atk": 10,
+    "hp": 280,
+    "atk": 14,
     "magic": 0,
     "as": 1,
     "def": 10
+  },
+  "wolf_alpha": {
+    "name": "늑대 왕",
+    "grade": 3,
+    "hp": 340,
+    "atk": 16,
+    "magic": 0,
+    "as": 1,
+    "def": 8
+  },
+  "skeleton_lord": {
+    "name": "망자의 군주",
+    "grade": 4,
+    "hp": 400,
+    "atk": 18,
+    "magic": 6,
+    "as": 1,
+    "def": 14
+  },
+  "flame_tyrant": {
+    "name": "화염 폭군",
+    "grade": 4,
+    "hp": 480,
+    "atk": 16,
+    "magic": 18,
+    "as": 1,
+    "def": 12
+  },
+  "frost_titan": {
+    "name": "서리 거인",
+    "grade": 5,
+    "hp": 550,
+    "atk": 14,
+    "magic": 22,
+    "as": 1,
+    "def": 18
+  },
+  "elder_dragon": {
+    "name": "고룡",
+    "grade": 5,
+    "hp": 650,
+    "atk": 22,
+    "magic": 10,
+    "as": 1,
+    "def": 14
+  },
+  "void_harbinger": {
+    "name": "심연 사자",
+    "grade": 5,
+    "hp": 750,
+    "atk": 20,
+    "magic": 16,
+    "as": 1,
+    "def": 16
+  },
+  "void_overlord": {
+    "name": "공허 거상",
+    "grade": 6,
+    "hp": 900,
+    "atk": 24,
+    "magic": 18,
+    "as": 1,
+    "def": 22
   }
 }

@@ -168,46 +168,6 @@ async function syncArmorStatsFromCsv() {
   console.log(`OK: armor_stats.json (${Object.keys(armorStats).length} rows)`);
 }
 
-async function syncToolStatsFromCsv() {
-  const rows = parseCsv(await readFile(tpl("tools.csv"), "utf8"));
-  const toolStats = {};
-  const mineTools = [];
-  const fishTools = [];
-  for (const r of rows) {
-    const id = normalizeId(r.ToolID ?? r.ToolId ?? r.toolId);
-    if (!id.startsWith("tool_")) continue;
-    toolStats[id] = {
-      name: r.Name ?? r.name ?? id,
-      grade: Math.max(1, Math.floor(parseNum(r.Grade ?? r.grade, 1))),
-      gatheringSpeed: parseNum(r.Gathering_Speed ?? r.gatheringSpeed, 0),
-      yieldAmount: parseNum(r.Yield_Amount ?? r.yieldAmount, 0),
-      luck: parseNum(r.Luck ?? r.luck, 0),
-      icon: String(r.Icon ?? r.icon ?? "").trim().replace(/\.png$/i, "") || undefined,
-    };
-    if (id.includes("pickaxe")) mineTools.push(id);
-    else if (id.includes("rod")) fishTools.push(id);
-  }
-
-  await writeFile(data("tool_stats.json"), JSON.stringify(toolStats, null, 2) + "\n", "utf8");
-
-  const gameRulesPath = path.join(process.cwd(), "src", "server", "gameRules.ts");
-  let src = await readFile(gameRulesPath, "utf8");
-  const mineBlock = mineTools.map((id) => `"${id}"`).join(", ");
-  const fishBlock = fishTools.map((id) => `"${id}"`).join(", ");
-  const re = /allowedToolItemIdsByWorkshopName:\s*\{[\s\S]*?\}\s*as const,/;
-  if (re.test(src)) {
-    src = src.replace(
-      re,
-      `allowedToolItemIdsByWorkshopName: {
-        광산: [${mineBlock}],
-        낚시터: [${fishBlock}],
-      } as const,`,
-    );
-    await writeFile(gameRulesPath, src, "utf8");
-  }
-  console.log(`OK: tool_stats.json (${Object.keys(toolStats).length} tools)`);
-}
-
 async function syncPotionEffectsFromCsv() {
   const rows = parseCsv(await readFile(tpl("potion.csv"), "utf8"));
   const potions = {};
@@ -225,8 +185,8 @@ async function syncPotionEffectsFromCsv() {
   console.log(`OK: potion_effects.json (${Object.keys(potions).length} rows)`);
 }
 
-async function syncWeaponOptionTiersFromCsv() {
-  const rows = parseCsv(await readFile(tpl("weapon_option.csv"), "utf8"));
+async function syncOptionTiersFromCsv(csvName, outJsonName) {
+  const rows = parseCsv(await readFile(tpl(csvName), "utf8"));
   const options = {};
   for (const r of rows) {
     const id = String(r.OptionId ?? r.optionId ?? "").trim();
@@ -240,8 +200,16 @@ async function syncWeaponOptionTiersFromCsv() {
       tiers,
     };
   }
-  await writeFile(data("weapon_option_tiers.json"), JSON.stringify(options, null, 2) + "\n", "utf8");
-  console.log(`OK: weapon_option_tiers.json (${Object.keys(options).length} options)`);
+  await writeFile(data(outJsonName), JSON.stringify(options, null, 2) + "\n", "utf8");
+  console.log(`OK: ${outJsonName} (${Object.keys(options).length} options)`);
+}
+
+async function syncWeaponOptionTiersFromCsv() {
+  await syncOptionTiersFromCsv("weapon_option.csv", "weapon_option_tiers.json");
+}
+
+async function syncArmorOptionTiersFromCsv() {
+  await syncOptionTiersFromCsv("armor_option.csv", "armor_option_tiers.json");
 }
 
 async function syncMonstersFromCsv() {
@@ -270,6 +238,29 @@ async function syncMonstersFromCsv() {
   }
   await writeFile(data("monsters.json"), JSON.stringify(monsters, null, 2) + "\n", "utf8");
   console.log(`OK: monsters.json (${Object.keys(monsters).length} rows)`);
+}
+
+async function syncBoxOpensFromCsv() {
+  const rows = parseCsv(await readFile(tpl("box_opens.csv"), "utf8"));
+  const bundle = {};
+  for (const r of rows) {
+    const boxItemId = normalizeId(r.BoxItemId ?? r.boxItemId);
+    const outputItemId = normalizeId(r.OutputItemId ?? r.outputItemId);
+    if (!boxItemId.startsWith("item_box_") || !outputItemId.startsWith("item_")) continue;
+    if (!bundle[boxItemId]) bundle[boxItemId] = [];
+    bundle[boxItemId].push({
+      itemId: outputItemId,
+      weight: Math.max(0, Math.floor(parseNum(r.Weight ?? r.weight, 0))),
+      minQty: Math.max(1, Math.floor(parseNum(r.Min_Qty ?? r.minQty, 1))),
+      maxQty: Math.max(1, Math.floor(parseNum(r.Max_Qty ?? r.maxQty, 1))),
+    });
+  }
+  const ids = Object.keys(bundle);
+  for (const id of ids) {
+    if (bundle[id].length === 0) throw new Error(`box_opens.csv: empty table for ${id}`);
+  }
+  await writeFile(data("box_opens.json"), JSON.stringify(bundle, null, 2) + "\n", "utf8");
+  console.log(`OK: box_opens.json (${ids.length} boxes)`);
 }
 
 async function syncRoyalPrices() {
@@ -319,8 +310,6 @@ async function main() {
     tpl("weapons.csv"),
     "--armor",
     tpl("armor.csv"),
-    "--tools",
-    tpl("tools.csv"),
     "--drops",
     tpl("workshop_drops.csv"),
     "--recipes",
@@ -329,13 +318,16 @@ async function main() {
 
   await runNode("scripts/apply-dungeons-from-csv.mjs", []);
 
+  await runNode("scripts/apply-raids-tower-from-csv.mjs", []);
+
   await syncWeaponEnhanceLevelsFromCsv();
   await syncWeaponPowerFromCsv();
   await syncArmorStatsFromCsv();
-  await syncToolStatsFromCsv();
   await syncPotionEffectsFromCsv();
   await syncWeaponOptionTiersFromCsv();
+  await syncArmorOptionTiersFromCsv();
   await syncMonstersFromCsv();
+  await syncBoxOpensFromCsv();
   await syncRoyalPrices().catch((e) => console.warn("WARN: royal DB sync:", e.message));
 
   try {

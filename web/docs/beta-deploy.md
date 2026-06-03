@@ -6,7 +6,8 @@
 
 | 변수 | 필수 | 설명 |
 |------|------|------|
-| `DATABASE_URL` | ✅ | Supabase `:6543?pgbouncer=true&connection_limit=1` |
+| `DATABASE_URL` | ✅ | Supabase `:6543?pgbouncer=true&connection_limit=1` (앱 런타임) |
+| `DIRECT_URL` | ✅ (마이그레이션) | Supabase **Direct** `:5432` — `migrate deploy` 전용 |
 | `SESSION_SECRET` | ✅ | 32자+ 랜덤 (ADMIN_TOKEN과 **다르게**) |
 | `ADMIN_TOKEN` | ✅ | `/admin`·수동 봇 틱 |
 | `CRON_SECRET` | ✅ | Vercel Cron → `/api/bots/tick` Bearer 인증 |
@@ -18,10 +19,17 @@
 
 ## 2. DB 마이그레이션
 
+Supabase **Transaction pooler(6543)** 로는 `migrate deploy` / `db push`가 실패합니다.  
+`.env`에 **Direct connection(5432)** `DIRECT_URL`을 추가한 뒤:
+
 ```bash
 cd web
-npx prisma migrate deploy
+npm run db:migrate
+# 또는: npx prisma migrate deploy
 ```
+
+`DIRECT_URL` 설정이 어렵다면 Supabase **SQL Editor**에서  
+`prisma/migrations/20260531130100_raid_tower_leaderboard/migration.sql` 내용을 실행해도 됩니다.
 
 초기 데이터:
 

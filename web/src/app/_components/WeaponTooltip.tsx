@@ -2,6 +2,7 @@
 
 import { ItemTooltipHover } from "@/app/_components/ItemTooltipHover";
 import {
+  weaponBaseAtkMagic,
   weaponBasePower,
   weaponDisplayName,
   weaponEnhancePowerBonus,
@@ -15,13 +16,12 @@ import type { ReactNode } from "react";
 
 export function WeaponTooltipContent({ weapon }: { weapon: WeaponTooltipData }) {
   const grade = weaponGradeIndex(weapon);
+  const baseAtkMagic = weaponBaseAtkMagic(weapon.baseItemId);
   const base = weaponBasePower(weapon.baseItemId);
   const enhance = weaponEnhancePowerBonus(weapon.enhanceLevel);
   const optBonus = weaponOptionPowerBonus(weapon.options);
   const total = weaponTotalPower(weapon);
-  const weaponOpts = (weapon.options ?? []).filter((o) =>
-    ["ATTACK", "MAGIC_POWER", "ATTACK_SPEED", "CRITICAL"].includes(o.kind),
-  );
+  const weaponOpts = weapon.options ?? [];
 
   return (
     <div className={`item-tooltip item-tooltip--grade-${grade}`}>
@@ -29,6 +29,22 @@ export function WeaponTooltipContent({ weapon }: { weapon: WeaponTooltipData }) 
       <div className="item-tooltip__category">무기 · {weaponGradeLabel(weapon)}</div>
 
       <div className="item-tooltip__divider" />
+
+      {baseAtkMagic ? (
+        <>
+          <div className="item-tooltip__stat-row">
+            <span>물리 ATK</span>
+            <span className="item-tooltip__stat-val">{baseAtkMagic.atk}</span>
+          </div>
+          {baseAtkMagic.magic > 0 ? (
+            <div className="item-tooltip__stat-row">
+              <span>마법 ATK</span>
+              <span className="item-tooltip__stat-val">{baseAtkMagic.magic}</span>
+            </div>
+          ) : null}
+          <div className="item-tooltip__divider" />
+        </>
+      ) : null}
 
       <div className="item-tooltip__stat-row">
         <span>전투력</span>

@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
-import { weaponUpgradeCostForNextLevel } from "@/server/weaponUpgradeRules";
-import { GAME_RULES } from "@/server/gameRules";
+import { attemptWeaponInstanceUpgrade } from "@/server/weaponInstanceUpgrade";
 
 export const runtime = "nodejs";
 
@@ -27,57 +26,15 @@ export async function POST(req: Request) {
       if (minion.userId !== auth.userId) throw new Error("FORBIDDEN");
       if (!minion.equippedWeaponInstanceId) throw new Error("NO_WEAPON_EQUIPPED");
 
-      const inst = await tx.weaponInstance.findUnique({
-        where: { id: minion.equippedWeaponInstanceId },
-        include: { baseItem: true },
+      const out = await attemptWeaponInstanceUpgrade(tx, {
+        userId: auth.userId,
+        weaponInstanceId: minion.equippedWeaponInstanceId,
       });
-      if (!inst) throw new Error("WEAPON_INSTANCE_NOT_FOUND");
-      if (inst.userId !== auth.userId) throw new Error("FORBIDDEN");
-      if (inst.baseItem.category !== "무기") throw new Error("INVALID_EQUIPPED_WEAPON");
-
-      const cur = Math.max(0, Math.floor(inst.enhanceLevel ?? 0));
-      const max = Math.max(0, Math.floor(GAME_RULES.weaponUpgrade.maxLevel));
-      if (cur >= max) throw new Error("MAX_WEAPON_LEVEL");
-
-      let cost;
-      try {
-        cost = weaponUpgradeCostForNextLevel(cur);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "UNKNOWN";
-        throw new Error(msg);
-      }
-
-      const wallet = await tx.wallet.findUnique({ where: { userId: auth.userId } });
-      if (!wallet) throw new Error("WALLET_NOT_FOUND");
-      if (wallet.goldAvailable < cost.gold) throw new Error("INSUFFICIENT_GOLD");
-
-      for (const m of cost.materials) {
-        const st = await tx.inventoryStack.findUnique({
-          where: { userId_itemId: { userId: auth.userId, itemId: m.itemId } },
-        });
-        const have = st?.quantity ?? 0;
-        if (have < m.quantity) throw new Error(`INSUFFICIENT_MATERIAL:${m.itemId}`);
-      }
-
-      await tx.wallet.update({
-        where: { userId: auth.userId },
-        data: { goldAvailable: { decrement: cost.gold } },
-      });
-      for (const m of cost.materials) {
-        await tx.inventoryStack.update({
-          where: { userId_itemId: { userId: auth.userId, itemId: m.itemId } },
-          data: { quantity: { decrement: m.quantity } },
-        });
-      }
-
-      const updated = await tx.weaponInstance.update({ where: { id: inst.id }, data: { enhanceLevel: cur + 1 } });
 
       return {
-        ok: true as const,
-        weaponInstanceId: updated.id,
-        fromWeaponLevel: cur,
-        toWeaponLevel: cur + 1,
-        cost,
+        ...out,
+        fromWeaponLevel: out.from,
+        toWeaponLevel: out.to,
       };
     });
 

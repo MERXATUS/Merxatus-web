@@ -3,19 +3,13 @@
 import { MinionEquipDoll } from "@/app/_components/MinionEquipDoll";
 import { MinionStatPanel } from "@/app/_components/MinionStatPanel";
 import { GameBtn } from "@/app/_components/gameUi";
-import { MINION_JOB_LABEL } from "@/server/minionJobs";
 import { slotToBagCategory } from "@/shared/minionEquipBag";
 import type { MinionCombatBreakdown } from "@/shared/minionCombatStats";
 import {
   MINION_EQUIP_SLOTS,
-  MINION_EQUIP_SLOTS_ENABLED,
   type MinionEquipSlotId,
   type MinionEquipmentView,
 } from "@/shared/minionEquipSlots";
-
-function jobLabel(jobType: string) {
-  return (MINION_JOB_LABEL as Record<string, string>)[jobType] ?? jobType;
-}
 
 function slotLabel(slotId: MinionEquipSlotId) {
   return MINION_EQUIP_SLOTS.find((s) => s.id === slotId)?.label ?? slotId;
@@ -24,10 +18,11 @@ function slotLabel(slotId: MinionEquipSlotId) {
 export function MinionEquipDetailPanel(props: {
   minion: {
     level: number;
-    jobType: string;
+    combatClassLabel: string;
   };
   equipment: MinionEquipmentView;
   combatStats?: MinionCombatBreakdown | null;
+  clickableSlots: MinionEquipSlotId[];
   activeSlot: MinionEquipSlotId;
   onSlotClick: (slotId: MinionEquipSlotId) => void;
   onSlotDrop: (slotId: MinionEquipSlotId, raw: string) => void;
@@ -35,15 +30,28 @@ export function MinionEquipDetailPanel(props: {
   onDone: () => void;
   busy: boolean;
   notice?: string | null;
+  compact?: boolean;
 }) {
-  const { minion, equipment, combatStats, activeSlot, onSlotClick, onSlotDrop, onDone, busy, notice } = props;
+  const {
+    minion,
+    equipment,
+    combatStats,
+    clickableSlots,
+    activeSlot,
+    onSlotClick,
+    onSlotDrop,
+    onDone,
+    busy,
+    notice,
+    compact,
+  } = props;
 
   return (
-    <div className="minion-equip-detail-panel">
+    <div className={`minion-equip-detail-panel ${compact ? "minion-equip-detail-panel--compact" : ""}`}>
       <div className="minion-equip-detail-panel__head">
         <div>
-          <h3 className="text-lg font-bold text-[var(--game-text)]">{jobLabel(minion.jobType)}</h3>
-          <p className="mt-0.5 text-sm text-[var(--game-muted)]">Lv{minion.level}</p>
+          <h3 className="minion-equip-detail-panel__title">{minion.combatClassLabel}</h3>
+          <p className="minion-equip-detail-panel__level">Lv{minion.level}</p>
         </div>
         <GameBtn variant="primary" disabled={busy} onClick={onDone}>
           완료
@@ -56,8 +64,10 @@ export function MinionEquipDetailPanel(props: {
         <div className="minion-equip-detail-panel__doll-wrap">
           <MinionEquipDoll
             equipment={equipment}
-            clickableSlots={MINION_EQUIP_SLOTS_ENABLED}
+            visibleSlots={clickableSlots}
+            clickableSlots={clickableSlots}
             activeSlot={activeSlot}
+            compact={compact}
             onSlotClick={(slotId) => {
               onSlotClick(slotId);
               props.onSlotCategoryHint?.(slotToBagCategory(slotId));

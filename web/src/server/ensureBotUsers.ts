@@ -25,7 +25,7 @@ export async function ensureBotUsers(count: number) {
 
       await tx.minionInventory.upsert({
         where: { userId: bot.id },
-        create: { userId: bot.id, owned: 1, gatherOwned: 1, dungeonOwned: 0 },
+        create: { userId: bot.id, owned: 0, dungeonOwned: 0 },
         update: {},
       });
 

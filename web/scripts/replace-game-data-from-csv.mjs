@@ -4,7 +4,7 @@ import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 
 /** CSV에 없어도 UI 수집 탭용으로 유지할 GATHER 시설 이름 */
-const PRESERVE_GATHER_WORKSHOP_NAMES = ["탐험", "고고학"];
+const PRESERVE_GATHER_WORKSHOP_NAMES = [];
 
 function parseCsv(text) {
   const normalized = text.replace(/^\uFEFF/, "");
@@ -340,8 +340,12 @@ async function main() {
     const itemId = normalizeId(r.ItemId ?? r.itemId ?? "");
     const weight = parseIntSafe(r.Weight ?? r.weight ?? "", 0);
     const qtyCol = parseIntSafe(r.Qty ?? r.qty ?? "", 0);
-    const minQty = qtyCol > 0 ? qtyCol : Math.max(1, parseIntSafe(r.MinQty ?? r.minQty ?? "", 1));
-    const maxQty = qtyCol > 0 ? qtyCol : Math.max(1, parseIntSafe(r.MaxQty ?? r.maxQty ?? "", minQty));
+    const minQty = qtyCol > 0
+      ? qtyCol
+      : Math.max(1, parseIntSafe(r.MinQty ?? r.minQty ?? r.Min_Qty ?? "", 1));
+    const maxQty = qtyCol > 0
+      ? qtyCol
+      : Math.max(1, parseIntSafe(r.MaxQty ?? r.maxQty ?? r.Max_Qty ?? "", minQty));
     const tier = Math.max(1, Math.min(5, parseIntSafe(r.Tier ?? r.tier ?? r.minTier ?? "", 1)));
     if (!workshopId || !workshopName || !itemId || !itemId.startsWith("item_")) continue;
 
@@ -374,146 +378,59 @@ async function main() {
 
   await writeFile(recipesJsonPath, JSON.stringify(recipes, null, 2) + "\n", "utf8");
   await writeFile(itemsJsonPath, JSON.stringify(items, null, 2) + "\n", "utf8");
+
+  if (process.env.DATABASE_URL) {
+    try {
+      const { execSync } = await import("node:child_process");
+      execSync("node scripts/purge-orphan-inventory.mjs", { cwd: process.cwd(), stdio: "inherit" });
+    } catch (e) {
+      console.warn("WARN: purge-orphan-inventory:", e?.message ?? e);
+    }
+  }
   await writeFile(workshopsJsonPath, JSON.stringify(workshops, null, 2) + "\n", "utf8");
 
-  const prisma = new PrismaClient();
-  try {
-    const keepWorkshopTypeNames = new Set([
-      ...workshops.map((w) => w.name),
-      ...(Array.isArray(recipes) ? recipes.map((r) => String(r.workshopName ?? "")) : []),
-    ]);
-    keepWorkshopTypeNames.delete("납품소");
-
+  if (process.env.SKIP_DATA_DB !== "1") {
+    const prisma = new PrismaClient();
     const keepItemIds = new Set(items.map((x) => x.id));
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          const existingItems = await tx.item.findMany({ select: { id: true } });
+          const deleteItemIds = existingItems.map((x) => x.id).filter((id) => !keepItemIds.has(id));
+          if (deleteItemIds.length) {
+            await tx.weaponInstance.deleteMany({ where: { baseItemId: { in: deleteItemIds } } });
+            await tx.armorInstance.deleteMany({ where: { baseItemId: { in: deleteItemIds } } });
+            await tx.listing.deleteMany({ where: { itemId: { in: deleteItemIds } } });
+            await tx.inventoryStack.deleteMany({ where: { itemId: { in: deleteItemIds } } });
+            await tx.userItemEnhancement.deleteMany({ where: { itemId: { in: deleteItemIds } } });
+            await tx.item.deleteMany({ where: { id: { in: deleteItemIds } } });
+          }
 
-    await prisma.$transaction(
-      async (tx) => {
-      const existingTypes = await tx.workshopType.findMany({ select: { id: true, name: true } });
-      const deleteTypeIds = existingTypes
-        .filter((t) => t.name === "납품소" || !keepWorkshopTypeNames.has(t.name))
-        .map((t) => t.id);
-
-      if (deleteTypeIds.length) {
-        await tx.workshopInstance.deleteMany({ where: { workshopTypeId: { in: deleteTypeIds } } });
-        await tx.recipe.deleteMany({ where: { workshopTypeId: { in: deleteTypeIds } } });
-        await tx.dropTableEntry.deleteMany({ where: { workshopTypeId: { in: deleteTypeIds } } });
-        await tx.workshopType.deleteMany({ where: { id: { in: deleteTypeIds } } });
-      }
-
-      const existingItems = await tx.item.findMany({ select: { id: true } });
-      const deleteItemIds = existingItems.map((x) => x.id).filter((id) => !keepItemIds.has(id));
-      if (deleteItemIds.length) {
-        await tx.weaponInstance.deleteMany({ where: { baseItemId: { in: deleteItemIds } } });
-        await tx.toolInstance.deleteMany({ where: { baseItemId: { in: deleteItemIds } } });
-        await tx.listing.deleteMany({ where: { itemId: { in: deleteItemIds } } });
-        await tx.inventoryStack.deleteMany({ where: { itemId: { in: deleteItemIds } } });
-        await tx.dropTableEntry.deleteMany({ where: { itemId: { in: deleteItemIds } } });
-        await tx.recipeInput.deleteMany({ where: { itemId: { in: deleteItemIds } } });
-        await tx.recipeOutput.deleteMany({ where: { itemId: { in: deleteItemIds } } });
-        await tx.workshopInstance.updateMany({
-          where: { equippedToolItemId: { in: deleteItemIds } },
-          data: { equippedToolItemId: null },
-        });
-        await tx.userItemEnhancement.deleteMany({ where: { itemId: { in: deleteItemIds } } });
-        await tx.item.deleteMany({ where: { id: { in: deleteItemIds } } });
-      }
-
-      for (const it of items) {
-        const { icon: _icon, ...dbRow } = it;
-        await tx.item.upsert({
-          where: { id: it.id },
-          create: dbRow,
-          update: {
-            name: dbRow.name,
-            category: dbRow.category,
-            tradable: dbRow.tradable,
-            grade: dbRow.grade,
-          },
-        });
-      }
-
-      for (const ws of workshops) {
-        const type = await tx.workshopType.upsert({
-          where: { name: ws.name },
-          create: { name: ws.name, kind: "GATHER" },
-          update: { kind: "GATHER" },
-        });
-        await tx.dropTableEntry.deleteMany({ where: { workshopTypeId: type.id } });
-        const dropRows = (ws.drops ?? []).filter((d) => keepItemIds.has(d.itemId));
-        if (dropRows.length) {
-          await tx.dropTableEntry.createMany({
-            data: dropRows.map((d) => ({
-              workshopTypeId: type.id,
-              itemId: d.itemId,
-              weight: d.weight,
-              minQty: d.minQty,
-              maxQty: d.maxQty,
-              minTier: d.minTier ?? 1,
-            })),
-          });
-        }
-      }
-
-      const filteredRecipes = Array.isArray(recipes) ? recipes : [];
-      const kindByWorkshopName = new Map();
-      for (const r of filteredRecipes) kindByWorkshopName.set(r.workshopName, "PROCESS");
-      const names = Array.from(kindByWorkshopName.keys());
-      for (const name of names) {
-        const type = await tx.workshopType.upsert({
-          where: { name },
-          create: { name, kind: "PROCESS" },
-          update: { kind: "PROCESS" },
-        });
-        await tx.recipe.deleteMany({ where: { workshopTypeId: type.id } });
-      }
-
-      for (const r of filteredRecipes) {
-        const type = await tx.workshopType.findUnique({ where: { name: r.workshopName } });
-        if (!type) throw new Error(`WORKSHOP_TYPE_MISSING: ${r.workshopName}`);
-
-        const minTier = recipeMinTierFromSeedRow({
-          name: r.name,
-          minTier: r.minTier,
-        });
-        const recipe = await tx.recipe.create({
-          data: {
-            workshopTypeId: type.id,
-            name: r.name,
-            rewardGold: 0,
-            craftTimeSeconds: Math.max(1, Math.floor(r.craftTimeSeconds ?? 60)),
-            minTier,
-          },
-        });
-
-        await tx.recipeInput.createMany({
-          data: r.inputs.map((i) => ({
-            recipeId: recipe.id,
-            itemId: i.itemId,
-            quantity: i.quantity,
-          })),
-        });
-
-        if ((r.outputs ?? []).length > 0) {
-          await tx.recipeOutput.createMany({
-            data: (r.outputs ?? []).map((o) => ({
-              recipeId: recipe.id,
-              itemId: o.itemId,
-              weight: o.weight ?? null,
-              minQty: o.minQty ?? 1,
-              maxQty: o.maxQty ?? 1,
-            })),
-          });
-        }
-      }
-    },
-      { maxWait: 30_000, timeout: 120_000 },
-    );
-  } finally {
-    await prisma.$disconnect();
+          for (const it of items) {
+            const { icon: _icon, ...dbRow } = it;
+            await tx.item.upsert({
+              where: { id: it.id },
+              create: dbRow,
+              update: {
+                name: dbRow.name,
+                category: dbRow.category,
+                tradable: dbRow.tradable,
+                grade: dbRow.grade,
+              },
+            });
+          }
+        },
+        { maxWait: 30_000, timeout: 120_000 },
+      );
+    } catch (e) {
+      console.warn("WARN: Item DB sync skipped:", e?.message ?? e);
+    } finally {
+      await prisma.$disconnect();
+    }
   }
 
   console.log(
-    `OK: items=${items.length} workshops=${workshops.length} recipes=${Array.isArray(recipes) ? recipes.length : "unchanged"} → JSON + DB`,
+    `OK: items=${items.length} workshops=${workshops.length} recipes=${Array.isArray(recipes) ? recipes.length : "unchanged"} → JSON${process.env.SKIP_DATA_DB === "1" ? "" : " (+ DB items)"}`,
   );
 }
 

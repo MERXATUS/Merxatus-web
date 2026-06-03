@@ -1,6 +1,7 @@
 "use client";
 
 import type { MinionCombatBreakdown } from "@/shared/minionCombatStats";
+import { MINION_STAT_KEYS, MINION_STAT_LABELS } from "@/shared/minionBaseStats";
 
 function fmt(n: number) {
   return n.toLocaleString();
@@ -19,14 +20,40 @@ function StatRow(props: { line: MinionCombatBreakdown["hp"]; showRange?: false }
   );
 }
 
-export function MinionStatPanel(props: { stats: MinionCombatBreakdown; compact?: boolean }) {
-  const { stats, compact } = props;
+export function MinionStatPanel(props: { stats: MinionCombatBreakdown; compact?: boolean; minimal?: boolean }) {
+  const { stats, compact, minimal } = props;
+
+  if (minimal) {
+    return (
+      <div className="minion-stat-panel minion-stat-panel--minimal">
+        <span className="minion-stat-panel__minimal-power">
+          전투력 <strong>{fmt(stats.combatPower)}</strong>
+        </span>
+        <span className="minion-stat-panel__minimal-divider" aria-hidden>
+          ·
+        </span>
+        <span className="minion-stat-panel__minimal-stats">
+          HP {fmt(stats.hp.total)} · DEF {fmt(stats.def.total)} · ATK {fmt(stats.atk.min)}
+          {stats.atk.max > stats.atk.min ? `~${fmt(stats.atk.max)}` : ""}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className={`minion-stat-panel ${compact ? "minion-stat-panel--compact" : ""}`}>
       <div className="minion-stat-panel__hero">
         <span className="minion-stat-panel__hero-label">총 전투력</span>
         <span className="minion-stat-panel__hero-value">{fmt(stats.combatPower)}</span>
+      </div>
+
+      <div className="minion-stat-panel__attrs" aria-label="기본 스탯">
+        {MINION_STAT_KEYS.map((key) => (
+          <div key={key} className="minion-stat-panel__attr">
+            <span className="minion-stat-panel__attr-label">{MINION_STAT_LABELS[key]}</span>
+            <span className="minion-stat-panel__attr-val">{stats.attributes[key]}</span>
+          </div>
+        ))}
       </div>
 
       <table className="minion-stat-panel__table">

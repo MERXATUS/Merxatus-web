@@ -1,24 +1,12 @@
 Id,Name,Category,Tradable,Grade,Icon
-Item_Stone,돌,Material,TRUE,1,Icon_Stone
-Item_Red_Gold_Ore,적금 원석,Material,TRUE,2,Icon_Red_Gold_Ore
-Item_Gold_Ore,금 원석,Material,TRUE,3,Icon_Gold_Ore
-Item_Red_Gold,적금,Material,TRUE,2,Icon_Red_Gold
-Item_Gold,금,Material,TRUE,3,Icon_Gold
-Item_Fish,잡어,Material,TRUE,1,Icon_Fish
-Item_Second_Fish,2단계 물고기,Material,TRUE,2,Icon_Second_Fish
-Item_White_Fish,백어,Material,TRUE,3,Icon_White_Fish
 Item_Lesser_Mana_Stone,하급 마석,Material,TRUE,1,Icon_Lesser_Mana_Stone
 Item_Mana_Stone,중급 마석,Material,TRUE,3,Icon_Mana_Stone
 Item_Greater_Mana_Stone,상급 마석,Material,TRUE,5,Icon_Greater_Mana_Stone
-Item_Minion_Ticket,미니언 고용권,Ticket,TRUE,6,Icon_Minion_Ticket
-Item_Lesser_Recovery_Potion,체력 회복 물약,Potion,TRUE,1,Icon_Lesser_Recovery_Potion
-Item_Recovery_Potion,체력 회복 포션,Potion,TRUE,3,Icon_Recovery_Potion
-Item_Greater_Recovery_Flask,체력 회복의 비약,Potion,TRUE,5,Icon_Greater_Recovery_Flask
 Item_Enhance_Scroll_Low,하급 강화 주문서,Material,TRUE,2,Icon_Enhance_Scroll_Low
 Item_Enhance_Scroll_Mid,중급 강화 주문서,Material,TRUE,3,Icon_Enhance_Scroll_Mid
 Item_Enhance_Scroll_High,상급 강화 주문서,Material,TRUE,5,Icon_Enhance_Scroll_High
-Item_Paper,종이,Material,TRUE,2,Icon_Paper
-Item_Enchanted_Paper,마력이 깃든 종이,Material,TRUE,4,Icon_Enchanted_Paper
-Item_Chest,상자,Chest,TRUE,2,Icon_Chest
-Item_Herb,약초,Material,TRUE,1,Icon_Herb
-Item_Leather,가죽,Material,TRUE,2,Icon_Leather
+Item_Lesser_Recovery_Potion,체력 회복 물약,Potion,TRUE,1,Icon_Lesser_Recovery_Potion
+Item_Recovery_Potion,체력 회복 포션,Potion,TRUE,3,Icon_Recovery_Potion
+Item_Greater_Recovery_Flask,체력 회복의 비약,Potion,TRUE,5,Icon_Greater_Recovery_Flask
+Item_Raid_Shard,레이드 파편,Material,TRUE,6,Icon_Mana_Stone
+Item_Minion_Ticket,미니언 고용권,Ticket,TRUE,6,Icon_Minion_Ticket

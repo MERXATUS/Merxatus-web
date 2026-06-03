@@ -3,6 +3,7 @@ import {
   isMinionRecruitCategory,
   isMinionRecruitItemId,
 } from "@/shared/minionRecruit";
+import { getArmorStats, isArmorInventoryItem, armorSlotLabelKo } from "@/shared/armorStatsData";
 
 export type StackItemTooltipData = {
   itemId: string;
@@ -15,6 +16,9 @@ export type StackItemTooltipData = {
 
 const POTION_DESCRIPTIONS: Record<string, string> = {
   item_minor_stamina_potion: "제작·작업 시 소모되는 피로도를 회복하는 소모품입니다.",
+  item_lesser_recovery_potion: "던전 탐험 중 파티 HP를 회복합니다. (HP +10)",
+  item_recovery_potion: "던전 탐험 중 파티 HP를 회복합니다. (HP 10% 회복)",
+  item_greater_recovery_flask: "던전 탐험 중 파티 HP를 회복합니다. (HP 30% 회복)",
 };
 
 export function stackItemGradeIndex(it: StackItemTooltipData): number {
@@ -27,12 +31,18 @@ export function stackItemGradeLabel(it: StackItemTooltipData): string {
 
 export function shouldShowStackItemTooltip(it: StackItemTooltipData): boolean {
   if (it.category === "물약") return true;
+  if (isArmorInventoryItem(it)) return true;
   if (isMinionRecruitCategory(it.category) || isMinionRecruitItemId(it.itemId)) return true;
   return false;
 }
 
 export function stackItemTooltipSubtitle(it: StackItemTooltipData): string {
   if (it.category === "물약") return `물약 · ${stackItemGradeLabel(it)}`;
+  if (isArmorInventoryItem(it)) {
+    const stats = getArmorStats(it.itemId);
+    const slot = stats ? armorSlotLabelKo(stats.slot) : "방어구";
+    return `${slot} · ${stackItemGradeLabel(it)}`;
+  }
   if (isMinionRecruitItemId(it.itemId) || isMinionRecruitCategory(it.category)) {
     return `미니언 고용권 · ${stackItemGradeLabel(it)}`;
   }
@@ -45,6 +55,17 @@ export function stackItemTooltipBodyLines(it: StackItemTooltipData): string[] {
   if (it.category === "물약") {
     const desc = POTION_DESCRIPTIONS[it.itemId] ?? "소모 시 효과가 적용되는 물약입니다.";
     lines.push(desc);
+    return lines;
+  }
+
+  if (isArmorInventoryItem(it)) {
+    const stats = getArmorStats(it.itemId);
+    if (stats) {
+      lines.push(`HP +${stats.hp} · DEF +${stats.def}`);
+      lines.push("미니언 관리 → 장비 착용에서 슬롯에 장착할 수 있습니다.");
+    } else {
+      lines.push("미니언 장비로 착용할 수 있는 방어구입니다.");
+    }
     return lines;
   }
 

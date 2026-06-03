@@ -16,8 +16,17 @@ const nextConfig: NextConfig = {
         "**/.cursor/**",
         "**/agent-transcripts/**",
         "../.cursor/**",
+        "**/.git/**",
+        "**/prisma/migrations/**",
+        "**/data/**",
+        "**/node_modules/.prisma/**",
       ];
-      config.watchOptions = { ...config.watchOptions, ignored };
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored,
+        /** Windows에서 연속 저장·감시 이벤트를 묶어 Compiling 스톰 완화 */
+        aggregateTimeout: 800,
+      };
     }
     return config;
   },

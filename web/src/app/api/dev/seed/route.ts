@@ -4,11 +4,9 @@ import { getConfiguredBotCount } from "@/server/botRuntimeConfig";
 import { ensureBotUsers } from "@/server/ensureBotUsers";
 import { loadSeedData } from "@/server/seedData";
 import { clampItemGrade, defaultItemGradeForItemId } from "@/server/itemGrade";
-import { recipeMinTierFromSeedRow } from "@/server/recipeTier";
 import { referenceGoldPerUnit } from "@/server/itemReferenceGold";
 import { loadMerxatusRoyalPriceRows } from "@/server/merxatusRoyalCsv";
 import { upsertRoyalPricesFromMerxatusRows } from "@/server/applyMerxatusRoyalPrices";
-import { setUserSpecialistUnlockedTrue } from "@/server/userSpecialistDb";
 import { guardDevApi } from "@/server/devApiGuard";
 
 export const runtime = "nodejs";
@@ -27,7 +25,7 @@ export async function POST() {
 }
 
 async function runSeed() {
-  const { items, workshops, recipes } = await loadSeedData();
+  const { items } = await loadSeedData();
 
   const seller = await prisma.user.upsert({
     where: { username: "dev_seller" },
@@ -46,11 +44,9 @@ async function runSeed() {
     create: { username: "dev_buyer" },
     update: {},
   });
-  await setUserSpecialistUnlockedTrue(prisma, buyer.id);
-
   await prisma.minionInventory.upsert({
     where: { userId: buyer.id },
-    create: { userId: buyer.id, owned: 1, gatherOwned: 1, dungeonOwned: 0 },
+    create: { userId: buyer.id, owned: 0, dungeonOwned: 0 },
     update: {},
   });
 
@@ -115,120 +111,6 @@ async function runSeed() {
 
   const { botIds, botUsernames, botsFound, botsExpected } = await ensureBotUsers(getConfiguredBotCount());
 
-  // Workshops + drops
-  for (const ws of workshops) {
-    const type = await prisma.workshopType.upsert({
-      where: { name: ws.name },
-      create: { name: ws.name, kind: "GATHER" },
-      update: { kind: "GATHER" },
-    });
-
-    await prisma.dropTableEntry.deleteMany({ where: { workshopTypeId: type.id } });
-    await prisma.dropTableEntry.createMany({
-      data: ws.drops.map((d) => ({
-        workshopTypeId: type.id,
-        itemId: d.itemId,
-        weight: d.weight,
-        minQty: d.minQty,
-        maxQty: d.maxQty,
-        minTier: d.minTier ?? 1,
-      })),
-    });
-  }
-
-  // Recipes (PROCESS/CONSUME)
-  const kindByWorkshopName = new Map<string, "PROCESS" | "CONSUME">();
-  for (const r of recipes) {
-    const k = (r as any).rewardGold && Number((r as any).rewardGold) > 0 ? ("CONSUME" as const) : ("PROCESS" as const);
-    const prev = kindByWorkshopName.get(r.workshopName);
-    kindByWorkshopName.set(r.workshopName, prev === "CONSUME" || k === "CONSUME" ? "CONSUME" : "PROCESS");
-  }
-  const recipeWorkshopNames = Array.from(kindByWorkshopName.keys());
-  for (const name of recipeWorkshopNames) {
-    const type = await prisma.workshopType.upsert({
-      where: { name },
-      create: { name, kind: kindByWorkshopName.get(name) ?? "PROCESS" },
-      update: { kind: kindByWorkshopName.get(name) ?? "PROCESS" },
-    });
-    await prisma.recipe.deleteMany({ where: { workshopTypeId: type.id } });
-  }
-  for (const r of recipes) {
-    const type = await prisma.workshopType.findUnique({ where: { name: r.workshopName } });
-    if (!type) throw new Error(`WORKSHOP_TYPE_MISSING: ${r.workshopName}`);
-
-    const minTier = recipeMinTierFromSeedRow({
-      name: r.name,
-      minTier: (r as { minTier?: number }).minTier,
-    });
-    const recipe = await prisma.recipe.create({
-      data: {
-        workshopTypeId: type.id,
-        name: r.name,
-        rewardGold: Math.max(0, Math.floor((r as any).rewardGold ?? 0)),
-        craftTimeSeconds: Math.max(1, Math.floor((r as any).craftTimeSeconds ?? 60)),
-        minTier,
-      },
-    });
-    await prisma.recipeInput.createMany({
-      data: r.inputs.map((i) => ({ recipeId: recipe.id, itemId: i.itemId, quantity: i.quantity })),
-    });
-    if ((r.outputs ?? []).length > 0) {
-      await prisma.recipeOutput.createMany({
-        data: r.outputs.map((o) => ({
-          recipeId: recipe.id,
-          itemId: o.itemId,
-          weight: o.weight ?? null,
-          minQty: o.minQty ?? 1,
-          maxQty: o.maxQty ?? 1,
-        })),
-      });
-    }
-  }
-
-  const workshopInstances: Array<{ id: string; name: string }> = [];
-  for (const ws of workshops) {
-    const type = await prisma.workshopType.findUnique({ where: { name: ws.name } });
-    if (!type) throw new Error("WORKSHOP_TYPE_MISSING");
-
-    const instanceId = `workshop_dev_${ws.id}`;
-    const inst = await prisma.workshopInstance.upsert({
-      where: { id: instanceId },
-      create: {
-        id: instanceId,
-        userId: buyer.id,
-        workshopTypeId: type.id,
-        minionCount: ws.id === "workshop_mine" ? 1 : 0,
-        lastCollectedAt: new Date(Date.now() - 5 * GAME_RULES.workshop.tickSeconds * 1000),
-      },
-      update: {
-        userId: buyer.id,
-        workshopTypeId: type.id,
-        minionCount: ws.id === "workshop_mine" ? 1 : 0,
-      },
-    });
-
-    workshopInstances.push({ id: inst.id, name: ws.name });
-  }
-
-  // Ensure process workshop instances for dev_buyer as well
-  for (const name of recipeWorkshopNames) {
-    const type = await prisma.workshopType.findUnique({ where: { name } });
-    if (!type) continue;
-    const instanceId = `workshop_dev_process_${type.id}`;
-    const inst = await prisma.workshopInstance.upsert({
-      where: { id: instanceId },
-      create: {
-        id: instanceId,
-        userId: buyer.id,
-        workshopTypeId: type.id,
-        minionCount: 0,
-        lastCollectedAt: new Date(),
-      },
-      update: { userId: buyer.id, workshopTypeId: type.id },
-    });
-    workshopInstances.push({ id: inst.id, name });
-  }
-
   // Ensure the user has some items to sell (this seed treats listings as escrowed: inventory is reduced accordingly)
   const oreId = "item_dark_iron";
   await prisma.inventoryStack.upsert({
@@ -288,8 +170,6 @@ async function runSeed() {
     botUsernames,
     botsFound,
     botsExpected,
-    workshopIds: workshopInstances,
-    workshopId: workshopInstances[0]?.id,
     fixedListingId: fixedListing.id,
     auctionListingId: null,
   });

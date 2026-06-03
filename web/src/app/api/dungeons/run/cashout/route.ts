@@ -3,6 +3,7 @@ import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
 import { loadDungeons } from "@/server/dungeonData";
 import { cashoutPushLuckRun } from "@/server/dungeonRun";
+import { tryTutorialDungeonCashout } from "@/server/tutorialProgress";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
     if (dungeon.mode !== "PUSH_LUCK") return Response.json({ ok: false, error: "NOT_PUSH_LUCK_DUNGEON" }, { status: 400 });
 
     const out = await cashoutPushLuckRun({ userId: auth.userId, dungeon });
+    void tryTutorialDungeonCashout(prisma, auth.userId).catch(() => {});
     return Response.json(out);
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { GameBtn } from "@/app/_components/gameUi";
 import { GOOGLE_LOGIN_PATH } from "@/shared/googleLogin";
 import {
@@ -9,6 +10,7 @@ import {
   validateUsername,
 } from "@/shared/usernameRules";
 import { useEscapeClose } from "@/shared/useEscapeClose";
+import { FriendsPanel } from "@/app/_components/FriendsPanel";
 import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
 
 const SHOW_DEV_ACCOUNT_RESET = process.env.NODE_ENV === "development";
@@ -23,6 +25,7 @@ type SettingsPanelProps = {
   logoutBusy?: boolean;
   onRefresh?: () => void | Promise<void>;
   onUsernameChanged?: (username: string) => void;
+  onStartTrade?: (username: string) => void;
 };
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -56,8 +59,6 @@ export function SettingsPanel(props: SettingsPanelProps) {
     }
     setDraftUsername(props.username ?? "");
   }, [props.open, props.username]);
-
-  if (!props.open) return null;
 
   function openRename() {
     setDraftUsername(props.username ?? "");
@@ -102,7 +103,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
   async function resetTutorialAccount() {
     const ok = window.confirm(
-      "튜토리얼·전문 직업 선택을 처음부터 다시 합니다.\n\n골드·인벤·시설·미니언은 그대로 둡니다. 계속할까요?",
+      "튜토리얼 진행을 처음부터 다시 합니다.\n\n골드·인벤·시설·미니언은 그대로 둡니다. 계속할까요?",
     );
     if (!ok) return;
 
@@ -143,15 +144,17 @@ export function SettingsPanel(props: SettingsPanelProps) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  if (!props.open) return null;
+
+  const modal = (
+    <div className="game-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <button
         type="button"
         aria-label="닫기"
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 z-[1] bg-black/50"
         onClick={props.onClose}
       />
-      <div className="settings-modal game-modal absolute inset-x-3 top-[12%] mx-auto max-h-[min(36rem,85dvh)] w-full max-w-md overflow-hidden rounded-2xl shadow-2xl sm:inset-x-auto">
+      <div className="game-overlay__panel settings-modal game-modal absolute inset-x-3 top-[12%] mx-auto max-h-[min(36rem,85dvh)] w-full max-w-md overflow-hidden rounded-2xl shadow-2xl sm:inset-x-auto">
         <div className="game-modal-header flex items-center justify-between gap-3 px-5 py-4">
           <h2 id="settings-title" className="text-sm font-semibold text-[var(--game-text)]">
             설정
@@ -249,6 +252,11 @@ export function SettingsPanel(props: SettingsPanelProps) {
           </section>
 
           <section className="settings-section">
+            <h3 className="settings-section__title">친구</h3>
+            <FriendsPanel loggedIn={props.loggedIn} onStartTrade={props.onStartTrade} />
+          </section>
+
+          <section className="settings-section">
             <h3 className="settings-section__title">게임</h3>
             <p className="settings-hint">홈 화면 요약·골드·인벤 정보를 다시 불러옵니다.</p>
             {props.onRefresh ? (
@@ -269,7 +277,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
             <section className="settings-section settings-section--dev">
               <h3 className="settings-section__title">개발용</h3>
               <p className="settings-hint">
-                튜토리얼 진행과 전문 직업 선택만 초기화합니다. (로컬 개발 서버 전용)
+                튜토리얼 진행만 초기화합니다. (로컬 개발 서버 전용)
               </p>
               <button
                 type="button"
@@ -277,7 +285,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 disabled={!props.userId || renameBusy || resetBusy}
                 onClick={() => void resetTutorialAccount()}
               >
-                {resetBusy ? "초기화 중…" : "튜토리얼·전문 직업 초기화"}
+                {resetBusy ? "초기화 중…" : "튜토리얼 초기화"}
               </button>
               {resetMessage ? <p className="settings-hint settings-hint--status">{resetMessage}</p> : null}
             </section>
@@ -297,4 +305,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return modal;
+  return createPortal(modal, document.body);
 }

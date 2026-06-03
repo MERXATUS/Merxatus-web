@@ -1,10 +1,13 @@
 import type { MinionJobType } from "@prisma/client";
+import {
+  minionCombatClassLabel,
+  type MinionCombatClass,
+} from "@/shared/minionDerivedClass";
 
 export const MINION_JOB_LABEL: Record<MinionJobType, string> = {
   UNASSIGNED: "미배정",
+  ADVENTURER: "모험가",
   MINER: "광부",
-  // legacy: 낚시터/낚시꾼은 컨텐츠에서 제거되었지만,
-  // DB에 남아있을 수 있어 타입 안정성을 위해 라벨만 유지한다.
   FISHER: "낚시꾼",
   ARCHAEOLOGIST: "고고학자",
   EXPLORER: "탐험가",
@@ -20,62 +23,33 @@ export const MINION_JOB_LABEL: Record<MinionJobType, string> = {
   MAGE: "마법사",
 };
 
-export const DUNGEON_JOB_TYPES: ReadonlySet<MinionJobType> = new Set<MinionJobType>(["WARRIOR", "ARCHER", "MAGE"]);
-
-/** 수집·작업장 배치용 미니언 직업 */
-export const GATHER_JOB_TYPES: ReadonlySet<MinionJobType> = new Set<MinionJobType>([
-  "MINER",
-  "FISHER",
-  "ARCHAEOLOGIST",
-  "EXPLORER",
-]);
-
-export function isDungeonMinionJob(jobType: string) {
-  return DUNGEON_JOB_TYPES.has(jobType as MinionJobType);
+export function isDungeonPool(_pool?: string) {
+  return true;
 }
 
-export function isGatherMinionJob(jobType: string) {
-  return GATHER_JOB_TYPES.has(jobType as MinionJobType);
+/** @deprecated 수집 풀 제거 */
+export function isGatherPool(_pool?: string) {
+  return false;
 }
 
-/** 수집(GATHER) 시설 — 배치 가능한 미니언 직업 (시설당 1종) */
-export const ALLOWED_JOBS_BY_WORKSHOP_NAME: Record<string, readonly MinionJobType[]> = {
-  광산: ["MINER"],
-  낚시터: ["FISHER"],
-  탐험: ["EXPLORER"],
-  고고학: ["ARCHAEOLOGIST"],
-};
-
-export function getAllowedJobsForWorkshopName(workshopName: string): readonly MinionJobType[] {
-  return ALLOWED_JOBS_BY_WORKSHOP_NAME[workshopName] ?? [];
+export function minionSupportsLeveling(_pool?: string) {
+  return true;
 }
 
-/** 특화 직업 목록 (UI 표시·보너스 계산) */
-export function getPreferredJobsForWorkshopName(workshopName: string): readonly MinionJobType[] {
-  return getAllowedJobsForWorkshopName(workshopName);
+/** @deprecated 항상 전투 미니언 */
+export function isDungeonMinionJob(_jobType: string, _pool?: string) {
+  return true;
 }
 
-export function isMinionJobAllowedAtGatherWorkshop(workshopName: string, jobType: string): boolean {
-  const allowed = getAllowedJobsForWorkshopName(workshopName);
-  if (allowed.length === 0) return true;
-  return allowed.includes(jobType as MinionJobType);
+/** @deprecated */
+export function isGatherMinionJob(_jobType: string, _pool?: string) {
+  return false;
 }
 
-export function assertMinionJobAllowedAtGatherWorkshop(workshopName: string, jobType: string) {
-  if (isMinionJobAllowedAtGatherWorkshop(workshopName, jobType)) return;
-  const labels = getAllowedJobsForWorkshopName(workshopName)
-    .map((j) => MINION_JOB_LABEL[j])
-    .join(", ");
-  throw new Error(
-    labels
-      ? `MINION_JOB_NOT_ALLOWED_FOR_WORKSHOP:${workshopName}:${labels}`
-      : "MINION_JOB_NOT_ALLOWED_FOR_WORKSHOP",
-  );
+export function poolLabel(_pool?: string): string {
+  return "전투";
 }
 
-export function gatherWorkshopAllowedJobLabels(workshopName: string): string {
-  return getAllowedJobsForWorkshopName(workshopName)
-    .map((j) => MINION_JOB_LABEL[j])
-    .join(", ");
+export function minionRoleLabel(input: { pool?: string; combatClass: MinionCombatClass }): string {
+  return minionCombatClassLabel(input.combatClass);
 }
-

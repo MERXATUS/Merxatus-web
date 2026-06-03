@@ -9,7 +9,8 @@ export const runtime = "nodejs";
 const BodySchema = z.object({
   minionId: z.string().min(1),
   slotId: z.enum(["helmet", "armor", "pants", "shoes"]),
-  itemId: z.string().min(1).nullable(),
+  itemId: z.string().min(1).nullable().optional(),
+  armorInstanceId: z.string().min(1).nullable().optional(),
   userId: z.string().min(1).optional(),
 });
 
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   const auth = requireUserId(req, parsed.data.userId ?? null);
   if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
-  const { minionId, slotId, itemId } = parsed.data;
+  const { minionId, slotId, itemId = null, armorInstanceId = null } = parsed.data;
   if (!isArmorEquipSlot(slotId as MinionEquipSlotId)) {
     return Response.json({ ok: false, error: "INVALID_ARMOR_SLOT" }, { status: 400 });
   }
@@ -33,7 +34,8 @@ export async function POST(req: Request) {
         userId: auth.userId,
         minionId,
         slotId: slotId as MinionEquipSlotId,
-        itemId,
+        itemId: itemId ?? null,
+        armorInstanceId: armorInstanceId ?? null,
       }),
     );
     return Response.json(result);

@@ -1,3 +1,9 @@
 Id,Name,Grade,Hp,Atk,Magic,As,Def
-Slime,슬라임,1,5,1,0,1,0
-Goblin,고블린,1,8,2,0,1,0
+Slime,슬라임,1,70,5,0,1,0
+Goblin,고블린,1,90,7,0,1,1
+Wolf,사나운 늑대,2,110,9,0,1,2
+Skeleton,스켈레톤,2,130,11,0,1,3
+Fire_Salamander,화염 도롱뇽,3,150,10,8,1,2
+Ice_Wisp,얼음 정령,3,170,9,10,1,3
+Dragon_Whelp,어린 용,4,200,14,4,1,4
+Void_Spawn,공허 원생,4,230,16,8,1,3

@@ -1,4 +1,15 @@
 import { GAME_RULES } from "@/server/gameRules";
+import { minionBaseStatsFromRow, type MinionBaseStats } from "@/shared/minionBaseStats";
+
+export function statPowerFromBaseStats(stats: MinionBaseStats) {
+  const w = GAME_RULES.minion.baseStats;
+  return (
+    stats.strength * w.powerPerStrength +
+    stats.agility * w.powerPerAgility +
+    stats.intelligence * w.powerPerIntelligence +
+    stats.endurance * w.powerPerEndurance
+  );
+}
 
 export function clamp01(x: number) {
   if (!Number.isFinite(x)) return 0;
@@ -15,6 +26,10 @@ export function computePartyPower(input: {
     armorPowerBonus?: number | null;
     level?: number | null;
     fighterRank?: number | null;
+    strength?: number | null;
+    agility?: number | null;
+    intelligence?: number | null;
+    endurance?: number | null;
   }>;
 }) {
   const base = GAME_RULES.combat.baseMinionPower;
@@ -38,6 +53,13 @@ export function computePartyPower(input: {
     }
     const ap = Math.max(0, Math.floor(m.armorPowerBonus ?? 0));
     power += ap;
+    const stats = minionBaseStatsFromRow({
+      strength: m.strength ?? undefined,
+      agility: m.agility ?? undefined,
+      intelligence: m.intelligence ?? undefined,
+      endurance: m.endurance ?? undefined,
+    });
+    power += Math.floor(statPowerFromBaseStats(stats));
   }
   return power;
 }

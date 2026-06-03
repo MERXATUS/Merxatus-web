@@ -4,26 +4,21 @@ import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
 import { createMinionWithBirth } from "@/server/minionInsert";
 import { itemIconFieldsForItemId } from "@/server/itemCatalog";
-import {
-  assertCanHatchMinionJob,
-  countDungeonMinions,
-  countGatherMinions,
-  syncMinionInventoryCaps,
-} from "@/server/minionCapacity";
+import { assertCanHatchMinion, countDungeonMinions, syncMinionInventoryCaps } from "@/server/minionCapacity";
 import { loadMinionCsvBundle, UNIFIED_MINION_RECRUIT_ITEM_ID } from "@/server/minionCsvData";
 import { buildMinionRecruitBirth } from "@/server/minionRecruit";
 import { verifyRecruitPickToken } from "@/server/minionRecruitPickToken";
+import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
+import { minionRoleLabel } from "@/server/minionJobs";
+import { resolveMinionCombatClass } from "@/shared/minionPromotion";
 
 export const runtime = "nodejs";
 
 const BodySchema = z.object({
   userId: z.string().min(1).optional(),
-  /** 고용권 items.csv / minion_tickets.csv ItemId */
   itemId: z.string().min(1).optional(),
-  /** 통합 고용권(item_minion_ticket) 사용 시 필수 */
   category: z.enum(["GATHER", "DUNGEON"]).optional(),
-  /** 후보 선택 확정 시 */
-  jobType: z.string().min(1).optional(),
+  candidateIndex: z.number().int().min(0).optional(),
   pickToken: z.string().min(1).optional(),
 });
 
@@ -38,7 +33,7 @@ export async function POST(req: Request) {
   const consumeItemId = parsed.data.itemId?.trim() || UNIFIED_MINION_RECRUIT_ITEM_ID;
   const category = parsed.data.category;
   const pickToken = parsed.data.pickToken?.trim();
-  const jobTypeRaw = parsed.data.jobType?.trim().toUpperCase();
+  const candidateIndex = parsed.data.candidateIndex;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -48,17 +43,17 @@ export async function POST(req: Request) {
       const qty = stack?.quantity ?? 0;
       if (qty < 1) throw new Error("NO_RECRUIT_TICKET");
 
-      if (!pickToken || !jobTypeRaw) throw new Error("RECRUIT_PICK_REQUIRED");
+      if (!pickToken || candidateIndex == null) throw new Error("RECRUIT_PICK_REQUIRED");
 
-      const gatherCount = await countGatherMinions(tx, auth.userId);
       const dungeonCount = await countDungeonMinions(tx, auth.userId);
 
       const payload = verifyRecruitPickToken(pickToken, auth.userId);
       if (payload.itemId !== consumeItemId) throw new Error("PICK_TOKEN_MISMATCH");
-      if (category && payload.category !== category) throw new Error("PICK_TOKEN_MISMATCH");
-      if (!payload.candidates.includes(jobTypeRaw as (typeof payload.candidates)[number])) {
-        throw new Error("INVALID_JOB_PICK");
+      if (category && payload.category !== category && payload.category !== "DUNGEON") {
+        throw new Error("PICK_TOKEN_MISMATCH");
       }
+      const pickedStats = payload.candidates[candidateIndex];
+      if (!pickedStats) throw new Error("INVALID_CANDIDATE_PICK");
 
       const bundle = await loadMinionCsvBundle();
       const ticket = bundle.ticketsByItemId.get(consumeItemId);
@@ -66,11 +61,11 @@ export async function POST(req: Request) {
 
       const birth = buildMinionRecruitBirth({
         ticket,
-        category: payload.category,
-        jobType: jobTypeRaw as (typeof payload.candidates)[number],
+        category: "DUNGEON",
+        baseStats: pickedStats,
       });
 
-      assertCanHatchMinionJob(birth.jobType, gatherCount, dungeonCount);
+      assertCanHatchMinion(dungeonCount);
 
       await tx.inventoryStack.update({
         where: { userId_itemId: { userId: auth.userId, itemId: consumeItemId } },
@@ -80,19 +75,23 @@ export async function POST(req: Request) {
       const created = await createMinionWithBirth(tx, {
         userId: auth.userId,
         level: birth.level,
-        jobType: birth.jobType,
+        baseStats: birth.baseStats,
       });
 
       await syncMinionInventoryCaps(tx, auth.userId);
 
       const iconFields = await itemIconFieldsForItemId(consumeItemId);
+      const baseStats = minionBaseStatsFromRow(created);
+      const combatClass = resolveMinionCombatClass({ promotionTier: 0, promotionClass: "ADVENTURER" });
 
       return {
         ok: true as const,
         minion: {
           id: created.id,
           level: created.level,
-          jobType: created.jobType,
+          baseStats,
+          combatClass,
+          combatClassLabel: minionRoleLabel({ combatClass }),
         },
         recruit: {
           itemId: birth.ticket.itemId,

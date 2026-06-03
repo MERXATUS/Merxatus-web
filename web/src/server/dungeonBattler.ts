@@ -1,6 +1,4 @@
-import type { MinionJobType } from "@prisma/client";
 import { computePartyPower } from "@/server/dungeonCombat";
-import { MINION_JOB_LABEL } from "@/server/minionJobs";
 import { applyDefense, fighterStatsFromMonster } from "@/server/monsterCombat";
 import type { MonsterDef } from "@/server/monsterData";
 import type { CombatLogLine } from "@/shared/dungeonCombatLog";
@@ -46,17 +44,15 @@ export function statsFromPower(power: number) {
 }
 
 export function buildPartyCombatants(
-  members: Array<{ minionId: string; jobType: MinionJobType; power: number; bonusHp?: number; bonusDef?: number }>,
+  members: Array<{ minionId: string; combatClassLabel: string; power: number; bonusHp?: number; bonusDef?: number }>,
 ): CombatantInput[] {
-  const jobCount = new Map<MinionJobType, number>();
+  const labelCount = new Map<string, number>();
   return members.map((m) => {
-    const job = m.jobType;
-    const n = (jobCount.get(job) ?? 0) + 1;
-    jobCount.set(job, n);
-    const jobLabel = MINION_JOB_LABEL[job] ?? job;
+    const n = (labelCount.get(m.combatClassLabel) ?? 0) + 1;
+    labelCount.set(m.combatClassLabel, n);
     return {
       id: m.minionId,
-      label: `${jobLabel} ${n}`,
+      label: `${m.combatClassLabel} ${n}`,
       power: m.power,
       bonusHp: m.bonusHp,
       bonusDef: m.bonusDef,
@@ -122,7 +118,10 @@ export function simulateFloorCombat(input: {
 }): { outcome: "WIN" | "LOSS"; log: CombatLogLine[]; partyHp: PartyHpSnapshot[] } {
   const rnd = input.rnd ?? Math.random;
   const enemyLabel = `[${input.enemy.name}]`;
-  const log: CombatLogLine[] = [{ t: "floor_start", floor: input.floor, enemyName: enemyLabel }];
+  const enemyStats = fighterStatsFromMonster(input.enemy.monster);
+  const log: CombatLogLine[] = [
+    { t: "floor_start", floor: input.floor, enemyName: enemyLabel, enemyMaxHp: enemyStats.maxHp },
+  ];
 
   const partyFighters: Fighter[] = input.party.map((p) => {
     const st = statsFromPower(p.power);
@@ -142,7 +141,6 @@ export function simulateFloorCombat(input: {
     };
   });
 
-  const enemyStats = fighterStatsFromMonster(input.enemy.monster);
   const enemies: Fighter[] = [
     {
       id: "enemy_0",
@@ -172,7 +170,7 @@ export function simulateFloorCombat(input: {
       const target = targets[Math.floor(rnd() * targets.length)]!;
       const dmg = damageToTarget(attacker, target, rnd);
       target.hp = Math.max(0, target.hp - dmg);
-      log.push({ t: "hit", side: "party", actor: attacker.label, damage: dmg });
+      log.push({ t: "hit", side: "party", actor: attacker.label, target: target.label, damage: dmg });
       if (target.hp <= 0) {
         log.push({ t: "ko", side: "enemy", name: target.label });
       }
@@ -187,7 +185,7 @@ export function simulateFloorCombat(input: {
     const victim = partyTargets[Math.floor(rnd() * partyTargets.length)]!;
     const dmg = damageToTarget(enemy, victim, rnd);
     victim.hp = Math.max(0, victim.hp - dmg);
-    log.push({ t: "hit", side: "enemy", actor: enemy.label, damage: dmg });
+    log.push({ t: "hit", side: "enemy", actor: enemy.label, target: victim.label, damage: dmg });
     if (victim.hp <= 0) {
       log.push({ t: "ko", side: "party", name: victim.label });
     }

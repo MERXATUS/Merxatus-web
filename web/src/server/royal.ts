@@ -2,6 +2,7 @@ import { prisma } from "@/server/db";
 import { honorTitleForPoints } from "@/server/honorTitles";
 import { GAME_RULES } from "@/server/gameRules";
 import { itemIconFieldsForItemId } from "@/server/itemCatalog";
+import { resolveRoyalPrice } from "@/server/royalPricing";
 
 /** 황실 거래 가능 재료 (Merxatus CSV 등으로 고등급도 가격표에 올릴 수 있음) */
 function isRoyalMaterial(item: { category: string; tradable: boolean }) {
@@ -70,13 +71,9 @@ export async function listRoyalPrices(userId: string) {
 export async function royalBuy(input: { userId: string; itemId: string; quantity: number }) {
   const qty = Math.max(1, Math.floor(input.quantity));
   return prisma.$transaction(async (tx) => {
-    const [u0, wallet, rp] = await Promise.all([
+    const [u0, wallet] = await Promise.all([
       tx.user.findUnique({ where: { id: input.userId }, select: { honorPoints: true, infamyPoints: true } }),
       tx.wallet.findUnique({ where: { userId: input.userId } }),
-      tx.royalPrice.findUnique({
-        where: { itemId: input.itemId },
-        include: { item: { select: { category: true, grade: true, tradable: true } } },
-      }),
     ]);
     if (!u0) return { ok: false as const, error: "USER_NOT_FOUND" as const };
     const infamy = Math.max(0, Math.floor(u0.infamyPoints ?? 0));
@@ -84,10 +81,17 @@ export async function royalBuy(input: { userId: string; itemId: string; quantity
       return { ok: false as const, error: "INFAMY_TOO_HIGH_FOR_ROYAL" as const };
     }
     if (!wallet) return { ok: false as const, error: "WALLET_NOT_FOUND" as const };
-    if (!rp || !rp.enabled) return { ok: false as const, error: "ITEM_NOT_AVAILABLE" as const };
-    if (!isRoyalMaterial(rp.item)) return { ok: false as const, error: "ITEM_NOT_ALLOWED" as const };
 
-    const grossGold = Math.max(0, Number(rp.buyPricePerUnit) * qty);
+    const item = await tx.item.findUnique({
+      where: { id: input.itemId },
+      select: { id: true, name: true, category: true, grade: true, tradable: true },
+    });
+    if (!item) return { ok: false as const, error: "ITEM_NOT_FOUND" as const };
+    const pricing = await resolveRoyalPrice(tx, item);
+    if (!pricing?.enabled) return { ok: false as const, error: "ITEM_NOT_AVAILABLE" as const };
+    if (!isRoyalMaterial(item)) return { ok: false as const, error: "ITEM_NOT_ALLOWED" as const };
+
+    const grossGold = Math.max(0, Number(pricing.buyPricePerUnit) * qty);
     if (wallet.goldAvailable < grossGold) return { ok: false as const, error: "INSUFFICIENT_GOLD" as const };
 
     await tx.wallet.update({ where: { userId: input.userId }, data: { goldAvailable: { decrement: grossGold } } });
@@ -119,13 +123,9 @@ export async function royalBuy(input: { userId: string; itemId: string; quantity
 export async function royalSell(input: { userId: string; itemId: string; quantity: number }) {
   const qty = Math.max(1, Math.floor(input.quantity));
   return prisma.$transaction(async (tx) => {
-    const [u0, wallet, rp, stack] = await Promise.all([
+    const [u0, wallet, stack] = await Promise.all([
       tx.user.findUnique({ where: { id: input.userId }, select: { honorPoints: true, infamyPoints: true } }),
       tx.wallet.findUnique({ where: { userId: input.userId } }),
-      tx.royalPrice.findUnique({
-        where: { itemId: input.itemId },
-        include: { item: { select: { category: true, grade: true, tradable: true } } },
-      }),
       tx.inventoryStack.findUnique({ where: { userId_itemId: { userId: input.userId, itemId: input.itemId } } }),
     ]);
     if (!u0) return { ok: false as const, error: "USER_NOT_FOUND" as const };
@@ -134,11 +134,18 @@ export async function royalSell(input: { userId: string; itemId: string; quantit
       return { ok: false as const, error: "INFAMY_TOO_HIGH_FOR_ROYAL" as const };
     }
     if (!wallet) return { ok: false as const, error: "WALLET_NOT_FOUND" as const };
-    if (!rp || !rp.enabled) return { ok: false as const, error: "ITEM_NOT_AVAILABLE" as const };
-    if (!isRoyalMaterial(rp.item)) return { ok: false as const, error: "ITEM_NOT_ALLOWED" as const };
+
+    const item = await tx.item.findUnique({
+      where: { id: input.itemId },
+      select: { id: true, name: true, category: true, grade: true, tradable: true },
+    });
+    if (!item) return { ok: false as const, error: "ITEM_NOT_FOUND" as const };
+    const pricing = await resolveRoyalPrice(tx, item);
+    if (!pricing?.enabled) return { ok: false as const, error: "ITEM_NOT_AVAILABLE" as const };
+    if (!isRoyalMaterial(item)) return { ok: false as const, error: "ITEM_NOT_ALLOWED" as const };
     if (!stack || stack.quantity < qty) return { ok: false as const, error: "INSUFFICIENT_ITEMS" as const };
 
-    const grossGold = Math.max(0, Number(rp.sellPricePerUnit) * qty);
+    const grossGold = Math.max(0, Number(pricing.sellPricePerUnit) * qty);
     await tx.inventoryStack.update({
       where: { userId_itemId: { userId: input.userId, itemId: input.itemId } },
       data: { quantity: { decrement: qty } },

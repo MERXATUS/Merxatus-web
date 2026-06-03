@@ -10,12 +10,19 @@ import { formatPanelError } from "@/shared/formatPanelError";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import {
+  GAME_FRAME_REFRESH_EVENT,
+  START_TRADE_WITH_EVENT,
+  TRADE_START_USERNAME_KEY,
+} from "@/shared/gameNav";
+import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
+import {
   MarketSellTab,
   MARKET_SELL_CATEGORY_ALL,
   MARKET_WEAPON_CATEGORY,
   type SellInventoryRow,
   type SellWeaponRow,
 } from "@/app/_components/MarketSellTab";
+import { TradePanel } from "@/app/_components/TradePanel";
 
 type Listing = {
   id: string;
@@ -155,10 +162,10 @@ function listingPriceLabel(l: Listing | MyListing): { main: string; sub?: string
 
 const CATEGORY_ALL = "전체";
 
-export function MarketBoard() {
+export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
   const { user, loading: sessionLoading } = useSessionUser();
   const userId = user?.id ?? "";
-  const [tab, setTab] = useState<"MARKET" | "SELL" | "MINE">("MARKET");
+  const [tab, setTab] = useState<"MARKET" | "SELL" | "MINE" | "TRADE">("MARKET");
   const [sellCategories, setSellCategories] = useState<string[]>([MARKET_SELL_CATEGORY_ALL]);
   const [q, setQ] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(CATEGORY_ALL);
@@ -202,6 +209,23 @@ export function MarketBoard() {
     const t = params.get("tab");
     if (t === "sell") setTab("SELL");
     else if (t === "mine") setTab("MINE");
+    else if (t === "trade") setTab("TRADE");
+    else {
+      try {
+        const pending = sessionStorage.getItem(TRADE_START_USERNAME_KEY);
+        if (pending) setTab("TRADE");
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    function openTradeTab() {
+      setTab("TRADE");
+    }
+    window.addEventListener(START_TRADE_WITH_EVENT, openTradeTab);
+    return () => window.removeEventListener(START_TRADE_WITH_EVENT, openTradeTab);
   }, []);
 
   const tutorialMarketVisitRef = useRef(false);
@@ -254,6 +278,10 @@ export function MarketBoard() {
     setBusy(true);
     setError(null);
     try {
+      if (tab === "TRADE") {
+        // trade panel handles its own refresh
+        return;
+      }
       if (tab === "MARKET") {
         const r = await getJson<{ ok: boolean; listings: Listing[] }>(queryUrl);
         setListings(r.listings ?? []);
@@ -277,6 +305,14 @@ export function MarketBoard() {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryUrl, tab, user?.id, sessionLoading]);
+
+  useEffect(() => {
+    if (!embedded) return;
+    const onFrameRefresh = () => void refresh();
+    window.addEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
+    return () => window.removeEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded]);
 
   useEffect(() => {
     const pool = tab === "SELL" ? sellCategories : categories;
@@ -550,13 +586,15 @@ export function MarketBoard() {
   }
 
   return (
-    <GamePanel className="market-board">
+    <GamePanel className={`market-board ${embedded ? "market-board--fit" : ""}`}>
       <div className="market-board__header">
-        <div>
-          <p className="game-label">거래소</p>
-          <h2 className="market-board__title">메르카투스 거래소</h2>
-          <p className="mt-1 text-xs text-[var(--game-muted)]">매물 등록 최대 20건 · 판매 기간 48시간 · 수수료 10%</p>
-        </div>
+        {!embedded ? (
+          <div>
+            <p className="game-label">거래소</p>
+            <h2 className="market-board__title">메르카투스 거래소</h2>
+            <p className="mt-1 text-xs text-[var(--game-muted)]">매물 등록 최대 20건 · 판매 기간 48시간 · 수수료 5%</p>
+          </div>
+        ) : null}
         {saleNotice ? (
           <p className="mt-2 w-full rounded-xl border border-emerald-500/30 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-100 md:col-span-2">
             {saleNotice}
@@ -584,6 +622,15 @@ export function MarketBoard() {
           <button
             type="button"
             role="tab"
+            aria-selected={tab === "TRADE"}
+            className={`market-board__tab ${tab === "TRADE" ? "market-board__tab--active" : ""}`}
+            onClick={() => setTab("TRADE")}
+          >
+            직거래
+          </button>
+          <button
+            type="button"
+            role="tab"
             aria-selected={tab === "MINE"}
             className={`market-board__tab ${tab === "MINE" ? "market-board__tab--active" : ""}`}
             onClick={() => setTab("MINE")}
@@ -601,6 +648,8 @@ export function MarketBoard() {
       {error ? (
         <div className="market-alert market-alert--error">{formatPanelError(error)}</div>
       ) : null}
+
+      {tab === "TRADE" ? <TradePanel /> : null}
 
       <div className="market-board__layout">
         {tab === "MARKET" || tab === "SELL" ? (

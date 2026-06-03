@@ -1,10 +1,11 @@
-import { MarketBoard } from "@/app/_components/MarketBoard";
-import { GameShell } from "@/app/_components/GameShell";
+import { Suspense } from "react";
+import { GameFrame } from "@/app/_components/GameFrame";
+import { GamePanelLoading } from "@/app/_components/panelFeedback";
 
 export default function MarketPage() {
   return (
-    <GameShell title="메르카투스 거래소" subtitle="구매 · 판매 · 내 매물 관리">
-      <MarketBoard />
-    </GameShell>
+    <Suspense fallback={<GamePanelLoading label="거래소 불러오는 중…" className="m-6" />}>
+      <GameFrame />
+    </Suspense>
   );
 }

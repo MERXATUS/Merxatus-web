@@ -10,6 +10,9 @@ export async function GET(req: Request) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return Response.json({ ok: true, user: null });
 
-  return Response.json({ ok: true, user: { id: user.id, username: user.username } });
+  return Response.json({
+    ok: true,
+    user: { id: user.id, username: user.username, usernameChosen: user.usernameChosen ?? true },
+  });
 }
 

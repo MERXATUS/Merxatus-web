@@ -11,29 +11,45 @@ import {
   type MinionEquippedItemView,
 } from "@/shared/minionEquipSlots";
 
+/** UI 표시 순: 투구 → 갑옷 → 하의 → 신발 → 무기 */
+const EQUIP_DISPLAY_ORDER: MinionEquipSlotId[] = ["helmet", "armor", "pants", "shoes", "weapon"];
+
 export function MinionEquipDoll(props: {
   equipment?: MinionEquipmentView;
   clickableSlots?: MinionEquipSlotId[];
+  visibleSlots?: MinionEquipSlotId[];
   onSlotClick?: (slotId: MinionEquipSlotId) => void;
   onSlotDrop?: (slotId: MinionEquipSlotId, rawPayload: string) => void;
   activeSlot?: MinionEquipSlotId | null;
   compact?: boolean;
   large?: boolean;
+  /** fit 패널용 — 착용 슬롯만 가로 1줄 */
+  strip?: boolean;
 }) {
   const equipment = props.equipment ?? {};
+  const visible = props.visibleSlots ? new Set(props.visibleSlots) : null;
   const clickable = new Set(props.clickableSlots ?? (props.onSlotClick ? ["weapon"] : []));
-  const iconSize = props.large ? 44 : props.compact ? 28 : 36;
+  const iconSize = props.strip ? 24 : props.large ? 44 : props.compact ? 28 : 36;
   const dollClass = [
     "minion-equip-doll",
     props.compact ? "minion-equip-doll--compact" : "",
+    props.strip ? "minion-equip-doll--strip" : "",
     props.large ? "minion-equip-doll--large" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
+  const slotsToRender = EQUIP_DISPLAY_ORDER.map((id) => MINION_EQUIP_SLOTS.find((s) => s.id === id))
+    .filter((slot): slot is (typeof MINION_EQUIP_SLOTS)[number] => {
+      if (!slot) return false;
+      if (!isMinionEquipSlotEnabled(slot.id)) return false;
+      if (visible && !visible.has(slot.id)) return false;
+      return true;
+    });
+
   return (
     <div className={dollClass} aria-label="장비 착용">
-      {MINION_EQUIP_SLOTS.map((slot) => {
+      {slotsToRender.map((slot) => {
         const item = equipment[slot.id] ?? null;
         const filled = !!item;
         const enabled = isMinionEquipSlotEnabled(slot.id);
@@ -54,10 +70,6 @@ export function MinionEquipDoll(props: {
             ? (raw: string) => props.onSlotDrop!(slot.id, raw)
             : undefined,
         };
-
-        if (!enabled) {
-          return <SlotDisabled key={slot.id} {...slotProps} />;
-        }
 
         if (slotProps.canClick || slotProps.droppable) {
           return <SlotInteractive key={slot.id} {...slotProps} />;
@@ -126,19 +138,6 @@ type SlotCommon = {
   active?: boolean;
 };
 
-function SlotDisabled(props: SlotCommon) {
-  return (
-    <div
-      title={`${props.label} (추후 업데이트)`}
-      className={slotClass(props.slotId, props.filled, "minion-equip-slot--disabled")}
-      style={{ gridArea: props.slotId }}
-      aria-disabled="true"
-    >
-      <SlotContents {...props} />
-    </div>
-  );
-}
-
 function SlotInteractive(
   props: SlotCommon & {
     canClick: boolean;
@@ -167,7 +166,6 @@ function SlotInteractive(
           .filter(Boolean)
           .join(" "),
       )}
-      style={{ gridArea: props.slotId }}
       onClick={props.canClick ? props.onClick : undefined}
       onKeyDown={(e) => {
         if (!props.canClick || !props.onClick) return;
@@ -198,7 +196,6 @@ function SlotStatic(props: SlotCommon) {
     <div
       title={props.implemented ? props.label : `${props.label} (준비 중)`}
       className={slotClass(props.slotId, props.filled)}
-      style={{ gridArea: props.slotId }}
     >
       <SlotContents {...props} />
     </div>

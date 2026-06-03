@@ -1,69 +1,5 @@
 [
   {
-    "id": "item_stone",
-    "name": "돌",
-    "category": "재료",
-    "tradable": true,
-    "grade": 1,
-    "icon": "Icon_Stone"
-  },
-  {
-    "id": "item_red_gold_ore",
-    "name": "적금 원석",
-    "category": "재료",
-    "tradable": true,
-    "grade": 2,
-    "icon": "Icon_Red_Gold_Ore"
-  },
-  {
-    "id": "item_gold_ore",
-    "name": "금 원석",
-    "category": "재료",
-    "tradable": true,
-    "grade": 3,
-    "icon": "Icon_Gold_Ore"
-  },
-  {
-    "id": "item_red_gold",
-    "name": "적금",
-    "category": "재료",
-    "tradable": true,
-    "grade": 2,
-    "icon": "Icon_Red_Gold"
-  },
-  {
-    "id": "item_gold",
-    "name": "금",
-    "category": "재료",
-    "tradable": true,
-    "grade": 3,
-    "icon": "Icon_Gold"
-  },
-  {
-    "id": "item_fish",
-    "name": "잡어",
-    "category": "재료",
-    "tradable": true,
-    "grade": 1,
-    "icon": "Icon_Fish"
-  },
-  {
-    "id": "item_second_fish",
-    "name": "2단계 물고기",
-    "category": "재료",
-    "tradable": true,
-    "grade": 2,
-    "icon": "Icon_Second_Fish"
-  },
-  {
-    "id": "item_white_fish",
-    "name": "백어",
-    "category": "재료",
-    "tradable": true,
-    "grade": 3,
-    "icon": "Icon_White_Fish"
-  },
-  {
     "id": "item_lesser_mana_stone",
     "name": "하급 마석",
     "category": "재료",
@@ -86,38 +22,6 @@
     "tradable": true,
     "grade": 5,
     "icon": "Icon_Greater_Mana_Stone"
-  },
-  {
-    "id": "item_minion_ticket",
-    "name": "미니언 고용권",
-    "category": "미니언고용권",
-    "tradable": true,
-    "grade": 6,
-    "icon": "Icon_Minion_Ticket"
-  },
-  {
-    "id": "item_lesser_recovery_potion",
-    "name": "체력 회복 물약",
-    "category": "물약",
-    "tradable": true,
-    "grade": 1,
-    "icon": "Icon_Lesser_Recovery_Potion"
-  },
-  {
-    "id": "item_recovery_potion",
-    "name": "체력 회복 포션",
-    "category": "물약",
-    "tradable": true,
-    "grade": 3,
-    "icon": "Icon_Recovery_Potion"
-  },
-  {
-    "id": "item_greater_recovery_flask",
-    "name": "체력 회복의 비약",
-    "category": "물약",
-    "tradable": true,
-    "grade": 5,
-    "icon": "Icon_Greater_Recovery_Flask"
   },
   {
     "id": "item_enhance_scroll_low",
@@ -144,44 +48,44 @@
     "icon": "Icon_Enhance_Scroll_High"
   },
   {
-    "id": "item_paper",
-    "name": "종이",
-    "category": "재료",
-    "tradable": true,
-    "grade": 2,
-    "icon": "Icon_Paper"
-  },
-  {
-    "id": "item_enchanted_paper",
-    "name": "마력이 깃든 종이",
-    "category": "재료",
-    "tradable": true,
-    "grade": 4,
-    "icon": "Icon_Enchanted_Paper"
-  },
-  {
-    "id": "item_chest",
-    "name": "상자",
-    "category": "Chest",
-    "tradable": true,
-    "grade": 2,
-    "icon": "Icon_Chest"
-  },
-  {
-    "id": "item_herb",
-    "name": "약초",
-    "category": "재료",
+    "id": "item_lesser_recovery_potion",
+    "name": "체력 회복 물약",
+    "category": "물약",
     "tradable": true,
     "grade": 1,
-    "icon": "Icon_Herb"
+    "icon": "Icon_Lesser_Recovery_Potion"
   },
   {
-    "id": "item_leather",
-    "name": "가죽",
+    "id": "item_recovery_potion",
+    "name": "체력 회복 포션",
+    "category": "물약",
+    "tradable": true,
+    "grade": 3,
+    "icon": "Icon_Recovery_Potion"
+  },
+  {
+    "id": "item_greater_recovery_flask",
+    "name": "체력 회복의 비약",
+    "category": "물약",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Greater_Recovery_Flask"
+  },
+  {
+    "id": "item_raid_shard",
+    "name": "레이드 파편",
     "category": "재료",
     "tradable": true,
-    "grade": 2,
-    "icon": "Icon_Leather"
+    "grade": 6,
+    "icon": "Icon_Mana_Stone"
+  },
+  {
+    "id": "item_minion_ticket",
+    "name": "미니언 고용권",
+    "category": "미니언고용권",
+    "tradable": true,
+    "grade": 6,
+    "icon": "Icon_Minion_Ticket"
   },
   {
     "id": "weapon_wood_sword",
@@ -350,84 +254,5 @@
     "tradable": true,
     "grade": 3,
     "icon": "Icon_Golden_Boots"
-  },
-  {
-    "id": "tool_wood_pickaxe",
-    "name": "나무 곡괭이",
-    "category": "도구",
-    "tradable": true,
-    "grade": 1,
-    "icon": "Icon_Wood_Pickaxe"
-  },
-  {
-    "id": "tool_stone_pickaxe",
-    "name": "돌 곡괭이",
-    "category": "도구",
-    "tradable": true,
-    "grade": 1,
-    "icon": "Icon_Stone_Pickaxe"
-  },
-  {
-    "id": "tool_red_gold_pickaxe",
-    "name": "적빛 곡괭이",
-    "category": "도구",
-    "tradable": true,
-    "grade": 2,
-    "icon": "Icon_Red_Gold_Pickaxe"
-  },
-  {
-    "id": "tool_steel_pickaxe",
-    "name": "철 곡괭이",
-    "category": "도구",
-    "tradable": true,
-    "grade": 2,
-    "icon": "Icon_Steel_Pickaxe"
-  },
-  {
-    "id": "tool_gold_pickaxe",
-    "name": "금 곡괭이",
-    "category": "도구",
-    "tradable": true,
-    "grade": 3,
-    "icon": "Icon_Gold_Pickaxe"
-  },
-  {
-    "id": "tool_wooden_rod",
-    "name": "나무 낚싯대",
-    "category": "도구",
-    "tradable": true,
-    "grade": 1,
-    "icon": "Icon_Wooden_Rod"
-  },
-  {
-    "id": "tool_scarlet_rod",
-    "name": "적빛 낚싯대",
-    "category": "도구",
-    "tradable": true,
-    "grade": 2,
-    "icon": "Icon_Scarlet_Rod"
-  },
-  {
-    "id": "tool_iron_rod",
-    "name": "철 낚싯대",
-    "category": "도구",
-    "tradable": true,
-    "grade": 2,
-    "icon": "Icon_Iron_Rod"
-  },
-  {
-    "id": "tool_golden_rod",
-    "name": "금 낚싯대",
-    "category": "도구",
-    "tradable": true,
-    "grade": 3,
-    "icon": "Icon_Golden_Rod"
-  },
-  {
-    "id": "item_minor_mana_stone",
-    "name": "item_minor_mana_stone",
-    "category": "재료",
-    "tradable": true,
-    "grade": 1
   }
 ]

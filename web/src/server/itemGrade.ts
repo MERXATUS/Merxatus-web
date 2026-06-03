@@ -4,6 +4,7 @@
  *   최종 희귀 드랍 일부만 신화·고대로 상향(에테르늄·최상 마정석·탐어·인어 등).
  * - 무기·도구·기타는 별도 밸런스 매핑.
  */
+/** 무기 강화 상한(+N): 일반5 … 초월30 — `shared/weaponEnhanceLimits.ts` */
 export const ITEM_GRADE_LABELS = [
   "일반",
   "레어",
@@ -112,23 +113,6 @@ const ITEM_GRADE_BY_ID: Record<string, number> = {
   item_mithril_staff: G.영웅,
   item_titanium_staff: G.전설,
   item_ether_staff: G.신화,
-
-  // 도구
-  item_pickaxe: G.레어,
-  item_sickle: G.레어,
-  item_pickaxe_t1: G.레어,
-  item_pickaxe_t2: G.유니크,
-  item_pickaxe_t3: G.영웅,
-  item_pickaxe_t4: G.전설,
-  item_pickaxe_t5: G.신화,
-  item_pickaxe_goblin: G.초월,
-
-  item_sickle_t1: G.레어,
-  item_sickle_t2: G.유니크,
-  item_sickle_t3: G.영웅,
-  item_sickle_t4: G.전설,
-  item_sickle_t5: G.신화,
-  item_sickle_harvest: G.고대,
 
   item_accessory: G.레어,
   item_enhance_scroll: G.유니크,

@@ -8,6 +8,10 @@ const DungeonDropSchema = z.object({
   weight: z.number().int().nonnegative(),
   minQty: z.number().int().positive(),
   maxQty: z.number().int().positive(),
+  /** 이 층 이상에서만 드랍 풀에 포함 (생략 시 1) */
+  minFloor: z.number().int().min(1).optional(),
+  /** 이 층 이하에서만 드랍 풀에 포함 (생략 시 무제한) */
+  maxFloor: z.number().int().min(1).optional(),
 });
 
 const DungeonEncounterSchema = z.object({

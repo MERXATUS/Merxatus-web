@@ -1,10 +1,11 @@
-import { DungeonsPanel } from "@/app/_components/DungeonsPanel";
-import { GameShell } from "@/app/_components/GameShell";
+import { Suspense } from "react";
+import { GameFrame } from "@/app/_components/GameFrame";
+import { GamePanelLoading } from "@/app/_components/panelFeedback";
 
 export default function DungeonPage() {
   return (
-    <GameShell title="던전" subtitle="파티 편성 · 전투 · 보상 수령">
-      <DungeonsPanel />
-    </GameShell>
+    <Suspense fallback={<GamePanelLoading label="던전 불러오는 중…" className="m-6" />}>
+      <GameFrame />
+    </Suspense>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+
 function fmtInt(n: unknown) {
   const x = typeof n === "number" ? n : Number(n);
   if (!Number.isFinite(x)) return "—";
@@ -17,6 +18,7 @@ type HomeGoldHeaderProps = {
   gold: number | null;
   todayNetGold?: number | null;
   activeListings?: number | null;
+  username?: string | null;
 };
 
 export function HomeGoldHeader(props: HomeGoldHeaderProps) {
@@ -24,6 +26,7 @@ export function HomeGoldHeader(props: HomeGoldHeaderProps) {
   const todayLabel = fmtSignedGold(props.todayNetGold ?? null);
   const listingsLabel =
     props.activeListings != null ? `매물 ${fmtInt(props.activeListings)}건` : null;
+  const commanderLabel = props.username?.trim() || "미로그인";
 
   return (
     <div className="home-gold-header" aria-label="보유 골드">
@@ -31,6 +34,13 @@ export function HomeGoldHeader(props: HomeGoldHeaderProps) {
         ◈
       </span>
       <div className="home-gold-header__body">
+        <div className="home-gold-header__topline">
+          <span className="home-gold-header__brand">Merxatus</span>
+          <span className="home-gold-header__dot" aria-hidden>
+            ·
+          </span>
+          <span className="home-gold-header__commander">{commanderLabel}</span>
+        </div>
         <span className="home-gold-header__label">보유 골드</span>
         <span className="home-gold-header__value">
           {goldAmount}

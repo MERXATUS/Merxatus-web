@@ -1,42 +1,4 @@
 export const GAME_RULES = {
-  workshop: {
-    /** 유저당 WorkshopInstance 최대 개수 (부지 슬롯 대신 단순 상한) */
-    maxInstancesPerUser: 20,
-    tickSeconds: 60,
-    /** 수집(GATHER) 시설: 미수령으로 쌓이는 경과 시간 상한(밀리초). 초과 구간은 틱·드랍에 반영하지 않음 */
-    maxBankedRealTimeMs: 8 * 60 * 60 * 1000,
-    /**
-     * 시설 티어(1~5) 골드 업그레이드 비용: tier N -> N+1
-     * 수집(GATHER)·가공(PROCESS) 공통
-     */
-    tierUpgradeGoldByFromTier: {
-      1: 6000,
-      2: 20000,
-      3: 65000,
-      4: 200000,
-    } as const,
-    /**
-     * 가공(PROCESS) 시설: 현재 티어 기준 추가 제작 속도 배수 (직업·시너지 `craftSpeedMult`에 곱해짐)
-     * 예: 1.08이면 기본 제작 시간이 약 7.4% 단축
-     */
-    processTierCraftSpeedMultByFromTier: {
-      1: 1,
-      2: 1.04,
-      3: 1.08,
-      4: 1.12,
-      5: 1.16,
-    } as const,
-    // 도구(시설·인스턴스별 장착)로 희귀 드랍 가중치 보정
-    tool: {
-      /** 도구 장착 시, 희귀 드랍(minTier>=2) 가중치 배수 */
-      rareWeightMultiplier: 1.5,
-      /** 시설(WorkshopType) 이름별 허용 도구 itemId (WorkshopType.id는 cuid라 name이 더 안정적) */
-      allowedToolItemIdsByWorkshopName: {
-        광산: ["tool_wood_pickaxe", "tool_stone_pickaxe", "tool_red_gold_pickaxe", "tool_steel_pickaxe", "tool_gold_pickaxe"],
-        낚시터: ["tool_wooden_rod", "tool_scarlet_rod", "tool_iron_rod", "tool_golden_rod"],
-      } as const,
-    },
-  },
   combat: {
     /** 무기 전투력(미니언 개별 장착) */
     weaponPowerByItemId: {
@@ -59,33 +21,32 @@ export const GAME_RULES = {
   },
   /** 미니언 보유 상한 */
   minion: {
-    /** 수집·작업장용 미니언 보유 상한 */
-    maxGatherOwned: 10,
-    /** 던전용 미니언(전사·궁수·마법사) 보유 상한 */
     maxDungeonOwned: 10,
+    /** 레벨·경험치·스탯 배분 — `shared/minionLevel.ts` */
+    levelUp: {
+      maxLevel: 200,
+      statPointsPerLevel: 3,
+      maxStatPerAttribute: 150,
+    },
+    /** 기본 4스탯 — 전투력 환산 가중치(스탯 1당) */
+    baseStats: {
+      powerPerStrength: 0.28,
+      powerPerAgility: 0.24,
+      powerPerIntelligence: 0.24,
+      powerPerEndurance: 0.28,
+    },
   },
-  /**
-   * 마을 시설별 “특화 직업” 미니언 보너스 · 시너지(3/5/7/10명).
-   * 어떤 직업이든 배치 가능하며, 특화 직업만 매칭되어 가산된다.
-   */
-  workshopLabor: {
-    /** 특화 직업 일치 미니언 1명당 가산 가동력(드랍 롤·제작 등) */
-    matchingBonusPerMinion: 0.18,
-    /** 특화 직업 인원 기준 누적 시너지 배수(곱) */
-    synergyMultAt3: 1.06,
-    synergyMultAt5: 1.08,
-    synergyMultAt7: 1.1,
-    synergyMultAt10: 1.12,
-    /** 제작 속도·산출 배수 상한 (과도한 단축 방지) */
-    craftSpeedMultMax: 2.2,
-    craftSpeedMultMin: 0.85,
+  /** 황실 — DB 가격 없을 때 referenceGold 폴백 */
+  royal: {
+    fallbackBuyMult: 1.12,
+    fallbackSellMult: 0.88,
   },
-  /** 장착 무기 강화 — `data/weapon_enhance_levels.json` (CSV 동기화) */
+  /** 장착 무기 강화 — 비용 `weapon_enhance_levels.json`, 등급별 상한은 `shared/weaponEnhanceLimits` */
   weaponUpgrade: {
-    maxLevel: 15,
+    maxLevel: 30,
   },
   market: {
-    feeBps: 1000, // 10%
+    feeBps: 500, // 5%
     /** 유저당 동시 ACTIVE 매물 상한 */
     maxActiveListingsPerUser: 20,
     /** 매물(고정가·경매) 판매 기간 — 등록 시점부터 */
@@ -130,9 +91,9 @@ export const GAME_RULES = {
     seedWalletGold: 200_000,
     /** 초기 인벤(판매 유동성): 여러 아이템 소량 */
     seedStacks: [
-      { itemId: "item_dark_iron_ore", quantity: 25 },
-      { itemId: "item_stone", quantity: 40 },
-      { itemId: "item_red_gold_ore", quantity: 8 },
+      { itemId: "item_lesser_mana_stone", quantity: 30 },
+      { itemId: "item_mana_stone", quantity: 15 },
+      { itemId: "item_enhance_scroll_low", quantity: 10 },
     ],
   },
   chat: {

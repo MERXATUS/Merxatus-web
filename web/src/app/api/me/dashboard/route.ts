@@ -1,0 +1,30 @@
+import { z } from "zod";
+import { requireUserId } from "@/server/auth";
+import { buildMeDashboard } from "@/server/meDashboard";
+import { prismaKnownErrorResponse } from "@/server/prismaHttp";
+
+export const runtime = "nodejs";
+
+const QuerySchema = z.object({
+  userId: z.string().min(1).optional(),
+});
+
+export async function GET(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const parsed = QuerySchema.safeParse({ userId: url.searchParams.get("userId") ?? undefined });
+    if (!parsed.success) return Response.json({ ok: false, error: "BAD_REQUEST" }, { status: 400 });
+
+    const auth = requireUserId(req, parsed.data.userId ?? null);
+    if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
+
+    const dashboard = await buildMeDashboard(auth.userId);
+    return Response.json(dashboard);
+  } catch (e) {
+    const r = prismaKnownErrorResponse(e);
+    if (r) return r;
+    const message = e instanceof Error ? e.message : "UNKNOWN";
+    console.error("[me/dashboard]", e);
+    return Response.json({ ok: false, error: message }, { status: 500 });
+  }
+}

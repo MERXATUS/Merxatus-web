@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { StackItemTooltipHover } from "@/app/_components/StackItemTooltip";
-import { ToolTooltipHover } from "@/app/_components/ToolTooltip";
 import { WeaponTooltipHover } from "@/app/_components/WeaponTooltip";
 import { shouldShowStackItemTooltip } from "@/shared/stackItemTooltip";
 import { GameBtn, GamePanel } from "@/app/_components/gameUi";
@@ -12,11 +11,20 @@ import { itemGradeNameClassName } from "@/server/itemGrade";
 import { MinionRecruitReveal } from "@/app/_components/MinionRecruitReveal";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { isUnauthorizedError } from "@/shared/sessionClient";
+import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
+import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import {
   isMinionRecruitCategory,
   isMinionRecruitItemId,
   type MinionHatchResult,
 } from "@/shared/minionRecruit";
+import { isLootBoxItemId } from "@/shared/boxOpen";
+import {
+  armorSlotLabelKo,
+  getArmorStats,
+  isArmorInventoryItem,
+} from "@/shared/armorStatsData";
+import { weaponBaseStatLine } from "@/shared/weaponStatsData";
 
 type MeState = {
   ok: true;
@@ -43,7 +51,7 @@ type MeState = {
     iconSrc?: string;
     options?: Array<{ kind: string; label: string; tier: number; tierLabel: string; displayValue: number }>;
   }>;
-  toolInstances?: Array<{
+  armorInstances?: Array<{
     id: string;
     baseItemId: string;
     name: string;
@@ -83,7 +91,7 @@ type WeaponInstanceRow = {
   options?: Array<{ kind: string; label: string; tier: number; tierLabel: string; displayValue: number }>;
 };
 
-type ToolInstanceRow = {
+type ArmorInstanceRow = {
   id: string;
   baseItemId: string;
   name: string;
@@ -173,29 +181,37 @@ function formatLeft(ms: number) {
   return `${mm}m ${String(ss).padStart(2, "0")}s`;
 }
 
-const MATERIAL_FALLBACK_KO: Record<string, string> = {
-  item_stone: "돌",
-  item_ore: "광석",
-};
-
 function friendlyInventoryApiError(e: unknown, itemNameById: Map<string, string>): string {
-  const o = e as { error?: string };
+  const o = e as { error?: string; message?: string };
   const err = o?.error;
   if (typeof err !== "string") return "";
   if (err === "INSUFFICIENT_GOLD") return "골드가 부족해.";
-  if (err === "MAX_WEAPON_LEVEL") return "이미 최대 강화 단계야.";
+  if (err === "MAX_WEAPON_LEVEL") return "이 등급 무기의 최대 강화 단계에 도달했어.";
   if (err === "WEAPON_INSTANCE_NOT_FOUND") return "무기를 찾을 수 없어.";
   if (err === "NOT_A_WEAPON") return "무기만 강화할 수 있어.";
   if (err === "WEAPON_LOCKED") return "이 무기는 등록 중이라 강화할 수 없어.";
   if (err === "WALLET_NOT_FOUND") return "지갑 정보를 찾을 수 없어.";
   if (err === "NO_RECRUIT_TICKET") return "미니언 고용권이 부족해. 던전·거래소에서 구해 와.";
+  if (err === "NO_BOX") return "상자가 부족해.";
+  if (err === "NOT_A_LOOT_BOX") return "개봉할 수 없는 아이템이야.";
+  if (err === "BOX_TABLE_EMPTY") return "상자 보상 테이블을 찾을 수 없어. data:sync 후 다시 시도해.";
   if (err === "MAX_MINION_OWNED" || err === "MAX_GATHER_MINION_OWNED")
     return "수집 미니언은 최대 10마리까지 보유할 수 있어.";
   if (err === "MAX_DUNGEON_MINION_OWNED") return "던전 미니언은 최대 10마리까지 보유할 수 있어.";
   if (err.startsWith("INSUFFICIENT_MATERIAL:")) {
     const id = err.slice("INSUFFICIENT_MATERIAL:".length);
-    const label = itemNameById.get(id) ?? MATERIAL_FALLBACK_KO[id] ?? id;
-    return `재료가 부족해: ${label} (${id}). 광산 수령·제작·거래소에서 구한 뒤 다시 시도해.`;
+    const label = itemNameById.get(id) ?? id;
+    return `재료가 부족해: ${label} (${id}). 상자 개봉·거래소에서 구한 뒤 다시 시도해.`;
+  }
+  if (err === "DB_MIGRATION_REQUIRED") {
+    return "DB 마이그레이션이 필요합니다. web 폴더에서 npm run db:migrate 실행 후 dev 서버를 재시작해 주세요.";
+  }
+  if (err === "INTERNAL" || err === "INTERNAL_SERVER_ERROR") {
+    const msg = typeof o.message === "string" ? o.message : "";
+    if (/ArmorInstance|ToolInstance|does not exist/i.test(msg)) {
+      return "DB 마이그레이션이 필요합니다. web 폴더에서 npm run db:migrate 실행 후 dev 서버를 재시작해 주세요.";
+    }
+    if (msg.length > 0) return msg;
   }
   return "";
 }
@@ -203,7 +219,7 @@ function friendlyInventoryApiError(e: unknown, itemNameById: Map<string, string>
 const INV_SORT_STORAGE_KEY = "inv_sort_prefs_v1";
 const INV_VIEW_MODE_KEY = "inv_view_mode_v1";
 
-type InventoryViewMode = "icons" | "grid2" | "list";
+type InventoryViewMode = "icons" | "list";
 
 const DEFAULT_VIEW_MODE: InventoryViewMode = "list";
 
@@ -211,7 +227,8 @@ function readViewMode(): InventoryViewMode {
   if (typeof window === "undefined") return DEFAULT_VIEW_MODE;
   try {
     const raw = localStorage.getItem(INV_VIEW_MODE_KEY);
-    if (raw === "icons" || raw === "grid2" || raw === "list") return raw;
+    if (raw === "grid2") return "list";
+    if (raw === "icons" || raw === "list") return raw;
     return DEFAULT_VIEW_MODE;
   } catch {
     return DEFAULT_VIEW_MODE;
@@ -240,15 +257,13 @@ type WeaponSortId =
   | "grade_high"
   | "grade_low";
 
-type ToolSortId = "newest" | "oldest" | "name_az" | "name_za" | "grade_high" | "grade_low";
-
 type MaterialSortId = "qty_high" | "qty_low" | "name_az" | "name_za" | "grade_high" | "grade_low" | "id_az";
 
-type SortPrefs = { weapons: WeaponSortId; tools: ToolSortId; materials: MaterialSortId };
+type SortPrefs = { weapons: WeaponSortId; armor: MaterialSortId; materials: MaterialSortId };
 
 const DEFAULT_SORT_PREFS: SortPrefs = {
   weapons: "newest",
-  tools: "newest",
+  armor: "name_az",
   materials: "qty_high",
 };
 
@@ -322,17 +337,23 @@ function sortWeaponRows(rows: WeaponInstanceRow[], by: WeaponSortId): WeaponInst
   return out;
 }
 
-function sortToolRows(rows: ToolInstanceRow[], by: ToolSortId): ToolInstanceRow[] {
+function sortArmorRows(rows: ArmorInstanceRow[], by: MaterialSortId): ArmorInstanceRow[] {
   const out = rows.slice();
-  const tie = (a: ToolInstanceRow, b: ToolInstanceRow) => compareLocaleKo(a.id, b.id);
-  const byTime = (a: ToolInstanceRow, b: ToolInstanceRow) =>
+  const tie = (a: ArmorInstanceRow, b: ArmorInstanceRow) => compareLocaleKo(a.id, b.id);
+  const byTime = (a: ArmorInstanceRow, b: ArmorInstanceRow) =>
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   switch (by) {
-    case "newest":
-      out.sort((a, b) => (byTime(b, a) !== 0 ? byTime(b, a) : tie(a, b)));
+    case "qty_high":
+    case "grade_high":
+      out.sort(
+        (a, b) => (b.grade ?? 0) - (a.grade ?? 0) || compareLocaleKo(a.name, b.name) || tie(a, b),
+      );
       break;
-    case "oldest":
-      out.sort((a, b) => (byTime(a, b) !== 0 ? byTime(a, b) : tie(a, b)));
+    case "qty_low":
+    case "grade_low":
+      out.sort(
+        (a, b) => (a.grade ?? 0) - (b.grade ?? 0) || compareLocaleKo(a.name, b.name) || tie(a, b),
+      );
       break;
     case "name_az":
       out.sort((a, b) => (compareLocaleKo(a.name, b.name) !== 0 ? compareLocaleKo(a.name, b.name) : tie(a, b)));
@@ -340,17 +361,11 @@ function sortToolRows(rows: ToolInstanceRow[], by: ToolSortId): ToolInstanceRow[
     case "name_za":
       out.sort((a, b) => (compareLocaleKo(b.name, a.name) !== 0 ? compareLocaleKo(b.name, a.name) : tie(a, b)));
       break;
-    case "grade_high":
-      out.sort(
-        (a, b) => (b.grade ?? 0) - (a.grade ?? 0) || compareLocaleKo(a.name, b.name) || tie(a, b),
-      );
-      break;
-    case "grade_low":
-      out.sort(
-        (a, b) => (a.grade ?? 0) - (b.grade ?? 0) || compareLocaleKo(a.name, b.name) || tie(a, b),
-      );
+    case "id_az":
+      out.sort((a, b) => tie(a, b));
       break;
     default:
+      out.sort((a, b) => (byTime(b, a) !== 0 ? byTime(b, a) : tie(a, b)));
       break;
   }
   return out;
@@ -404,34 +419,39 @@ type RecruitCandidatesOk = {
   ok: true;
   minionKind: "GATHER" | "DUNGEON";
   ticketNameKo?: string;
-  candidates: Array<{ jobType: string; labelKo: string }>;
+  candidates: Array<{ candidateIndex: number; labelKo: string; baseStats: MinionHatchResult["minion"]["baseStats"] }>;
   pickToken: string;
 };
 
-type RecruitFlow =
-  | { step: "category"; itemId: string; name: string }
-  | {
-      step: "job";
-      itemId: string;
-      name: string;
-      category: "GATHER" | "DUNGEON";
-      candidates: Array<{ jobType: string; labelKo: string }>;
-      pickToken: string;
-    };
+type RecruitFlow = {
+  step: "pick";
+  itemId: string;
+  name: string;
+  candidates: Array<{ candidateIndex: number; labelKo: string; baseStats: MinionHatchResult["minion"]["baseStats"] }>;
+  pickToken: string;
+};
 
-export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
+type BoxOpenReveal = {
+  boxName: string;
+  openedCount: number;
+  produced: Array<{ itemId: string; itemName: string; qty: number }>;
+};
+
+export function InventoryPanel(props?: { onOpenMinions?: () => void } & EmbeddedPanelProps) {
+  const embedded = props?.embedded ?? false;
   const { user, loading: sessionLoading } = useSessionUser();
   const [me, setMe] = useState<MeState | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<any>(null);
 
-  const [tab, setTab] = useState<"WEAPONS" | "TOOLS" | "MATERIALS">("WEAPONS");
+  const [tab, setTab] = useState<"WEAPONS" | "ARMOR" | "MATERIALS">("WEAPONS");
   const [q, setQ] = useState("");
   const [sortPrefs, setSortPrefs] = useState<SortPrefs>(DEFAULT_SORT_PREFS);
   const [viewMode, setViewMode] = useState<InventoryViewMode>(DEFAULT_VIEW_MODE);
 
   const [recruitReveal, setRecruitReveal] = useState<MinionHatchResult | null>(null);
   const [recruitFlow, setRecruitFlow] = useState<RecruitFlow | null>(null);
+  const [boxOpenReveal, setBoxOpenReveal] = useState<BoxOpenReveal | null>(null);
 
   const [nowMs, setNowMs] = useState(() => Date.now());
 
@@ -459,6 +479,14 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, sessionLoading]);
+
+  useEffect(() => {
+    if (!embedded) return;
+    const onFrameRefresh = () => void refresh();
+    window.addEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
+    return () => window.removeEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded]);
 
   useEffect(() => {
     setSortPrefs(readSortPrefs());
@@ -493,11 +521,11 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
   async function hatchMaterialItem(
     it: MeState["inventory"][number],
     category?: "GATHER" | "DUNGEON",
-    jobType?: string,
+    candidateIndex?: number,
     pickToken?: string,
   ) {
-    if (isMinionRecruitItemId(it.itemId) && !category) {
-      setRecruitFlow({ step: "category", itemId: it.itemId, name: it.name });
+    if (isMinionRecruitItemId(it.itemId) && !category && candidateIndex == null) {
+      void startRecruitJobPick(it.itemId, it.name);
       return;
     }
     setBusy("hatch");
@@ -506,7 +534,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
       const r = await postJson<HatchApiOk>("/api/minions/hatch", {
         itemId: it.itemId,
         ...(category ? { category } : {}),
-        ...(jobType ? { jobType } : {}),
+        ...(candidateIndex != null ? { candidateIndex } : {}),
         ...(pickToken ? { pickToken } : {}),
       });
       if (!r?.ok) throw r;
@@ -526,20 +554,18 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
     }
   }
 
-  async function startRecruitJobPick(itemId: string, name: string, category: "GATHER" | "DUNGEON") {
+  async function startRecruitJobPick(itemId: string, name: string) {
     setBusy("hatch");
     setError(null);
     try {
       const r = await postJson<RecruitCandidatesOk>("/api/minions/recruit/candidates", {
         itemId,
-        category,
       });
       if (!r?.ok) throw r;
       setRecruitFlow({
-        step: "job",
+        step: "pick",
         itemId,
         name,
-        category,
         candidates: r.candidates,
         pickToken: r.pickToken,
       });
@@ -550,16 +576,75 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
     }
   }
 
+  async function openLootBox(it: MeState["inventory"][number], quantity = 1) {
+    setBusy("open-box");
+    setError(null);
+    try {
+      const r = await postJson<{
+        ok: true;
+        openedCount: number;
+        produced: Array<{ itemId: string; qty: number; itemName: string }>;
+      }>("/api/inventory/open-box", {
+        itemId: it.itemId,
+        quantity,
+      });
+      if (!r?.ok) throw r;
+      setBoxOpenReveal({
+        boxName: it.name,
+        openedCount: r.openedCount,
+        produced: r.produced.map((p) => ({
+          itemId: p.itemId,
+          itemName: p.itemName,
+          qty: p.qty,
+        })),
+      });
+      await refresh();
+      window.dispatchEvent(new Event(GAME_FRAME_REFRESH_EVENT));
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const filteredArmorInstances = useMemo(() => {
+    const rows = (me?.armorInstances ?? []) as ArmorInstanceRow[];
+    const qq = q.trim().toLowerCase();
+    const filtered = rows.filter((a) => {
+      if (!qq) return true;
+      return (
+        a.name.toLowerCase().includes(qq) ||
+        a.id.toLowerCase().includes(qq) ||
+        a.baseItemId.toLowerCase().includes(qq)
+      );
+    });
+    return sortArmorRows(
+      filtered.map((a) => ({
+        id: a.id,
+        baseItemId: a.baseItemId,
+        name: a.name,
+        createdAt: a.createdAt,
+        grade: a.grade,
+        gradeLabel: a.gradeLabel,
+        icon: a.icon,
+        iconSrc: a.iconSrc,
+        options: a.options,
+      })),
+      sortPrefs.armor,
+    );
+  }, [me, q, sortPrefs.armor]);
+
   const filteredMaterials = useMemo(() => {
     const inv = me?.inventory ?? [];
     const qq = q.trim().toLowerCase();
     const filtered = inv
       .filter(
         (it) =>
-          it.category === "재료" ||
-          it.category === "소비" ||
-          it.category === "물약" ||
-          isMinionRecruitCategory(it.category),
+          !isArmorInventoryItem(it) &&
+          (it.category === "재료" ||
+            it.category === "소비" ||
+            it.category === "물약" ||
+            isMinionRecruitCategory(it.category)),
       )
       .filter((it) => it.quantity > 0)
       .filter((it) => {
@@ -583,34 +668,20 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
     return sortWeaponRows(filtered, sortPrefs.weapons);
   }, [me, q, sortPrefs.weapons]);
 
-  const filteredTools = useMemo(() => {
-    const rows = (me?.toolInstances ?? []) as ToolInstanceRow[];
-    const qq = q.trim().toLowerCase();
-    const filtered = rows.filter((t) => {
-      if (!qq) return true;
-      return (
-        t.name.toLowerCase().includes(qq) ||
-        t.id.toLowerCase().includes(qq) ||
-        t.baseItemId.toLowerCase().includes(qq)
-      );
-    });
-    return sortToolRows(filtered, sortPrefs.tools);
-  }, [me, q, sortPrefs.tools]);
-
-  const sessionReady = !sessionLoading;
+  const sessionReady = embedded || !sessionLoading;
   const loggedIn = !!user;
 
   return (
     <>
-    <GamePanel className="inventory-shell">
+    <GamePanel className={`inventory-shell ${embedded ? "inventory-shell--fit" : ""}`}>
 
       {!sessionReady ? (
         <GamePanelLoading className="mt-4" label={busy ? "인벤토리를 불러오는 중…" : "세션을 확인하는 중…"} />
-      ) : !loggedIn ? (
+      ) : !embedded && !loggedIn ? (
         <GamePanelInfo className="mt-4">
           로그인하면 내 인벤토리가 표시됩니다. 화면 오른쪽 위에서 Google 로그인을 진행해 주세요.
         </GamePanelInfo>
-      ) : !me ? (
+      ) : !loggedIn ? null : !me ? (
         <div className="mt-4 space-y-3">
           {error ? (
             <GamePanelError error={error} />
@@ -632,10 +703,10 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
               </button>
               <button
                 type="button"
-                className={`inventory-tab ${tab === "TOOLS" ? "inventory-tab--active" : ""}`}
-                onClick={() => setTab("TOOLS")}
+                className={`inventory-tab ${tab === "ARMOR" ? "inventory-tab--active" : ""}`}
+                onClick={() => setTab("ARMOR")}
               >
-                도구
+                방어구
               </button>
               <button
                 type="button"
@@ -645,9 +716,11 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                 재료·고용권
               </button>
               </div>
-              <GameBtn variant="ghost" disabled={!!busy} onClick={() => void refresh()}>
-                새로고침
-              </GameBtn>
+              {!embedded ? (
+                <GameBtn variant="ghost" disabled={!!busy} onClick={() => void refresh()}>
+                  새로고침
+                </GameBtn>
+              ) : null}
             </div>
             <div className="inventory-filters flex flex-wrap items-end gap-3">
               <div className="min-w-[200px] flex-1 md:max-w-[420px]">
@@ -659,8 +732,8 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                   placeholder={
                     tab === "WEAPONS"
                       ? "무기 이름 / 인스턴스ID / baseItemId"
-                      : tab === "TOOLS"
-                        ? "도구 이름 / 인스턴스ID / baseItemId"
+                      : tab === "ARMOR"
+                        ? "방어구 이름 / itemId"
                         : "재료 이름 / itemId"
                   }
                 />
@@ -672,14 +745,14 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                   value={
                     tab === "WEAPONS"
                       ? sortPrefs.weapons
-                      : tab === "TOOLS"
-                        ? sortPrefs.tools
+                      : tab === "ARMOR"
+                        ? sortPrefs.armor
                         : sortPrefs.materials
                   }
                   onChange={(e) => {
                     const v = e.target.value;
                     if (tab === "WEAPONS") setSortPrefs((p) => ({ ...p, weapons: v as WeaponSortId }));
-                    else if (tab === "TOOLS") setSortPrefs((p) => ({ ...p, tools: v as ToolSortId }));
+                    else if (tab === "ARMOR") setSortPrefs((p) => ({ ...p, armor: v as MaterialSortId }));
                     else setSortPrefs((p) => ({ ...p, materials: v as MaterialSortId }));
                   }}
                 >
@@ -694,16 +767,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                       <option value="grade_high">등급 높은 순</option>
                       <option value="grade_low">등급 낮은 순</option>
                     </>
-                  ) : tab === "TOOLS" ? (
-                    <>
-                      <option value="newest">획득 순 · 최신</option>
-                      <option value="oldest">획득 순 · 오래됨</option>
-                      <option value="name_az">이름 가나다</option>
-                      <option value="name_za">이름 역순</option>
-                      <option value="grade_high">등급 높은 순</option>
-                      <option value="grade_low">등급 낮은 순</option>
-                    </>
-                  ) : (
+                  ) : tab === "ARMOR" || tab === "MATERIALS" ? (
                     <>
                       <option value="qty_high">수량 많은 순</option>
                       <option value="qty_low">수량 적은 순</option>
@@ -713,7 +777,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                       <option value="grade_low">등급 낮은 순</option>
                       <option value="id_az">itemId 가나다</option>
                     </>
-                  )}
+                  ) : null}
                 </select>
               </div>
               <div className="w-full min-w-[200px] md:w-auto">
@@ -726,14 +790,6 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                     title="아이콘만"
                   >
                     아이콘
-                  </button>
-                  <button
-                    type="button"
-                    className={`inventory-view-btn ${viewMode === "grid2" ? "inventory-view-btn--active" : ""}`}
-                    onClick={() => setViewMode("grid2")}
-                    title="한 줄에 2개"
-                  >
-                    2열
                   </button>
                   <button
                     type="button"
@@ -773,6 +829,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
             ) : (
               <div className={inventoryListClassName(viewMode, "mt-3")}>
                 {filteredWeapons.map((w) => {
+                  const baseStatLine = weaponBaseStatLine(w.baseItemId);
                   const iconEl = (
                     <WeaponTooltipHover weapon={w}>
                       <ItemIcon
@@ -799,7 +856,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                   return (
                     <div
                       key={w.id}
-                      className={`inventory-item-card${viewMode === "grid2" ? " inventory-item-card--compact" : ""}`}
+                      className="inventory-item-card"
                     >
                       {iconEl}
                       <div className="inventory-item-card__body min-w-0">
@@ -819,6 +876,9 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                             <div className="inventory-item-card__id">{w.id}</div>
                             <div className="inventory-item-card__meta">베이스: {w.baseItemId}</div>
                           </>
+                        ) : null}
+                        {baseStatLine ? (
+                          <div className="inventory-item-card__meta">{baseStatLine}</div>
                         ) : null}
                         {(w.options?.length ?? 0) > 0 && viewMode === "list" ? (
                           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -847,89 +907,92 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
           </div>
           ) : null}
 
-          {tab === "TOOLS" ? (
-            <div className="inventory-section">
-              <div>
-                <div className="inventory-section-title">보유 도구</div>
-                <div className="inventory-section-hint">
-                  낚싯대·곡괭이·낫 등은 개별 인스턴스로 보관되며 제작 시 옵션이 붙어.
-                </div>
+          {tab === "ARMOR" ? (
+          <div className="inventory-section">
+            <div>
+              <div className="inventory-section-title">보유 방어구</div>
+              <div className="inventory-section-hint">
+                제작 시 옵션이 붙어요. 미니언 관리 → 「장비 착용」에서 슬롯에 장착할 수 있습니다.
               </div>
+            </div>
 
-              {filteredTools.length === 0 ? (
-                <div className="mt-3 text-sm text-[var(--game-muted)]">보유 도구가 없어.</div>
-              ) : (
-                <div className={inventoryListClassName(viewMode, "mt-3")}>
-                  {filteredTools.map((t) => {
-                    const iconEl = (
-                      <ToolTooltipHover tool={t}>
-                        <ItemIcon
-                          itemId={t.baseItemId}
-                          icon={t.icon}
-                          iconSrc={t.iconSrc}
-                          size={viewMode === "icons" ? 40 : 48}
-                          className="shrink-0"
-                        />
-                      </ToolTooltipHover>
-                    );
+            {filteredArmorInstances.length === 0 ? (
+              <div className="mt-3 text-sm text-[var(--game-muted)]">보유 방어구가 없어. 대장간에서 제작해 보세요.</div>
+            ) : (
+              <div className={inventoryListClassName(viewMode, "mt-3")}>
+                {filteredArmorInstances.map((a) => {
+                  const stats = getArmorStats(a.baseItemId);
+                  const slotLabel = stats ? armorSlotLabelKo(stats.slot) : null;
+                  const iconEl = (
+                    <ItemIcon
+                      itemId={a.baseItemId}
+                      icon={a.icon}
+                      iconSrc={a.iconSrc}
+                      size={viewMode === "icons" ? 40 : 48}
+                      className="shrink-0"
+                    />
+                  );
 
-                    if (viewMode === "icons") {
-                      return (
-                        <div key={t.id} className="inventory-item-cell">
-                          {iconEl}
-                          {(t.options?.length ?? 0) > 0 ? (
-                            <span className="inventory-item-cell__badge inventory-item-cell__badge--dot" />
-                          ) : null}
-                        </div>
-                      );
-                    }
-
+                  if (viewMode === "icons") {
                     return (
-                      <div
-                        key={t.id}
-                        className={`inventory-item-card${viewMode === "grid2" ? " inventory-item-card--compact" : ""}`}
-                      >
+                      <div key={a.id} className="inventory-item-cell">
                         {iconEl}
-                        <div className="inventory-item-card__body min-w-0">
-                          <div className="inventory-item-card__title">
-                            <div className={`inventory-item-card__name ${itemGradeNameClassName(t.grade ?? 1)}`}>
-                              {t.name}
-                            </div>
-                            {t.gradeLabel ? <span className="inventory-badge-grade">{t.gradeLabel}</span> : null}
-                          </div>
-                          {viewMode === "list" ? (
-                            <>
-                              <div className="inventory-item-card__id">{t.id}</div>
-                              <div className="inventory-item-card__meta">베이스: {t.baseItemId}</div>
-                            </>
-                          ) : null}
-                          {(t.options?.length ?? 0) > 0 && viewMode === "list" ? (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              {(t.options ?? []).map((op, i) => (
-                                <span
-                                  key={`${op.kind}-${i}`}
-                                  className="inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 text-[11px] inventory-option-sky"
-                                  title={`${op.label} · ${op.tierLabel}`}
-                                >
-                                  <span className="font-semibold">{op.tierLabel}</span>
-                                  <span className="truncate">{op.label}</span>
-                                  <span className="tabular-nums font-semibold">
-                                    {op.displayValue >= 0 ? "+" : ""}
-                                    {op.displayValue}
-                                  </span>
-                                </span>
-                              ))}
-                            </div>
-                          ) : viewMode === "list" ? (
-                            <div className="inventory-item-card__meta">옵션 없음</div>
-                          ) : null}
-                        </div>
+                        {(a.options?.length ?? 0) > 0 ? (
+                          <span className="inventory-item-cell__badge inventory-item-cell__badge--dot" />
+                        ) : null}
                       </div>
                     );
-                  })}
-                </div>
-              )}
-            </div>
+                  }
+
+                  return (
+                    <div
+                      key={a.id}
+                      className="inventory-item-card"
+                    >
+                      {iconEl}
+                      <div className="inventory-item-card__body min-w-0">
+                        <div className="inventory-item-card__title">
+                          <div className={`inventory-item-card__name ${itemGradeNameClassName(a.grade ?? 1)}`}>
+                            {a.name}
+                          </div>
+                          {a.gradeLabel ? <span className="inventory-badge-grade">{a.gradeLabel}</span> : null}
+                          {slotLabel ? <span className="inventory-badge-cat">{slotLabel}</span> : null}
+                        </div>
+                        {viewMode === "list" ? (
+                          <>
+                            <div className="inventory-item-card__id">{a.id}</div>
+                            <div className="inventory-item-card__meta">베이스: {a.baseItemId}</div>
+                          </>
+                        ) : null}
+                        {stats ? (
+                          <div className="inventory-item-card__meta">
+                            HP +{stats.hp} · DEF +{stats.def}
+                          </div>
+                        ) : null}
+                        {(a.options?.length ?? 0) > 0 && viewMode === "list" ? (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {(a.options ?? []).map((op, i) => (
+                              <span
+                                key={`${op.kind}-${i}`}
+                                className="inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 text-[11px] inventory-option-sky"
+                                title={`${op.label} · ${op.tierLabel}`}
+                              >
+                                <span className="font-semibold">{op.tierLabel}</span>
+                                <span className="truncate">{op.label}</span>
+                                <span className="tabular-nums font-semibold">
+                                  +{op.displayValue}
+                                </span>
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           ) : null}
 
           {tab === "MATERIALS" ? (
@@ -941,6 +1004,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
             ) : (
               filteredMaterials.map((it) => {
                 const canRecruit = isMinionRecruitItemId(it.itemId) || isMinionRecruitCategory(it.category);
+                const canOpenBox = isLootBoxItemId(it.itemId);
                 const icon = (
                   <ItemIcon
                     itemId={it.itemId}
@@ -972,6 +1036,15 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                         >
                           고용
                         </button>
+                      ) : canOpenBox ? (
+                        <button
+                          type="button"
+                          className="inventory-item-cell__action"
+                          disabled={!!busy}
+                          onClick={() => void openLootBox(it, 1)}
+                        >
+                          개봉
+                        </button>
                       ) : null}
                     </div>
                   );
@@ -980,7 +1053,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                 return (
                 <div
                   key={it.itemId}
-                  className={`inventory-item-card${viewMode === "grid2" ? " inventory-item-card--compact" : ""}`}
+                  className="inventory-item-card"
                 >
                   {iconWithTooltip}
                   <div className="inventory-item-card__body min-w-0">
@@ -1005,6 +1078,28 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                         미니언 고용
                       </button>
                     ) : null}
+                    {canOpenBox ? (
+                      <>
+                        <button
+                          type="button"
+                          className="inventory-btn inventory-btn-violet h-10 px-4 text-sm disabled:opacity-50"
+                          disabled={!!busy}
+                          onClick={() => void openLootBox(it, 1)}
+                        >
+                          개봉
+                        </button>
+                        {it.quantity > 1 ? (
+                          <button
+                            type="button"
+                            className="inventory-btn h-10 px-3 text-sm disabled:opacity-50"
+                            disabled={!!busy}
+                            onClick={() => void openLootBox(it, Math.min(it.quantity, 10))}
+                          >
+                            {Math.min(it.quantity, 10)}개
+                          </button>
+                        ) : null}
+                      </>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -1014,9 +1109,11 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
           ) : null}
 
 
+          {!embedded ? (
           <div className="inventory-notice text-sm">
             판매 등록·관리는 거래소의 <span className="font-semibold">판매</span> / <span className="font-semibold">내 판매</span> 탭에서 할 수 있어.
           </div>
+          ) : null}
         </>
       )}
 
@@ -1033,53 +1130,24 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
         />
       ) : null}
 
-      {recruitFlow?.step === "category" ? (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/55 p-4">
-          <div className="game-panel w-full max-w-sm p-5">
-            <div className="text-lg font-semibold text-[var(--game-text)]">미니언 고용</div>
-            <p className="mt-2 text-sm text-[var(--game-muted)]">
-              {recruitFlow.name} — 수집용 또는 전투용 중 선택하세요.
-            </p>
-            <div className="mt-4 flex flex-col gap-2">
-              <GameBtn
-                variant="primary"
-                disabled={!!busy}
-                onClick={() => void startRecruitJobPick(recruitFlow.itemId, recruitFlow.name, "GATHER")}
-              >
-                수집 미니언
-              </GameBtn>
-              <GameBtn
-                variant="primary"
-                disabled={!!busy}
-                onClick={() => void startRecruitJobPick(recruitFlow.itemId, recruitFlow.name, "DUNGEON")}
-              >
-                전투 미니언
-              </GameBtn>
-              <GameBtn variant="ghost" disabled={!!busy} onClick={() => setRecruitFlow(null)}>
-                취소
-              </GameBtn>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {recruitFlow?.step === "job" ? (
+      {recruitFlow?.step === "pick" ? (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/55 p-4">
           <div className="game-panel w-full max-w-md p-5">
             <div className="text-lg font-semibold text-[var(--game-text)]">미니언 선택</div>
             <p className="mt-2 text-sm text-[var(--game-muted)]">
-              {recruitFlow.name} — 아래 후보 중 한 명을 고르세요.
+              {recruitFlow.name} — 스탯에 따라 검술 클래스가 정해집니다. (나무 검 지급) Lv30·70 전직은 미니언 관리에서
+              진행합니다.
             </p>
             <div className="mt-4 flex flex-col gap-2">
               {recruitFlow.candidates.map((c) => (
                 <GameBtn
-                  key={c.jobType}
+                  key={c.candidateIndex}
                   variant="primary"
                   disabled={!!busy}
                   onClick={() => {
                     const it = (me?.inventory ?? []).find((x) => x.itemId === recruitFlow.itemId);
                     if (it) {
-                      void hatchMaterialItem(it, recruitFlow.category, c.jobType, recruitFlow.pickToken);
+                      void hatchMaterialItem(it, "DUNGEON", c.candidateIndex, recruitFlow.pickToken);
                     }
                   }}
                 >
@@ -1090,6 +1158,31 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void }) {
                 취소
               </GameBtn>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {boxOpenReveal ? (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/55 p-4">
+          <div className="game-panel w-full max-w-md p-5">
+            <div className="text-lg font-semibold text-[var(--game-text)]">상자 개봉</div>
+            <p className="mt-2 text-sm text-[var(--game-muted)]">
+              {boxOpenReveal.boxName} × {fmtInt(boxOpenReveal.openedCount)}
+            </p>
+            <ul className="mt-4 flex flex-col gap-2">
+              {boxOpenReveal.produced.map((p) => (
+                <li
+                  key={p.itemId}
+                  className="flex items-center justify-between rounded-lg border border-[var(--game-border)] px-3 py-2 text-sm"
+                >
+                  <span className="font-medium text-[var(--game-text)]">{p.itemName}</span>
+                  <span className="tabular-nums font-semibold text-[var(--game-accent)]">×{fmtInt(p.qty)}</span>
+                </li>
+              ))}
+            </ul>
+            <GameBtn variant="primary" className="mt-5 w-full" onClick={() => setBoxOpenReveal(null)}>
+              확인
+            </GameBtn>
           </div>
         </div>
       ) : null}

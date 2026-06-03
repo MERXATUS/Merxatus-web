@@ -4,7 +4,24 @@
 
 파일 위치 (`web/data/csv-templates/`):
 - `items.csv` · `workshop_drops.csv` · `recipes.csv` · `Merxatus-Price.csv` (황실)
-- **미니언**: `minion_tickets.csv` · `minion_jobs.csv`
+- **장비 스탯**: `weapons.csv` · `armor.csv` (`items.json`에 자동 병합)
+- **던전**: `dungeons.csv` · `dungeon_drops.csv` · `dungeon_gear_drops.csv` (층 구간 **장비 직접** 드랍)
+- **장비 로드맵**: `gear_drop_plan.csv` (풀세트 목표 Lv·층 — `node scripts/gen-dungeon-gear-drops.mjs`로 드랍표 재생성)
+- **레이드**: `raids.csv` · `raid_encounters.csv`(보스 1종=1레이드) · `raid_drops.csv`
+- **무탑**: `tower.csv` · `tower_encounters.csv` · `tower_drops.csv`
+- **몬스터**: `monster.csv` · `boss.csv`
+- **미니언**: `minion_tickets.csv`
+- **상자 개봉**: `box_opens.csv` → `box_opens.json`
+
+CSV 수정 후 동기화:
+
+```bash
+cd web
+npm run data:sync
+npm run validate:data
+```
+
+(`items.json`·`workshops.json`·`recipes.json` 등은 **스크립트가 생성** — 손으로 편집하지 않음)
 
 ---
 
@@ -62,13 +79,13 @@
 
 ---
 
-## 4) 미니언 CSV (고용권 · 직업)
+## 4) 미니언 CSV (고용권)
 
-런타임은 `minion_tickets.csv`와 `minion_jobs.csv`만 읽습니다. 고용 시 후보 직업을 롤하고, 플레이어가 1명을 선택해 Lv1 미니언을 생성합니다.
+런타임은 `minion_tickets.csv`만 읽습니다. 고용 시 전투 미니언 후보 스탯을 롤하고, 플레이어가 1명을 선택해 Lv1 미니언을 생성합니다. Lv30·70 전직은 미니언 관리 UI에서 진행합니다.
 
 ### 작업 순서
 
-1. `web/data/csv-templates/` 아래 2개 파일 편집
+1. `web/data/csv-templates/` 아래 `minion_tickets.csv` 편집
 2. 검증: `cd web` 후 `npm run validate:minion-csv`
 3. 고용권 아이템은 **`items.csv` / `items.json`에도 동일 `id` 등록**
 4. DB 반영: `POST /api/admin/apply` 또는 `POST /api/dev/seed`
@@ -79,20 +96,24 @@
 |------|------|
 | `ItemID` | `items.csv`의 `id`와 동일 (예: `item_minion_ticket`) |
 | `Name` | 표시 이름 |
-| `Pick` | 고용 시 제시할 후보 직업 수 (기본 3) |
+| `Pick` | 고용 시 제시할 후보 수 (기본 3) |
 
-인벤에서 사용 시 **수집(GATHER) / 던전(DUNGEON)** 카테고리를 선택한 뒤, 후보 중 직업 1명을 확정합니다.
+인벤에서 사용 시 후보 중 1명을 확정하면 전투 미니언(DUNGEON)으로 생성됩니다.
 
-### `minion_jobs.csv` — 직업 풀
+---
 
-| 컬럼 | 설명 |
-|------|------|
-| `JobId` | Prisma `MinionJobType` (예: `MINER`, `WARRIOR`) |
-| `LabelKo` | UI 표시명 |
-| `Category` | `GATHER` \| `DUNGEON` |
-| `Enabled` | `true` \| `false` — 후보 롤에 포함 여부 |
-| `WorkshopName` | (수집) 특화 작업장 이름. 비우면 미사용 |
-| `Notes` | 메모 (게임 로직 무시) |
+## 5) `box_opens.csv` (광물·약초 상자 개봉)
+
+헤더(필수):
+- `BoxItemId`: 예) `Item_Box_Mineral_T1` (`items.csv` id와 동일)
+- `OutputItemId`: 개봉 시 나올 원재료 id
+- `Weight`: 가중치 (티어 상자당 여러 행)
+- `Min_Qty` · `Max_Qty`: 획득 수량 범위
+
+규칙:
+- 상자 1개 개봉 시 티어에 따라 2~4회 가중치 롤 (T1~2: 2회, T3~4: 3회, T5: 4회)
+- `npm run data:sync` 시 `data/box_opens.json` 생성
+- 제작(`recipes.csv`)은 **원재료** 입력 — 상자는 개봉 전용
 
 ---
 

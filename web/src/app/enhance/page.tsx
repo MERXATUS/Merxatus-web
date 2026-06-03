@@ -1,10 +1,11 @@
-import { GameShell } from "@/app/_components/GameShell";
-import { WeaponEnhancePanel } from "@/app/_components/WeaponEnhancePanel";
+import { Suspense } from "react";
+import { GameFrame } from "@/app/_components/GameFrame";
+import { GamePanelLoading } from "@/app/_components/panelFeedback";
 
 export default function EnhancePage() {
   return (
-    <GameShell title="강화소" subtitle="무기 선택 · 재료 확인 · 강화">
-      <WeaponEnhancePanel />
-    </GameShell>
+    <Suspense fallback={<GamePanelLoading label="강화소 불러오는 중…" className="m-6" />}>
+      <GameFrame />
+    </Suspense>
   );
 }

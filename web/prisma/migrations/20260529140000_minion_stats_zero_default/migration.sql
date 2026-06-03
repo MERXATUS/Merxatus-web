@@ -1,0 +1,5 @@
+-- 기본 스탯 0 시작
+ALTER TABLE "Minion" ALTER COLUMN "strength" SET DEFAULT 0;
+ALTER TABLE "Minion" ALTER COLUMN "agility" SET DEFAULT 0;
+ALTER TABLE "Minion" ALTER COLUMN "intelligence" SET DEFAULT 0;
+ALTER TABLE "Minion" ALTER COLUMN "endurance" SET DEFAULT 0;

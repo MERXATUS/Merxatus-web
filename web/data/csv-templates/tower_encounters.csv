@@ -1,0 +1,17 @@
+FromFloor,ToFloor,MonsterId,Category
+1,9,Slime,Monster
+10,10,Slime_King,Boss
+11,19,Goblin,Monster
+20,20,Goblin_Chieftain,Boss
+21,29,Wolf,Monster
+30,30,Wolf_Alpha,Boss
+31,39,Skeleton,Monster
+40,40,Skeleton_Lord,Boss
+41,49,Fire_Salamander,Monster
+50,50,Flame_Tyrant,Boss
+51,59,Ice_Wisp,Monster
+60,60,Frost_Titan,Boss
+61,69,Dragon_Whelp,Monster
+70,70,Elder_Dragon,Boss
+71,79,Void_Spawn,Monster
+80,80,Void_Harbinger,Boss

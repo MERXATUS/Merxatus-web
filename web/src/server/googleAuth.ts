@@ -217,6 +217,7 @@ export async function findOrCreateGoogleUser(info: GoogleUserInfo) {
   const user = await prisma.user.create({
     data: {
       username,
+      usernameChosen: false,
       googleId,
       email,
     },

@@ -1,10 +1,22 @@
 import { spawn, execSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const webRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const nextBin = path.join(webRoot, "node_modules", "next", "dist", "bin", "next");
+
+/** 삭제된 API 라우트 참조가 남으면 dev 타입 검사·Compiling이 반복될 수 있음 */
+function clearStaleDevRouteTypes() {
+  const devTypes = path.join(webRoot, ".next", "dev", "types");
+  if (!existsSync(devTypes)) return;
+  try {
+    rmSync(devTypes, { recursive: true, force: true });
+    console.log("[dev] cleared stale .next/dev/types");
+  } catch {
+    /* ignore */
+  }
+}
 
 function killPort3000() {
   try {
@@ -31,6 +43,8 @@ function killPort3000() {
 if (process.platform === "win32") {
   killPort3000();
 }
+
+clearStaleDevRouteTypes();
 
 if (!existsSync(nextBin)) {
   console.error("[dev] next binary not found. Run `npm install` in web/ first.");

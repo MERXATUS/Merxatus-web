@@ -1,3 +1,10 @@
 BossId,Name,Grade,Hp,Atk,Magic,As,Def
-Slime_King,슬라임킹,2,50,3,3,1,0
-Goblin_Chieftain,고블린 우두머리,3,100,10,0,1,10
+Slime_King,슬라임킹,2,220,10,4,1,2
+Goblin_Chieftain,고블린 우두머리,3,280,14,0,1,10
+Wolf_Alpha,늑대 왕,3,340,16,0,1,8
+Skeleton_Lord,망자의 군주,4,400,18,6,1,14
+Flame_Tyrant,화염 폭군,4,480,16,18,1,12
+Frost_Titan,서리 거인,5,550,14,22,1,18
+Elder_Dragon,고룡,5,650,22,10,1,14
+Void_Harbinger,심연 사자,5,750,20,16,1,16
+Void_Overlord,공허 거상,6,900,24,18,1,22

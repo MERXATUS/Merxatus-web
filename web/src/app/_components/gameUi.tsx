@@ -25,10 +25,10 @@ export function GamePanel(props: { children: ReactNode; className?: string }) {
   return <div className={`game-panel ${props.className ?? ""}`.trim()}>{props.children}</div>;
 }
 
-export function GamePanelTitle(props: { children: ReactNode; hint?: string }) {
+export function GamePanelTitle(props: { children: ReactNode; hint?: string; id?: string }) {
   return (
     <div className="flex items-start justify-between gap-2">
-      <div className="game-label">{props.children}</div>
+      <div id={props.id} className="game-label">{props.children}</div>
       {props.hint ? <span className="text-[10px] font-medium text-[var(--game-muted)]">{props.hint}</span> : null}
     </div>
   );

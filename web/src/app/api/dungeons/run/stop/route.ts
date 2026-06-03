@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
+import { enrichLootEntries, safeParsePendingLoot } from "@/server/dungeonRun";
 
 export const runtime = "nodejs";
 
@@ -17,11 +18,19 @@ export async function POST(req: Request) {
   if (!auth.ok)
     return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
-  await prisma.dungeonRun.updateMany({
+  const run = await prisma.dungeonRun.findFirst({
     where: { userId: auth.userId, status: "RUNNING" },
-    data: { status: "STOPPED" },
+    orderBy: { startedAt: "desc" },
+  });
+  if (!run) return Response.json({ ok: false, error: "NO_ACTIVE_RUN" }, { status: 400 });
+
+  const pending = safeParsePendingLoot(run.pendingLootJson ?? "[]");
+  const forfeitedLoot = await enrichLootEntries(prisma, pending);
+
+  await prisma.dungeonRun.update({
+    where: { id: run.id },
+    data: { status: "STOPPED", pendingLootJson: "[]" },
   });
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, forfeitedLoot });
 }
-

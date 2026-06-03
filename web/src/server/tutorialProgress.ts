@@ -6,9 +6,7 @@ import {
   migrateLegacyTutorialStep,
   tutorialCurrentStep,
   tutorialIsDone,
-  type TutorialStepId,
 } from "@/shared/tutorial";
-import { setUserSpecialistUnlockedTrue } from "@/server/userSpecialistDb";
 import { type TutorialMinionGrant } from "@/server/tutorialMinionGrants";
 
 type RawDb = Pick<PrismaClient, "$queryRaw" | "$executeRaw" | "minion" | "minionInventory">;
@@ -49,51 +47,32 @@ async function advanceTutorial(db: RawDb, userId: string) {
   }
 
   await setTutorialStep(db, userId, next);
-  const nextDef = TUTORIAL_STEPS[next];
-  if (nextDef?.id === "choose_specialist") {
-    await setUserSpecialistUnlockedTrue(db, userId);
-  }
-
   return { step: next, done: false as const, advanced: true as const, minionGrants };
 }
 
-function stepMatchesGatherEvent(
-  stepId: TutorialStepId,
-  workshopName: string,
-  mode: "collect" | "visit",
-): boolean {
-  const def = TUTORIAL_STEPS.find((s) => s.id === stepId);
-  if (!def?.gatherWorkshopName || def.gatherWorkshopName !== workshopName) return false;
-  if (def.gatherRequiresCollect) return mode === "collect";
-  return mode === "visit" || mode === "collect";
+/** @deprecated 수집 시스템 제거 */
+export async function tryTutorialGatherCollect(db: RawDb, userId: string, _workshopName: string) {
+  const cur = await getTutorialStep(db, userId);
+  return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
 }
 
-export async function tryTutorialGatherCollect(db: RawDb, userId: string, workshopName: string) {
+/** @deprecated 수집 시스템 제거 */
+export async function tryTutorialGatherVisit(db: RawDb, userId: string, _workshopName: string) {
   const cur = await getTutorialStep(db, userId);
-  const active = tutorialCurrentStep(cur);
-  if (!active?.gatherWorkshopName) {
-    return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
-  }
-  if (!stepMatchesGatherEvent(active.id, workshopName, "collect")) {
-    return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
-  }
-  return advanceTutorial(db, userId);
+  return { advanced: false as const, step: cur };
 }
 
-export async function tryTutorialGatherVisit(db: RawDb, userId: string, workshopName: string) {
+export async function tryTutorialDungeonCashout(db: RawDb, userId: string) {
   const cur = await getTutorialStep(db, userId);
-  const active = tutorialCurrentStep(cur);
-  if (!active?.gatherWorkshopName) return { advanced: false as const, step: cur };
-  if (!stepMatchesGatherEvent(active.id, workshopName, "visit")) return { advanced: false as const, step: cur };
+  if (tutorialCurrentStep(cur)?.id !== "dungeon_first_cashout") {
+    return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
+  }
   return advanceTutorial(db, userId);
 }
 
 export async function tryTutorialFirstCraft(db: RawDb, userId: string) {
   const cur = await getTutorialStep(db, userId);
-  if (tutorialCurrentStep(cur)?.id !== "first_craft") {
-    return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
-  }
-  return advanceTutorial(db, userId);
+  return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
 }
 
 export async function tryTutorialListOnMarket(db: RawDb, userId: string) {
@@ -112,8 +91,7 @@ export async function tryTutorialVisitMarket(db: RawDb, userId: string) {
 
 export async function tryTutorialSpecialistChosen(db: RawDb, userId: string) {
   const cur = await getTutorialStep(db, userId);
-  if (tutorialCurrentStep(cur)?.id !== "choose_specialist") return { advanced: false as const, step: cur };
-  return advanceTutorial(db, userId);
+  return { advanced: false as const, step: cur };
 }
 
 export async function getTutorialState(db: RawDb, userId: string) {

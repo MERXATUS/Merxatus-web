@@ -1,8 +1,0 @@
-JobId,LabelKo,Category,Enabled,WorkshopName,Notes
-MINER,광부,GATHER,true,광산,
-FISHER,낚시꾼,GATHER,true,낚시터,
-ARCHAEOLOGIST,고고학자,GATHER,false,고고학,드랍 연동 전
-EXPLORER,탐험가,GATHER,false,탐험,드랍 연동 전
-WARRIOR,전사,DUNGEON,true,,
-ARCHER,궁수,DUNGEON,true,,
-MAGE,마법사,DUNGEON,true,,

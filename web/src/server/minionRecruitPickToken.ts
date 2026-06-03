@@ -1,16 +1,16 @@
 import crypto from "node:crypto";
-import type { MinionJobType } from "@prisma/client";
 import { getSessionSecret } from "@/server/secrets";
 import type { MinionCsvKind } from "@/server/minionCsvData";
+import type { MinionBaseStats } from "@/shared/minionBaseStats";
 
 const PICK_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 type RecruitPickPayload = {
-  v: 1;
+  v: 2;
   userId: string;
   itemId: string;
   category: MinionCsvKind;
-  candidates: MinionJobType[];
+  candidates: MinionBaseStats[];
   exp: number;
 };
 
@@ -40,10 +40,10 @@ export function createRecruitPickToken(input: {
   userId: string;
   itemId: string;
   category: MinionCsvKind;
-  candidates: MinionJobType[];
+  candidates: MinionBaseStats[];
 }) {
   const payload: RecruitPickPayload = {
-    v: 1,
+    v: 2,
     userId: input.userId,
     itemId: input.itemId,
     category: input.category,
@@ -75,7 +75,7 @@ export function verifyRecruitPickToken(token: string, userId: string): RecruitPi
     throw new Error("INVALID_PICK_TOKEN");
   }
 
-  if (payload?.v !== 1) throw new Error("INVALID_PICK_TOKEN");
+  if (payload?.v !== 2) throw new Error("INVALID_PICK_TOKEN");
   if (payload.userId !== userId) throw new Error("INVALID_PICK_TOKEN");
   if (typeof payload.itemId !== "string" || payload.itemId.length < 1) throw new Error("INVALID_PICK_TOKEN");
   if (payload.category !== "GATHER" && payload.category !== "DUNGEON") throw new Error("INVALID_PICK_TOKEN");

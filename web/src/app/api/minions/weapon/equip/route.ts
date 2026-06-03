@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
-import { canMinionEquipWeapon } from "@/shared/minionWeaponRules";
+import { canMinionEquipWeaponForClass } from "@/shared/minionWeaponRules";
+import { promotionStateFromRow, resolveMinionCombatClass } from "@/shared/minionPromotion";
 
 export const runtime = "nodejs";
 
@@ -43,7 +44,8 @@ export async function POST(req: Request) {
         throw new Error("NOT_A_WEAPON");
       }
       if (inst.status !== "OWNED") throw new Error("WEAPON_LOCKED");
-      if (!canMinionEquipWeapon(m.jobType, inst.baseItemId)) throw new Error("WEAPON_JOB_MISMATCH");
+      const combatClass = resolveMinionCombatClass(promotionStateFromRow(m));
+      if (!canMinionEquipWeaponForClass(combatClass, inst.baseItemId)) throw new Error("WEAPON_JOB_MISMATCH");
 
       const same = m.equippedWeaponInstanceId === weaponInstanceId;
       const updated = await tx.minion.update({

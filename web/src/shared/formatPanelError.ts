@@ -1,8 +1,14 @@
 /** 패널 공통 — API 오류를 사용자용 한글 메시지로 변환 */
 export function formatPanelError(e: unknown): string {
   if (e == null) return "알 수 없는 오류가 발생했습니다.";
-  if (typeof e === "string") return e;
-  if (e instanceof Error) return e.message;
+  if (typeof e === "string") {
+    if (looksLikeDbMigration(e)) return mapErrorCode("DB_MIGRATION_REQUIRED") ?? e;
+    return e;
+  }
+  if (e instanceof Error) {
+    if (looksLikeDbMigration(e.message)) return mapErrorCode("DB_MIGRATION_REQUIRED") ?? e.message;
+    return e.message;
+  }
 
   if (typeof e === "object") {
     const o = e as Record<string, unknown>;
@@ -11,8 +17,15 @@ export function formatPanelError(e: unknown): string {
     if (code) {
       const mapped = mapErrorCode(code);
       if (mapped) return mapped;
-      if (code === "INTERNAL_SERVER_ERROR" && typeof o.message === "string" && o.message.length > 0) {
-        return o.message;
+      if (
+        (code === "INTERNAL_SERVER_ERROR" || code === "INTERNAL") &&
+        typeof o.message === "string" &&
+        o.message.length > 0
+      ) {
+        if (looksLikeDbMigration(o.message)) {
+          return mapErrorCode("DB_MIGRATION_REQUIRED") ?? "DB 마이그레이션이 필요합니다.";
+        }
+        return "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
       }
       return code;
     }
@@ -30,6 +43,10 @@ export function formatPanelError(e: unknown): string {
   }
 
   return "요청 처리 중 오류가 발생했습니다. 새로고침 후 다시 시도해 주세요.";
+}
+
+function looksLikeDbMigration(text: string): boolean {
+  return /does not exist|Friendship|ArmorInstance|ToolInstance|TradeSession|P2021/i.test(text);
 }
 
 function mapErrorCode(code: string): string | null {
@@ -70,6 +87,22 @@ function mapErrorCode(code: string): string | null {
     MINION_NOT_FOUND: "미니언을 찾을 수 없습니다.",
     WEAPON_ALREADY_EQUIPPED: "다른 미니언이 착용 중인 무기입니다.",
     CHAT_BACKEND_UNAVAILABLE: "채팅 서버를 사용할 수 없습니다.",
+    DB_MIGRATION_REQUIRED:
+      "DB 마이그레이션이 필요합니다. web 폴더에서 npm run db:migrate 를 실행해 주세요. (친구·직거래 등 최신 테이블 반영)",
+    INTERNAL_SERVER_ERROR: "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    INTERNAL: "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    FRIEND_USER_NOT_FOUND: "해당 닉네임의 유저를 찾을 수 없습니다.",
+    CANNOT_FRIEND_SELF: "자기 자신은 친구로 추가할 수 없습니다.",
+    ALREADY_FRIENDS: "이미 친구입니다.",
+    REQUEST_ALREADY_SENT: "이미 친구 요청을 보냈습니다.",
+    FRIEND_REQUEST_NOT_FOUND: "친구 요청을 찾을 수 없습니다.",
+    FRIEND_REQUEST_NOT_PENDING: "이미 처리된 요청입니다.",
+    NOT_FRIENDS: "친구 관계가 아닙니다.",
+    TRADE_USER_NOT_FOUND: "상대 유저를 찾을 수 없습니다.",
+    TRADE_CANNOT_SELF: "자기 자신과는 거래할 수 없습니다.",
+    PROCESS_CRAFT_DISABLED: "가공 제작은 비활성화됐어요. 던전·무탑·레이드 드랍이나 거래소를 이용해 주세요.",
+    SPECIALIST_SYSTEM_REMOVED: "전문 직업 시스템이 제거됐어요. 던전·거래소를 이용해 주세요.",
+    GATHER_DISABLED: "수집 시스템이 비활성화됐어요. 던전·무한의 탑·레이드에서 아이템을 얻을 수 있어요.",
   };
 
   if (exact[code]) return exact[code];

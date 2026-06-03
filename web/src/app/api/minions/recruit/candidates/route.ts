@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 const BodySchema = z.object({
   userId: z.string().min(1).optional(),
   itemId: z.string().min(1),
-  category: z.enum(["GATHER", "DUNGEON"]),
+  category: z.enum(["GATHER", "DUNGEON"]).optional(),
 });
 
 export async function POST(req: Request) {
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
   const itemId = parsed.data.itemId.trim().toLowerCase();
-  const category = parsed.data.category;
+  const category = parsed.data.category ?? "DUNGEON";
 
   try {
     const stack = await prisma.inventoryStack.findUnique({
@@ -33,12 +33,11 @@ export async function POST(req: Request) {
     }
 
     const rolled = await rollRecruitCandidates(itemId, { category });
-    const jobTypes = rolled.candidates.map((c) => c.jobType);
     const pickToken = createRecruitPickToken({
       userId: auth.userId,
       itemId,
       category: rolled.minionKind,
-      candidates: jobTypes,
+      candidates: rolled.candidates.map((c) => c.baseStats),
     });
 
     return Response.json({

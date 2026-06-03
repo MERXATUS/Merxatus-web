@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { itemGradeNameClassName } from "@/server/itemGrade";
-import { canMinionEquipWeapon } from "@/shared/minionWeaponRules";
+import { canMinionEquipWeaponForClass } from "@/shared/minionWeaponRules";
+import type { MinionCombatClass } from "@/shared/minionDerivedClass";
 import {
   armorStackMatchesSlot,
   EQUIP_DRAG_MIME,
@@ -14,12 +15,20 @@ import {
   stackItemBagCategory,
   type EquipBagCategory,
 } from "@/shared/minionEquipBag";
-
 type WeaponRow = {
   id: string;
   baseItemId: string;
   name: string;
   enhanceLevel: number;
+  grade?: number;
+  icon?: string | null;
+  iconSrc?: string;
+};
+
+type ArmorRow = {
+  id: string;
+  baseItemId: string;
+  name: string;
   grade?: number;
   icon?: string | null;
   iconSrc?: string;
@@ -50,6 +59,16 @@ type BagCell =
     }
   | {
       key: string;
+      kind: "armor";
+      armorInstanceId: string;
+      baseItemId: string;
+      name: string;
+      grade: number;
+      icon?: string | null;
+      iconSrc?: string;
+    }
+  | {
+      key: string;
       kind: "stack";
       itemId: string;
       name: string;
@@ -64,30 +83,42 @@ export function MinionEquipBagPanel(props: {
   category: EquipBagCategory;
   onCategoryChange: (c: EquipBagCategory) => void;
   weapons: WeaponRow[];
+  armorInstances?: ArmorRow[];
   inventory: StackRow[];
-  minionJobType: string;
+  minionCombatClass?: MinionCombatClass;
   equippedWeaponInstanceId: string | null;
   equippedStackItemId?: string | null;
+  equippedArmorInstanceId?: string | null;
+  blockedArmorInstanceIds?: Set<string>;
   activeSlot: MinionEquipSlotId;
   busy: boolean;
   onPick: (rawPayload: string) => void;
   onUnequip: () => void;
   onBack: () => void;
+  bagCategories?: EquipBagCategory[];
+  compact?: boolean;
 }) {
   const {
     category,
     onCategoryChange,
     weapons,
+    armorInstances = [],
     inventory,
-    minionJobType,
+    minionCombatClass,
     equippedWeaponInstanceId,
     equippedStackItemId,
+    equippedArmorInstanceId,
+    blockedArmorInstanceIds,
     activeSlot,
     busy,
     onPick,
     onUnequip,
     onBack,
+    bagCategories = EQUIP_BAG_CATEGORIES_ACTIVE.map((c) => c.id),
+    compact,
   } = props;
+
+  const categoryTabs = EQUIP_BAG_CATEGORIES_ACTIVE.filter((c) => bagCategories.includes(c.id));
 
   const cells = useMemo((): BagCell[] => {
     const out: BagCell[] = [];
@@ -97,7 +128,8 @@ export function MinionEquipBagPanel(props: {
         out.push({ key: "unequip", kind: "unequip" });
       }
       for (const w of weapons) {
-        if (!canMinionEquipWeapon(minionJobType, w.baseItemId)) continue;
+        const combatClass = minionCombatClass ?? "ADVENTURER";
+        if (!canMinionEquipWeaponForClass(combatClass, w.baseItemId)) continue;
         out.push({
           key: `weapon:${w.id}`,
           kind: "weapon",
@@ -114,6 +146,44 @@ export function MinionEquipBagPanel(props: {
       return out;
     }
 
+    if (category === "armor") {
+      const slotHasEquipped =
+        activeSlot !== "weapon" && (!!equippedArmorInstanceId || !!equippedStackItemId);
+      if (slotHasEquipped) {
+        out.push({ key: "unequip", kind: "unequip" });
+      }
+      for (const a of armorInstances) {
+        if (!armorStackMatchesSlot(activeSlot, a.baseItemId)) continue;
+        if (blockedArmorInstanceIds?.has(a.id)) continue;
+        out.push({
+          key: `armor:${a.id}`,
+          kind: "armor",
+          armorInstanceId: a.id,
+          baseItemId: a.baseItemId,
+          name: a.name,
+          grade: a.grade ?? 1,
+          icon: a.icon,
+          iconSrc: a.iconSrc,
+        });
+      }
+      for (const s of inventory) {
+        if (s.quantity <= 0) continue;
+        if (stackItemBagCategory(s.itemId, s.category) !== "armor") continue;
+        if (!armorStackMatchesSlot(activeSlot, s.itemId)) continue;
+        out.push({
+          key: `stack:${s.itemId}`,
+          kind: "stack",
+          itemId: s.itemId,
+          name: s.name,
+          quantity: s.quantity,
+          grade: s.grade ?? 1,
+          icon: s.icon,
+          iconSrc: s.iconSrc,
+        });
+      }
+      return out;
+    }
+
     if (equippedStackItemId && activeSlot !== "weapon") {
       out.push({ key: "unequip", kind: "unequip" });
     }
@@ -121,7 +191,6 @@ export function MinionEquipBagPanel(props: {
     for (const s of inventory) {
       if (s.quantity <= 0) continue;
       if (stackItemBagCategory(s.itemId, s.category) !== category) continue;
-      if (category === "armor" && !armorStackMatchesSlot(activeSlot, s.itemId)) continue;
       out.push({
         key: `stack:${s.itemId}`,
         kind: "stack",
@@ -134,13 +203,31 @@ export function MinionEquipBagPanel(props: {
       });
     }
     return out;
-  }, [category, weapons, inventory, minionJobType, equippedWeaponInstanceId, equippedStackItemId, activeSlot]);
+  }, [
+    category,
+    weapons,
+    armorInstances,
+    inventory,
+    minionCombatClass,
+    equippedWeaponInstanceId,
+    equippedStackItemId,
+    equippedArmorInstanceId,
+    blockedArmorInstanceIds,
+    activeSlot,
+  ]);
 
   function dragPayload(cell: BagCell): string | null {
     if (cell.kind === "weapon") {
       return JSON.stringify({
         kind: "weapon",
         weaponInstanceId: cell.weaponInstanceId,
+        baseItemId: cell.baseItemId,
+      });
+    }
+    if (cell.kind === "armor") {
+      return JSON.stringify({
+        kind: "armor",
+        armorInstanceId: cell.armorInstanceId,
         baseItemId: cell.baseItemId,
       });
     }
@@ -151,21 +238,23 @@ export function MinionEquipBagPanel(props: {
   }
 
   return (
-    <div className="minion-equip-bag-panel">
+    <div className={`minion-equip-bag-panel ${compact ? "minion-equip-bag-panel--compact" : ""}`}>
       <div className="minion-equip-bag-panel__head">
         <div>
-          <h3 className="text-sm font-bold text-[var(--game-text)]">장비 가방</h3>
-          <p className="mt-0.5 text-[11px] text-[var(--game-muted)]">
-            클릭 또는 드래그로 오른쪽 슬롯에 착용
-          </p>
+          <h3 className="minion-equip-bag-panel__title">장비 가방</h3>
+          {!compact ? (
+            <p className="minion-equip-bag-panel__subtitle">
+              클릭 또는 드래그로 오른쪽 슬롯에 착용
+            </p>
+          ) : null}
         </div>
         <button type="button" className="minion-equip-bag-panel__back" disabled={busy} onClick={onBack}>
-          ← 미니언 목록
+          {compact ? "← 목록" : "← 미니언 목록"}
         </button>
       </div>
 
       <div className="minion-equip-bag-panel__tabs" role="tablist">
-        {EQUIP_BAG_CATEGORIES_ACTIVE.map((c) => (
+        {categoryTabs.map((c) => (
           <button
             key={c.id}
             type="button"
@@ -209,6 +298,9 @@ export function MinionEquipBagPanel(props: {
 
             const payload = dragPayload(cell);
             const isWeapon = cell.kind === "weapon";
+            const isArmor = cell.kind === "armor";
+            const iconItemId =
+              cell.kind === "weapon" || cell.kind === "armor" ? cell.baseItemId : cell.itemId;
 
             return (
               <button
@@ -230,7 +322,7 @@ export function MinionEquipBagPanel(props: {
                 }}
               >
                 <ItemIcon
-                  itemId={isWeapon ? cell.baseItemId : cell.itemId}
+                  itemId={iconItemId}
                   icon={cell.icon}
                   iconSrc={cell.iconSrc}
                   size={48}
@@ -242,9 +334,11 @@ export function MinionEquipBagPanel(props: {
                     {cell.name}
                     {isWeapon && cell.enhanceLevel > 0 ? ` +${cell.enhanceLevel}` : ""}
                   </span>
-                  {!isWeapon ? (
+                  {cell.kind === "stack" ? (
                     <span className="inventory-item-card__meta">×{cell.quantity}</span>
-                  ) : cell.equipped ? (
+                  ) : isWeapon && cell.equipped ? (
+                    <span className="minion-equip-bag-panel__equipped-tag">착용 중</span>
+                  ) : isArmor && equippedArmorInstanceId === cell.armorInstanceId ? (
                     <span className="minion-equip-bag-panel__equipped-tag">착용 중</span>
                   ) : null}
                 </div>

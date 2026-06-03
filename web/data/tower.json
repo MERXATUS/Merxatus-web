@@ -1,0 +1,151 @@
+{
+  "seasonKey": "default",
+  "name": "무한의 탑",
+  "encounterCycleFloors": 80,
+  "encounters": [
+    {
+      "monsterId": "slime",
+      "category": "Monster",
+      "fromFloor": 1,
+      "toFloor": 9
+    },
+    {
+      "monsterId": "slime_king",
+      "category": "Boss",
+      "fromFloor": 10,
+      "toFloor": 10
+    },
+    {
+      "monsterId": "goblin",
+      "category": "Monster",
+      "fromFloor": 11,
+      "toFloor": 19
+    },
+    {
+      "monsterId": "goblin_chieftain",
+      "category": "Boss",
+      "fromFloor": 20,
+      "toFloor": 20
+    },
+    {
+      "monsterId": "wolf",
+      "category": "Monster",
+      "fromFloor": 21,
+      "toFloor": 29
+    },
+    {
+      "monsterId": "wolf_alpha",
+      "category": "Boss",
+      "fromFloor": 30,
+      "toFloor": 30
+    },
+    {
+      "monsterId": "skeleton",
+      "category": "Monster",
+      "fromFloor": 31,
+      "toFloor": 39
+    },
+    {
+      "monsterId": "skeleton_lord",
+      "category": "Boss",
+      "fromFloor": 40,
+      "toFloor": 40
+    },
+    {
+      "monsterId": "fire_salamander",
+      "category": "Monster",
+      "fromFloor": 41,
+      "toFloor": 49
+    },
+    {
+      "monsterId": "flame_tyrant",
+      "category": "Boss",
+      "fromFloor": 50,
+      "toFloor": 50
+    },
+    {
+      "monsterId": "ice_wisp",
+      "category": "Monster",
+      "fromFloor": 51,
+      "toFloor": 59
+    },
+    {
+      "monsterId": "frost_titan",
+      "category": "Boss",
+      "fromFloor": 60,
+      "toFloor": 60
+    },
+    {
+      "monsterId": "dragon_whelp",
+      "category": "Monster",
+      "fromFloor": 61,
+      "toFloor": 69
+    },
+    {
+      "monsterId": "elder_dragon",
+      "category": "Boss",
+      "fromFloor": 70,
+      "toFloor": 70
+    },
+    {
+      "monsterId": "void_spawn",
+      "category": "Monster",
+      "fromFloor": 71,
+      "toFloor": 79
+    },
+    {
+      "monsterId": "void_harbinger",
+      "category": "Boss",
+      "fromFloor": 80,
+      "toFloor": 80
+    }
+  ],
+  "baseMonsterId": "slime",
+  "bossEveryFloors": 10,
+  "bossMonsterId": "slime_king",
+  "drops": [
+    {
+      "itemId": "item_lesser_mana_stone",
+      "weight": 2000,
+      "minQty": 1,
+      "maxQty": 2
+    },
+    {
+      "itemId": "item_mana_stone",
+      "weight": 3000,
+      "minQty": 1,
+      "maxQty": 2
+    },
+    {
+      "itemId": "item_greater_mana_stone",
+      "weight": 2500,
+      "minQty": 1,
+      "maxQty": 2
+    },
+    {
+      "itemId": "item_enhance_scroll_low",
+      "weight": 1500,
+      "minQty": 1,
+      "maxQty": 1
+    },
+    {
+      "itemId": "item_enhance_scroll_mid",
+      "weight": 1500,
+      "minQty": 1,
+      "maxQty": 1
+    },
+    {
+      "itemId": "item_enhance_scroll_high",
+      "weight": 1000,
+      "minQty": 1,
+      "maxQty": 1
+    },
+    {
+      "itemId": "item_raid_shard",
+      "weight": 500,
+      "minQty": 1,
+      "maxQty": 1
+    }
+  ],
+  "leaderboardBoardKey": "tower"
+}

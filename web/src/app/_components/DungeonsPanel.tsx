@@ -2,16 +2,43 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { MinionJobType } from "@prisma/client";
+import { readSavedPartyIds, resolveSavedPartyIds, writeSavedPartyIds } from "@/shared/savedParty";
 import { useEscapeClose } from "@/shared/useEscapeClose";
+import { isDungeonPool } from "@/server/minionJobs";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
-import { DUNGEON_JOB_TYPES, MINION_JOB_LABEL } from "@/server/minionJobs";
-import { itemGradeNameClassName } from "@/server/itemGrade";
 import { GameBtn, GamePanel, GamePanelTitle, GameStat } from "@/app/_components/gameUi";
 import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
-import { MinionEquipDoll } from "@/app/_components/MinionEquipDoll";
-import { formatCombatLogLine, type CombatLogLine } from "@/shared/dungeonCombatLog";
+import { minionPortraitView, monsterIdFromDisplayName, monsterPortraitView } from "@/shared/combatPortrait";
+import type { CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatLog";
+import { partyHpFromArena, type BattleArenaFrame } from "@/shared/dungeonCombatReplay";
+import { CombatEncounterBlock } from "@/app/_components/CombatEncounterBlock";
+import { DungeonCashoutConfirmModal } from "@/app/_components/DungeonCashoutConfirmModal";
+import { DungeonPartyPickModal } from "@/app/_components/DungeonPartyPickModal";
+import { PushLuckRiskBar } from "@/app/_components/PushLuckRiskBar";
+import { DungeonRunSettlementModal } from "@/app/_components/DungeonRunSettlementModal";
+import {
+  DungeonPartyHpList,
+  type PartyRosterRow,
+  type RecoveryPotion,
+} from "@/app/_components/DungeonPartyHpList";
+import { DungeonPotionModal } from "@/app/_components/DungeonPotionModal";
+import { PendingLootSummaryModal } from "@/app/_components/PendingLootSummaryModal";
+import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
+import type {
+  DungeonLootRow,
+  DungeonSettlement,
+  MinionXpGrantPayload,
+} from "@/shared/dungeonSettlement";
+import { settlementTitle } from "@/shared/dungeonSettlement";
+import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
+import {
+  dungeonIdForStageOrder,
+  listDungeonStagePickerOptions,
+  stageOrderForDungeonId,
+} from "@/shared/dungeonStageProgression";
+import { pushLuckFloorGoldReward, pushLuckLootMultiplier } from "@/shared/dungeonPushLuck";
+import { pickBestRecoveryPotion, pickLowestHpMemberId } from "@/shared/potionEffects";
 
 type DungeonDef = {
   id: string;
@@ -20,6 +47,14 @@ type DungeonDef = {
   maxFloors?: number;
   maxPartySize?: number;
   baseWaveSeconds: number;
+  stage?: {
+    stageOrder: number;
+    recommendedLevel: number;
+    recommendedLevelMax: number;
+    recommendedLevelLabel: string;
+    journeyXpPool: number;
+    fullClearXp: number;
+  };
 };
 
 type RunState = {
@@ -36,18 +71,40 @@ type RunState = {
   dungeon?: DungeonDef;
   party?: Array<{ minionId: string; hp?: number; maxHp?: number; label?: string }>;
   pendingLoot?: string;
+  pendingLootItems?: Array<{ itemId: string; qty: number; name: string; grade: number }>;
+  recoveryPotions?: RecoveryPotion[];
 };
 
 type AdvanceResult = {
   ok: boolean;
+  result?: "WIN" | "LOSS" | "WIN_AND_CASHOUT";
   combatLog?: CombatLogLine[];
+  combatReplay?: DungeonCombatReplay;
   partyHp?: Array<{ minionId: string; hp: number; maxHp: number; label?: string }>;
+  minionXpGrants?: MinionXpGrantPayload[];
+  cashedOut?: DungeonLootRow[];
+  forfeitedLoot?: DungeonLootRow[];
+  goldGained?: number;
+  lootMultiplier?: number;
+  isBoss?: boolean;
+  clearChance?: number;
+};
+
+type CashoutResult = {
+  ok: boolean;
+  cashedOut?: DungeonLootRow[];
+};
+
+type StopResult = {
+  ok: boolean;
+  forfeitedLoot?: DungeonLootRow[];
 };
 
 type DungeonMinionRow = {
   id: string;
   level: number;
-  jobType: string;
+  pool: string;
+  combatClassLabel: string;
   combatStats?: { combatPower: number };
   equippedWeapon?: {
     id: string;
@@ -56,19 +113,46 @@ type DungeonMinionRow = {
     enhanceLevel: number;
     grade: number;
   } | null;
-  assignedWorkshop?: { workshopId: string; workshopName: string } | null;
 };
 
 type DisplayLogLine = { id: string; text: string; tone: "party" | "enemy" | "system" | "win" | "loss" };
 
 const PARTY_KEY = "dungeon_party_minion_ids_v1";
 const DUNGEON_SELECT_KEY = "dungeon_selected_id_v1";
+const DUNGEON_STAGE_SELECT_KEY = "dungeon_selected_stage_v1";
 
-function logTone(line: CombatLogLine): DisplayLogLine["tone"] {
-  if (line.t === "floor_start") return "system";
-  if (line.t === "result") return line.outcome === "WIN" ? "win" : "loss";
-  if (line.t === "hit") return line.side === "party" ? "party" : "enemy";
-  return "system";
+function potionErrorMessage(code: string): string {
+  switch (code) {
+    case "NO_POTION":
+      return "물약이 부족합니다.";
+    case "MINION_DEAD":
+      return "전투불능 상태에는 사용할 수 없습니다.";
+    case "MINION_FULL_HP":
+      return "이미 HP가 가득합니다.";
+    case "INVALID_POTION":
+      return "던전에서 사용할 수 없는 물약입니다.";
+    case "NO_ACTIVE_RUN":
+      return "진행 중인 던전이 없습니다.";
+    default:
+      return code;
+  }
+}
+
+function resolveDungeonFromList(list: DungeonDef[], currentId?: string | null): DungeonDef | null {
+  if (!list.length) return null;
+  if (typeof window !== "undefined") {
+    const savedStageRaw = localStorage.getItem(DUNGEON_STAGE_SELECT_KEY);
+    const savedStage = savedStageRaw ? Number(savedStageRaw) : NaN;
+    if (Number.isFinite(savedStage) && savedStage > 0) {
+      const id = dungeonIdForStageOrder(savedStage);
+      const byStage = id ? list.find((d) => d.id === id) : null;
+      if (byStage) return byStage;
+    }
+    const savedId = localStorage.getItem(DUNGEON_SELECT_KEY) ?? "";
+    const byId = list.find((d) => d.id === savedId);
+    if (byId) return byId;
+  }
+  return list.find((d) => d.id === currentId) ?? list[0] ?? null;
 }
 
 function parseLoot(raw: unknown) {
@@ -94,7 +178,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return apiPostJson<T>(url, body);
 }
 
-export function DungeonsPanel() {
+export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const { user, loading: sessionLoading } = useSessionUser();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -106,16 +190,89 @@ export function DungeonsPanel() {
   const [itemNames, setItemNames] = useState<Map<string, string>>(new Map());
   const [logLines, setLogLines] = useState<DisplayLogLine[]>([]);
   const [playingLog, setPlayingLog] = useState(false);
+  const [battleReplay, setBattleReplay] = useState<DungeonCombatReplay | null>(null);
+  const [battleLines, setBattleLines] = useState<CombatLogLine[]>([]);
+  const [battleFrame, setBattleFrame] = useState<BattleArenaFrame | null>(null);
+  const pendingPartyHpRef = useRef<AdvanceResult["partyHp"]>(null);
+  const pendingAdvanceResultRef = useRef<AdvanceResult | null>(null);
+  const sessionXpRef = useRef<Map<string, MinionXpGrantPayload>>(new Map());
+  const [settlement, setSettlement] = useState<DungeonSettlement | null>(null);
+  const [lastFloorBonus, setLastFloorBonus] = useState<string | null>(null);
+  const [combatIsBoss, setCombatIsBoss] = useState(false);
+  const [playbackClearChance, setPlaybackClearChance] = useState<number | null>(null);
+  const [cashoutConfirmOpen, setCashoutConfirmOpen] = useState(false);
+  const [pendingLootSummaryOpen, setPendingLootSummaryOpen] = useState(false);
   const [partyOpen, setPartyOpen] = useState(false);
   const [partyBusy, setPartyBusy] = useState(false);
-  const logEndRef = useRef<HTMLDivElement>(null);
+  const [potionModalOpen, setPotionModalOpen] = useState(false);
   const logId = useRef(0);
 
   const floor = Math.max(1, Math.floor(run?.run?.floor ?? 1));
   const maxFloors = dungeon?.maxFloors ?? 20;
   const maxParty = Math.max(1, dungeon?.maxPartySize ?? 1);
   const floorPct = Math.min(100, Math.round((floor / maxFloors) * 100));
-  const loot = parseLoot(run?.pendingLoot ?? "[]");
+  const cashoutLoot = useMemo(() => {
+    if (run?.pendingLootItems?.length) return run.pendingLootItems;
+    return parseLoot(run?.pendingLoot ?? "[]").map((x) => ({
+      itemId: x.itemId,
+      qty: x.qty,
+      name: itemNames.get(x.itemId) ?? x.itemId,
+      grade: 1,
+    }));
+  }, [run?.pendingLootItems, run?.pendingLoot, itemNames]);
+
+  const stagePickerRows = useMemo(() => {
+    return listDungeonStagePickerOptions()
+      .map((opt) => {
+        const dungeonsInStage = opt.dungeonIds
+          .map((id) => dungeons.find((d) => d.id === id))
+          .filter((d): d is DungeonDef => !!d);
+        if (dungeonsInStage.length === 0) return null;
+        return { ...opt, dungeons: dungeonsInStage };
+      })
+      .filter((row): row is NonNullable<typeof row> => row != null);
+  }, [dungeons]);
+
+  const selectedStageOrder =
+    dungeon?.stage?.stageOrder ?? stageOrderForDungeonId(dungeon?.id ?? "") ?? stagePickerRows[0]?.stageOrder ?? 1;
+
+  const selectedStageRow = useMemo(
+    () => stagePickerRows.find((r) => r.stageOrder === selectedStageOrder) ?? stagePickerRows[0] ?? null,
+    [stagePickerRows, selectedStageOrder],
+  );
+
+  const selectedStageDungeon = useMemo(() => {
+    if (!selectedStageRow || !dungeon) return selectedStageRow?.dungeons[0] ?? null;
+    return selectedStageRow.dungeons.find((d) => d.id === dungeon.id) ?? selectedStageRow.dungeons[0] ?? null;
+  }, [selectedStageRow, dungeon]);
+
+  const stageTabRefs = useRef<Map<number, HTMLSpanElement>>(new Map());
+
+  useEffect(() => {
+    const el = stageTabRefs.current.get(selectedStageOrder);
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [selectedStageOrder, stagePickerRows.length]);
+
+  const selectStage = useCallback(
+    (stageOrder: number, dungeonId?: string) => {
+      if (run?.active || busy) return;
+      const row = stagePickerRows.find((r) => r.stageOrder === stageOrder);
+      if (!row) return;
+      const next =
+        (dungeonId ? row.dungeons.find((d) => d.id === dungeonId) : null) ??
+        row.dungeons.find((d) => d.id === row.primaryDungeonId) ??
+        row.dungeons[0];
+      if (!next) return;
+      setDungeon(next);
+      try {
+        localStorage.setItem(DUNGEON_STAGE_SELECT_KEY, String(stageOrder));
+        localStorage.setItem(DUNGEON_SELECT_KEY, next.id);
+      } catch {
+        /* ignore */
+      }
+    },
+    [run?.active, busy, stagePickerRows],
+  );
 
   const partyChips = useMemo(() => {
     const out: Array<{ id: string; label: string }> = [];
@@ -124,7 +281,7 @@ export function DungeonsPanel() {
       if (!m) continue;
       out.push({
         id,
-        label: `${MINION_JOB_LABEL[m.jobType as MinionJobType] ?? m.jobType} Lv${m.level}`,
+        label: `${m.combatClassLabel} Lv${m.level}`,
       });
     }
     return out;
@@ -132,78 +289,253 @@ export function DungeonsPanel() {
 
   const partyRoster = useMemo(() => {
     if (!run?.active || !run.party?.length) return null;
+    const liveHp = battleFrame ? partyHpFromArena(battleFrame.fighters) : null;
     return run.party.map((p) => {
+      const live = liveHp?.find((h) => h.minionId === p.minionId);
       const m = minions.find((x) => x.id === p.minionId);
-      const maxHp = Math.max(1, Math.floor(p.maxHp ?? 1));
-      const hp = Math.min(maxHp, Math.max(0, Math.floor(p.hp ?? maxHp)));
-      const fallbackLabel = m
-        ? `${MINION_JOB_LABEL[m.jobType as MinionJobType] ?? m.jobType} Lv${m.level}`
-        : p.minionId.slice(0, 8);
+      const maxHp = Math.max(1, Math.floor(live?.maxHp ?? p.maxHp ?? 1));
+      const hp = Math.min(maxHp, Math.max(0, Math.floor(live?.hp ?? p.hp ?? maxHp)));
+      const fallbackLabel = m ? `${m.combatClassLabel} Lv${m.level}` : p.minionId.slice(0, 8);
       return {
         id: p.minionId,
-        label: p.label ?? fallbackLabel,
+        label: live?.label ?? p.label ?? fallbackLabel,
         hp,
         maxHp,
         pct: Math.round((hp / maxHp) * 100),
         dead: hp <= 0,
       };
     });
-  }, [run?.active, run?.party, minions]);
+  }, [run?.active, run?.party, minions, battleFrame]);
 
   const partyAlive = partyRoster?.filter((m) => !m.dead).length ?? 0;
+  const recoveryPotions = run?.recoveryPotions ?? [];
+
+  async function usePotion(itemId: string, minionId: string) {
+    setBusy(`potion-${minionId}`);
+    setError(null);
+    try {
+      const r = await postJson<{
+        ok: boolean;
+        error?: string;
+        healedAmount?: number;
+        partyHp?: Array<{ minionId: string; hp: number; maxHp: number; label?: string }>;
+      }>("/api/dungeons/run/use-potion", { itemId, minionId });
+      if (r.partyHp?.length) {
+        setRun((prev) => {
+          if (!prev?.active) return prev;
+          const nextPotions = (prev.recoveryPotions ?? [])
+            .map((p) => (p.itemId === itemId ? { ...p, quantity: Math.max(0, p.quantity - 1) } : p))
+            .filter((p) => p.quantity > 0);
+          return {
+            ...prev,
+            party: r.partyHp!.map((h) => ({
+              minionId: h.minionId,
+              hp: h.hp,
+              maxHp: h.maxHp,
+              label: h.label,
+            })),
+            recoveryPotions: nextPotions,
+          };
+        });
+        const healed = r.healedAmount ?? 0;
+        if (healed > 0) {
+          const potionName = recoveryPotions.find((p) => p.itemId === itemId)?.name ?? "물약";
+          const targetLabel = partyRoster?.find((m) => m.id === minionId)?.label ?? "파티원";
+          logId.current += 1;
+          setLogLines((prev) => [
+            ...prev,
+            {
+              id: `potion-${logId.current}`,
+              text: `${targetLabel}에게 ${potionName} 사용 — HP +${healed.toLocaleString()}`,
+              tone: "system" as const,
+            },
+          ]);
+        }
+      }
+      setPotionModalOpen(false);
+    } catch (e) {
+      const code =
+        typeof e === "object" && e && "error" in e && typeof (e as { error?: string }).error === "string"
+          ? (e as { error: string }).error
+          : e instanceof Error
+            ? e.message
+            : String(e);
+      setError(new Error(potionErrorMessage(code)));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function healLowestHp() {
+    if (!partyRoster?.length || !recoveryPotions.length) return;
+    const targetId = pickLowestHpMemberId(partyRoster);
+    if (!targetId) return;
+    const target = partyRoster.find((m) => m.id === targetId);
+    if (!target) return;
+    const missing = Math.max(0, target.maxHp - target.hp);
+    const itemId = pickBestRecoveryPotion(missing, target.maxHp, recoveryPotions);
+    if (itemId) void usePotion(itemId, targetId);
+  }
+
+  const canHealParty =
+    run?.active &&
+    recoveryPotions.some((p) => p.quantity > 0) &&
+    (partyRoster?.some((m) => !m.dead && m.hp < m.maxHp) ?? false);
 
   const dungeonMinions = useMemo(
-    () => minions.filter((m) => DUNGEON_JOB_TYPES.has(m.jobType as MinionJobType)),
+    () => minions.filter((m) => isDungeonPool(m.pool)),
     [minions],
   );
 
-  const playLog = useCallback((lines: CombatLogLine[], done?: () => void) => {
-    if (!lines.length) {
-      done?.();
+  function minionLabelForSettlement(minionId: string, fallback?: string) {
+    const m = minions.find((x) => x.id === minionId);
+    if (m) return `${m.combatClassLabel} Lv${m.level}`;
+    return fallback ?? minionId.slice(0, 8);
+  }
+
+  function mergeSessionXp(grants?: MinionXpGrantPayload[]) {
+    if (!grants?.length) return;
+    for (const g of grants) {
+      const prev = sessionXpRef.current.get(g.minionId);
+      if (!prev) {
+        sessionXpRef.current.set(g.minionId, { ...g });
+        continue;
+      }
+      sessionXpRef.current.set(g.minionId, {
+        minionId: g.minionId,
+        xpGained: prev.xpGained + g.xpGained,
+        levelsGained: prev.levelsGained + g.levelsGained,
+        statPointsGained: prev.statPointsGained + g.statPointsGained,
+        level: g.level,
+        experience: g.experience,
+        unspentStatPoints: g.unspentStatPoints,
+      });
+    }
+  }
+
+  function resetSessionXp() {
+    sessionXpRef.current = new Map();
+  }
+
+  function buildXpGrantRows(): DungeonSettlement["xpGrants"] {
+    return [...sessionXpRef.current.values()].map((g) => ({
+      ...g,
+      label: minionLabelForSettlement(g.minionId),
+    }));
+  }
+
+  function openSettlement(payload: Omit<DungeonSettlement, "title">) {
+    setSettlement({
+      title: settlementTitle(payload.kind),
+      ...payload,
+    });
+  }
+
+  function dismissSettlement() {
+    setSettlement(null);
+    setLastFloorBonus(null);
+    resetSessionXp();
+    void refresh();
+  }
+
+  function showSettlementAfterAdvance(adv: AdvanceResult) {
+    if (adv.result === "LOSS") {
+      openSettlement({
+        kind: "defeat",
+        subtitle: "누적 보상이 사라졌습니다.",
+        xpGrants: buildXpGrantRows(),
+        loot: [],
+        forfeitedLoot: adv.forfeitedLoot ?? [],
+      });
+      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [] } : prev));
       return;
     }
-    setLogLines([]);
-    setPlayingLog(true);
-    let i = 0;
-    const step = () => {
-      if (i >= lines.length) {
-        setPlayingLog(false);
-        done?.();
-        return;
-      }
-      const line = lines[i]!;
-      setLogLines((prev) => [
-        ...prev,
-        { id: `l${logId.current++}`, text: formatCombatLogLine(line), tone: logTone(line) },
-      ]);
-      i += 1;
-      const ms = line.t === "floor_start" ? 520 : line.t === "result" ? 900 : 340;
-      window.setTimeout(step, ms);
-    };
-    window.setTimeout(step, 280);
-  }, []);
+    if (adv.result === "WIN_AND_CASHOUT") {
+      openSettlement({
+        kind: "clear",
+        subtitle: "최종 층을 클리어했습니다.",
+        xpGrants: buildXpGrantRows(),
+        loot: adv.cashedOut ?? [],
+        goldGained: adv.goldGained,
+        lootMultiplier: adv.lootMultiplier,
+      });
+      resetSessionXp();
+      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [] } : prev));
+    }
+  }
+
+  async function executeForfeit() {
+    setCashoutConfirmOpen(false);
+    setBusy("stop");
+    try {
+      const r = await postJson<StopResult>("/api/dungeons/run/stop", {});
+      openSettlement({
+        kind: "abort",
+        subtitle: "남은 누적 보상은 사라졌습니다.",
+        xpGrants: buildXpGrantRows(),
+        loot: [],
+        forfeitedLoot: r.forfeitedLoot ?? cashoutLoot,
+      });
+      resetSessionXp();
+      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [] } : prev));
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function executeCashout() {
+    setCashoutConfirmOpen(false);
+    setBusy("cashout");
+    try {
+      const r = await postJson<CashoutResult>("/api/dungeons/run/cashout", {});
+      openSettlement({
+        kind: "cashout",
+        subtitle: "안전하게 보상을 수령했습니다.",
+        xpGrants: buildXpGrantRows(),
+        loot: r.cashedOut ?? [],
+      });
+      resetSessionXp();
+      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [] } : prev));
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function refresh() {
     if (!user) return;
     try {
-      const [list, state] = await Promise.all([
+      const [list, state, minionR] = await Promise.all([
         getJson<{ ok: boolean; dungeons: DungeonDef[] }>("/api/dungeons/list"),
         getJson<RunState>("/api/dungeons/run/state"),
+        getJson<{ ok: boolean; minions: DungeonMinionRow[] }>("/api/minions/list"),
       ]);
+      const roster =
+        minionR.ok ? (minionR.minions ?? []).filter((m) => isDungeonPool(m.pool)) : minions;
+      if (minionR.ok) setMinions(roster);
       if (list.ok) {
         setDungeons(list.dungeons);
-        const savedId =
-          typeof window !== "undefined" ? localStorage.getItem(DUNGEON_SELECT_KEY) ?? "" : "";
-        const next =
-          list.dungeons.find((d) => d.id === savedId) ??
-          list.dungeons.find((d) => d.id === dungeon?.id) ??
-          list.dungeons[0] ??
-          null;
-        setDungeon(next);
       }
       if (state.ok) {
         setRun(state);
-        if (state.active && state.party?.length) setPartyIds(new Set(state.party.map((p) => p.minionId)));
+        if (state.active && state.dungeon) {
+          setDungeon(state.dungeon);
+        } else if (list.ok) {
+          const next = resolveDungeonFromList(list.dungeons, dungeon?.id);
+          setDungeon(next);
+        }
+        if (state.active && state.party?.length) {
+          setPartyIds(new Set(state.party.map((p) => p.minionId)));
+        } else if (minionR.ok) {
+          const cap = Math.max(1, (state.dungeon ?? dungeon)?.maxPartySize ?? 1);
+          setPartyIds(resolveSavedPartyIds(readSavedPartyIds(PARTY_KEY), roster, cap));
+        }
+      } else if (list.ok) {
+        const next = resolveDungeonFromList(list.dungeons, dungeon?.id);
+        setDungeon(next);
       }
       try {
         const me = await getJson<{ ok: boolean; inventory: Array<{ itemId: string; name: string }> }>(
@@ -218,11 +550,95 @@ export function DungeonsPanel() {
     }
   }
 
+  function finishBattlePlayback() {
+    setPlayingLog(false);
+    setBattleFrame(null);
+    setBattleReplay(null);
+    setBattleLines([]);
+    const after = pendingPartyHpRef.current;
+    pendingPartyHpRef.current = null;
+    if (after?.length) {
+      setRun((prev) =>
+        prev?.active
+          ? {
+              ...prev,
+              party: after.map((h) => ({
+                minionId: h.minionId,
+                hp: h.hp,
+                maxHp: h.maxHp,
+                label: h.label,
+              })),
+            }
+          : prev,
+      );
+    }
+    const adv = pendingAdvanceResultRef.current;
+    pendingAdvanceResultRef.current = null;
+    if (adv && (adv.result === "LOSS" || adv.result === "WIN_AND_CASHOUT")) {
+      showSettlementAfterAdvance(adv);
+      return;
+    }
+    if (adv?.result === "WIN") {
+      const mult = adv.lootMultiplier ?? 1;
+      const gold = adv.goldGained ?? 0;
+      if (mult > 1 || gold > 0) {
+        setLastFloorBonus(`층 클리어 · 드랍 ×${mult}${gold > 0 ? ` · +${gold.toLocaleString()} G` : ""}`);
+      }
+    }
+    void refresh();
+  }
+
+  function fallbackCombatReplay(lines: CombatLogLine[]): DungeonCombatReplay | null {
+    const roster = partyRoster;
+    const start = lines.find((l) => l.t === "floor_start");
+    if (!roster?.length || !start || start.t !== "floor_start") return null;
+    return {
+      floor: start.floor,
+      enemy: {
+        name: start.enemyName,
+        maxHp: start.enemyMaxHp ?? 100,
+        monsterId: monsterIdFromDisplayName(start.enemyName),
+        portrait: monsterPortraitView({ monsterId: monsterIdFromDisplayName(start.enemyName) }),
+      },
+      partyBefore: roster.map((m) => {
+        const minion = minions.find((x) => x.id === m.id);
+        return {
+          minionId: m.id,
+          label: m.label,
+          hp: m.hp,
+          maxHp: m.maxHp,
+          portrait: minionPortraitView({
+            weaponBaseItemId: minion?.equippedWeapon?.baseItemId ?? null,
+          }),
+        };
+      }),
+    };
+  }
+
+  function startBattlePlayback(lines: CombatLogLine[], replay: DungeonCombatReplay | null, boss?: boolean) {
+    if (!lines.length || !replay) {
+      finishBattlePlayback();
+      return;
+    }
+    setCombatIsBoss(!!boss);
+    setBattleReplay(replay);
+    setBattleLines(lines);
+    setPlayingLog(true);
+  }
+
   useEffect(() => {
     if (sessionLoading) return;
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, sessionLoading]);
+
+  useEffect(() => {
+    if (!embedded) return;
+    const onFrameRefresh = () => void refresh();
+    window.addEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
+    return () => window.removeEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded]);
 
   useEffect(() => {
     if (sessionLoading || !user || playingLog) return;
@@ -232,17 +648,19 @@ export function DungeonsPanel() {
   }, [user, playingLog]);
 
   useEffect(() => {
+    if (run?.active) return;
+    if (!minions.length) return;
     setPartyIds((prev) => {
-      if (prev.size <= maxParty) return prev;
-      return new Set([...prev].slice(0, maxParty));
+      const trimmed = resolveSavedPartyIds([...prev], minions, maxParty);
+      if (trimmed.size > 0) return trimmed;
+      return resolveSavedPartyIds(readSavedPartyIds(PARTY_KEY), minions, maxParty);
     });
-  }, [dungeon?.id, maxParty]);
-
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [logLines.length]);
+  }, [minions, maxParty, run?.active]);
 
   useEscapeClose(partyOpen, () => setPartyOpen(false));
+  useEscapeClose(!!settlement, dismissSettlement);
+  useEscapeClose(pendingLootSummaryOpen, () => setPendingLootSummaryOpen(false));
+  useEscapeClose(potionModalOpen, () => setPotionModalOpen(false));
 
   async function openParty() {
     setPartyOpen(true);
@@ -272,27 +690,22 @@ export function DungeonsPanel() {
     });
   }
 
+  function confirmParty() {
+    writeSavedPartyIds(PARTY_KEY, partyIds);
+    setPartyOpen(false);
+  }
+
   async function advance() {
     setBusy("advance");
     setError(null);
     try {
       const r = await postJson<AdvanceResult>("/api/dungeons/run/advance", {});
-      if (r.partyHp?.length) {
-        setRun((prev) =>
-          prev?.active
-            ? {
-                ...prev,
-                party: r.partyHp!.map((h) => ({
-                  minionId: h.minionId,
-                  hp: h.hp,
-                  maxHp: h.maxHp,
-                  label: h.label,
-                })),
-              }
-            : prev,
-        );
-      }
-      playLog(r.combatLog ?? [], () => void refresh());
+      pendingPartyHpRef.current = r.partyHp ?? null;
+      pendingAdvanceResultRef.current = r;
+      setPlaybackClearChance(r.clearChance ?? null);
+      mergeSessionXp(r.minionXpGrants);
+      const replay = r.combatReplay ?? fallbackCombatReplay(r.combatLog ?? []);
+      startBattlePlayback(r.combatLog ?? [], replay, r.isBoss);
     } catch (e) {
       setError(e);
     } finally {
@@ -301,14 +714,33 @@ export function DungeonsPanel() {
   }
 
   return (
-    <div className="dungeon-shell">
-      <div className="dungeon-hero">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="game-label">던전</p>
-            <h2 className="game-title mt-1 text-lg">{dungeon?.name ?? "슬라임의 숲"}</h2>
-            <p className="mt-1 text-xs text-[var(--game-muted)]">층마다 전투 관전 · 패배 시 보상 소멸</p>
-          </div>
+    <div className={`dungeon-shell ${embedded ? "dungeon-shell--fit panel-fit" : ""}`}>
+      <div className={`dungeon-hero ${embedded ? "dungeon-hero--compact" : ""}`}>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          {!embedded ? (
+            <div>
+              <p className="game-label">던전</p>
+              <h2 className="game-title mt-1 text-lg">{dungeon?.name ?? "슬라임의 숲"}</h2>
+              <p className="mt-1 text-xs text-[var(--game-muted)]">층마다 실시간 전투 · 패배 시 보상 소멸</p>
+              {dungeon?.stage ? (
+                <p className="mt-1 text-[11px] font-semibold text-[var(--game-gold-bright)]">
+                  권장 {dungeon.stage.recommendedLevelLabel}
+                  <span className="ml-2 font-normal text-[var(--game-muted)]">
+                    · 올클 {dungeon.stage.fullClearXp.toLocaleString()} EXP
+                  </span>
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="min-w-0">
+              <h2 className="game-title text-sm">{dungeon?.name ?? "슬라임의 숲"}</h2>
+              {dungeon?.stage ? (
+                <p className="mt-0.5 text-[10px] text-[var(--game-muted)]">
+                  스테이지 {dungeon.stage.stageOrder} · 권장 {dungeon.stage.recommendedLevelLabel}
+                </p>
+              ) : null}
+            </div>
+          )}
           <span className={`dungeon-status-pill ${run?.active ? "dungeon-status-pill--live" : ""}`.trim()}>
             {run?.active ? "● 탐험 중" : "○ 대기"}
           </span>
@@ -316,48 +748,115 @@ export function DungeonsPanel() {
         <div className="dungeon-floor-track">
           <div className="dungeon-floor-fill" style={{ width: `${run?.active ? floorPct : 0}%` }} />
         </div>
-        <p className="mt-2 text-right text-[11px] font-semibold tabular-nums text-[var(--game-muted)]">
+        <p className={`text-right text-[11px] font-semibold tabular-nums text-[var(--game-muted)] ${embedded ? "mt-1" : "mt-2"}`}>
           {run?.active ? `${floor} / ${maxFloors}층` : `최대 ${maxFloors}층`}
         </p>
-        {!run?.active && dungeons.length > 1 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {dungeons.map((d) => (
-              <GameBtn
-                key={d.id}
-                variant={dungeon?.id === d.id ? "gold" : "ghost"}
-                className="h-8 px-3 text-xs"
-                disabled={!!busy}
-                onClick={() => {
-                  setDungeon(d);
-                  try {
-                    localStorage.setItem(DUNGEON_SELECT_KEY, d.id);
-                  } catch {
-                    /* ignore */
-                  }
-                }}
-              >
-                {d.name}
-              </GameBtn>
-            ))}
+        {run?.active ? (
+          <p className="text-right text-[10px] text-[var(--game-muted)]">
+            이번 층 드랍 ×{pushLuckLootMultiplier(floor)}
+            {selectedStageOrder > 0
+              ? ` · 클리어 +${pushLuckFloorGoldReward(floor, selectedStageOrder).toLocaleString()} G`
+              : null}
+          </p>
+        ) : null}
+        {lastFloorBonus ? (
+          <p className="text-right text-[11px] font-semibold text-[var(--game-gold-bright)]">{lastFloorBonus}</p>
+        ) : null}
+        {run?.active && run.combat?.clearChance != null && !playingLog ? (
+          <PushLuckRiskBar
+            className="mt-2"
+            clearChance={run.combat.clearChance}
+            floorLabel={`${floor} / ${maxFloors}층`}
+          />
+        ) : null}
+        {!run?.active && stagePickerRows.length > 0 ? (
+          <div className={`dungeon-stage-picker ${embedded ? "dungeon-stage-picker--compact" : ""}`.trim()}>
+            <div className="dungeon-stage-picker__head">
+              <span className="dungeon-stage-picker__title">스테이지 선택</span>
+              <span className="dungeon-stage-picker__hint">{stagePickerRows.length}개</span>
+            </div>
+            <div className="dungeon-stage-picker__strip-wrap">
+              <div className="dungeon-stage-picker__strip" role="tablist" aria-label="던전 스테이지">
+                {stagePickerRows.map((row) => {
+                  const active = selectedStageOrder === row.stageOrder;
+                  return (
+                    <span
+                      key={row.stageOrder}
+                      ref={(el) => {
+                        if (el) stageTabRefs.current.set(row.stageOrder, el);
+                        else stageTabRefs.current.delete(row.stageOrder);
+                      }}
+                      className="dungeon-stage-tab-btn-wrap"
+                      role="presentation"
+                    >
+                      <GameBtn
+                        variant={active ? "gold" : "ghost"}
+                        disabled={!!busy}
+                        className="dungeon-stage-tab-btn"
+                        onClick={() => selectStage(row.stageOrder)}
+                      >
+                        <span className="dungeon-stage-tab-btn__order">ST.{row.stageOrder}</span>
+                        <span className="dungeon-stage-tab-btn__name">{row.name}</span>
+                      </GameBtn>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+            {selectedStageRow && selectedStageDungeon ? (
+              <div className="dungeon-stage-picker__detail">
+                <div className="dungeon-stage-picker__detail-name">{selectedStageRow.name}</div>
+                <div className="dungeon-stage-picker__detail-meta">
+                  권장 {selectedStageRow.recommendedLevelLabel.replace(/^Lv\s*/i, "레벨 ")}
+                  {selectedStageDungeon.maxFloors ? (
+                    <span> · 최대 {selectedStageDungeon.maxFloors}층</span>
+                  ) : null}
+                  {selectedStageDungeon.stage?.fullClearXp ? (
+                    <span> · 올클 {selectedStageDungeon.stage.fullClearXp.toLocaleString()} EXP</span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {selectedStageRow && selectedStageRow.dungeons.length > 1 ? (
+              <div className="dungeon-stage-picker__variants">
+                {selectedStageRow.dungeons.map((d) => (
+                  <GameBtn
+                    key={d.id}
+                    variant={dungeon?.id === d.id ? "gold" : "ghost"}
+                    className="h-8 flex-1 px-2 text-xs"
+                    disabled={!!busy}
+                    onClick={() => selectStage(selectedStageRow.stageOrder, d.id)}
+                  >
+                    {d.name}
+                  </GameBtn>
+                ))}
+              </div>
+            ) : null}
           </div>
+        ) : run?.active ? (
+          <p className={`${embedded ? "mt-1.5 text-[10px]" : "mt-2 text-xs"} text-[var(--game-muted-dim)]`}>
+            탐험 중에는 스테이지를 변경할 수 없습니다.
+          </p>
         ) : null}
       </div>
 
       {error ? <GamePanelError error={error} /> : null}
 
-      {sessionLoading ? (
+      {!embedded && sessionLoading ? (
         <GamePanelLoading label="세션 확인 중…" />
-      ) : !user ? (
+      ) : !embedded && !user ? (
         <GamePanelInfo>로그인이 필요합니다. 화면 오른쪽 위에서 Google 로그인을 진행해 주세요.</GamePanelInfo>
-      ) : (
-      <div className="grid gap-4 lg:grid-cols-[16rem_1fr]">
-        <div className="flex flex-col gap-3">
-          <GamePanel className="!p-3">
-            <GamePanelTitle>전투</GamePanelTitle>
-            <p className="mt-1 text-[10px] leading-snug text-[var(--game-muted)]">
-              클리어 확률은 현재 층 전투를 여러 번 시뮬한 추정치입니다.
-            </p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
+      ) : (embedded || user) ? (
+      <div className={embedded ? "dungeon-body-fit" : "grid gap-4 lg:grid-cols-[16rem_1fr]"}>
+        <div className={embedded ? "dungeon-sidebar-fit" : "flex flex-col gap-3"}>
+          <GamePanel className={embedded ? "!p-2" : "!p-3"}>
+            <GamePanelTitle>{embedded ? "전투·파티" : "전투"}</GamePanelTitle>
+            {!embedded ? (
+              <p className="mt-1 text-[10px] leading-snug text-[var(--game-muted)]">
+                클리어 확률은 현재 층 전투를 여러 번 시뮬한 추정치입니다.
+              </p>
+            ) : null}
+            <div className={`${embedded ? "mt-1.5" : "mt-2"} grid grid-cols-2 gap-1.5`}>
               <GameStat label="전투력" value={run?.combat?.partyPower ?? "—"} highlight />
               <GameStat
                 label="클리어 확률"
@@ -366,7 +865,7 @@ export function DungeonsPanel() {
               <GameStat label="승" value={run?.run?.wins ?? 0} />
               <GameStat label="패" value={run?.run?.losses ?? 0} />
             </div>
-            {run?.combat?.partyPower != null && run.combat.partyPower < 120 ? (
+            {run?.combat?.partyPower != null && run.combat.partyPower < 120 && !embedded ? (
               <p className="mt-2 text-[11px] leading-snug text-[var(--game-muted)]">
                 더 깊은 층은 더 높은 전투력이 필요해요.{" "}
                 <Link href="/market" className="font-semibold text-[var(--game-gold-bright)] underline-offset-2 hover:underline">
@@ -374,8 +873,50 @@ export function DungeonsPanel() {
                 </Link>
               </p>
             ) : null}
+            {embedded ? (
+              <>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] text-[var(--game-muted)]">
+                    {run?.active && partyRoster
+                      ? `생존 ${partyAlive}/${partyRoster.length}`
+                      : `파티 ${partyIds.size}/${maxParty}`}
+                  </span>
+                  {!run?.active || !partyRoster?.length
+                    ? partyChips.length === 0
+                      ? (
+                          <span className="text-[10px] text-[var(--game-muted-dim)]">미선택</span>
+                        )
+                      : (
+                          partyChips.map((c) => (
+                            <span key={c.id} className="dungeon-party-chip text-[10px]">
+                              {c.label}
+                            </span>
+                          ))
+                        )
+                    : null}
+                </div>
+                {run?.active && partyRoster && partyRoster.length > 0 ? (
+                  <DungeonPartyHpList
+                    roster={partyRoster}
+                    potions={recoveryPotions}
+                    onUsePotion={(itemId, minionId) => void usePotion(itemId, minionId)}
+                    busy={!!busy || playingLog}
+                    compact
+                  />
+                ) : null}
+                <GameBtn
+                  variant="ghost"
+                  className="mt-1.5 h-8 w-full text-[10px]"
+                  disabled={!!busy}
+                  onClick={() => void openParty()}
+                >
+                  파티 편성
+                </GameBtn>
+              </>
+            ) : null}
           </GamePanel>
 
+          {!embedded ? (
           <GamePanel className="!p-3">
             <div className="flex items-center justify-between">
               <GamePanelTitle>파티</GamePanelTitle>
@@ -386,26 +927,12 @@ export function DungeonsPanel() {
               </span>
             </div>
             {run?.active && partyRoster && partyRoster.length > 0 ? (
-              <ul className="dungeon-party-hp-list mt-2">
-                {partyRoster.map((m) => (
-                  <li key={m.id} className={`dungeon-party-hp-row${m.dead ? " dungeon-party-hp-row--dead" : ""}`.trim()}>
-                    <div className="dungeon-party-hp-head">
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        <span className="truncate text-xs font-semibold">{m.label}</span>
-                      </span>
-                      <span className="shrink-0 tabular-nums text-[11px] text-[var(--game-muted)]">
-                        {m.dead ? "전투불가" : `${m.hp}/${m.maxHp}`}
-                      </span>
-                    </div>
-                    <div className="dungeon-hp-track" aria-hidden={m.dead}>
-                      <div
-                        className={`dungeon-hp-fill${m.pct <= 30 ? " dungeon-hp-fill--low" : ""}`.trim()}
-                        style={{ width: `${m.pct}%` }}
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <DungeonPartyHpList
+                roster={partyRoster}
+                potions={recoveryPotions}
+                onUsePotion={(itemId, minionId) => void usePotion(itemId, minionId)}
+                busy={!!busy || playingLog}
+              />
             ) : (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {partyChips.length === 0 ? (
@@ -423,23 +950,26 @@ export function DungeonsPanel() {
               파티 편성
             </GameBtn>
           </GamePanel>
+          ) : null}
 
-          <GamePanel className="!p-3">
-            <GamePanelTitle>명령</GamePanelTitle>
-            <div className="dungeon-action-grid mt-2">
+          <GamePanel className={embedded ? "!p-2" : "!p-3"}>
+            <GamePanelTitle>{embedded ? "명령" : "명령"}</GamePanelTitle>
+            <div className={`dungeon-action-grid ${embedded ? "mt-1.5" : "mt-2"}`}>
               <GameBtn
                 variant="primary"
-                className="h-10 text-sm"
+                className={embedded ? "h-8 text-xs" : "h-10 text-sm"}
                 disabled={!!busy || !dungeon || partyIds.size === 0 || run?.active}
                 onClick={async () => {
                   if (!dungeon) return;
                   setBusy("start");
                   setLogLines([]);
+                  setLastFloorBonus(null);
                   try {
                     await postJson("/api/dungeons/run/start", {
                       dungeonId: dungeon.id,
                       minionIds: [...partyIds],
                     });
+                    resetSessionXp();
                     await refresh();
                   } catch (e) {
                     setError(e);
@@ -450,206 +980,116 @@ export function DungeonsPanel() {
               >
                 탐험 시작
               </GameBtn>
-              <GameBtn variant="gold" className="h-10 text-sm" disabled={!!busy || !run?.active || playingLog} onClick={() => void advance()}>
+              <GameBtn variant="gold" className={embedded ? "h-8 text-xs" : "h-10 text-sm"} disabled={!!busy || !run?.active || playingLog} onClick={() => void advance()}>
                 {playingLog ? "전투 중…" : "다음 층"}
               </GameBtn>
               <GameBtn
                 variant="ghost"
-                className="h-10 text-sm"
-                disabled={!!busy || !run?.active}
-                onClick={async () => {
-                  setBusy("cashout");
-                  try {
-                    await postJson("/api/dungeons/run/cashout", {});
-                    await refresh();
-                  } catch (e) {
-                    setError(e);
-                  } finally {
-                    setBusy(null);
-                  }
-                }}
+                className={embedded ? "h-8 text-xs" : "h-10 text-sm"}
+                disabled={!!busy || !run?.active || playingLog}
+                onClick={() => setCashoutConfirmOpen(true)}
               >
                 정산
               </GameBtn>
-              <GameBtn
-                variant="ghost"
-                className="h-10 text-sm !text-red-300"
-                disabled={!!busy || !run?.active}
-                onClick={async () => {
-                  setBusy("stop");
-                  try {
-                    await postJson("/api/dungeons/run/stop", {});
-                    await refresh();
-                  } catch (e) {
-                    setError(e);
-                  } finally {
-                    setBusy(null);
-                  }
-                }}
-              >
-                중단
-              </GameBtn>
+              {run?.active && recoveryPotions.length > 0 ? (
+                <>
+                  <GameBtn
+                    variant="ghost"
+                    className={embedded ? "h-8 text-xs" : "h-10 text-sm"}
+                    disabled={!!busy || playingLog || !canHealParty}
+                    onClick={() => void healLowestHp()}
+                  >
+                    최저 HP 회복
+                  </GameBtn>
+                  <GameBtn
+                    variant="ghost"
+                    className={embedded ? "h-8 text-xs" : "h-10 text-sm"}
+                    disabled={!!busy || playingLog}
+                    onClick={() => setPotionModalOpen(true)}
+                  >
+                    물약
+                  </GameBtn>
+                </>
+              ) : null}
+              {run?.active ? (
+                <GameBtn
+                  variant="ghost"
+                  className={`dungeon-action-span ${embedded ? "h-8 text-xs" : "h-9 text-xs"}`}
+                  disabled={!!busy}
+                  onClick={() => setPendingLootSummaryOpen(true)}
+                >
+                  정산 시 수령
+                  {cashoutLoot.length > 0 ? ` · ${cashoutLoot.length}종` : ""}
+                </GameBtn>
+              ) : null}
             </div>
           </GamePanel>
-
-          {run?.active && loot.length > 0 ? (
-            <GamePanel className="!p-3">
-              <GamePanelTitle hint="패배 시 소멸">누적 보상</GamePanelTitle>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {loot.map((x) => (
-                  <span key={x.itemId} className="dungeon-loot-chip">
-                    {(itemNames.get(x.itemId) ?? x.itemId).slice(0, 14)} ×{x.qty}
-                  </span>
-                ))}
-              </div>
-            </GamePanel>
-          ) : null}
         </div>
 
-        <div className={`dungeon-log-panel ${playingLog ? "dungeon-log-panel--playing" : ""}`.trim()}>
-          <div className="dungeon-log-head">
-            <span className="text-xs font-semibold">전투 로그</span>
-            {playingLog ? <span className="text-[11px] text-emerald-400">재생 중…</span> : null}
-          </div>
-          <div className="dungeon-combat-log" aria-live="polite">
-            {logLines.length === 0 ? (
-              <p className="dungeon-log-empty whitespace-pre-line">
-                {run?.active ? "「다음 층」을 눌러\n전투를 관전하세요." : "파티 편성 후\n탐험을 시작하세요."}
+        <CombatEncounterBlock
+          embedded={embedded}
+          playing={playingLog}
+          replay={battleReplay}
+          lines={battleLines}
+          isBoss={combatIsBoss}
+          encounterLabel={combatIsBoss ? "보스전" : undefined}
+          clearChance={playbackClearChance ?? run?.combat?.clearChance ?? null}
+          floorLabel={`${battleReplay?.floor ?? floor}층`}
+          onFrame={setBattleFrame}
+          onComplete={finishBattlePlayback}
+        />
+        {logLines.length > 0 && !playingLog ? (
+          <div className="dungeon-arena-feed-extra">
+            {logLines.map((line) => (
+              <p key={line.id} className="dungeon-arena__feed">
+                {line.text}
               </p>
-            ) : (
-              logLines.map((line) => (
-                <div
-                  key={line.id}
-                  className={[
-                    "dungeon-log-row",
-                    line.tone === "party"
-                      ? "dungeon-log-row--party"
-                      : line.tone === "enemy"
-                        ? "dungeon-log-row--enemy"
-                        : line.tone === "win"
-                          ? "dungeon-log-row--win"
-                          : line.tone === "loss"
-                            ? "dungeon-log-row--loss"
-                            : "dungeon-log-row--system",
-                  ].join(" ")}
-                >
-                  {line.text}
-                </div>
-              ))
-            )}
-            <div ref={logEndRef} />
+            ))}
           </div>
-        </div>
+        ) : null}
       </div>
-      )}
-
-      {partyOpen ? (
-        <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/55 p-4 sm:items-center"
-          onMouseDown={(e) => e.target === e.currentTarget && setPartyOpen(false)}
-        >
-          <div className="game-panel w-full max-w-3xl p-4" onMouseDown={(e) => e.stopPropagation()}>
-            <GamePanelTitle>파티 편성 · 최대 {maxParty}명</GamePanelTitle>
-            <p className="mt-1 text-xs text-[var(--game-muted)]">
-              카드를 눌러 파티에 넣으세요. 장비 슬롯에 아이콘이 보이면 착용 중입니다.
-            </p>
-            {partyBusy ? (
-              <p className="mt-3 text-sm text-[var(--game-muted)]">불러오는 중…</p>
-            ) : dungeonMinions.length === 0 ? (
-              <p className="mt-3 text-sm text-[var(--game-muted)]">던전용 미니언(전사·궁수·마법사)이 없습니다.</p>
-            ) : (
-              <div className="dungeon-party-pick-grid mt-3 max-h-[min(28rem,70vh)] overflow-auto pr-1">
-                {dungeonMinions.map((m) => {
-                  const on = partyIds.has(m.id);
-                  const busyWorkshop = !!m.assignedWorkshop;
-                  const cap = !busyWorkshop && maxParty > 1 && partyIds.size >= maxParty && !on;
-                  const disabled = busyWorkshop || cap;
-                  const weapon = m.equippedWeapon;
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      disabled={disabled}
-                      className={[
-                        "dungeon-party-pick-card",
-                        on ? "dungeon-party-pick-card--selected" : "",
-                        disabled && !on ? "dungeon-party-pick-card--disabled" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      onClick={() => {
-                        if (disabled) return;
-                        toggleParty(m.id, !on);
-                      }}
-                    >
-                      <div className="dungeon-party-pick-card__head">
-                        <span className="dungeon-party-pick-card__job">
-                          {MINION_JOB_LABEL[m.jobType as MinionJobType] ?? m.jobType}
-                        </span>
-                        <span className="dungeon-party-pick-card__level">Lv{m.level}</span>
-                        {m.combatStats ? (
-                          <span className="text-[10px] font-semibold text-[var(--game-gold-bright)]">
-                            CP {m.combatStats.combatPower}
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="dungeon-party-pick-card__doll">
-                        <MinionEquipDoll
-                          compact
-                          equipment={{
-                            weapon: weapon
-                              ? {
-                                  baseItemId: weapon.baseItemId,
-                                  name: weapon.name,
-                                  enhanceLevel: weapon.enhanceLevel,
-                                  grade: weapon.grade,
-                                }
-                              : null,
-                          }}
-                        />
-                      </div>
-                      <p className="dungeon-party-pick-card__weapon-line">
-                        {weapon ? (
-                          <span className={itemGradeNameClassName(weapon.grade ?? 1)}>
-                            {weapon.name}
-                            {weapon.enhanceLevel > 0 ? ` +${weapon.enhanceLevel}` : ""}
-                          </span>
-                        ) : (
-                          <span className="dungeon-party-pick-card__weapon-line--empty">무기 미착용</span>
-                        )}
-                      </p>
-                      {busyWorkshop ? (
-                        <span className="dungeon-party-pick-card__tag">작업장: {m.assignedWorkshop!.workshopName}</span>
-                      ) : on ? (
-                        <span className="dungeon-party-pick-card__tag dungeon-party-pick-card__tag--pick">파티</span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <div className="mt-3 flex gap-2">
-              <GameBtn variant="ghost" className="flex-1 h-10" onClick={() => setPartyOpen(false)}>
-                취소
-              </GameBtn>
-              <GameBtn
-                variant="primary"
-                className="flex-1 h-10"
-                onClick={() => {
-                  try {
-                    localStorage.setItem(PARTY_KEY, JSON.stringify([...partyIds]));
-                  } catch {
-                    /* ignore */
-                  }
-                  setPartyOpen(false);
-                }}
-              >
-                완료 ({partyIds.size}/{maxParty})
-              </GameBtn>
-            </div>
-          </div>
-        </div>
       ) : null}
+
+      <DungeonPartyPickModal
+        open={partyOpen}
+        maxParty={maxParty}
+        partyIds={partyIds}
+        minions={dungeonMinions}
+        loading={partyBusy}
+        emptyLabel="던전에 보낼 미니언이 없습니다."
+        onClose={() => setPartyOpen(false)}
+        onToggle={toggleParty}
+        onConfirm={confirmParty}
+      />
+
+      <DungeonPotionModal
+        open={potionModalOpen}
+        roster={partyRoster ?? []}
+        potions={recoveryPotions}
+        busy={!!busy || playingLog}
+        onClose={() => setPotionModalOpen(false)}
+        onUsePotion={(itemId, minionId) => void usePotion(itemId, minionId)}
+      />
+
+      <PendingLootSummaryModal
+        open={pendingLootSummaryOpen}
+        loot={cashoutLoot}
+        onClose={() => setPendingLootSummaryOpen(false)}
+      />
+
+      <DungeonCashoutConfirmModal
+        open={cashoutConfirmOpen}
+        loot={cashoutLoot}
+        onCancel={() => setCashoutConfirmOpen(false)}
+        onConfirm={() => void executeCashout()}
+        onForfeit={cashoutLoot.length > 0 ? () => void executeForfeit() : undefined}
+      />
+
+      <DungeonRunSettlementModal
+        open={settlement != null}
+        settlement={settlement}
+        onConfirm={dismissSettlement}
+      />
     </div>
   );
 }

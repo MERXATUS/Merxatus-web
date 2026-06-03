@@ -3,17 +3,13 @@
 import { useEffect, useState } from "react";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { GameBtn } from "@/app/_components/gameUi";
-import { MINION_JOB_LABEL } from "@/server/minionJobs";
 import {
   dispatchMinionRecruited,
   minionKindLabel,
   type MinionHatchResult,
 } from "@/shared/minionRecruit";
+import { MINION_STAT_KEYS, MINION_STAT_LABELS } from "@/shared/minionBaseStats";
 import { useEscapeClose } from "@/shared/useEscapeClose";
-
-function jobLabel(jobType: string) {
-  return (MINION_JOB_LABEL as Record<string, string>)[jobType] ?? jobType;
-}
 
 export function MinionRecruitReveal(props: {
   result: MinionHatchResult;
@@ -62,9 +58,17 @@ export function MinionRecruitReveal(props: {
               <p id="minion-recruit-title" className="minion-recruit-card__eyebrow">
                 새 미니언 고용!
               </p>
-              <div className="minion-recruit-highlight" aria-label={`${jobLabel(minion.jobType)} Lv${minion.level}`}>
-                <p className="minion-recruit-highlight__job">{jobLabel(minion.jobType)}</p>
+              <div className="minion-recruit-highlight" aria-label={`${minion.combatClassLabel} Lv${minion.level}`}>
+                <p className="minion-recruit-highlight__job">{minion.combatClassLabel}</p>
                 <p className="minion-recruit-highlight__level text-sm text-[var(--game-muted)]">Lv {minion.level}</p>
+              </div>
+              <div className="minion-recruit-card__stats" aria-label="기본 스탯">
+                {MINION_STAT_KEYS.map((key) => (
+                  <div key={key} className="minion-recruit-stat">
+                    <span className="minion-recruit-stat__label">{MINION_STAT_LABELS[key]}</span>
+                    <span className="minion-recruit-stat__value">{minion.baseStats[key]}</span>
+                  </div>
+                ))}
               </div>
               <p className="minion-recruit-card__meta">
                 {minionKindLabel(recruit.minionKind)}
@@ -81,7 +85,8 @@ export function MinionRecruitReveal(props: {
                     onClick={() => {
                       dispatchMinionRecruited({
                         minionId: minion.id,
-                        jobType: minion.jobType,
+                        pool: minion.pool,
+                        combatClass: minion.combatClass,
                       });
                       onClose();
                     }}

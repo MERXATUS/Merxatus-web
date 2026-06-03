@@ -53,6 +53,14 @@ function normalizeId(raw) {
     .toLowerCase();
 }
 
+function isLootItemId(itemId) {
+  return (
+    itemId.startsWith("item_") ||
+    itemId.startsWith("weapon_") ||
+    itemId.startsWith("armor_")
+  );
+}
+
 function parseNum(raw, def = 0) {
   const n = Number.parseFloat(String(raw ?? "").trim());
   return Number.isFinite(n) ? n : def;
@@ -73,10 +81,17 @@ async function main() {
   const dataDir = path.join(process.cwd(), "data");
   const dungeonsCsvPath = path.join(tplDir, "dungeons.csv");
   const dropsCsvPath = path.join(tplDir, "dungeon_drops.csv");
+  const gearDropsCsvPath = path.join(tplDir, "dungeon_gear_drops.csv");
   const outPath = path.join(dataDir, "dungeons.json");
 
   const dungeonRows = parseCsv(await readFile(dungeonsCsvPath, "utf8"));
   const dropRows = parseCsv(await readFile(dropsCsvPath, "utf8"));
+  let gearDropRows = [];
+  try {
+    gearDropRows = parseCsv(await readFile(gearDropsCsvPath, "utf8"));
+  } catch {
+    gearDropRows = [];
+  }
 
   const dungeonsById = new Map();
   for (const r of dungeonRows) {
@@ -142,10 +157,34 @@ async function main() {
       }
     }
 
-    if (!itemId.startsWith("item_") || weight <= 0) continue;
+    if (!isLootItemId(itemId) || weight <= 0) continue;
 
     const entry = { itemId, weight, minQty, maxQty };
     if (category.toUpperCase() === "BOSS") dungeon.bossDrops.push(entry);
+    else dungeon.drops.push(entry);
+  }
+
+  for (const r of gearDropRows) {
+    const rawDungeon = String(r.DungeonId ?? r.dungeonId ?? "").trim();
+    if (!rawDungeon || rawDungeon.startsWith("#")) continue;
+    const dungeonId = normalizeId(r.DungeonId ?? r.dungeonId ?? "");
+    const itemId = normalizeId(r.ItemId ?? r.itemId ?? "");
+    const minFloor = Math.max(1, Math.floor(Number.parseInt(r.MinFloor ?? r.minFloor ?? "1", 10) || 1));
+    const maxFloor = Math.max(
+      minFloor,
+      Math.floor(Number.parseInt(r.MaxFloor ?? r.maxFloor ?? String(minFloor), 10) || minFloor),
+    );
+    const pool = String(r.Pool ?? r.pool ?? "normal").trim().toLowerCase();
+    const weight = Math.max(0, Math.floor(Number.parseInt(r.Weight ?? r.weight ?? "0", 10) || 0));
+    const minQty = Math.max(1, Math.floor(Number.parseInt(r.MinQty ?? r.minQty ?? "1", 10) || 1));
+    const maxQty = Math.max(minQty, Math.floor(Number.parseInt(r.MaxQty ?? r.maxQty ?? String(minQty), 10) || minQty));
+    if (!dungeonId || !isLootItemId(itemId) || weight <= 0) continue;
+
+    const dungeon = dungeonsById.get(dungeonId);
+    if (!dungeon) continue;
+
+    const entry = { itemId, weight, minQty, maxQty, minFloor, maxFloor };
+    if (pool === "boss") dungeon.bossDrops.push(entry);
     else dungeon.drops.push(entry);
   }
 

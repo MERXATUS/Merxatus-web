@@ -1,10 +1,8 @@
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
-import { getUserSpecialistRow } from "@/server/userSpecialistDb";
-import { processWorkshopNamesForProfession, type SpecialistProfessionSlug } from "@/shared/specialistProfession";
 import { GAME_RULES } from "@/server/gameRules";
-import { countDungeonMinions, countGatherMinions, gatherMinionWhere, dungeonMinionWhere } from "@/server/minionCapacity";
+import { countDungeonMinions, dungeonMinionWhere } from "@/server/minionCapacity";
 import { prismaKnownErrorResponse } from "@/server/prismaHttp";
 import { loadDungeons } from "@/server/dungeonData";
 
@@ -27,12 +25,6 @@ export async function GET(req: Request) {
     const dayStart = new Date();
     dayStart.setHours(0, 0, 0, 0);
 
-    const userLite = await getUserSpecialistRow(prisma, userId);
-    const prof = userLite?.specialistProfession ?? null;
-    const specialistWorkshopNames = prof
-      ? [...processWorkshopNamesForProfession(prof as SpecialistProfessionSlug)]
-      : [];
-
     const [
       userAccount,
       wallet,
@@ -40,12 +32,8 @@ export async function GET(req: Request) {
       weaponCount,
       listingCount,
       todayTxs,
-      gatherWorkshopCount,
-      specialistWorkshopCount,
-      gatherAssigned,
       dungeonMinions,
       activeRun,
-      gatherCount,
       dungeonCount,
     ] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
@@ -65,20 +53,6 @@ export async function GET(req: Request) {
         select: { buyerId: true, sellerId: true, grossGold: true, netGold: true },
         take: 200,
       }),
-      prisma.workshopInstance.count({
-        where: { userId, workshopType: { kind: "GATHER" } },
-      }),
-      specialistWorkshopNames.length
-        ? prisma.workshopInstance.count({
-            where: {
-              userId,
-              workshopType: { kind: "PROCESS", name: { in: specialistWorkshopNames } },
-            },
-          })
-        : Promise.resolve(0),
-      prisma.workshopAssignment.count({
-        where: { workshop: { userId }, minion: gatherMinionWhere(userId) },
-      }),
       prisma.minion.findMany({
         where: dungeonMinionWhere(userId),
         select: { level: true },
@@ -90,7 +64,6 @@ export async function GET(req: Request) {
         orderBy: { startedAt: "desc" },
         select: { dungeonId: true },
       }),
-      countGatherMinions(prisma, userId),
       countDungeonMinions(prisma, userId),
     ]);
 
@@ -98,30 +71,6 @@ export async function GET(req: Request) {
     for (const t of todayTxs) {
       if (t.sellerId === userId) todayNetGold += t.netGold;
       else if (t.buyerId === userId) todayNetGold -= t.grossGold;
-    }
-
-    let crafting: { recipeName: string; remainingMs: number } | null = null;
-    if (specialistWorkshopNames.length > 0) {
-      const craftingWs = await prisma.workshopInstance.findFirst({
-        where: {
-          userId,
-          processCraftRecipeId: { not: null },
-          processCraftEndsAt: { not: null },
-          workshopType: { kind: "PROCESS", name: { in: specialistWorkshopNames } },
-        },
-        select: { processCraftRecipeId: true, processCraftEndsAt: true },
-        orderBy: { processCraftEndsAt: "asc" },
-      });
-      if (craftingWs?.processCraftRecipeId && craftingWs.processCraftEndsAt) {
-        const recipe = await prisma.recipe.findUnique({
-          where: { id: craftingWs.processCraftRecipeId },
-          select: { name: true },
-        });
-        crafting = {
-          recipeName: recipe?.name ?? "제작 중",
-          remainingMs: Math.max(0, craftingWs.processCraftEndsAt.getTime() - Date.now()),
-        };
-      }
     }
 
     let dungeonName: string | null = null;
@@ -133,7 +82,6 @@ export async function GET(req: Request) {
     return Response.json({
       ok: true,
       username: userAccount?.username ?? null,
-      specialistProfession: prof,
       wallet: {
         goldAvailable: wallet?.goldAvailable ?? 0,
         goldLocked: wallet?.goldLocked ?? 0,
@@ -147,16 +95,6 @@ export async function GET(req: Request) {
         kindCount: invAgg._count._all,
         totalQty: invAgg._sum.quantity ?? 0,
         weaponCount,
-      },
-      gather: {
-        workshopCount: gatherWorkshopCount,
-        minionsPlaced: gatherAssigned,
-        minionOwned: gatherCount,
-        maxMinions: GAME_RULES.minion.maxGatherOwned,
-      },
-      specialist: {
-        workshopCount: specialistWorkshopCount,
-        crafting,
       },
       mercenaries: {
         count: dungeonCount,

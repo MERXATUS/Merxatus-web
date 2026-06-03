@@ -1,25 +1,2 @@
-WorkshopName,RecipeName,MinTier,Inputs,Outputs,Success_Rate,Fail_Return
-Workshop_BlackSmith,적금,2,Item_Red_Gold_Ore:10,Item_Red_Gold,80,None
-Workshop_BlackSmith,금,3,Item_Gold_Ore:10,Item_Gold,70,None
-Workshop_BlackSmith,돌검,1,Item_Stone:10,Weapon_Stone_Sword,90,None
-Workshop_BlackSmith,적빛 검,2,Item_Red_Gold:10,Weapon_Red_Gold_Sword,80,None
-Workshop_BlackSmith,금 검,3,Item_Gold:10,Weapon_Gold_Sword,70,None
-Workshop_BlackSmith,돌 곡괭이,1,Item_Stone:10,Tool_Stone_Pickaxe,90,None
-Workshop_BlackSmith,적빛 곡괭이,2,Item_Red_Gold:10,Tool_Red_Gold_Pickaxe,80,None
-Workshop_BlackSmith,금 곡괭이,3,Item_Gold:10,Tool_Gold_Pickaxe,70,None
-Workshop_BlackSmith,가죽 투구,1,Item_Leather:15,Armor_Leather_Helmet,90,None
-Workshop_BlackSmith,적빛 투구,2,Item_Red_Gold:10,Armor_Crimson_Helmet,80,None
-Workshop_BlackSmith,금 투구,4,Item_Gold:10,Armor_Golden_Helmet,60,None
-Workshop_BlackSmith,가죽 갑옷,1,Item_Leather:15,Armor_Leather_Armor,90,None
-Workshop_BlackSmith,적빛 갑옷,2,Item_Red_Gold:10,Armor_Crimson_Armor,80,None
-Workshop_BlackSmith,금 갑옷,4,Item_Gold:10,Armor_Golden_Armor,60,None
-Workshop_BlackSmith,가죽 바지,1,Item_Leather:15,Armor_Leather_Pants,90,None
-Workshop_BlackSmith,적빛 바지,2,Item_Red_Gold:10,Armor_Crimson_Pants,80,None
-Workshop_BlackSmith,금 바지,4,Item_Gold:10,Armor_Golden_Pants,60,None
-Workshop_BlackSmith,가죽 신발,1,Item_Leather:15,Armor_Leather_Boots,90,None
-Workshop_BlackSmith,적빛 신발,2,Item_Red_Gold:10,Armor_Crimson_Boots,80,None
-Workshop_BlackSmith,금 신발,4,Item_Gold:10,Armor_Golden_Boots,60,None
-Workshop_Ateliar,체력 회복 물약,1,Item_Fish:3,Item_Lesser_Recovery_Potion,90,None
-Workshop_Ateliar,체력 회복 포션,3,Item_White_Fish:3|Item_Herb:3,Item_Recovery_Potion,70,None
-Workshop_Ateliar,하급 강화 주문서,1,Item_Paper:1|Item_Minor_Mana_Stone:3,Item_Enhance_Scroll_Low,90,None
-Workshop_Ateliar,중급 강화 주문서,3,Item_Enchanted_Paper:1|Item_Mana_Stone:5,Item_Enhance_Scroll_Mid,70,None
+WorkshopName,RecipeName,MinTier,CraftTimeSeconds,Inputs,Outputs,Success_Rate,Fail_Return
+

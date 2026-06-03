@@ -1,5 +1,11 @@
 import type { Prisma } from "@prisma/client";
-import { getArmorFieldValue, loadMinionArmorIds, setMinionArmorSlot } from "@/server/minionArmorDb";
+import {
+  getArmorFieldValue,
+  getArmorInstanceFieldValue,
+  loadMinionArmorIds,
+  setMinionArmorInstanceSlot,
+  setMinionArmorSlot,
+} from "@/server/minionArmorDb";
 import { getArmorStats } from "@/shared/armorStatsData";
 import {
   armorSlotToDbField,
@@ -33,15 +39,36 @@ async function takeStack(tx: Tx, userId: string, itemId: string) {
   }
 }
 
+async function clearSlot(tx: Tx, userId: string, minionId: string, field: ReturnType<typeof armorSlotToDbField>, row: Awaited<ReturnType<typeof loadMinionArmorIds>>) {
+  if (!row) return;
+  const currentItemId = getArmorFieldValue(row, field);
+  const currentInstanceId = getArmorInstanceFieldValue(row, field);
+  if (currentItemId) {
+    await returnStack(tx, userId, currentItemId);
+  }
+  if (currentInstanceId) {
+    await tx.armorInstance.update({
+      where: { id: currentInstanceId },
+      data: { status: "OWNED" },
+    });
+  }
+  await setMinionArmorSlot(tx, minionId, field, null);
+  await setMinionArmorInstanceSlot(tx, minionId, field, null);
+}
+
 export async function equipMinionArmor(input: {
   tx: Tx;
   userId: string;
   minionId: string;
   slotId: MinionEquipSlotId;
-  itemId: string | null;
+  itemId?: string | null;
+  armorInstanceId?: string | null;
 }) {
-  const { tx, userId, minionId, slotId, itemId } = input;
+  const { tx, userId, minionId, slotId } = input;
+  const itemId = input.itemId ?? null;
+  const armorInstanceId = input.armorInstanceId ?? null;
   if (!isArmorEquipSlot(slotId)) throw new Error("INVALID_ARMOR_SLOT");
+  if (itemId && armorInstanceId) throw new Error("BAD_REQUEST");
 
   const m = await tx.minion.findUnique({ where: { id: minionId }, select: { id: true, userId: true } });
   if (!m) throw new Error("MINION_NOT_FOUND");
@@ -51,34 +78,44 @@ export async function equipMinionArmor(input: {
   if (!armorRow) throw new Error("ARMOR_SLOTS_NOT_MIGRATED");
 
   const field = armorSlotToDbField(slotId);
-  const currentItemId = getArmorFieldValue(armorRow, field);
 
-  if (itemId == null) {
-    if (!currentItemId) {
-      return { ok: true as const, slotId, itemId: null };
+  if (itemId == null && armorInstanceId == null) {
+    await clearSlot(tx, userId, minionId, field, armorRow);
+    return { ok: true as const, slotId, itemId: null, armorInstanceId: null };
+  }
+
+  if (armorInstanceId) {
+    const inst = await tx.armorInstance.findUnique({ where: { id: armorInstanceId } });
+    if (!inst || inst.userId !== userId) throw new Error("ARMOR_INSTANCE_NOT_FOUND");
+    if (inst.status !== "OWNED") throw new Error("ARMOR_INSTANCE_NOT_AVAILABLE");
+    if (!armorStackMatchesSlot(slotId, inst.baseItemId)) throw new Error("ARMOR_SLOT_MISMATCH");
+    if (!getArmorStats(inst.baseItemId)) throw new Error("ARMOR_STATS_NOT_FOUND");
+
+    const currentInstanceId = getArmorInstanceFieldValue(armorRow, field);
+    if (currentInstanceId === armorInstanceId) {
+      return { ok: true as const, slotId, itemId: null, armorInstanceId };
     }
-    await returnStack(tx, userId, currentItemId);
-    await setMinionArmorSlot(tx, minionId, field, null);
-    return { ok: true as const, slotId, itemId: null };
+
+    await clearSlot(tx, userId, minionId, field, armorRow);
+    await setMinionArmorInstanceSlot(tx, minionId, field, armorInstanceId);
+    return { ok: true as const, slotId, itemId: null, armorInstanceId };
   }
 
-  if (!armorStackMatchesSlot(slotId, itemId)) throw new Error("ARMOR_SLOT_MISMATCH");
-  if (!getArmorStats(itemId)) throw new Error("ARMOR_STATS_NOT_FOUND");
+  if (!armorStackMatchesSlot(slotId, itemId!)) throw new Error("ARMOR_SLOT_MISMATCH");
+  if (!getArmorStats(itemId!)) throw new Error("ARMOR_STATS_NOT_FOUND");
 
-  const item = await tx.item.findUnique({ where: { id: itemId } });
+  const item = await tx.item.findUnique({ where: { id: itemId! } });
   if (!item) throw new Error("ITEM_NOT_FOUND");
-  if (item.category !== "방어구" && !itemId.startsWith("armor_")) throw new Error("NOT_ARMOR");
+  if (item.category !== "방어구" && !itemId!.startsWith("armor_")) throw new Error("NOT_ARMOR");
 
+  const currentItemId = getArmorFieldValue(armorRow, field);
   if (currentItemId === itemId) {
-    return { ok: true as const, slotId, itemId };
+    return { ok: true as const, slotId, itemId, armorInstanceId: null };
   }
 
-  if (currentItemId) {
-    await returnStack(tx, userId, currentItemId);
-  }
-
-  await takeStack(tx, userId, itemId);
+  await clearSlot(tx, userId, minionId, field, armorRow);
+  await takeStack(tx, userId, itemId!);
   await setMinionArmorSlot(tx, minionId, field, itemId);
 
-  return { ok: true as const, slotId, itemId };
+  return { ok: true as const, slotId, itemId, armorInstanceId: null };
 }

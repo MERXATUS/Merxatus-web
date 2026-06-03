@@ -21,3 +21,23 @@ export function armorItemCombatPower(itemId: string): number {
   if (!s) return 0;
   return Math.max(0, Math.floor(s.hp * 0.2 + s.def * 2));
 }
+
+export function isArmorInventoryItem(it: { itemId: string; category: string }): boolean {
+  const id = it.itemId.trim().toLowerCase();
+  return it.category === "방어구" || id.startsWith("armor_");
+}
+
+export function armorSlotLabelKo(slot: string): string {
+  switch (slot.trim()) {
+    case "Helmet":
+      return "투구";
+    case "Armor":
+      return "갑옷";
+    case "Pants":
+      return "하의";
+    case "Boots":
+      return "신발";
+    default:
+      return slot;
+  }
+}

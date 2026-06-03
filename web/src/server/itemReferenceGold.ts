@@ -60,6 +60,16 @@ const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
   item_ancient_wood: T5,
   item_dark_wood: T5,
 
+  // --- 전투 루프 소모품 ---
+  item_lesser_mana_stone: T1,
+  item_mana_stone: T3,
+  item_greater_mana_stone: T5,
+  item_enhance_scroll_low: T2,
+  item_enhance_scroll_mid: T3,
+  item_enhance_scroll_high: T5,
+  item_raid_shard: T4,
+  item_minion_ticket: T5,
+
   // --- 던전/제작 재료 ---
   item_wood: T1,
   item_mushroom: T1,
@@ -91,23 +101,6 @@ const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
   item_mithril_staff: 520,
   item_titanium_staff: 1100,
   item_ether_staff: 2200,
-
-  // --- 도구 ---
-  item_pickaxe: 75,
-  item_sickle: 75,
-  item_pickaxe_t1: 95,
-  item_pickaxe_t2: 190,
-  item_pickaxe_t3: 420,
-  item_pickaxe_t4: 880,
-  item_pickaxe_t5: 1650,
-  item_pickaxe_goblin: 2800,
-
-  item_sickle_t1: 95,
-  item_sickle_t2: 190,
-  item_sickle_t3: 420,
-  item_sickle_t4: 880,
-  item_sickle_t5: 1650,
-  item_sickle_harvest: 2000,
 
   // --- 기타 ---
   item_accessory: 55,

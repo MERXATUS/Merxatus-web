@@ -1,5 +1,5 @@
 /**
- * 미니언 CSV 검증 (minion_tickets.csv · minion_jobs.csv)
+ * 미니언 CSV 검증 (minion_tickets.csv)
  *
  *   node scripts/validate-minion-csv.mjs
  *   node scripts/validate-minion-csv.mjs --dir web/data/csv-templates
@@ -7,8 +7,6 @@
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-
-const MINION_KINDS = ["GATHER", "DUNGEON"];
 
 function splitCsvLine(line) {
   const out = [];
@@ -92,22 +90,11 @@ async function main() {
   const ticketsPath = path.join(dir, "minion_tickets.csv");
   if (!existsSync(ticketsPath)) {
     err(messages, "minion_tickets.csv 없음");
-  }
-
-  const jobsPath = path.join(dir, "minion_jobs.csv");
-  if (!existsSync(jobsPath)) {
-    err(messages, "minion_jobs.csv 없음");
-  }
-
-  if (messages.some((m) => m.startsWith("ERROR:"))) {
     for (const m of messages) console.log(m);
     process.exit(1);
   }
 
-  const [tickets, jobs] = await Promise.all([
-    loadCsv(dir, "minion_tickets.csv"),
-    loadCsv(dir, "minion_jobs.csv"),
-  ]);
+  const tickets = await loadCsv(dir, "minion_tickets.csv");
 
   const ticketById = new Map();
   for (const row of tickets.rows) {
@@ -126,45 +113,6 @@ async function main() {
   }
   if (ticketById.size === 0) {
     err(messages, "minion_tickets.csv: 고용권 행 없음");
-  }
-
-  const jobsByCategory = new Map(MINION_KINDS.map((k) => [k, []]));
-  const jobIds = new Set();
-  for (const row of jobs.rows) {
-    const jobId = String(row.JobId ?? row.jobId ?? "").trim().toUpperCase();
-    const category = String(row.Category ?? row.category ?? "").trim().toUpperCase();
-    if (!jobId) {
-      err(messages, "minion_jobs.csv: JobId 비어 있음");
-      continue;
-    }
-    if (!MINION_KINDS.includes(category)) {
-      err(messages, `minion_jobs.csv: Category 잘못됨 (${jobId})`);
-      continue;
-    }
-    if (jobIds.has(jobId)) err(messages, `minion_jobs.csv: JobId 중복 ${jobId}`);
-    jobIds.add(jobId);
-
-    const enabled = String(row.Enabled ?? row.enabled ?? "true").trim().toLowerCase() !== "false";
-    if (enabled) jobsByCategory.get(category).push(jobId);
-  }
-
-  for (const kind of MINION_KINDS) {
-    if (jobsByCategory.get(kind).length === 0) {
-      err(messages, `minion_jobs.csv: ${kind} enabled 직업 없음`);
-    }
-  }
-
-  for (const ticket of ticketById.values()) {
-    const pick = Number.parseInt(ticket.Pick ?? ticket.pick ?? ticket.PickCount ?? ticket.pickCount ?? "3", 10);
-    for (const kind of MINION_KINDS) {
-      const pool = jobsByCategory.get(kind);
-      if (pool.length > 0 && pick > pool.length) {
-        warn(
-          messages,
-          `minion_tickets.csv: Pick=${pick} > ${kind} enabled 직업 수(${pool.length}) — 후보가 중복될 수 있음`,
-        );
-      }
-    }
   }
 
   const itemsPath = path.join(dir, "items.csv");

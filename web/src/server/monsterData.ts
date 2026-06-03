@@ -11,6 +11,8 @@ const MonsterSchema = z.object({
   magic: z.number().nonnegative(),
   as: z.number().nonnegative(),
   def: z.number().nonnegative(),
+  /** `public/Monsters` PNG stem. 없으면 Icon_Monster_{Id} 규칙 + 글리프 폴백 */
+  icon: z.string().min(1).optional(),
 });
 
 export type MonsterDef = z.infer<typeof MonsterSchema>;

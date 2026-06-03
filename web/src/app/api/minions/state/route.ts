@@ -3,13 +3,7 @@ import { prisma } from "@/server/db";
 import { GAME_RULES } from "@/server/gameRules";
 import { requireUserId } from "@/server/auth";
 import { ensureMinionEntitiesForUser } from "@/server/ensureMinionEntitiesForUser";
-import {
-  countDungeonMinions,
-  countGatherMinions,
-  countGatherWorkshopAssignments,
-  MAX_DUNGEON_MINIONS,
-  MAX_GATHER_MINIONS,
-} from "@/server/minionCapacity";
+import { countDungeonMinions, MAX_DUNGEON_MINIONS } from "@/server/minionCapacity";
 import { prismaKnownErrorResponse } from "@/server/prismaHttp";
 
 export const runtime = "nodejs";
@@ -35,31 +29,21 @@ export async function GET(req: Request) {
 
     await ensureMinionEntitiesForUser(userId);
 
-    const [inv, gatherCount, dungeonCount, gatherAssigned] = await Promise.all([
+    const [inv, dungeonCount] = await Promise.all([
       prisma.minionInventory.findUnique({ where: { userId } }),
-      countGatherMinions(prisma, userId),
       countDungeonMinions(prisma, userId),
-      countGatherWorkshopAssignments(prisma, userId),
     ]);
 
-    const gatherOwned = inv?.gatherOwned ?? gatherCount;
     const dungeonOwned = inv?.dungeonOwned ?? dungeonCount;
-    const gatherFree = Math.max(0, gatherCount - gatherAssigned);
-    const owned = gatherCount;
-    const assigned = gatherAssigned;
-    const free = gatherFree;
+    const owned = dungeonCount;
+    const free = dungeonCount;
 
     return Response.json({
       ok: true,
       owned,
-      assigned,
+      assigned: 0,
       free,
-      nextPrice: nextPrice(gatherOwned),
-      gatherCount,
-      gatherOwned,
-      gatherAssigned,
-      gatherFree,
-      maxGatherOwned: MAX_GATHER_MINIONS,
+      nextPrice: nextPrice(dungeonOwned),
       dungeonCount,
       dungeonOwned,
       maxDungeonOwned: MAX_DUNGEON_MINIONS,

@@ -1,50 +1,31 @@
-import type { MinionJobType } from "@prisma/client";
-
 import {
-  enabledJobsForCategory,
   loadMinionCsvBundle,
   type MinionCsvKind,
   type MinionRecruitTicketDef,
   UNIFIED_MINION_RECRUIT_ITEM_ID,
 } from "@/server/minionCsvData";
+import { rollMinionBaseStats, type MinionBaseStats } from "@/shared/minionBaseStats";
+import { previewRecruitCandidateLabel } from "@/shared/minionDerivedClass";
 
 export type MinionRecruitBirth = {
   level: number;
-  jobType: MinionJobType;
+  baseStats: MinionBaseStats;
   ticket: MinionRecruitTicketDef;
   minionKind: MinionCsvKind;
 };
 
 export type RecruitCandidate = {
-  jobType: MinionJobType;
+  candidateIndex: number;
   labelKo: string;
+  baseStats: MinionBaseStats;
 };
-
-function sampleUniqueJobs(jobs: MinionJobType[], count: number, rnd: () => number): MinionJobType[] {
-  const pool = [...jobs];
-  const n = Math.min(count, pool.length);
-  for (let i = 0; i < n; i++) {
-    const j = i + Math.floor(rnd() * (pool.length - i));
-    [pool[i], pool[j]] = [pool[j]!, pool[i]!];
-  }
-  return pool.slice(0, n);
-}
 
 function resolveCategory(input: {
   ticket: MinionRecruitTicketDef;
   category?: MinionCsvKind | null;
 }): MinionCsvKind {
-  if (input.category) return input.category;
-  throw new Error("RECRUIT_CATEGORY_REQUIRED");
-}
-
-function resolveJobPool(
-  bundle: Awaited<ReturnType<typeof loadMinionCsvBundle>>,
-  category: MinionCsvKind,
-): MinionJobType[] {
-  const jobs = enabledJobsForCategory(bundle, category).map((j) => j.jobId);
-  if (jobs.length === 0) throw new Error("RECRUIT_JOB_POOL_EMPTY");
-  return jobs;
+  if (input.category === "DUNGEON") return "DUNGEON";
+  return "DUNGEON";
 }
 
 export async function rollRecruitCandidates(
@@ -61,32 +42,30 @@ export async function rollRecruitCandidates(
   if (!ticket) throw new Error("INVALID_RECRUIT_ITEM");
 
   const minionKind = resolveCategory({ ticket, category: options.category });
-  const jobPool = resolveJobPool(bundle, minionKind);
-  const picked = sampleUniqueJobs(jobPool, ticket.pickCount, rnd);
-  const labelByJob = new Map(
-    enabledJobsForCategory(bundle, minionKind).map((j) => [j.jobId, j.labelKo] as const),
-  );
+  const count = Math.max(1, ticket.pickCount);
+  const candidates: RecruitCandidate[] = [];
+  for (let i = 0; i < count; i++) {
+    const baseStats = rollMinionBaseStats(rnd);
+    candidates.push({
+      candidateIndex: i,
+      labelKo: previewRecruitCandidateLabel(baseStats),
+      baseStats,
+    });
+  }
 
-  return {
-    ticket,
-    minionKind,
-    candidates: picked.map((jobType) => ({
-      jobType,
-      labelKo: labelByJob.get(jobType) ?? jobType,
-    })),
-  };
+  return { ticket, minionKind, candidates };
 }
 
 export function buildMinionRecruitBirth(input: {
   ticket: MinionRecruitTicketDef;
   category: MinionCsvKind;
-  jobType: MinionJobType;
+  baseStats: MinionBaseStats;
 }): MinionRecruitBirth {
   return {
     level: 1,
-    jobType: input.jobType,
+    baseStats: input.baseStats,
     ticket: input.ticket,
-    minionKind: input.category,
+    minionKind: "DUNGEON",
   };
 }
 

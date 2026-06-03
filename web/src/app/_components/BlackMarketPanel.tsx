@@ -6,6 +6,8 @@ import { GameBtn, GamePanel, GamePanelTitle } from "@/app/_components/gameUi";
 import { GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
+import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
+import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import { itemGradeLabel, itemGradeNameClassName } from "@/server/itemGrade";
 
 async function getJson<T>(url: string): Promise<T> {
@@ -209,7 +211,7 @@ function BlackItemRow({ row, gold, locked, busy, qty, onQtyChange, onTrade }: Bl
   );
 }
 
-export function BlackMarketPanel() {
+export function BlackMarketPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const { user, loading: sessionLoading } = useSessionUser();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -239,6 +241,13 @@ export function BlackMarketPanel() {
     if (sessionLoading) return;
     void refresh();
   }, [refresh, sessionLoading]);
+
+  useEffect(() => {
+    if (!embedded) return;
+    const onFrameRefresh = () => void refresh();
+    window.addEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
+    return () => window.removeEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
+  }, [embedded, refresh]);
 
   useEffect(() => {
     if (sessionLoading || !user) return;
@@ -277,48 +286,55 @@ export function BlackMarketPanel() {
   const items = black?.items ?? [];
 
   return (
-    <GamePanel className="black-panel">
-      <header className="black-header">
-        <div className="black-header__main">
-          <GamePanelTitle hint="황실 중가 기준 · 5분마다 ±10% 변동">지하도시(암시장)</GamePanelTitle>
-          <p className="black-header__sub">{infamySubtitle}</p>
-          <p className="black-header__note">직전 5분 슬롯 대비 등락률(▲상승 ▼하락) · 거래 시 악명</p>
-        </div>
-        <div className="black-header__stats">
-          {eventLabel ? (
-            <div className="black-stat black-stat--event">
-              <span className="black-stat__label">이벤트</span>
-              <span className="black-stat__val">{eventLabel}</span>
-            </div>
-          ) : null}
-          <div className="black-stat">
-            <span className="black-stat__label">보유 골드</span>
-            <span className="black-stat__val">{fmtGold(black?.goldAvailable ?? 0)}G</span>
+    <GamePanel className={`black-panel ${embedded ? "black-panel--fit panel-fit" : ""}`}>
+      {!embedded ? (
+        <header className="black-header">
+          <div className="black-header__main">
+            <GamePanelTitle hint="황실 중가 기준 · 5분마다 ±10% 변동">지하도시(암시장)</GamePanelTitle>
+            <p className="black-header__sub">{infamySubtitle}</p>
+            <p className="black-header__note">직전 5분 슬롯 대비 등락률(▲상승 ▼하락) · 거래 시 악명</p>
           </div>
-          <GameBtn variant="ghost" disabled={busy} onClick={() => void refresh()}>
-            {busy ? "…" : "새로고침"}
-          </GameBtn>
+          <div className="black-header__stats">
+            {eventLabel ? (
+              <div className="black-stat black-stat--event">
+                <span className="black-stat__label">이벤트</span>
+                <span className="black-stat__val">{eventLabel}</span>
+              </div>
+            ) : null}
+            <div className="black-stat">
+              <span className="black-stat__label">보유 골드</span>
+              <span className="black-stat__val">{fmtGold(black?.goldAvailable ?? 0)}G</span>
+            </div>
+            <GameBtn variant="ghost" disabled={busy} onClick={() => void refresh()}>
+              {busy ? "…" : "새로고침"}
+            </GameBtn>
+          </div>
+        </header>
+      ) : (
+        <div className="mb-1">
+          <p className="black-header__sub text-[10px]">{infamySubtitle}</p>
+          {eventLabel ? <p className="black-header__note mt-0.5 text-[10px]">이벤트 · {eventLabel}</p> : null}
         </div>
-      </header>
+      )}
 
       {error ? <div className="black-alert black-alert--error">오류: {formatErr(error)}</div> : null}
 
-      {sessionLoading ? <GamePanelLoading label="세션 확인 중…" /> : null}
+      {!embedded && sessionLoading ? <GamePanelLoading label="세션 확인 중…" /> : null}
 
-      {!sessionLoading && !user ? (
+      {!embedded && !sessionLoading && !user ? (
         <GamePanelInfo>로그인이 필요합니다. 화면 오른쪽 위에서 Google 로그인을 진행해 주세요.</GamePanelInfo>
       ) : null}
 
-      {!sessionLoading && user && black?.locked ? (
+      {(embedded || !sessionLoading) && user && black?.locked ? (
         <div className="black-alert black-alert--warn">명예가 높아 암시장 거래(구매·판매)가 잠겨 있어요.</div>
       ) : null}
 
-      {!sessionLoading && user && items.length === 0 ? (
+      {(embedded || !sessionLoading) && user && items.length === 0 ? (
         <p className="black-empty">거래 가능한 아이템이 없어요.</p>
       ) : null}
 
-      {!sessionLoading && user && items.length > 0 ? (
-        <div className="black-list">
+      {(embedded || !sessionLoading) && user && items.length > 0 ? (
+        <div className={embedded ? "panel-scroll-region black-list" : "black-list"}>
           <div className="black-list__head" aria-hidden>
             <span>아이템</span>
             <span>시세</span>

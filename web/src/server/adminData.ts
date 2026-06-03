@@ -2,6 +2,8 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { invalidateCatalogItemCache } from "@/server/catalogItems";
+import { invalidateItemCatalogCache } from "@/server/itemCatalog";
 import { normalizeMerxatusItemId, parseCsvRows } from "@/server/merxatusRoyalCsv";
 
 const ItemSchema = z.object({
@@ -128,6 +130,8 @@ export async function writeItemsJson(items: unknown) {
   const parsed = z.array(ItemSchema).parse(items);
   const p = dataPath("items.json");
   await writeFile(p, JSON.stringify(parsed, null, 2) + "\n", "utf8");
+  invalidateCatalogItemCache();
+  invalidateItemCatalogCache();
   return { path: p, data: parsed };
 }
 
