@@ -1,5 +1,7 @@
 /** 미니언 장비 슬롯 (착용 UI·API 공통) */
 
+import { normalizeItemIdLower } from "@/shared/itemId";
+
 export type MinionEquipSlotId =
 
   | "helmet"
@@ -194,9 +196,9 @@ export function isMinionEquipSlotImplemented(slotId: MinionEquipSlotId) {
 
 /** stack 아이템 id가 슬롯과 맞는지 (방어구 — API 연동 전 UI 필터용) */
 
-export function armorStackMatchesSlot(slotId: MinionEquipSlotId, itemId: string) {
-
-  const id = itemId.trim().toLowerCase();
+export function armorStackMatchesSlot(slotId: MinionEquipSlotId, itemId: unknown) {
+  const id = normalizeItemIdLower(itemId);
+  if (!id) return false;
 
   if (!id.startsWith("armor_")) return false;
 

@@ -1,4 +1,5 @@
 import { readItemsJson } from "@/server/adminData";
+import { normalizeItemIdLower } from "@/shared/itemId";
 
 let catalogIdSet: Set<string> | null = null;
 
@@ -14,6 +15,7 @@ export function invalidateCatalogItemCache() {
   catalogIdSet = null;
 }
 
-export function isCatalogItemId(itemId: string, catalog: Set<string>): boolean {
-  return catalog.has(itemId.trim().toLowerCase());
+export function isCatalogItemId(itemId: unknown, catalog: Set<string>): boolean {
+  const id = normalizeItemIdLower(itemId);
+  return id.length > 0 && catalog.has(id);
 }

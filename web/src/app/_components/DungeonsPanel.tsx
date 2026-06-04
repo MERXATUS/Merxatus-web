@@ -39,6 +39,7 @@ import {
 } from "@/shared/dungeonStageProgression";
 import { pushLuckFloorGoldReward, pushLuckLootMultiplier } from "@/shared/dungeonPushLuck";
 import { pickBestRecoveryPotion, pickLowestHpMemberId } from "@/shared/potionEffects";
+import { normalizeItemIdLower } from "@/shared/itemId";
 
 type DungeonDef = {
   id: string;
@@ -160,8 +161,8 @@ function parseLoot(raw: unknown) {
     const arr = JSON.parse(typeof raw === "string" ? raw : "[]") as unknown;
     if (!Array.isArray(arr)) return [];
     return arr
-      .map((x: { itemId?: string; qty?: number }) => ({
-        itemId: String(x?.itemId ?? ""),
+      .map((x: { itemId?: unknown; qty?: number }) => ({
+        itemId: normalizeItemIdLower(x?.itemId),
         qty: Math.max(0, Math.floor(Number(x?.qty ?? 0))),
       }))
       .filter((x) => x.itemId && x.qty > 0);

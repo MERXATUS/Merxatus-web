@@ -23,6 +23,7 @@ import {
   serializePartyHp,
   type PartyHpEntry,
 } from "@/shared/dungeonPartyHp";
+import { normalizeItemId, normalizeItemIdLower } from "@/shared/itemId";
 
 export type { PartyHpEntry };
 
@@ -142,8 +143,10 @@ export async function tickAndMaybeCollectDungeonRun(input: { userId: string; dun
         const idx = pickWeightedIndex(weights, rnd);
         if (idx < 0) continue;
         const entry = input.dungeon.drops[idx]!;
+        const itemId = normalizeItemIdLower(entry.itemId);
+        if (!itemId) continue;
         const qty = randIntInclusive(entry.minQty, entry.maxQty, rnd);
-        lootMap.set(entry.itemId, (lootMap.get(entry.itemId) ?? 0) + qty);
+        lootMap.set(itemId, (lootMap.get(itemId) ?? 0) + qty);
       }
     }
 
@@ -195,8 +198,14 @@ export type PendingLootDisplayItem = { itemId: string; qty: number; name: string
 
 function mergeLoot(a: LootEntry[], b: LootEntry[]): LootEntry[] {
   const m = new Map<string, number>();
-  for (const x of a) m.set(x.itemId, (m.get(x.itemId) ?? 0) + Math.max(0, Math.floor(x.qty ?? 0)));
-  for (const x of b) m.set(x.itemId, (m.get(x.itemId) ?? 0) + Math.max(0, Math.floor(x.qty ?? 0)));
+  const add = (rawId: unknown, rawQty: unknown) => {
+    const itemId = normalizeItemIdLower(rawId);
+    const qty = Math.max(0, Math.floor(Number(rawQty ?? 0)));
+    if (!itemId || qty <= 0) return;
+    m.set(itemId, (m.get(itemId) ?? 0) + qty);
+  };
+  for (const x of a) add(x.itemId, x.qty);
+  for (const x of b) add(x.itemId, x.qty);
   return Array.from(m.entries())
     .filter(([, q]) => q > 0)
     .map(([itemId, qty]) => ({ itemId, qty }));
@@ -208,7 +217,7 @@ export function safeParsePendingLoot(json: unknown): LootEntry[] {
     if (!Array.isArray(raw)) return [];
     return raw
       .map((x) => ({
-        itemId: typeof x?.itemId === "string" ? x.itemId : "",
+        itemId: normalizeItemIdLower(x?.itemId),
         qty: Math.max(0, Math.floor(Number(x?.qty ?? 0))),
       }))
       .filter((x) => x.itemId.length > 0 && x.qty > 0);
@@ -262,8 +271,10 @@ function rollDrops(
     const idx = pickWeightedIndex(weights, rnd);
     if (idx < 0) continue;
     const entry = pool[idx]!;
+    const itemId = normalizeItemIdLower(entry.itemId);
+    if (!itemId) continue;
     const qty = randIntInclusive(entry.minQty, entry.maxQty, rnd);
-    lootMap.set(entry.itemId, (lootMap.get(entry.itemId) ?? 0) + qty);
+    lootMap.set(itemId, (lootMap.get(itemId) ?? 0) + qty);
   }
   return Array.from(lootMap.entries()).map(([itemId, qty]) => ({ itemId, qty }));
 }
@@ -491,7 +502,7 @@ export async function usePotionOnActiveRun(input: {
   itemId: string;
   minionId: string;
 }) {
-  const itemId = input.itemId.trim();
+  const itemId = normalizeItemId(input.itemId);
   const minionId = input.minionId.trim();
   if (!itemId || !minionId) throw new Error("BAD_REQUEST");
 

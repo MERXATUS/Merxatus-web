@@ -1,3 +1,5 @@
+import { normalizeItemIdLower } from "@/shared/itemId";
+
 export const ITEM_ICON_PUBLIC_DIR = "/Items";
 
 function normalizeIconStem(raw: string | null | undefined): string {
@@ -15,8 +17,9 @@ function pascalParts(segments: string[]): string {
 }
 
 /** `item_gather_minion_ticket_low` → `Icon_Gather_Minion_Ticket_Low` (public/Items 실제 파일명) */
-export function inferIconStemFromItemId(itemId: string): string | null {
-  const id = itemId.trim().toLowerCase();
+export function inferIconStemFromItemId(itemId: unknown): string | null {
+  const id = normalizeItemIdLower(itemId);
+  if (!id) return null;
 
   const w = id.match(/^weapon_(.+)$/);
   if (w) return `Icon_${pascalParts(w[1].split("_"))}`;
@@ -37,10 +40,11 @@ export function inferIconStemFromItemId(itemId: string): string | null {
   return null;
 }
 
-export function itemIconSrc(args: { itemId: string; icon?: string | null | undefined }): string {
+export function itemIconSrc(args: { itemId: unknown; icon?: string | null | undefined }): string {
+  const itemId = normalizeItemIdLower(args.itemId);
   const stem =
     normalizeIconStem(args.icon) ||
-    inferIconStemFromItemId(args.itemId) ||
-    normalizeIconStem(args.itemId);
+    inferIconStemFromItemId(itemId) ||
+    normalizeIconStem(itemId);
   return `${ITEM_ICON_PUBLIC_DIR}/${stem}.png`;
 }

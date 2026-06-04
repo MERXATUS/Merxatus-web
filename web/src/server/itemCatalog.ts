@@ -1,6 +1,7 @@
 import { readItemsJson } from "@/server/adminData";
 import { invalidateCatalogItemCache } from "@/server/catalogItems";
 import { inferIconStemFromItemId, itemIconSrc } from "@/shared/itemIcon";
+import { normalizeItemIdLower } from "@/shared/itemId";
 
 let iconByItemId: Map<string, string | undefined> | null = null;
 
@@ -27,11 +28,12 @@ export async function getItemIconMap(): Promise<Map<string, string | undefined>>
 
 /** 아이콘 맵 1회 로드 후 동기 attach — N+1 await 제거 */
 export function itemIconFieldsFromMap(
-  itemId: string,
+  itemId: unknown,
   map: Map<string, string | undefined>,
 ): { icon: string | null; iconSrc: string } {
-  const icon = map.get(itemId) ?? inferIconStemFromItemId(itemId);
-  return { icon, iconSrc: itemIconSrc({ itemId, icon }) };
+  const id = normalizeItemIdLower(itemId);
+  const icon = map.get(id) ?? inferIconStemFromItemId(id);
+  return { icon, iconSrc: itemIconSrc({ itemId: id, icon }) };
 }
 
 export function attachIcons<T extends { itemId?: string; baseItemId?: string }>(
@@ -40,7 +42,7 @@ export function attachIcons<T extends { itemId?: string; baseItemId?: string }>(
   idKey: "itemId" | "baseItemId" = "itemId",
 ): Array<T & { icon: string | null; iconSrc: string }> {
   return rows.map((row) => {
-    const id = (idKey === "baseItemId" ? row.baseItemId : row.itemId) ?? "";
+    const id = normalizeItemIdLower(idKey === "baseItemId" ? row.baseItemId : row.itemId);
     const { icon, iconSrc } = itemIconFieldsFromMap(id, map);
     return { ...row, icon, iconSrc };
   });

@@ -1,5 +1,7 @@
 /** 인벤 카테고리·itemId 패턴으로 미니언 고용권 여부 */
 
+import { normalizeItemIdLower } from "@/shared/itemId";
+
 export const MINION_RECRUIT_CATEGORY = "미니언고용권";
 
 const RECRUIT_CATEGORY_ALIASES = new Set([
@@ -16,8 +18,8 @@ export function isMinionRecruitCategory(category: string | null | undefined) {
   return c.toLowerCase() === "minion_ticket";
 }
 
-export function isMinionRecruitItemId(itemId: string) {
-  return itemId.trim().toLowerCase() === "item_minion_ticket";
+export function isMinionRecruitItemId(itemId: unknown) {
+  return normalizeItemIdLower(itemId) === "item_minion_ticket";
 }
 
 export type MinionHatchResult = {

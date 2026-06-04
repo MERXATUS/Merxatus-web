@@ -1,4 +1,5 @@
 import weaponStatsJson from "../../data/weapon_stats.json";
+import { normalizeItemId } from "@/shared/itemId";
 
 export type WeaponStatRow = {
   name: string;
@@ -13,8 +14,10 @@ export const WEAPON_STATS_BY_ID: Record<string, WeaponStatRow> = weaponStatsJson
   WeaponStatRow
 >;
 
-export function getWeaponStats(itemId: string): WeaponStatRow | null {
-  return WEAPON_STATS_BY_ID[itemId.trim()] ?? null;
+export function getWeaponStats(itemId: unknown): WeaponStatRow | null {
+  const id = normalizeItemId(itemId);
+  if (!id) return null;
+  return WEAPON_STATS_BY_ID[id] ?? null;
 }
 
 /** CSV `weapons.csv` Atk/Magic → `gameRules.weaponPowerByItemId` 와 동일 공식 */

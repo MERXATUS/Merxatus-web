@@ -1,9 +1,10 @@
 "use client";
 
 import { itemIconSrc } from "@/shared/itemIcon";
+import { normalizeItemIdLower } from "@/shared/itemId";
 
 type ItemIconProps = {
-  itemId: string;
+  itemId: unknown;
   icon?: string | null;
   iconSrc?: string | null;
   size?: number;
@@ -12,7 +13,8 @@ type ItemIconProps = {
 };
 
 export function ItemIcon({ itemId, icon, iconSrc, size = 48, className, eager }: ItemIconProps) {
-  const src = iconSrc ?? itemIconSrc({ itemId, icon });
+  const id = normalizeItemIdLower(itemId);
+  const src = iconSrc ?? itemIconSrc({ itemId: id || "item_unknown", icon });
 
   return (
     <span

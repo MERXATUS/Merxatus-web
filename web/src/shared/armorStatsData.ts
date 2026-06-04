@@ -1,4 +1,5 @@
 import armorStatsJson from "../../data/armor_stats.json";
+import { normalizeItemId, normalizeItemIdLower } from "@/shared/itemId";
 
 export type ArmorStatRow = {
   name: string;
@@ -12,7 +13,9 @@ export type ArmorStatRow = {
 export const ARMOR_STATS_BY_ID: Record<string, ArmorStatRow> = armorStatsJson as Record<string, ArmorStatRow>;
 
 export function getArmorStats(itemId: string): ArmorStatRow | null {
-  return ARMOR_STATS_BY_ID[itemId.trim()] ?? null;
+  const id = normalizeItemId(itemId);
+  if (!id) return null;
+  return ARMOR_STATS_BY_ID[id] ?? null;
 }
 
 /** 방어구 1개당 전투력 환산 (표시·던전 CP용) */
@@ -22,8 +25,8 @@ export function armorItemCombatPower(itemId: string): number {
   return Math.max(0, Math.floor(s.hp * 0.2 + s.def * 2));
 }
 
-export function isArmorInventoryItem(it: { itemId: string; category: string }): boolean {
-  const id = it.itemId.trim().toLowerCase();
+export function isArmorInventoryItem(it: { itemId: unknown; category: string }): boolean {
+  const id = normalizeItemIdLower(it.itemId);
   return it.category === "방어구" || id.startsWith("armor_");
 }
 

@@ -3,6 +3,7 @@ import { readItemsJson } from "@/server/adminData";
 import { invalidateCatalogItemCache } from "@/server/catalogItems";
 import { clampItemGrade, defaultItemGradeForItemId } from "@/server/itemGrade";
 import { rollOptionsForLootDrop, serializeOptions } from "@/server/itemOptions";
+import { normalizeItemIdLower } from "@/shared/itemId";
 
 type ItemDb = Pick<
   PrismaClient,
@@ -28,8 +29,9 @@ export function invalidateItemDefCache() {
   invalidateCatalogItemCache();
 }
 
-function equipmentCategory(itemId: string, category: string): "weapon" | "armor" | null {
-  const id = itemId.trim().toLowerCase();
+function equipmentCategory(itemId: unknown, category: string): "weapon" | "armor" | null {
+  const id = normalizeItemIdLower(itemId);
+  if (!id) return null;
   const cat = category.trim();
   if (cat === "무기" || id.startsWith("weapon_")) return "weapon";
   if (cat === "방어구" || id.startsWith("armor_")) return "armor";
@@ -75,22 +77,24 @@ export async function grantLootToUser(db: ItemDb, userId: string, loot: LootEntr
 
   for (const x of loot) {
     if (x.qty <= 0) continue;
-    await ensureItemInDb(db, x.itemId);
+    const itemId = normalizeItemIdLower(x.itemId);
+    if (!itemId) continue;
+    await ensureItemInDb(db, itemId);
 
     const item =
-      (await db.item.findUnique({ where: { id: x.itemId } })) ??
-      defs.get(x.itemId);
+      (await db.item.findUnique({ where: { id: itemId } })) ??
+      defs.get(itemId);
     if (!item) continue;
 
-    const grade = clampItemGrade(item.grade ?? defaultItemGradeForItemId(x.itemId));
-    const equip = equipmentCategory(x.itemId, item.category);
+    const grade = clampItemGrade(item.grade ?? defaultItemGradeForItemId(itemId));
+    const equip = equipmentCategory(itemId, item.category);
 
     if (equip === "weapon") {
       for (let i = 0; i < x.qty; i++) {
         await db.weaponInstance.create({
           data: {
             userId,
-            baseItemId: x.itemId,
+            baseItemId: itemId,
             enhanceLevel: 0,
             optionsJson: lootOptionsJson("weapon", grade),
           },
@@ -104,7 +108,7 @@ export async function grantLootToUser(db: ItemDb, userId: string, loot: LootEntr
         await db.armorInstance.create({
           data: {
             userId,
-            baseItemId: x.itemId,
+            baseItemId: itemId,
             optionsJson: lootOptionsJson("armor", grade),
           },
         });
@@ -113,8 +117,8 @@ export async function grantLootToUser(db: ItemDb, userId: string, loot: LootEntr
     }
 
     await db.inventoryStack.upsert({
-      where: { userId_itemId: { userId, itemId: x.itemId } },
-      create: { userId, itemId: x.itemId, quantity: x.qty },
+      where: { userId_itemId: { userId, itemId } },
+      create: { userId, itemId, quantity: x.qty },
       update: { quantity: { increment: x.qty } },
     });
   }
