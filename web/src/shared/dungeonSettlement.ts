@@ -29,6 +29,7 @@ export type DungeonSettlement = {
   loot: DungeonLootRow[];
   forfeitedLoot?: DungeonLootRow[];
   goldGained?: number;
+  forfeitedGold?: number;
   lootMultiplier?: number;
 };
 

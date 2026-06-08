@@ -106,6 +106,13 @@ export function DungeonRunSettlementModal(props: Props) {
           />
         </section>
 
+        {(settlement.forfeitedGold ?? 0) > 0 ? (
+          <section className="dungeon-settlement__section dungeon-settlement__section--forfeit">
+            <h3 className="dungeon-settlement__section-title">소멸한 골드</h3>
+            <p className="dungeon-settlement__forfeit-gold">-{settlement.forfeitedGold!.toLocaleString()} G</p>
+          </section>
+        ) : null}
+
         {settlement.forfeitedLoot && settlement.forfeitedLoot.length > 0 ? (
           <section className="dungeon-settlement__section dungeon-settlement__section--forfeit">
             <h3 className="dungeon-settlement__section-title">소멸한 누적 보상</h3>

@@ -1,6 +1,7 @@
 "use client";
 
 import { ItemTooltipHover } from "@/app/_components/ItemTooltipHover";
+import { EquipmentBlessingOptionRows } from "@/app/_components/EquipmentBlessingOptionRows";
 import {
   weaponBaseAtkMagic,
   weaponBasePower,
@@ -12,6 +13,8 @@ import {
   weaponTotalPower,
   type WeaponTooltipData,
 } from "@/shared/weaponTooltip";
+import { minEquipLevelForGrade } from "@/shared/itemEquipLevel";
+import { equipmentSetSubtitle } from "@/shared/equipmentSets";
 import type { ReactNode } from "react";
 
 export function WeaponTooltipContent({ weapon }: { weapon: WeaponTooltipData }) {
@@ -23,10 +26,20 @@ export function WeaponTooltipContent({ weapon }: { weapon: WeaponTooltipData }) 
   const total = weaponTotalPower(weapon);
   const weaponOpts = weapon.options ?? [];
 
+  const setLine = equipmentSetSubtitle(weapon.baseItemId);
+
   return (
     <div className={`item-tooltip item-tooltip--grade-${grade}`}>
       <div className="item-tooltip__name">{weaponDisplayName(weapon)}</div>
-      <div className="item-tooltip__category">무기 · {weaponGradeLabel(weapon)}</div>
+      <div className="item-tooltip__category">
+        {setLine ?? `무기 · ${weaponGradeLabel(weapon)}`}
+      </div>
+      {minEquipLevelForGrade(grade) > 1 ? (
+        <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
+          <span>착용 레벨</span>
+          <span>Lv {minEquipLevelForGrade(grade)}+</span>
+        </div>
+      ) : null}
 
       <div className="item-tooltip__divider" />
 
@@ -60,28 +73,24 @@ export function WeaponTooltipContent({ weapon }: { weapon: WeaponTooltipData }) 
           <span>+{enhance}</span>
         </div>
       ) : null}
-      {optBonus > 0 ? (
+      {weapon.identified !== false && optBonus > 0 ? (
         <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
           <span>옵션 합</span>
           <span>+{optBonus}</span>
         </div>
       ) : null}
 
-      {weaponOpts.length > 0 ? (
+      {weapon.identified === false && weaponOpts.length > 0 ? (
         <>
-          <div className="item-tooltip__divider" />
-          <div className="item-tooltip__section-label">추가 옵션</div>
-          {weaponOpts.map((op, i) => (
-            <div key={`${op.kind}-${i}`} className="item-tooltip__option-row">
-              <span className="item-tooltip__option-tier">{op.tierLabel}</span>
-              <span className="item-tooltip__option-label">{op.label}</span>
-              <span className="item-tooltip__option-val">
-                {op.displayValue >= 0 ? "+" : ""}
-                {op.displayValue}
-              </span>
-            </div>
-          ))}
+          <EquipmentBlessingOptionRows options={weaponOpts} identified={false} />
+          <p className="item-tooltip__desc item-tooltip__desc--muted">
+            미감정 · 감정 주문서로 옵션 확인
+          </p>
         </>
+      ) : null}
+
+      {weapon.identified !== false && weaponOpts.length > 0 ? (
+        <EquipmentBlessingOptionRows options={weaponOpts} identified />
       ) : null}
 
       <div className="item-tooltip__footer">ID {weapon.id.slice(0, 12)}…</div>

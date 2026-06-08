@@ -8,7 +8,8 @@ import { itemGradeNameClassName } from "@/server/itemGrade";
 import { useEscapeClose } from "@/shared/useEscapeClose";
 import { formatPanelError } from "@/shared/formatPanelError";
 import { useSessionUser } from "@/app/_components/SessionProvider";
-import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
+import { API_CACHE_TTL } from "@/shared/apiCache";
+import { apiGetJson, apiGetJsonCached, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import {
   GAME_FRAME_REFRESH_EVENT,
   START_TRADE_WITH_EVENT,
@@ -290,7 +291,9 @@ export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
           setMyListings([]);
           return;
         }
-        const r = await getJson<MeState>("/api/me/state");
+        const r = await apiGetJsonCached<MeState>("/api/me/state?scope=market", {
+          ttlMs: API_CACHE_TTL.meStateMarket,
+        });
         setMyListings(r?.myListings ?? []);
       }
     } catch (e) {

@@ -13,10 +13,12 @@ import { useEscapeClose } from "@/shared/useEscapeClose";
 
 export function MinionRecruitReveal(props: {
   result: MinionHatchResult;
+  mode?: "recruit" | "create";
   onClose: () => void;
   onViewMinions?: () => void;
 }) {
-  const { result, onClose, onViewMinions } = props;
+  const { result, onClose, onViewMinions, mode = "recruit" } = props;
+  const isCreate = mode === "create";
   const [phase, setPhase] = useState<"summon" | "reveal">("summon");
 
   useEscapeClose(true, onClose);
@@ -48,15 +50,21 @@ export function MinionRecruitReveal(props: {
         <div className="minion-recruit-card">
           {phase === "summon" ? (
             <div className="minion-recruit-summon">
-              <p className="minion-recruit-summon__label">고용 중…</p>
-              <div className="minion-recruit-summon__icon">
-                <ItemIcon itemId={consumedItemId} icon={icon} iconSrc={iconSrc} size={72} />
-              </div>
+              <p className="minion-recruit-summon__label">{isCreate ? "생성 중…" : "고용 중…"}</p>
+              {!isCreate ? (
+                <div className="minion-recruit-summon__icon">
+                  <ItemIcon itemId={consumedItemId} icon={icon} iconSrc={iconSrc} size={72} />
+                </div>
+              ) : (
+                <div className="minion-recruit-summon__icon minion-recruit-summon__icon--create" aria-hidden>
+                  ✦
+                </div>
+              )}
             </div>
           ) : (
             <>
               <p id="minion-recruit-title" className="minion-recruit-card__eyebrow">
-                새 미니언 고용!
+                {isCreate ? "새 캐릭터 생성!" : "새 미니언 고용!"}
               </p>
               <div className="minion-recruit-highlight" aria-label={`${minion.combatClassLabel} Lv${minion.level}`}>
                 <p className="minion-recruit-highlight__job">{minion.combatClassLabel}</p>

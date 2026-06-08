@@ -123,3 +123,19 @@ npm run validate:data
 - `recipes.csv`에 `kind`, `rewardGold` 컬럼은 사용하지 않습니다.
 - DB에는 과거 호환을 위해 `rewardGold` 컬럼이 남아있을 수 있지만, 적용 시 항상 0으로 고정됩니다.
 
+---
+
+## 6) `Merxatus-Price.csv` (황실 매입·매각)
+
+헤더(필수):
+- `ItemID`: `items.json` id와 동일 (PascalCase 허용, 예: `Item_Mana_Stone` → `item_mana_stone`)
+- `Buy_Price`: 황실 **구매가** (플레이어 지불, 1개당 G)
+- `Sell_Price`: 황실 **판매가** (플레이어 수령, 1개당 G)
+
+규칙:
+- **거래 대상**: `category=재료` 이고 `tradable=true` 인 아이템만 UI에 표시
+- `Buy_Price` ≥ `Sell_Price` (역전 시 파서가 자동 교정)
+- 기준가는 `itemReferenceGold.ts` — 소모품(마석·주문서·감정서)은 구매 ×1.10 / 판매 ×0.90, 보석·보호서·레이드 파편은 ×1.12 / ×0.88
+- `npm run data:sync` 시 `data/Merxatus-Price.csv` 복사 후 DB `RoyalPrice` 동기화
+
+현재 시트: 마석 3종, 강화·감정 주문서, 보호서, 레이드 파편, 가공 보석 3종 (12행)

@@ -1,3 +1,4 @@
+import { API_CACHE_TTL, invalidateApiCache, withApiCache } from "@/shared/apiCache";
 import { formatPanelError } from "@/shared/formatPanelError";
 
 export const SESSION_CHANGED_EVENT = "auth_session_changed";
@@ -7,6 +8,7 @@ export type SessionUser = { id: string; username: string; usernameChosen?: boole
 export type AuthMeResponse = { ok: true; user: SessionUser | null };
 
 export function notifySessionChanged() {
+  invalidateApiCache();
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
 }
@@ -30,6 +32,13 @@ export async function apiGetJson<T>(url: string): Promise<T> {
   return json;
 }
 
+export async function apiGetJsonCached<T>(
+  url: string,
+  opts?: { ttlMs?: number; force?: boolean },
+): Promise<T> {
+  return withApiCache(url, () => apiGetJson<T>(url), opts);
+}
+
 export async function apiPostJson<T>(url: string, body: unknown): Promise<T> {
   const res = await apiFetch(url, {
     method: "POST",
@@ -38,11 +47,21 @@ export async function apiPostJson<T>(url: string, body: unknown): Promise<T> {
   });
   const json = (await res.json().catch(() => ({}))) as T;
   if (!res.ok) throwApiError(json, res.status);
+  invalidateApiCache("/api/me");
+  invalidateApiCache("/api/minions");
+  invalidateApiCache("/api/inventory");
+  invalidateApiCache("/api/dungeons");
+  invalidateApiCache("/api/raids");
+  invalidateApiCache("/api/tower");
+  invalidateApiCache("/api/trade");
   return json;
 }
 
-export async function fetchSessionUser(): Promise<SessionUser | null> {
-  const r = await apiGetJson<AuthMeResponse>("/api/auth/me");
+export async function fetchSessionUser(opts?: { force?: boolean }): Promise<SessionUser | null> {
+  const r = await apiGetJsonCached<AuthMeResponse>("/api/auth/me", {
+    ttlMs: API_CACHE_TTL.auth,
+    force: opts?.force,
+  });
   return r.user ?? null;
 }
 

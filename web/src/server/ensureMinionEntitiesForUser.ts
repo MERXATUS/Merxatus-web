@@ -1,5 +1,8 @@
 import { prisma, runPrismaTransaction } from "@/server/db";
 import { createMinionWithBirth } from "@/server/minionInsert";
+import { ensureDefaultSkillLevels } from "@/server/minionSkills";
+import { serializeMinionSkillLevels } from "@/shared/minionSkills";
+import { promotionStateFromRow, resolveMinionCombatClass } from "@/shared/minionPromotion";
 import {
   countDungeonMinions,
   dungeonMinionWhere,
@@ -73,6 +76,22 @@ export async function ensureMinionEntitiesForUser(userId: string, options?: { fo
   }
 
   await syncMinionInventoryCaps(prisma, userId);
+
+  const stale = await prisma.minion.findMany({
+    where: { userId, skillLevelsJson: "{}" },
+    select: { id: true, promotionTier: true, promotionClass: true, skillLevelsJson: true },
+    take: 50,
+  });
+  for (const row of stale) {
+    const combatClass = resolveMinionCombatClass(promotionStateFromRow(row));
+    const levels = ensureDefaultSkillLevels(combatClass, {});
+    await prisma.minion.update({
+      where: { id: row.id },
+      data: {
+        skillLevelsJson: serializeMinionSkillLevels(levels),
+      },
+    });
+  }
 
   return { ok: true as const, created };
 }

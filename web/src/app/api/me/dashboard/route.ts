@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { requireUserId } from "@/server/auth";
-import { buildMeDashboard } from "@/server/meDashboard";
+import { buildMeDashboardLight } from "@/server/meDashboard";
 import { prismaKnownErrorResponse } from "@/server/prismaHttp";
 
 export const runtime = "nodejs";
@@ -9,6 +9,7 @@ const QuerySchema = z.object({
   userId: z.string().min(1).optional(),
 });
 
+/** @deprecated bootstrap 사용 권장 — light만 반환 */
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -18,8 +19,7 @@ export async function GET(req: Request) {
     const auth = requireUserId(req, parsed.data.userId ?? null);
     if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
-    const dashboard = await buildMeDashboard(auth.userId);
-    return Response.json(dashboard);
+    return Response.json(await buildMeDashboardLight(auth.userId));
   } catch (e) {
     const r = prismaKnownErrorResponse(e);
     if (r) return r;

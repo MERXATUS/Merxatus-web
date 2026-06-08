@@ -1,5 +1,6 @@
 import { readItemsJson } from "@/server/adminData";
 import { invalidateCatalogItemCache } from "@/server/catalogItems";
+import { invalidateRoyalMaterialCache } from "@/server/royalPricing";
 import { inferIconStemFromItemId, itemIconSrc } from "@/shared/itemIcon";
 import { normalizeItemIdLower } from "@/shared/itemId";
 
@@ -15,6 +16,7 @@ async function loadIconByItemId(): Promise<Map<string, string | undefined>> {
 export function invalidateItemCatalogCache() {
   iconByItemId = null;
   invalidateCatalogItemCache();
+  invalidateRoyalMaterialCache();
 }
 
 export async function itemIconFieldsForItemId(itemId: string): Promise<{ icon: string | null; iconSrc: string }> {

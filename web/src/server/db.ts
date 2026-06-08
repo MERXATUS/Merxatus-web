@@ -17,6 +17,13 @@ export async function runPrismaTransaction<T>(fn: (tx: PrismaTxClient) => Promis
   return prisma.$transaction(fn, PRISMA_TX_OPTS);
 }
 
+/** Supabase Transaction pooler(6543)는 interactive $transaction 미지원 — updateMany 낙관적 잠금 */
+export const RUN_STATE_CHANGED = "RUN_STATE_CHANGED";
+
+export function assertRowsUpdated(count: number, code = RUN_STATE_CHANGED) {
+  if (count <= 0) throw new Error(code);
+}
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({

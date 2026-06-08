@@ -42,12 +42,12 @@ const csvLines = rows.map((r) => {
   const scrollId =
     r.scrollItemId == null
       ? "None"
-      : r.scrollItemId === "item_enhance_scroll_low"
-        ? "Item_Enhance_Scroll_Low"
-        : r.scrollItemId === "item_enhance_scroll_mid"
-          ? "Item_Enhance_Scroll_Mid"
-          : r.scrollItemId === "item_enhance_scroll_high"
-            ? "Item_Enhance_Scroll_High"
+      : r.scrollItemId === "item_lesser_mana_stone"
+        ? "Item_Lesser_Mana_Stone"
+        : r.scrollItemId === "item_mana_stone"
+          ? "Item_Mana_Stone"
+          : r.scrollItemId === "item_greater_mana_stone"
+            ? "Item_Greater_Mana_Stone"
             : r.scrollItemId;
   return `${r.targetLevel},${r.gold},${scrollId},${r.scrollQty ?? 0},${r.successRate}`;
 });

@@ -5,13 +5,14 @@ import { ensureMinionEntitiesForUser } from "@/server/ensureMinionEntitiesForUse
 import { MAX_DUNGEON_MINIONS } from "@/server/minionCapacity";
 import { prismaKnownErrorResponse } from "@/server/prismaHttp";
 import { loadMinionArmorIdsForUser } from "@/server/minionArmorDb";
-import { mapMinionToListRow } from "@/server/minionListBuild";
+import { mapMinionToListRow, mapMinionToPartyPickRow } from "@/server/minionListBuild";
 
 export const runtime = "nodejs";
 
 const QuerySchema = z.object({
   userId: z.string().min(1).optional(),
   selectedId: z.string().min(1).optional(),
+  scope: z.enum(["partyPick"]).optional(),
 });
 
 export async function GET(req: Request) {
@@ -20,6 +21,7 @@ export async function GET(req: Request) {
     const parsed = QuerySchema.safeParse({
       userId: url.searchParams.get("userId") ?? undefined,
       selectedId: url.searchParams.get("selectedId") ?? undefined,
+      scope: url.searchParams.get("scope") ?? undefined,
     });
     if (!parsed.success) return Response.json({ ok: false, error: "BAD_REQUEST" }, { status: 400 });
 
@@ -30,18 +32,28 @@ export async function GET(req: Request) {
       console.warn("[api/minions/list] ensureMinionEntitiesForUser", e);
     });
 
-    const [armorByMinionId, minions] = await Promise.all([
-      loadMinionArmorIdsForUser(prisma, auth.userId),
-      prisma.minion.findMany({
-        where: { userId: auth.userId },
-        include: {
-          traits: true,
-          equippedWeaponInstance: { include: { baseItem: true } },
-        },
-        orderBy: [{ createdAt: "asc" }],
-        take: 200,
-      }),
-    ]);
+    const partyPick = parsed.data.scope === "partyPick";
+
+    const minions = await prisma.minion.findMany({
+      where: { userId: auth.userId },
+      include: {
+        traits: true,
+        equippedWeaponInstance: { include: { baseItem: true } },
+      },
+      orderBy: [{ createdAt: "asc" }],
+      take: 200,
+    });
+
+    if (partyPick) {
+      return Response.json({
+        ok: true,
+        maxDungeonOwned: MAX_DUNGEON_MINIONS,
+        maxOwned: MAX_DUNGEON_MINIONS,
+        minions: minions.map((m) => mapMinionToPartyPickRow(m)),
+      });
+    }
+
+    const armorByMinionId = await loadMinionArmorIdsForUser(prisma, auth.userId);
 
     return Response.json({
       ok: true,

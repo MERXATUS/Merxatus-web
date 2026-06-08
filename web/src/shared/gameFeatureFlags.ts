@@ -2,4 +2,5 @@
 export const GAME_FEATURES = {
   raidEnabled: true,
   towerEnabled: true,
+  pvpEnabled: true,
 } as const;

@@ -1,11 +1,17 @@
 /** 패널 공통 — API 오류를 사용자용 한글 메시지로 변환 */
+import { parseMinionLevelTooLowError } from "@/shared/itemEquipLevel";
+
 export function formatPanelError(e: unknown): string {
   if (e == null) return "알 수 없는 오류가 발생했습니다.";
   if (typeof e === "string") {
+    const levelReq = parseMinionLevelTooLowError(e);
+    if (levelReq != null) return minionLevelTooLowMessage(levelReq);
     if (looksLikeDbMigration(e)) return mapErrorCode("DB_MIGRATION_REQUIRED") ?? e;
     return e;
   }
   if (e instanceof Error) {
+    const levelReq = parseMinionLevelTooLowError(e.message);
+    if (levelReq != null) return minionLevelTooLowMessage(levelReq);
     if (looksLikeDbMigration(e.message)) return mapErrorCode("DB_MIGRATION_REQUIRED") ?? e.message;
     return e.message;
   }
@@ -46,10 +52,17 @@ export function formatPanelError(e: unknown): string {
 }
 
 function looksLikeDbMigration(text: string): boolean {
-  return /does not exist|Friendship|ArmorInstance|ToolInstance|TradeSession|P2021/i.test(text);
+  return /does not exist|Friendship|ArmorInstance|ToolInstance|TradeSession|PvpMatch|P2021/i.test(text);
+}
+
+function minionLevelTooLowMessage(requiredLevel: number): string {
+  return `착용하려면 미니언 Lv${requiredLevel} 이상이 필요합니다.`;
 }
 
 function mapErrorCode(code: string): string | null {
+  const levelReq = parseMinionLevelTooLowError(code);
+  if (levelReq != null) return minionLevelTooLowMessage(levelReq);
+
   const exact: Record<string, string> = {
     BAD_REQUEST: "요청 형식이 잘못됐습니다. 새로고침 후 다시 시도해 주세요.",
     USER_NOT_FOUND: "유저를 찾을 수 없습니다. 로그인을 확인해 주세요.",
@@ -89,6 +102,11 @@ function mapErrorCode(code: string): string | null {
     CHAT_BACKEND_UNAVAILABLE: "채팅 서버를 사용할 수 없습니다.",
     DB_MIGRATION_REQUIRED:
       "DB 마이그레이션이 필요합니다. web 폴더에서 npm run db:migrate 를 실행해 주세요. (친구·직거래 등 최신 테이블 반영)",
+    DB_TRANSACTION_FAILED: "전투 처리 중 일시적인 오류가 발생했습니다. 새로고침 후 다시 시도해 주세요.",
+    RUN_STATE_CHANGED: "탐험 상태가 바뀌었습니다. 새로고침 후 다시 시도해 주세요.",
+    AUTO_EXPLORE_ACTIVE: "자동 탐험이 진행 중입니다. 층 탐험을 하려면 자동 탐험을 먼저 중지해 주세요.",
+    DAILY_WAVE_CAP_REACHED: "오늘 자동 탐험 웨이브 한도에 도달했습니다.",
+    NO_ACTIVE_AUTO_RUN: "진행 중인 자동 탐험이 없습니다.",
     INTERNAL_SERVER_ERROR: "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
     INTERNAL: "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
     FRIEND_USER_NOT_FOUND: "해당 닉네임의 유저를 찾을 수 없습니다.",
@@ -102,7 +120,13 @@ function mapErrorCode(code: string): string | null {
     TRADE_CANNOT_SELF: "자기 자신과는 거래할 수 없습니다.",
     PROCESS_CRAFT_DISABLED: "가공 제작은 비활성화됐어요. 던전·무탑·레이드 드랍이나 거래소를 이용해 주세요.",
     SPECIALIST_SYSTEM_REMOVED: "전문 직업 시스템이 제거됐어요. 던전·거래소를 이용해 주세요.",
-    GATHER_DISABLED: "수집 시스템이 비활성화됐어요. 던전·무한의 탑·레이드에서 아이템을 얻을 수 있어요.",
+    GATHER_DISABLED: "수집 시스템이 비활성화됐어요. 던전·삼계의 탑·레이드에서 아이템을 얻을 수 있어요.",
+    MAX_EQUIPMENT_OWNED: "무기·방어구 보유 한도(100개)에 도달했어요. 분해하거나 거래소에 올린 뒤 다시 시도해 주세요.",
+    SALVAGE_BATCH_TOO_LARGE: "한 번에 분해할 수 있는 장비는 최대 50개까지예요.",
+    REPRESENTATIVE_REQUIRED: "대표 미니언을 먼저 지정해 주세요.",
+    DEFENDER_NOT_READY: "상대가 대표 미니언을 지정하지 않았어요.",
+    CANNOT_ATTACK_SELF: "자기 자신에게는 도전할 수 없어요.",
+    PVP_DAILY_LIMIT: "오늘 결투 도전 횟수를 모두 사용했어요.",
   };
 
   if (exact[code]) return exact[code];

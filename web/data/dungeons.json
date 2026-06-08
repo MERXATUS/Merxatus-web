@@ -1,7 +1,7 @@
 [
   {
     "id": "dungeon_slime_forest",
-    "name": "슬라임의 숲",
+    "name": "마계 · 오염의 웅덩이",
     "mode": "PUSH_LUCK",
     "baseWaveSeconds": 8,
     "maxFloors": 10,
@@ -23,15 +23,9 @@
     "drops": [
       {
         "itemId": "item_lesser_mana_stone",
-        "weight": 5500,
+        "weight": 8500,
         "minQty": 1,
         "maxQty": 2
-      },
-      {
-        "itemId": "item_enhance_scroll_low",
-        "weight": 3000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_lesser_recovery_potion",
@@ -139,15 +133,9 @@
     "bossDrops": [
       {
         "itemId": "item_lesser_mana_stone",
-        "weight": 4500,
+        "weight": 8000,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_enhance_scroll_low",
-        "weight": 3500,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_lesser_recovery_potion",
@@ -255,7 +243,7 @@
   },
   {
     "id": "dungeon_goblin_den",
-    "name": "고블린 굴",
+    "name": "마계 · 군번의 심굴",
     "mode": "PUSH_LUCK",
     "baseWaveSeconds": 8,
     "maxFloors": 14,
@@ -277,15 +265,9 @@
     "drops": [
       {
         "itemId": "item_lesser_mana_stone",
-        "weight": 4000,
+        "weight": 7000,
         "minQty": 1,
         "maxQty": 2
-      },
-      {
-        "itemId": "item_enhance_scroll_low",
-        "weight": 3000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_mana_stone",
@@ -404,7 +386,7 @@
         "maxQty": 2
       },
       {
-        "itemId": "item_enhance_scroll_low",
+        "itemId": "item_lesser_mana_stone",
         "weight": 3000,
         "minQty": 1,
         "maxQty": 2
@@ -425,7 +407,7 @@
       },
       {
         "itemId": "weapon_steel_sword",
-        "weight": 950,
+        "weight": 1020,
         "minQty": 1,
         "maxQty": 1,
         "minFloor": 14,
@@ -458,14 +440,6 @@
       {
         "itemId": "armor_crimson_boots",
         "weight": 750,
-        "minQty": 1,
-        "maxQty": 1,
-        "minFloor": 14,
-        "maxFloor": 14
-      },
-      {
-        "itemId": "weapon_steel_sword",
-        "weight": 70,
         "minQty": 1,
         "maxQty": 1,
         "minFloor": 14,
@@ -515,7 +489,7 @@
   },
   {
     "id": "dungeon_wolf_ravine",
-    "name": "늑대들의 계곡",
+    "name": "마계 · 피의 사구",
     "mode": "PUSH_LUCK",
     "baseWaveSeconds": 8,
     "maxFloors": 16,
@@ -537,27 +511,15 @@
     "drops": [
       {
         "itemId": "item_lesser_mana_stone",
-        "weight": 2500,
+        "weight": 4500,
         "minQty": 1,
         "maxQty": 2
       },
       {
         "itemId": "item_mana_stone",
-        "weight": 2500,
+        "weight": 3700,
         "minQty": 1,
         "maxQty": 2
-      },
-      {
-        "itemId": "item_enhance_scroll_low",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_enhance_scroll_mid",
-        "weight": 1200,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_lesser_recovery_potion",
@@ -663,15 +625,9 @@
     "bossDrops": [
       {
         "itemId": "item_mana_stone",
-        "weight": 4500,
+        "weight": 8000,
         "minQty": 2,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_enhance_scroll_mid",
-        "weight": 3500,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_recovery_potion",
@@ -689,7 +645,7 @@
       },
       {
         "itemId": "weapon_gold_sword",
-        "weight": 950,
+        "weight": 1020,
         "minQty": 1,
         "maxQty": 1,
         "minFloor": 16,
@@ -722,14 +678,6 @@
       {
         "itemId": "armor_iron_boots",
         "weight": 750,
-        "minQty": 1,
-        "maxQty": 1,
-        "minFloor": 16,
-        "maxFloor": 16
-      },
-      {
-        "itemId": "weapon_gold_sword",
-        "weight": 70,
         "minQty": 1,
         "maxQty": 1,
         "minFloor": 16,
@@ -771,7 +719,7 @@
   },
   {
     "id": "dungeon_crypt_of_dead",
-    "name": "망자의 무덤",
+    "name": "천계 · 낙천자의 묘",
     "mode": "PUSH_LUCK",
     "baseWaveSeconds": 8,
     "maxFloors": 18,
@@ -793,18 +741,12 @@
     "drops": [
       {
         "itemId": "item_mana_stone",
-        "weight": 4000,
+        "weight": 6500,
         "minQty": 1,
         "maxQty": 2
       },
       {
-        "itemId": "item_enhance_scroll_mid",
-        "weight": 2500,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_enhance_scroll_low",
+        "itemId": "item_lesser_mana_stone",
         "weight": 1500,
         "minQty": 1,
         "maxQty": 1
@@ -865,15 +807,9 @@
     "bossDrops": [
       {
         "itemId": "item_mana_stone",
-        "weight": 4000,
+        "weight": 8000,
         "minQty": 2,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_enhance_scroll_mid",
-        "weight": 4000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_recovery_potion",
@@ -925,7 +861,7 @@
   },
   {
     "id": "dungeon_scorch_rift",
-    "name": "화염 협곡",
+    "name": "천계 · 심판의 화염",
     "mode": "PUSH_LUCK",
     "baseWaveSeconds": 8,
     "maxFloors": 20,
@@ -947,25 +883,13 @@
     "drops": [
       {
         "itemId": "item_mana_stone",
-        "weight": 3500,
+        "weight": 6500,
         "minQty": 1,
         "maxQty": 2
       },
       {
-        "itemId": "item_enhance_scroll_mid",
-        "weight": 3000,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
         "itemId": "item_greater_mana_stone",
-        "weight": 1200,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 800,
+        "weight": 2000,
         "minQty": 1,
         "maxQty": 1
       },
@@ -1025,13 +949,7 @@
     "bossDrops": [
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 4000,
-        "minQty": 1,
-        "maxQty": 2
-      },
-      {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 4500,
+        "weight": 8500,
         "minQty": 1,
         "maxQty": 2
       },
@@ -1085,7 +1003,7 @@
   },
   {
     "id": "dungeon_frost_citadel",
-    "name": "얼음 요새",
+    "name": "천계 · 서릿빛 성벽",
     "mode": "PUSH_LUCK",
     "baseWaveSeconds": 8,
     "maxFloors": 22,
@@ -1107,25 +1025,13 @@
     "drops": [
       {
         "itemId": "item_mana_stone",
-        "weight": 3000,
+        "weight": 5500,
         "minQty": 1,
         "maxQty": 2
       },
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 1800,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_enhance_scroll_mid",
-        "weight": 2500,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 1200,
+        "weight": 3000,
         "minQty": 1,
         "maxQty": 1
       },
@@ -1185,15 +1091,9 @@
     "bossDrops": [
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 5000,
+        "weight": 9000,
         "minQty": 2,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 4000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_greater_recovery_flask",
@@ -1245,7 +1145,7 @@
   },
   {
     "id": "dungeon_dragon_roost",
-    "name": "용의 둥지",
+    "name": "이계 · 차원 용혈",
     "mode": "PUSH_LUCK",
     "baseWaveSeconds": 8,
     "maxFloors": 24,
@@ -1267,18 +1167,12 @@
     "drops": [
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 3500,
+        "weight": 6500,
         "minQty": 1,
         "maxQty": 2
       },
       {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 3000,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_enhance_scroll_mid",
+        "itemId": "item_mana_stone",
         "weight": 2000,
         "minQty": 1,
         "maxQty": 1
@@ -1339,15 +1233,9 @@
     "bossDrops": [
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 4500,
+        "weight": 9000,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 4500,
-        "minQty": 2,
-        "maxQty": 3
       },
       {
         "itemId": "item_greater_recovery_flask",
@@ -1399,7 +1287,7 @@
   },
   {
     "id": "dungeon_void_rift",
-    "name": "심연의 균열",
+    "name": "이계 · 공허 균열",
     "mode": "PUSH_LUCK",
     "baseWaveSeconds": 8,
     "maxFloors": 26,
@@ -1421,18 +1309,12 @@
     "drops": [
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 3000,
+        "weight": 5500,
         "minQty": 1,
         "maxQty": 2
       },
       {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 2500,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_enhance_scroll_mid",
+        "itemId": "item_mana_stone",
         "weight": 1500,
         "minQty": 1,
         "maxQty": 1
@@ -1523,7 +1405,7 @@
     "bossDrops": [
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 3000,
+        "weight": 5500,
         "minQty": 2,
         "maxQty": 4
       },
@@ -1532,12 +1414,6 @@
         "weight": 3000,
         "minQty": 1,
         "maxQty": 2
-      },
-      {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 2500,
-        "minQty": 2,
-        "maxQty": 3
       },
       {
         "itemId": "item_greater_recovery_flask",

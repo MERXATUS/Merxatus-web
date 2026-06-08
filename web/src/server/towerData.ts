@@ -5,19 +5,17 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { z } from "zod";
+import { applyCraftingDropsToTower } from "@/server/applyCraftingDrops";
 
 
 
 const DropSchema = z.object({
-
   itemId: z.string().min(1),
-
   weight: z.number().int().nonnegative(),
-
   minQty: z.number().int().positive(),
-
   maxQty: z.number().int().positive(),
-
+  minFloor: z.number().int().min(1).optional(),
+  maxFloor: z.number().int().min(1).optional(),
 });
 
 
@@ -84,13 +82,21 @@ function resolveDataDir() {
 
 
 
+let towerConfigCache: TowerDef | null = null;
+
+
+
 export async function loadTowerConfig() {
+
+  if (towerConfigCache) return towerConfigCache;
 
   const p = path.join(resolveDataDir(), "tower.json");
 
   const raw = JSON.parse(await readFile(p, "utf8")) as unknown;
 
-  return TowerSchema.parse(raw);
+  towerConfigCache = applyCraftingDropsToTower(TowerSchema.parse(raw));
+
+  return towerConfigCache;
 
 }
 

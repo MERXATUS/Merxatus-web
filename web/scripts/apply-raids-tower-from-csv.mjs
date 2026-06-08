@@ -66,6 +66,13 @@ async function readOptionalCsv(tplDir, file) {
   }
 }
 
+function normalizeRaidFaction(raw) {
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (v === "demon" || v === "abyss" || v === "악마" || v === "마계") return "demon";
+  if (v === "angel" || v === "celestial" || v === "천사" || v === "천계") return "angel";
+  return "void";
+}
+
 async function main() {
   const tplDir = path.join(process.cwd(), "data", "csv-templates");
   const dataDir = path.join(process.cwd(), "data");
@@ -116,6 +123,7 @@ async function main() {
       name: r.Name ?? r.name ?? id,
       maxPhases: Math.max(1, Math.min(12, Math.floor(parseNum(r.MaxPhases ?? r.maxPhases, encounters.length)))),
       maxPartySize: Math.max(1, Math.min(10, Math.floor(parseNum(r.MaxPartySize ?? r.maxPartySize, 3)))),
+      faction: normalizeRaidFaction(r.Faction ?? r.faction),
       encounters,
       drops,
       phaseDrops,
@@ -164,7 +172,7 @@ async function main() {
 
   const tower = {
     seasonKey: String(towerRow.SeasonKey ?? towerRow.seasonKey ?? "default").trim() || "default",
-    name: towerRow.Name ?? towerRow.name ?? "무한의 탑",
+    name: towerRow.Name ?? towerRow.name ?? "삼계의 탑",
     encounterCycleFloors: Math.max(
       1,
       Math.floor(parseNum(towerRow.EncounterCycleFloors ?? towerRow.encounterCycleFloors, encounters.length ? 80 : 10)),

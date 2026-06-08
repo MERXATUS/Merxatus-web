@@ -1,3 +1,5 @@
+import type { MeDashboardLight } from "@/shared/meDashboard";
+
 export type MeSummary = {
   ok: true;
   username?: string | null;
@@ -14,4 +16,10 @@ export type DungeonRunState = {
   active: boolean;
   dungeon?: { name: string };
   combat?: { partyPower: number; clearChance: number };
+};
+
+export type MeBootstrap = {
+  ok: true;
+  summary: MeSummary;
+  dashboard: MeDashboardLight;
 };

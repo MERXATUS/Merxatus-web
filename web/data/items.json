@@ -24,28 +24,12 @@
     "icon": "Icon_Greater_Mana_Stone"
   },
   {
-    "id": "item_enhance_scroll_low",
-    "name": "하급 강화 주문서",
+    "id": "item_enhance_scroll_protect",
+    "name": "강화 보호석",
     "category": "재료",
     "tradable": true,
-    "grade": 2,
-    "icon": "Icon_Enhance_Scroll_Low"
-  },
-  {
-    "id": "item_enhance_scroll_mid",
-    "name": "중급 강화 주문서",
-    "category": "재료",
-    "tradable": true,
-    "grade": 3,
-    "icon": "Icon_Enhance_Scroll_Mid"
-  },
-  {
-    "id": "item_enhance_scroll_high",
-    "name": "상급 강화 주문서",
-    "category": "재료",
-    "tradable": true,
-    "grade": 5,
-    "icon": "Icon_Enhance_Scroll_High"
+    "grade": 4,
+    "icon": "Icon_Appraisal_Scroll"
   },
   {
     "id": "item_lesser_recovery_potion",
@@ -88,6 +72,38 @@
     "icon": "Icon_Minion_Ticket"
   },
   {
+    "id": "item_appraisal_scroll",
+    "name": "감정 주문서",
+    "category": "재료",
+    "tradable": true,
+    "grade": 2,
+    "icon": "Icon_Appraisal_Scroll"
+  },
+  {
+    "id": "item_gem_destruction",
+    "name": "소멸의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 4,
+    "icon": "Icon_Mana_Stone"
+  },
+  {
+    "id": "item_gem_chaos",
+    "name": "혼돈의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Greater_Mana_Stone"
+  },
+  {
+    "id": "item_gem_seal",
+    "name": "봉인의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Greater_Mana_Stone"
+  },
+  {
     "id": "weapon_wood_sword",
     "name": "나무 검",
     "category": "무기",
@@ -116,7 +132,7 @@
     "name": "철 검",
     "category": "무기",
     "tradable": true,
-    "grade": 2,
+    "grade": 3,
     "icon": "Icon_Steel_Sword"
   },
   {
@@ -124,7 +140,15 @@
     "name": "금 검",
     "category": "무기",
     "tradable": true,
-    "grade": 3,
+    "grade": 4,
+    "icon": "Icon_Gold_Sword"
+  },
+  {
+    "id": "weapon_diamond_sword",
+    "name": "다이아 검",
+    "category": "무기",
+    "tradable": true,
+    "grade": 5,
     "icon": "Icon_Gold_Sword"
   },
   {
@@ -134,6 +158,14 @@
     "tradable": true,
     "grade": 1,
     "icon": "Icon_Leather_Helmet"
+  },
+  {
+    "id": "armor_chain_helmet",
+    "name": "사슬 투구",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 1,
+    "icon": "Icon_Iron_Helmet"
   },
   {
     "id": "armor_crimson_helmet",
@@ -156,7 +188,15 @@
     "name": "금 투구",
     "category": "방어구",
     "tradable": true,
-    "grade": 3,
+    "grade": 4,
+    "icon": "Icon_Golden_Helmet"
+  },
+  {
+    "id": "armor_diamond_helmet",
+    "name": "다이아 왕관",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 5,
     "icon": "Icon_Golden_Helmet"
   },
   {
@@ -166,6 +206,14 @@
     "tradable": true,
     "grade": 1,
     "icon": "Icon_Leather_Armor"
+  },
+  {
+    "id": "armor_chain_armor",
+    "name": "사슬 갑옷",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 1,
+    "icon": "Icon_Iron_Armor"
   },
   {
     "id": "armor_crimson_armor",
@@ -188,20 +236,36 @@
     "name": "금 갑옷",
     "category": "방어구",
     "tradable": true,
-    "grade": 3,
+    "grade": 4,
+    "icon": "Icon_Golden_Armor"
+  },
+  {
+    "id": "armor_diamond_armor",
+    "name": "다이아 흉갑",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 5,
     "icon": "Icon_Golden_Armor"
   },
   {
     "id": "armor_leather_pants",
-    "name": "가죽 바지",
+    "name": "가죽 각반",
     "category": "방어구",
     "tradable": true,
     "grade": 1,
     "icon": "Icon_Leather_Pants"
   },
   {
+    "id": "armor_chain_pants",
+    "name": "사슬 각반",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 1,
+    "icon": "Icon_Iron_Pants"
+  },
+  {
     "id": "armor_crimson_pants",
-    "name": "적빛 바지",
+    "name": "적빛 각반",
     "category": "방어구",
     "tradable": true,
     "grade": 2,
@@ -209,7 +273,7 @@
   },
   {
     "id": "armor_iron_pants",
-    "name": "철 바지",
+    "name": "철 각반",
     "category": "방어구",
     "tradable": true,
     "grade": 3,
@@ -217,23 +281,39 @@
   },
   {
     "id": "armor_golden_pants",
-    "name": "금 바지",
+    "name": "금 각반",
     "category": "방어구",
     "tradable": true,
-    "grade": 3,
+    "grade": 4,
+    "icon": "Icon_Golden_Pants"
+  },
+  {
+    "id": "armor_diamond_pants",
+    "name": "다이아 각갑",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 5,
     "icon": "Icon_Golden_Pants"
   },
   {
     "id": "armor_leather_boots",
-    "name": "가죽 신발",
+    "name": "가죽 장화",
     "category": "방어구",
     "tradable": true,
     "grade": 1,
     "icon": "Icon_Leather_Boots"
   },
   {
+    "id": "armor_chain_boots",
+    "name": "사슬 장화",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 1,
+    "icon": "Icon_Iron_Boots"
+  },
+  {
     "id": "armor_crimson_boots",
-    "name": "적빛 신발",
+    "name": "적빛 장화",
     "category": "방어구",
     "tradable": true,
     "grade": 2,
@@ -241,7 +321,7 @@
   },
   {
     "id": "armor_iron_boots",
-    "name": "철 신발",
+    "name": "철 장화",
     "category": "방어구",
     "tradable": true,
     "grade": 3,
@@ -249,10 +329,18 @@
   },
   {
     "id": "armor_golden_boots",
-    "name": "금 신발",
+    "name": "금 장화",
     "category": "방어구",
     "tradable": true,
-    "grade": 3,
+    "grade": 4,
+    "icon": "Icon_Golden_Boots"
+  },
+  {
+    "id": "armor_diamond_boots",
+    "name": "다이아 장화",
+    "category": "방어구",
+    "tradable": true,
+    "grade": 5,
     "icon": "Icon_Golden_Boots"
   }
 ]

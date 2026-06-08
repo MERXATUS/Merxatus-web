@@ -1,10 +1,15 @@
-import { cumulativeXpToLevel, MINION_LEVEL_RULES } from "@/shared/minionLevel";
+import { cumulativeXpToLevel, MINION_EARLY_FAST_LEVEL, MINION_LEVEL_RULES } from "@/shared/minionLevel";
+
+export type DungeonRealm = "마계" | "천계" | "이계";
 
 /** 던전 스테이지 1개 정의 — 스테이지 추가 시 배열에 항목만 추가 */
 export type DungeonStageDef = {
   stageOrder: number;
   dungeonIds: readonly string[];
+  /** 스테이지 선택 탭·짧은 표기 */
   name: string;
+  /** 삼계(천·마·이) 구분 */
+  realm: DungeonRealm;
   recommendedLevel: number;
   recommendedLevelMax: number;
   /**
@@ -25,52 +30,56 @@ export const DUNGEON_PLANNED_STAGE_SLOTS = 8;
 /**
  * 8스테이지 로드맵 — journeyWeight 합 = 1.0
  *
- * | # | 이름           | 권장 Lv    | weight | 층 XP (base+floor×per) |
- * |---|----------------|------------|--------|------------------------|
- * | 1 | 슬라임의 숲    | 1~25       | 0.08   | 7 + f×3                |
- * | 2 | 고블린 굴      | 20~45      | 0.10   | 9 + f×3                |
- * | 3 | 늑대들의 계곡  | 40~70      | 0.11   | 11 + f×4               |
- * | 4 | 망자의 무덤    | 65~95      | 0.12   | 13 + f×4               |
- * | 5 | 화염 협곡      | 90~120     | 0.13   | 15 + f×5               |
- * | 6 | 얼음 요새      | 115~145    | 0.14   | 17 + f×5               |
- * | 7 | 용의 둥지      | 140~170    | 0.15   | 19 + f×6               |
- * | 8 | 심연의 균열    | 165~200    | 0.17   | 22 + f×6               |
+ * | # | 영역 | 이름           | 권장 Lv    | weight |
+ * |---|------|----------------|------------|--------|
+ * | 1 | 마계 | 오염의 웅덩이  | 1~25       | 0.08   |
+ * | 2 | 마계 | 군번의 심굴    | 20~45      | 0.10   |
+ * | 3 | 마계 | 피의 사구      | 40~70      | 0.11   |
+ * | 4 | 천계 | 낙천자의 묘    | 65~95      | 0.12   |
+ * | 5 | 천계 | 심판의 화염    | 90~120     | 0.13   |
+ * | 6 | 천계 | 서릿빛 성벽    | 115~145    | 0.14   |
+ * | 7 | 이계 | 차원 용혈      | 140~170    | 0.15   |
+ * | 8 | 이계 | 공허 균열      | 165~200    | 0.17   |
  */
 export const ACTIVE_DUNGEON_STAGES: readonly DungeonStageDef[] = [
   {
     stageOrder: 1,
     dungeonIds: ["dungeon_slime_forest"],
-    name: "슬라임의 숲",
+    name: "오염의 웅덩이",
+    realm: "마계",
     recommendedLevel: 1,
     recommendedLevelMax: 25,
     journeyWeight: 0.08,
-    floorXpBase: 7,
-    floorXpPerFloor: 3,
+    floorXpBase: 18,
+    floorXpPerFloor: 8,
   },
   {
     stageOrder: 2,
     dungeonIds: ["dungeon_goblin_den"],
-    name: "고블린 굴",
+    name: "군번의 심굴",
+    realm: "마계",
     recommendedLevel: 20,
     recommendedLevelMax: 45,
     journeyWeight: 0.1,
-    floorXpBase: 9,
-    floorXpPerFloor: 3,
+    floorXpBase: 22,
+    floorXpPerFloor: 9,
   },
   {
     stageOrder: 3,
     dungeonIds: ["dungeon_wolf_ravine"],
-    name: "늑대들의 계곡",
+    name: "피의 사구",
+    realm: "마계",
     recommendedLevel: 40,
     recommendedLevelMax: 70,
     journeyWeight: 0.11,
-    floorXpBase: 11,
-    floorXpPerFloor: 4,
+    floorXpBase: 26,
+    floorXpPerFloor: 10,
   },
   {
     stageOrder: 4,
     dungeonIds: ["dungeon_crypt_of_dead"],
-    name: "망자의 무덤",
+    name: "낙천자의 묘",
+    realm: "천계",
     recommendedLevel: 65,
     recommendedLevelMax: 95,
     journeyWeight: 0.12,
@@ -80,7 +89,8 @@ export const ACTIVE_DUNGEON_STAGES: readonly DungeonStageDef[] = [
   {
     stageOrder: 5,
     dungeonIds: ["dungeon_scorch_rift"],
-    name: "화염 협곡",
+    name: "심판의 화염",
+    realm: "천계",
     recommendedLevel: 90,
     recommendedLevelMax: 120,
     journeyWeight: 0.13,
@@ -90,7 +100,8 @@ export const ACTIVE_DUNGEON_STAGES: readonly DungeonStageDef[] = [
   {
     stageOrder: 6,
     dungeonIds: ["dungeon_frost_citadel"],
-    name: "얼음 요새",
+    name: "서릿빛 성벽",
+    realm: "천계",
     recommendedLevel: 115,
     recommendedLevelMax: 145,
     journeyWeight: 0.14,
@@ -100,7 +111,8 @@ export const ACTIVE_DUNGEON_STAGES: readonly DungeonStageDef[] = [
   {
     stageOrder: 7,
     dungeonIds: ["dungeon_dragon_roost"],
-    name: "용의 둥지",
+    name: "차원 용혈",
+    realm: "이계",
     recommendedLevel: 140,
     recommendedLevelMax: 170,
     journeyWeight: 0.15,
@@ -110,7 +122,8 @@ export const ACTIVE_DUNGEON_STAGES: readonly DungeonStageDef[] = [
   {
     stageOrder: 8,
     dungeonIds: ["dungeon_void_rift"],
-    name: "심연의 균열",
+    name: "공허 균열",
+    realm: "이계",
     recommendedLevel: 165,
     recommendedLevelMax: 200,
     journeyWeight: 0.17,
@@ -124,6 +137,10 @@ for (const stage of ACTIVE_DUNGEON_STAGES) {
   for (const id of stage.dungeonIds) stageByDungeonId.set(id, stage);
 }
 
+export function dungeonDisplayNameForStage(stage: Pick<DungeonStageDef, "realm" | "name">): string {
+  return `${stage.realm} · ${stage.name}`;
+}
+
 export function getDungeonStage(dungeonId: string): DungeonStageDef | null {
   return stageByDungeonId.get(dungeonId) ?? null;
 }
@@ -134,12 +151,21 @@ export function assertDungeonStage(dungeonId: string): DungeonStageDef {
   return stage;
 }
 
+/** 스테이지 1~3 층 XP 추가 배율 (Lv70까지 30~60분 여정) */
+export const DUNGEON_EARLY_STAGE_XP_MULT = 1.35;
+
 /** 스테이지·층 클리어 XP */
 export function dungeonFloorXpForStage(dungeonId: string, floor: number): number {
   const stage = assertDungeonStage(dungeonId);
   const f = Math.max(1, Math.floor(floor));
-  return stage.floorXpBase + f * stage.floorXpPerFloor;
+  let xp = stage.floorXpBase + f * stage.floorXpPerFloor;
+  if (stage.stageOrder <= 3) {
+    xp = Math.floor(xp * DUNGEON_EARLY_STAGE_XP_MULT);
+  }
+  return xp;
 }
+
+export const DUNGEON_EARLY_LEVEL_TARGET = MINION_EARLY_FAST_LEVEL;
 
 /** PUSH_LUCK 올클리어 1회 XP */
 export function dungeonFullClearXpForStage(dungeonId: string, maxFloors: number): number {
@@ -163,6 +189,7 @@ export function dungeonStageJourneyXpPool(dungeonId: string): number {
 
 export type DungeonStageMeta = {
   stageOrder: number;
+  realm: DungeonRealm;
   recommendedLevel: number;
   recommendedLevelMax: number;
   recommendedLevelLabel: string;
@@ -182,6 +209,7 @@ export function dungeonStageMetaFor(dungeonId: string, maxFloors: number): Dunge
   if (!stage) return null;
   return {
     stageOrder: stage.stageOrder,
+    realm: stage.realm,
     recommendedLevel: stage.recommendedLevel,
     recommendedLevelMax: stage.recommendedLevelMax,
     recommendedLevelLabel: formatRecommendedLevelLabel(stage),
@@ -217,6 +245,8 @@ export function listDungeonStagePickerOptions() {
   return ACTIVE_DUNGEON_STAGES.map((stage) => ({
     stageOrder: stage.stageOrder,
     name: stage.name,
+    realm: stage.realm,
+    displayName: dungeonDisplayNameForStage(stage),
     recommendedLevelLabel: formatRecommendedLevelLabel(stage),
     dungeonIds: [...stage.dungeonIds],
     primaryDungeonId: primaryDungeonIdForStage(stage),
@@ -235,6 +265,8 @@ export function listDungeonStageOverview(maxFloorsByDungeonId: Record<string, nu
     return {
       stageOrder: stage.stageOrder,
       name: stage.name,
+      realm: stage.realm,
+      displayName: dungeonDisplayNameForStage(stage),
       dungeonId,
       recommendedLevelLabel: formatRecommendedLevelLabel(stage),
       journeyWeight: stage.journeyWeight,

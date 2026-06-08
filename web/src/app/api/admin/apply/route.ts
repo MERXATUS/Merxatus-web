@@ -5,7 +5,9 @@ import { readItemsJson, writeItemsJson } from "@/server/adminData";
 import { referenceGoldPerUnit } from "@/server/itemReferenceGold";
 import { loadMerxatusRoyalPriceRows } from "@/server/merxatusRoyalCsv";
 import { upsertRoyalPricesFromMerxatusRows } from "@/server/applyMerxatusRoyalPrices";
+import { royalPriceFromReference } from "@/server/royalPricing";
 import { invalidateItemDefCache } from "@/server/grantLootToUser";
+import { invalidateItemCatalogCache } from "@/server/itemCatalog";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -58,6 +60,10 @@ export async function POST(req: Request) {
         await tx.listing.deleteMany({ where: { itemId: { in: deleteItemIds } } });
         await tx.inventoryStack.deleteMany({ where: { itemId: { in: deleteItemIds } } });
         await tx.userItemEnhancement.deleteMany({ where: { itemId: { in: deleteItemIds } } });
+        await tx.royalPrice.updateMany({
+          where: { itemId: { in: deleteItemIds } },
+          data: { enabled: false },
+        });
         await tx.item.deleteMany({ where: { id: { in: deleteItemIds } } });
       }
 
@@ -82,22 +88,27 @@ export async function POST(req: Request) {
         await upsertRoyalPricesFromMerxatusRows(tx, merxRows);
       }
       const royalTargets = items.filter((it) => it.tradable && it.category === "재료");
+      const royalIdSet = new Set(royalTargets.map((it) => it.id));
       for (const it of royalTargets) {
         if (merxIds.has(it.id)) continue;
-        const grade = clampItemGrade(it.grade ?? defaultItemGradeForItemId(it.id));
-        if (grade > 2) continue;
         const ref = referenceGoldPerUnit(it.id);
-        const buyPricePerUnit = Math.max(1, Math.floor(ref * 1.15));
-        const sellPricePerUnit = Math.max(1, Math.floor(ref * 0.85));
+        const priced = royalPriceFromReference(ref, "standard");
         await tx.royalPrice.upsert({
           where: { itemId: it.id },
-          create: { itemId: it.id, buyPricePerUnit, sellPricePerUnit, enabled: true },
-          update: { buyPricePerUnit, sellPricePerUnit, enabled: true },
+          create: { itemId: it.id, ...priced, enabled: true },
+          update: { ...priced, enabled: true },
+        });
+      }
+      if (royalIdSet.size > 0) {
+        await tx.royalPrice.updateMany({
+          where: { itemId: { notIn: [...royalIdSet] } },
+          data: { enabled: false },
         });
       }
     });
 
     invalidateItemDefCache();
+    invalidateItemCatalogCache();
 
     return Response.json({
       ok: true,

@@ -17,7 +17,8 @@ import {
   validateFirstPromotion,
   validateSecondPromotion,
 } from "@/shared/minionPromotion";
-import { skillViewsForCombatClass } from "@/shared/minionSkills";
+import { applyPromotionSkillUnlock, skillStateFromMinionRow } from "@/server/minionSkills";
+import { serializeMinionSkillLevels, skillViewsForMinion } from "@/shared/minionSkills";
 
 export const runtime = "nodejs";
 
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
         throw new Error("PROMOTION_NOT_AVAILABLE");
       }
 
-      const updated = await tx.minion.update({
+      await tx.minion.update({
         where: { id: m.id },
         data: {
           promotionTier: nextTier,
@@ -76,6 +77,10 @@ export async function POST(req: Request) {
         } as Prisma.MinionUpdateInput,
       });
 
+      await applyPromotionSkillUnlock(tx, m.id, nextTier, nextClass);
+
+      const updated = await tx.minion.findUniqueOrThrow({ where: { id: m.id } });
+      const skillState = skillStateFromMinionRow(updated);
       const newPromotion = promotionStateFromRow(updated);
       const combatClass = resolveMinionCombatClass(newPromotion);
       const combatClassLabel = minionRoleLabel({ combatClass });
@@ -89,6 +94,8 @@ export async function POST(req: Request) {
         level,
         fighterRank,
         baseStats,
+        combatClass,
+        skillLevelsJson: serializeMinionSkillLevels(skillState.levels),
         weapon: m.equippedWeaponInstance
           ? {
               baseItemId: m.equippedWeaponInstance.baseItemId,
@@ -119,7 +126,11 @@ export async function POST(req: Request) {
         combatClassLabel,
         promotionLabel: minionCombatClassLabel(combatClass),
         ...promotionInfo,
-        skills: skillViewsForCombatClass(combatClass),
+        skills: skillViewsForMinion({
+          combatClass,
+          skillLevelsJson: serializeMinionSkillLevels(skillState.levels),
+        }),
+        unspentSkillPoints: skillState.unspentSkillPoints,
         level: levelProgress.level,
         experience: levelProgress.experience,
         xpToNext: levelProgress.xpToNext,

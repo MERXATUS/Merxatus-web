@@ -1,6 +1,11 @@
 import { normalizeItemIdLower } from "@/shared/itemId";
 
-export const ITEM_ICON_PUBLIC_DIR = "/Items";
+export const ITEM_ICON_PUBLIC_DIR = "/Icon";
+/** 예전 클라이언트·캐시 URL 호환 */
+export const ITEM_ICON_LEGACY_DIR = "/Items";
+
+/** items.json에 남아 있는 stem → public/Icon 실제 파일명 */
+const ICON_STEM_ALIASES: Record<string, string> = {};
 
 function normalizeIconStem(raw: string | null | undefined): string {
   return String(raw ?? "")
@@ -16,7 +21,7 @@ function pascalParts(segments: string[]): string {
   return segments.map((s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "")).join("_");
 }
 
-/** `item_gather_minion_ticket_low` → `Icon_Gather_Minion_Ticket_Low` (public/Items 실제 파일명) */
+/** `item_gather_minion_ticket_low` → `Icon_Gather_Minion_Ticket_Low` (public/Icon 실제 파일명) */
 export function inferIconStemFromItemId(itemId: unknown): string | null {
   const id = normalizeItemIdLower(itemId);
   if (!id) return null;
@@ -40,11 +45,41 @@ export function inferIconStemFromItemId(itemId: unknown): string | null {
   return null;
 }
 
-export function itemIconSrc(args: { itemId: unknown; icon?: string | null | undefined }): string {
-  const itemId = normalizeItemIdLower(args.itemId);
+export function resolveIconStem(raw: string | null | undefined): string {
   const stem =
+    normalizeIconStem(raw) ||
+    "";
+  return ICON_STEM_ALIASES[stem] ?? stem;
+}
+
+function iconStemForItem(args: { itemId: unknown; icon?: string | null | undefined }): string {
+  const itemId = normalizeItemIdLower(args.itemId);
+  const raw =
     normalizeIconStem(args.icon) ||
     inferIconStemFromItemId(itemId) ||
     normalizeIconStem(itemId);
-  return `${ITEM_ICON_PUBLIC_DIR}/${stem}.png`;
+  return resolveIconStem(raw);
+}
+
+export function itemIconSrc(args: { itemId: unknown; icon?: string | null | undefined }): string {
+  return `${ITEM_ICON_PUBLIC_DIR}/${iconStemForItem(args)}.png`;
+}
+
+/** API·캐시에 남은 `/Items/...` URL을 `/Icon/...`으로 교정 */
+export function normalizeItemIconSrc(src: string | null | undefined): string | null {
+  const trimmed = String(src ?? "").trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith(`${ITEM_ICON_LEGACY_DIR}/`)) {
+    return `${ITEM_ICON_PUBLIC_DIR}/${trimmed.slice(ITEM_ICON_LEGACY_DIR.length + 1)}`;
+  }
+  return trimmed;
+}
+
+/** img onError 시 순차 시도용 (신규 /Icon → 레거시 /Items) */
+export function itemIconSrcCandidates(args: {
+  itemId: unknown;
+  icon?: string | null | undefined;
+}): string[] {
+  const stem = iconStemForItem(args);
+  return [`${ITEM_ICON_PUBLIC_DIR}/${stem}.png`, `${ITEM_ICON_LEGACY_DIR}/${stem}.png`];
 }

@@ -42,6 +42,21 @@ export function prismaKnownErrorResponse(e: unknown): Response | null {
         { status: 503 },
       );
     }
+    if (
+      msg.includes("Transaction not found") ||
+      msg.includes("Transaction API error") ||
+      msg.includes("old closed transaction")
+    ) {
+      return Response.json(
+        {
+          ok: false,
+          error: "DB_TRANSACTION_FAILED",
+          message: "전투 처리 중 DB 오류가 발생했습니다.",
+          hint: "잠시 후 다시 시도해 주세요. 반복되면 새로고침 후 재시도하세요.",
+        },
+        { status: 503 },
+      );
+    }
     if (msg.includes("prepared statement") || msg.includes("42P05")) {
       return Response.json(
         {

@@ -20,6 +20,33 @@ function StatRow(props: { line: MinionCombatBreakdown["hp"]; showRange?: false }
   );
 }
 
+function SkillContributionBlock(props: { stats: MinionCombatBreakdown }) {
+  const skill = props.stats.skillBreakdown;
+  if (!skill) return null;
+
+  return (
+    <div className="minion-stat-panel__skills">
+      <div className="minion-stat-panel__skills-title">스킬 기여</div>
+      <ul className="minion-stat-panel__skills-list">
+        {skill.entries.map((entry) => (
+          <li key={entry.id} className="minion-stat-panel__skills-item">
+            <span className="minion-stat-panel__skills-name">
+              {entry.name} Lv{entry.level}
+            </span>
+            <span className="minion-stat-panel__skills-effect">{entry.effectSummary}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="minion-stat-panel__skills-total">
+        {skill.power > 0 ? `전투력 +${fmt(skill.power)}` : null}
+        {skill.hp > 0 ? `${skill.power > 0 ? " · " : ""}HP +${fmt(skill.hp)}` : null}
+        {skill.def > 0 ? ` · DEF +${fmt(skill.def)}` : null}
+        {skill.damagePct > 0 ? ` · 피해 +${skill.damagePct}%` : null}
+      </div>
+    </div>
+  );
+}
+
 export function MinionStatPanel(props: { stats: MinionCombatBreakdown; compact?: boolean; minimal?: boolean }) {
   const { stats, compact, minimal } = props;
 
@@ -36,6 +63,11 @@ export function MinionStatPanel(props: { stats: MinionCombatBreakdown; compact?:
           HP {fmt(stats.hp.total)} · DEF {fmt(stats.def.total)} · ATK {fmt(stats.atk.min)}
           {stats.atk.max > stats.atk.min ? `~${fmt(stats.atk.max)}` : ""}
         </span>
+        {stats.skillBreakdown ? (
+          <span className="minion-stat-panel__minimal-skill" title="스킬 피해 보너스">
+            스킬 피해 +{stats.skillBreakdown.damagePct}%
+          </span>
+        ) : null}
       </div>
     );
   }
@@ -45,6 +77,9 @@ export function MinionStatPanel(props: { stats: MinionCombatBreakdown; compact?:
       <div className="minion-stat-panel__hero">
         <span className="minion-stat-panel__hero-label">총 전투력</span>
         <span className="minion-stat-panel__hero-value">{fmt(stats.combatPower)}</span>
+        {stats.skillBreakdown && stats.skillBreakdown.power > 0 ? (
+          <span className="minion-stat-panel__hero-skill">스킬 +{fmt(stats.skillBreakdown.power)}</span>
+        ) : null}
       </div>
 
       <div className="minion-stat-panel__attrs" aria-label="기본 스탯">
@@ -81,6 +116,8 @@ export function MinionStatPanel(props: { stats: MinionCombatBreakdown; compact?:
           </tr>
         </tbody>
       </table>
+
+      <SkillContributionBlock stats={stats} />
 
       {stats.armorPieces.length > 0 ? (
         <div className="minion-stat-panel__armor">

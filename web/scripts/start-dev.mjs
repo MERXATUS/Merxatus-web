@@ -53,10 +53,10 @@ if (!existsSync(nextBin)) {
 
 console.log("[dev] starting Next.js on http://localhost:3000…");
 
-const child = spawn(process.execPath, [nextBin, "dev"], {
+const child = spawn(process.execPath, [nextBin, "dev", "--webpack"], {
   cwd: webRoot,
   stdio: "inherit",
-  env: { ...process.env, NEXT_DISABLE_TURBOPACK: "1" },
+  env: process.env,
 });
 
 child.on("error", (err) => {

@@ -3,83 +3,34 @@ import { buildMinionCombatBreakdown } from "@/server/minionCombatBuild";
 import { weaponCombatBonusFromOptions } from "@/server/itemOptions";
 import { loadCatalogItemIdSet, isCatalogItemId } from "@/server/catalogItems";
 import { referenceGoldPerUnit } from "@/server/itemReferenceGold";
-import { armorIdsFromRow, loadMinionArmorIdsForUser } from "@/server/minionArmorDb";
+import {
+  armorIdsFromRow,
+  buildArmorLoadoutFromIds,
+  loadArmorInstanceMapForUser,
+} from "@/server/minionArmorDb";
+import { armorEquippedView } from "@/server/minionListBuild";
 import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
 import { minionRoleLabel } from "@/server/minionJobs";
 import { promotionStateFromRow, resolveMinionCombatClass } from "@/shared/minionPromotion";
-import {
-  armorSlotsFromMinionRow,
-  computeMinionCombatPower,
-} from "@/shared/minionCombatStats";
-import { getArmorStats } from "@/shared/armorStatsData";
+import { skillViewsForMinion } from "@/shared/minionSkills";
+import { itemGradeViewForItem } from "@/server/itemGrade";
+import { loadKnightOrderBonuses } from "@/server/knightOrder";
+import { knightOrderToView } from "@/server/knightOrderView";
 import {
   feeBpsForSeller,
   sellerAuctionPendingSettlementWhere,
 } from "@/server/market";
+import { buildLeaderboardHighlights } from "@/server/leaderboardHighlights";
 import type {
-  MeDashboard,
-  MeDashboardGoldDay,
-  MeDashboardGoldTrend,
+  MeDashboardLight,
   MeDashboardPendingSale,
-  MeDashboardStrongestMinion,
+  MeDashboardRepresentativeMinion,
 } from "@/shared/meDashboard";
 
-const WEEKDAY_KO = ["일", "월", "화", "수", "목", "금", "토"] as const;
-
-function startOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function dayKey(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
-function buildDayRange(count: number, now = new Date()): Date[] {
-  const today = startOfDay(now);
-  const days: Date[] = [];
-  for (let i = count - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    days.push(d);
-  }
-  return days;
-}
-
-function labelForDay(d: Date, mode: "week" | "month") {
-  if (mode === "week") return WEEKDAY_KO[d.getDay()] ?? "";
-  return String(d.getDate());
-}
-
-function aggregateGoldTrend(
-  days: Date[],
-  mode: "week" | "month",
-  txs: Array<{ buyerId: string; sellerId: string; grossGold: number; netGold: number; createdAt: Date }>,
-  userId: string,
-): { points: MeDashboardGoldDay[]; netTotal: number } {
-  const netByDay = new Map<string, number>();
-  for (const d of days) netByDay.set(dayKey(d), 0);
-
-  for (const t of txs) {
-    const key = dayKey(t.createdAt);
-    if (!netByDay.has(key)) continue;
-    const prev = netByDay.get(key) ?? 0;
-    if (t.sellerId === userId) netByDay.set(key, prev + t.netGold);
-    else if (t.buyerId === userId) netByDay.set(key, prev - t.grossGold);
-  }
-
-  const points = days.map((d) => {
-    const key = dayKey(d);
-    return {
-      date: key,
-      label: labelForDay(d, mode),
-      netGold: netByDay.get(key) ?? 0,
-    };
-  });
-  const netTotal = points.reduce((a, d) => a + d.netGold, 0);
-  return { points, netTotal };
-}
+const minionInclude = {
+  traits: true,
+  equippedWeaponInstance: { include: { baseItem: true } },
+} as const;
 
 function weaponEstimatedGold(baseItemId: string, enhanceLevel: number) {
   const base = referenceGoldPerUnit(baseItemId);
@@ -87,31 +38,65 @@ function weaponEstimatedGold(baseItemId: string, enhanceLevel: number) {
   return Math.round(base * (1 + lv * 0.12));
 }
 
-function armorPiece(itemId: string | null | undefined) {
-  if (!itemId) return null;
-  const stats = getArmorStats(itemId);
+type MinionRow = Awaited<
+  ReturnType<typeof prisma.minion.findFirst<{ include: typeof minionInclude }>>
+>;
+
+function buildRepresentativeMinionView(
+  m: NonNullable<MinionRow>,
+  armorInstById: Awaited<ReturnType<typeof loadArmorInstanceMapForUser>>,
+): MeDashboardRepresentativeMinion {
+  const fighterRank = (m.traits ?? []).find((tr) => tr.type === "FIGHTER")?.rank ?? 0;
+  const armorIds = armorIdsFromRow(m);
+  const combatClass = resolveMinionCombatClass(promotionStateFromRow(m));
+  const combatStats = buildMinionCombatBreakdown({
+    level: m.level ?? 1,
+    fighterRank,
+    baseStats: minionBaseStatsFromRow(m),
+    combatClass,
+    skillLevelsJson: m.skillLevelsJson,
+    weapon: m.equippedWeaponInstance
+      ? {
+          baseItemId: m.equippedWeaponInstance.baseItemId,
+          enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
+          optionsJson: m.equippedWeaponInstance.optionsJson,
+        }
+      : null,
+    armor: buildArmorLoadoutFromIds(armorIds, armorInstById),
+  });
   return {
-    itemId,
-    name: stats?.name ?? itemId,
-    grade: stats?.grade ?? 1,
+    id: m.id,
+    combatClassLabel: minionRoleLabel({ combatClass }),
+    level: m.level ?? 1,
+    unspentSkillPoints: Math.max(0, Math.floor(m.unspentSkillPoints ?? 0)),
+    skills: skillViewsForMinion({ combatClass, skillLevelsJson: m.skillLevelsJson }),
+    equippedWeapon: m.equippedWeaponInstance?.baseItem
+      ? {
+          baseItemId: m.equippedWeaponInstance.baseItemId,
+          name: m.equippedWeaponInstance.baseItem.name,
+          enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
+            ...itemGradeViewForItem(
+              m.equippedWeaponInstance.baseItemId,
+              m.equippedWeaponInstance.baseItem.grade,
+            ),
+        }
+      : null,
+    equippedArmor: armorEquippedView(armorIds, armorInstById),
+    combatStats,
+    traits: (m.traits ?? []).map((t) => ({ type: t.type, rank: t.rank })),
   };
 }
 
-export async function buildMeDashboard(userId: string): Promise<MeDashboard> {
-  const weekDays = buildDayRange(7);
-  const monthDays = buildDayRange(30);
-  const monthStart = monthDays[0]!;
-
+export async function buildMeDashboardLight(userId: string): Promise<MeDashboardLight> {
   const catalogIds = await loadCatalogItemIdSet();
-
   const [
     wallet,
     stacks,
     weaponInstances,
-    monthTxs,
     pendingListingsRaw,
-    minions,
-    armorByMinionId,
+    knightOrderRaw,
+    userRow,
+    skillAgg,
   ] = await Promise.all([
     prisma.wallet.findUnique({ where: { userId } }),
     prisma.inventoryStack.findMany({
@@ -122,20 +107,6 @@ export async function buildMeDashboard(userId: string): Promise<MeDashboard> {
       where: { userId, status: "OWNED" },
       select: { baseItemId: true, enhanceLevel: true },
     }),
-    prisma.transaction.findMany({
-      where: {
-        createdAt: { gte: monthStart },
-        OR: [{ buyerId: userId }, { sellerId: userId }],
-      },
-      select: {
-        buyerId: true,
-        sellerId: true,
-        grossGold: true,
-        netGold: true,
-        createdAt: true,
-      },
-      take: 2000,
-    }),
     prisma.listing.findMany({
       where: sellerAuctionPendingSettlementWhere(userId),
       orderBy: [{ endsAt: "asc" }, { createdAt: "asc" }],
@@ -145,16 +116,32 @@ export async function buildMeDashboard(userId: string): Promise<MeDashboard> {
         weaponInstance: { include: { baseItem: true } },
       },
     }),
-    prisma.minion.findMany({
-      where: { userId },
-      include: {
-        traits: true,
-        equippedWeaponInstance: { include: { baseItem: true } },
-      },
-      take: 200,
+    loadKnightOrderBonuses(prisma, userId),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { representativeMinionId: true },
     }),
-    loadMinionArmorIdsForUser(prisma, userId),
+    prisma.minion.aggregate({
+      where: { userId },
+      _sum: { unspentSkillPoints: true },
+    }),
   ]);
+
+  const knightOrder = knightOrderToView(knightOrderRaw);
+  const repId = userRow?.representativeMinionId ?? null;
+
+  let representativeMinion: MeDashboardRepresentativeMinion | null = null;
+  if (repId) {
+    const m = await prisma.minion.findFirst({
+      where: { id: repId, userId },
+      include: minionInclude,
+    });
+    if (m) {
+      const armorByMinionId = new Map([[m.id, armorIdsFromRow(m)]]);
+      const armorInstById = await loadArmorInstanceMapForUser(prisma, userId, armorByMinionId);
+      representativeMinion = buildRepresentativeMinionView(m, armorInstById);
+    }
+  }
 
   const catalogStacks = stacks.filter((s) => isCatalogItemId(s.itemId, catalogIds));
   const catalogWeapons = weaponInstances.filter((w) => isCatalogItemId(w.baseItemId, catalogIds));
@@ -172,15 +159,6 @@ export async function buildMeDashboard(userId: string): Promise<MeDashboard> {
   const goldAvailable = wallet?.goldAvailable ?? 0;
   const goldLocked = wallet?.goldLocked ?? 0;
   const totalEstimatedGold = goldAvailable + goldLocked + inventoryEstimatedGold + weaponsEstimatedGold;
-
-  const weekAgg = aggregateGoldTrend(weekDays, "week", monthTxs, userId);
-  const monthAgg = aggregateGoldTrend(monthDays, "month", monthTxs, userId);
-  const goldTrend: MeDashboardGoldTrend = {
-    week: weekAgg.points,
-    weekNetGold: weekAgg.netTotal,
-    month: monthAgg.points,
-    monthNetGold: monthAgg.netTotal,
-  };
 
   const pendingSales: MeDashboardPendingSale[] = await (async () => {
     if (pendingListingsRaw.length === 0) return [];
@@ -203,73 +181,8 @@ export async function buildMeDashboard(userId: string): Promise<MeDashboard> {
     });
   })();
 
-  let strongestMinion: MeDashboardStrongestMinion | null = null;
-  let topPower = -1;
-  let strongestRow: (typeof minions)[number] | null = null;
-
-  for (const m of minions) {
-    const fighterRank = (m.traits ?? []).find((tr) => tr.type === "FIGHTER")?.rank ?? 0;
-    const armorIds = armorIdsFromRow(armorByMinionId.get(m.id));
-    const power = computeMinionCombatPower({
-      level: m.level ?? 1,
-      fighterRank,
-      baseStats: minionBaseStatsFromRow(m),
-      weapon: m.equippedWeaponInstance
-        ? {
-            baseItemId: m.equippedWeaponInstance.baseItemId,
-            enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
-            optionBonus: weaponCombatBonusFromOptions(m.equippedWeaponInstance.optionsJson),
-          }
-        : null,
-      armor: armorSlotsFromMinionRow(armorIds),
-    });
-    if (power <= topPower) continue;
-    topPower = power;
-    strongestRow = m;
-  }
-
-  if (strongestRow) {
-    const m = strongestRow;
-    const fighterRank = (m.traits ?? []).find((tr) => tr.type === "FIGHTER")?.rank ?? 0;
-    const armorIds = armorIdsFromRow(armorByMinionId.get(m.id));
-    const combatStats = buildMinionCombatBreakdown({
-      level: m.level ?? 1,
-      fighterRank,
-      baseStats: minionBaseStatsFromRow(m),
-      weapon: m.equippedWeaponInstance
-        ? {
-            baseItemId: m.equippedWeaponInstance.baseItemId,
-            enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
-            optionsJson: m.equippedWeaponInstance.optionsJson,
-          }
-        : null,
-      armor: armorSlotsFromMinionRow(armorIds),
-    });
-    const combatClassLabel = minionRoleLabel({
-      combatClass: resolveMinionCombatClass(promotionStateFromRow(m)),
-    });
-    strongestMinion = {
-      id: m.id,
-      combatClassLabel,
-      level: m.level ?? 1,
-      equippedWeapon: m.equippedWeaponInstance?.baseItem
-        ? {
-            baseItemId: m.equippedWeaponInstance.baseItemId,
-            name: m.equippedWeaponInstance.baseItem.name,
-            enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
-            grade: m.equippedWeaponInstance.baseItem.grade,
-          }
-        : null,
-      equippedArmor: {
-        helmet: armorPiece(armorIds.equippedHelmetItemId),
-        armor: armorPiece(armorIds.equippedChestItemId),
-        pants: armorPiece(armorIds.equippedPantsItemId),
-        shoes: armorPiece(armorIds.equippedBootsItemId),
-      },
-      combatStats,
-      traits: (m.traits ?? []).map((t) => ({ type: t.type, rank: t.rank })),
-    };
-  }
+  const totalUnspentSkillPoints = Math.max(0, Math.floor(skillAgg._sum.unspentSkillPoints ?? 0));
+  const leaderboardHighlights = await buildLeaderboardHighlights(userId);
 
   return {
     ok: true,
@@ -283,8 +196,15 @@ export async function buildMeDashboard(userId: string): Promise<MeDashboard> {
       inventoryTotalQty: catalogStacks.reduce((a, s) => a + s.quantity, 0),
       weaponCount: weaponInstances.length,
     },
-    goldTrend,
     pendingSales,
-    strongestMinion,
+    representativeMinion,
+    totalUnspentSkillPoints,
+    knightOrder,
+    leaderboardHighlights,
   };
+}
+
+/** @deprecated light와 동일 — full/trends 제거 */
+export async function buildMeDashboard(userId: string): Promise<MeDashboardLight> {
+  return buildMeDashboardLight(userId);
 }

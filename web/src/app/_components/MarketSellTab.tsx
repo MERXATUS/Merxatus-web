@@ -8,7 +8,8 @@ import { itemIconSrc } from "@/shared/itemIcon";
 import { useEscapeClose } from "@/shared/useEscapeClose";
 import { formatPanelError } from "@/shared/formatPanelError";
 import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
-import { apiGetJson, apiPostJson } from "@/shared/sessionClient";
+import { API_CACHE_TTL } from "@/shared/apiCache";
+import { apiGetJson, apiGetJsonCached, apiPostJson } from "@/shared/sessionClient";
 
 export type SellInventoryRow = {
   itemId: string;
@@ -48,8 +49,23 @@ type MarketStatsSuggest = {
   };
 };
 
-async function getJson<T>(url: string): Promise<T> {
-  return apiGetJson<T>(url);
+async function loadSellMeState() {
+  const [inv, weapons] = await Promise.all([
+    apiGetJsonCached<MeState>("/api/me/state?scope=inventory", { ttlMs: API_CACHE_TTL.meStateInventory }),
+    apiGetJsonCached<{ ok: true; weaponInstances?: SellWeaponRow[]; market?: MeState["market"] }>(
+      "/api/me/state?scope=weapons",
+      { ttlMs: API_CACHE_TTL.meStateWeapons },
+    ),
+  ]);
+  const marketR = await apiGetJsonCached<MeState>("/api/me/state?scope=market", {
+    ttlMs: API_CACHE_TTL.meStateMarket,
+  });
+  return {
+    ok: true as const,
+    inventory: inv.inventory,
+    weaponInstances: weapons.weaponInstances,
+    market: marketR.market,
+  };
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -111,7 +127,7 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
     setLoadBusy(true);
     onError(null);
     try {
-      const r = await getJson<MeState>("/api/me/state");
+      const r = await loadSellMeState();
       const inv = r.inventory ?? [];
       const w = r.weaponInstances ?? [];
       setInventory(inv);
@@ -152,7 +168,7 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
   async function fetchSuggested(itemId: string) {
     setSuggestBusy(true);
     try {
-      const r = await getJson<MarketStatsSuggest>(`/api/market/stats?itemId=${encodeURIComponent(itemId)}&take=30`);
+      const r = await apiGetJson<MarketStatsSuggest>(`/api/market/stats?itemId=${encodeURIComponent(itemId)}&take=30`);
       const avg = typeof r?.summary?.avgUnitPrice === "number" ? r.summary.avgUnitPrice : null;
       const last = typeof r?.summary?.lastUnitPrice === "number" ? r.summary.lastUnitPrice : null;
       const ref = typeof r?.summary?.referenceGoldPerUnit === "number" ? r.summary.referenceGoldPerUnit : null;

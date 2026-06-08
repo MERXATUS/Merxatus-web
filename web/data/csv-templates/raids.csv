@@ -1,10 +1,44 @@
-Id,Name,MaxPhases,MaxPartySize
-Raid_Boss_Slime_King,슬라임킹,1,3
-Raid_Boss_Goblin_Chieftain,고블린 우두머리,1,3
-Raid_Boss_Wolf_Alpha,늑대 왕,1,3
-Raid_Boss_Skeleton_Lord,망자의 군주,1,3
-Raid_Boss_Flame_Tyrant,화염 폭군,1,3
-Raid_Boss_Frost_Titan,서리 거인,1,3
-Raid_Boss_Elder_Dragon,고룡,1,3
-Raid_Boss_Void_Harbinger,심연 사자,1,3
-Raid_Boss_Void_Overlord,공허 거상,1,3
+Id,Name,MaxPhases,MaxPartySize,Faction
+Raid_Monster_Slime,악마 마염혈,1,3,Demon
+Raid_Monster_Goblin,악마 군번,1,3,Demon
+Raid_Monster_Wolf,악마 마수,1,3,Demon
+Raid_Boss_Slime_King,악마 마염 군주,1,3,Demon
+Raid_Boss_Goblin_Chieftain,악마 군번장,1,3,Demon
+Raid_Boss_Wolf_Alpha,악마 마수왕,1,3,Demon
+Raid_Boss_Demon_Barbatos,악마 바르바토스,1,3,Demon
+Raid_Boss_Demon_Lerajie,악마 레라지에,1,3,Demon
+Raid_Boss_Demon_Eligos,악마 엘리고스,1,3,Demon
+Raid_Boss_Demon_Naberius,악마 나베리우스,1,3,Demon
+Raid_Boss_Demon_Glasya,악마 글라샤,1,3,Demon
+Raid_Boss_Demon_Bune,악마 부네,1,3,Demon
+Raid_Boss_Demon_Ronove,악마 론베,1,3,Demon
+Raid_Boss_Demon_Baal,악마 바알,1,3,Demon
+Raid_Boss_Demon_Agares,악마 아가레스,1,3,Demon
+Raid_Boss_Demon_Paimon,악마 파이몬,1,3,Demon
+Raid_Boss_Demon_Astaroth,악마 아스타로트,1,3,Demon
+Raid_Boss_Demon_Asmodeus,악마 아스모데우스,1,3,Demon
+Raid_Boss_Demon_Belial,악마 벨리알,1,3,Demon
+Raid_Boss_Demon_Vassago,악마 바사고,1,3,Demon
+Raid_Monster_Skeleton,천사 유골병,1,3,Angel
+Raid_Monster_Fire_Salamander,천사 화염령,1,3,Angel
+Raid_Monster_Ice_Wisp,천사 서리령,1,3,Angel
+Raid_Boss_Skeleton_Lord,천사 낙천 장군,1,3,Angel
+Raid_Boss_Flame_Tyrant,천사 심판 폭군,1,3,Angel
+Raid_Boss_Frost_Titan,천사 서릿빛 거신,1,3,Angel
+Raid_Boss_Angel_Cassiel,천사 카시엘,1,3,Angel
+Raid_Boss_Angel_Sachiel,천사 사키엘,1,3,Angel
+Raid_Boss_Angel_Anael,천사 아나엘,1,3,Angel
+Raid_Boss_Angel_Raphael,천사 라파엘,1,3,Angel
+Raid_Boss_Angel_Gabriel,천사 가브리엘,1,3,Angel
+Raid_Boss_Angel_Michael,천사 미카엘,1,3,Angel
+Raid_Boss_Angel_Uriel,천사 우리엘,1,3,Angel
+Raid_Boss_Angel_Metatron,천사 메타트론,1,3,Angel
+Raid_Boss_Angel_Raziel,천사 라지엘,1,3,Angel
+Raid_Boss_Angel_Zadkiel,천사 자드키엘,1,3,Angel
+Raid_Boss_Angel_Camael,천사 카마엘,1,3,Angel
+Raid_Boss_Angel_Haniel,천사 하니엘,1,3,Angel
+Raid_Boss_Angel_Zophiel,천사 조피엘,1,3,Angel
+Raid_Boss_Angel_Raguel,천사 라구엘,1,3,Angel
+Raid_Boss_Elder_Dragon,차원 고룡,1,3,Void
+Raid_Boss_Void_Harbinger,이계 사자,1,3,Void
+Raid_Boss_Void_Overlord,공허 군주,1,3,Void

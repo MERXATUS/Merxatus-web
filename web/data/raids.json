@@ -1,9 +1,85 @@
 [
   {
-    "id": "raid_boss_slime_king",
-    "name": "슬라임킹",
+    "id": "raid_monster_slime",
+    "name": "악마 마염혈",
     "maxPhases": 1,
     "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "slime",
+        "category": "Monster",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_lesser_mana_stone",
+        "weight": 10000,
+        "minQty": 1,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_monster_goblin",
+    "name": "악마 군번",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "goblin",
+        "category": "Monster",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_lesser_mana_stone",
+        "weight": 7000,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_mana_stone",
+        "weight": 3000,
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_monster_wolf",
+    "name": "악마 마수",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "wolf",
+        "category": "Monster",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 10000,
+        "minQty": 1,
+        "maxQty": 2
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_slime_king",
+    "name": "악마 마염 군주",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
     "encounters": [
       {
         "monsterId": "slime_king",
@@ -19,7 +95,7 @@
         "maxQty": 2
       },
       {
-        "itemId": "item_enhance_scroll_low",
+        "itemId": "item_lesser_mana_stone",
         "weight": 3000,
         "minQty": 1,
         "maxQty": 2
@@ -29,12 +105,105 @@
   },
   {
     "id": "raid_boss_goblin_chieftain",
-    "name": "고블린 우두머리",
+    "name": "악마 군번장",
     "maxPhases": 1,
     "maxPartySize": 3,
+    "faction": "demon",
     "encounters": [
       {
         "monsterId": "goblin_chieftain",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_wolf_alpha",
+    "name": "악마 마수왕",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "wolf_alpha",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_barbatos",
+    "name": "악마 바르바토스",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_barbatos",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_lerajie",
+    "name": "악마 레라지에",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_lerajie",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 4
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_eligos",
+    "name": "악마 엘리고스",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_eligos",
         "category": "Boss",
         "phase": 1
       }
@@ -47,7 +216,36 @@
         "maxQty": 3
       },
       {
-        "itemId": "item_enhance_scroll_mid",
+        "itemId": "item_greater_mana_stone",
+        "weight": 3500,
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_naberius",
+    "name": "악마 나베리우스",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_naberius",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 6500,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "item_greater_mana_stone",
         "weight": 3500,
         "minQty": 1,
         "maxQty": 2
@@ -56,27 +254,201 @@
     "phaseDrops": []
   },
   {
-    "id": "raid_boss_wolf_alpha",
-    "name": "늑대 왕",
+    "id": "raid_boss_demon_glasya",
+    "name": "악마 글라샤",
     "maxPhases": 1,
     "maxPartySize": 3,
+    "faction": "demon",
     "encounters": [
       {
-        "monsterId": "wolf_alpha",
+        "monsterId": "demon_glasya",
         "category": "Boss",
         "phase": 1
       }
     ],
     "drops": [
       {
-        "itemId": "item_mana_stone",
-        "weight": 5500,
-        "minQty": 2,
-        "maxQty": 3
+        "itemId": "item_greater_mana_stone",
+        "weight": 7000,
+        "minQty": 1,
+        "maxQty": 2
       },
       {
-        "itemId": "item_enhance_scroll_mid",
-        "weight": 4500,
+        "itemId": "item_mana_stone",
+        "weight": 3000,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_bune",
+    "name": "악마 부네",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_bune",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_ronove",
+    "name": "악마 론베",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_ronove",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 4
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_baal",
+    "name": "악마 바알",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_baal",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 4
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_agares",
+    "name": "악마 아가레스",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_agares",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 10000,
+        "minQty": 3,
+        "maxQty": 4
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_paimon",
+    "name": "악마 파이몬",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_paimon",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 10000,
+        "minQty": 3,
+        "maxQty": 5
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_astaroth",
+    "name": "악마 아스타로트",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_astaroth",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 8500,
+        "minQty": 3,
+        "maxQty": 5
+      },
+      {
+        "itemId": "item_raid_shard",
+        "weight": 1500,
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_asmodeus",
+    "name": "악마 아스모데우스",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_asmodeus",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 7500,
+        "minQty": 3,
+        "maxQty": 5
+      },
+      {
+        "itemId": "item_raid_shard",
+        "weight": 2500,
         "minQty": 1,
         "maxQty": 2
       }
@@ -84,10 +456,144 @@
     "phaseDrops": []
   },
   {
-    "id": "raid_boss_skeleton_lord",
-    "name": "망자의 군주",
+    "id": "raid_boss_demon_belial",
+    "name": "악마 벨리알",
     "maxPhases": 1,
     "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_belial",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 6500,
+        "minQty": 3,
+        "maxQty": 5
+      },
+      {
+        "itemId": "item_raid_shard",
+        "weight": 3500,
+        "minQty": 1,
+        "maxQty": 2
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_demon_vassago",
+    "name": "악마 바사고",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "demon",
+    "encounters": [
+      {
+        "monsterId": "demon_vassago",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_raid_shard",
+        "weight": 4500,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 5500,
+        "minQty": 3,
+        "maxQty": 5
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_monster_skeleton",
+    "name": "천사 유골병",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "skeleton",
+        "category": "Monster",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_lesser_mana_stone",
+        "weight": 5000,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_mana_stone",
+        "weight": 5000,
+        "minQty": 1,
+        "maxQty": 2
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_monster_fire_salamander",
+    "name": "천사 화염령",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "fire_salamander",
+        "category": "Monster",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 10000,
+        "minQty": 1,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_monster_ice_wisp",
+    "name": "천사 서리령",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "ice_wisp",
+        "category": "Monster",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_skeleton_lord",
+    "name": "천사 낙천 장군",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
     "encounters": [
       {
         "monsterId": "skeleton_lord",
@@ -103,7 +609,7 @@
         "maxQty": 2
       },
       {
-        "itemId": "item_enhance_scroll_mid",
+        "itemId": "item_mana_stone",
         "weight": 3500,
         "minQty": 2,
         "maxQty": 3
@@ -113,9 +619,10 @@
   },
   {
     "id": "raid_boss_flame_tyrant",
-    "name": "화염 폭군",
+    "name": "천사 심판 폭군",
     "maxPhases": 1,
     "maxPartySize": 3,
+    "faction": "angel",
     "encounters": [
       {
         "monsterId": "flame_tyrant",
@@ -126,24 +633,19 @@
     "drops": [
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 5500,
+        "weight": 10000,
         "minQty": 2,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 4500,
-        "minQty": 1,
-        "maxQty": 2
       }
     ],
     "phaseDrops": []
   },
   {
     "id": "raid_boss_frost_titan",
-    "name": "서리 거인",
+    "name": "천사 서릿빛 거신",
     "maxPhases": 1,
     "maxPartySize": 3,
+    "faction": "angel",
     "encounters": [
       {
         "monsterId": "frost_titan",
@@ -154,13 +656,111 @@
     "drops": [
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 5500,
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_cassiel",
+    "name": "천사 카시엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_cassiel",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_sachiel",
+    "name": "천사 사키엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_sachiel",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 4
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_anael",
+    "name": "천사 아나엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_anael",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 6500,
         "minQty": 2,
         "maxQty": 3
       },
       {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 4500,
+        "itemId": "item_greater_mana_stone",
+        "weight": 3500,
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_raphael",
+    "name": "천사 라파엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_raphael",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 6500,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 3500,
         "minQty": 1,
         "maxQty": 2
       }
@@ -168,10 +768,277 @@
     "phaseDrops": []
   },
   {
-    "id": "raid_boss_elder_dragon",
-    "name": "고룡",
+    "id": "raid_boss_angel_gabriel",
+    "name": "천사 가브리엘",
     "maxPhases": 1,
     "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_gabriel",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 7000,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_mana_stone",
+        "weight": 3000,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_michael",
+    "name": "천사 미카엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_michael",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 3
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_uriel",
+    "name": "천사 우리엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_uriel",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 10000,
+        "minQty": 2,
+        "maxQty": 4
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_metatron",
+    "name": "천사 메타트론",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_metatron",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 10000,
+        "minQty": 3,
+        "maxQty": 4
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_raziel",
+    "name": "천사 라지엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_raziel",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 10000,
+        "minQty": 3,
+        "maxQty": 5
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_zadkiel",
+    "name": "천사 자드키엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_zadkiel",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 8500,
+        "minQty": 3,
+        "maxQty": 5
+      },
+      {
+        "itemId": "item_raid_shard",
+        "weight": 1500,
+        "minQty": 1,
+        "maxQty": 1
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_camael",
+    "name": "천사 카마엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_camael",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 7500,
+        "minQty": 3,
+        "maxQty": 5
+      },
+      {
+        "itemId": "item_raid_shard",
+        "weight": 2500,
+        "minQty": 1,
+        "maxQty": 2
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_haniel",
+    "name": "천사 하니엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_haniel",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 6500,
+        "minQty": 3,
+        "maxQty": 5
+      },
+      {
+        "itemId": "item_raid_shard",
+        "weight": 3500,
+        "minQty": 1,
+        "maxQty": 2
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_zophiel",
+    "name": "천사 조피엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_zophiel",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_raid_shard",
+        "weight": 4500,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 5500,
+        "minQty": 3,
+        "maxQty": 5
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_angel_raguel",
+    "name": "천사 라구엘",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "angel",
+    "encounters": [
+      {
+        "monsterId": "angel_raguel",
+        "category": "Boss",
+        "phase": 1
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_raid_shard",
+        "weight": 5500,
+        "minQty": 2,
+        "maxQty": 4
+      },
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 4500,
+        "minQty": 3,
+        "maxQty": 5
+      }
+    ],
+    "phaseDrops": []
+  },
+  {
+    "id": "raid_boss_elder_dragon",
+    "name": "차원 고룡",
+    "maxPhases": 1,
+    "maxPartySize": 3,
+    "faction": "void",
     "encounters": [
       {
         "monsterId": "elder_dragon",
@@ -182,24 +1049,19 @@
     "drops": [
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 5000,
+        "weight": 10000,
         "minQty": 3,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 5000,
-        "minQty": 2,
-        "maxQty": 3
       }
     ],
     "phaseDrops": []
   },
   {
     "id": "raid_boss_void_harbinger",
-    "name": "심연 사자",
+    "name": "이계 사자",
     "maxPhases": 1,
     "maxPartySize": 3,
+    "faction": "void",
     "encounters": [
       {
         "monsterId": "void_harbinger",
@@ -210,7 +1072,7 @@
     "drops": [
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 4500,
+        "weight": 6500,
         "minQty": 3,
         "maxQty": 5
       },
@@ -219,21 +1081,16 @@
         "weight": 3500,
         "minQty": 1,
         "maxQty": 2
-      },
-      {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       }
     ],
     "phaseDrops": []
   },
   {
     "id": "raid_boss_void_overlord",
-    "name": "공허 거상",
+    "name": "공허 군주",
     "maxPhases": 1,
     "maxPartySize": 3,
+    "faction": "void",
     "encounters": [
       {
         "monsterId": "void_overlord",
@@ -250,15 +1107,9 @@
       },
       {
         "itemId": "item_greater_mana_stone",
-        "weight": 6000,
+        "weight": 10000,
         "minQty": 3,
         "maxQty": 5
-      },
-      {
-        "itemId": "item_enhance_scroll_high",
-        "weight": 4000,
-        "minQty": 2,
-        "maxQty": 4
       }
     ],
     "phaseDrops": []

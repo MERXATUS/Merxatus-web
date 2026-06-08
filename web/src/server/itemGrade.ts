@@ -1,8 +1,12 @@
+import { getArmorStats } from "@/shared/armorStatsData";
+import { normalizeItemId } from "@/shared/itemId";
+import { getWeaponStats } from "@/shared/weaponStatsData";
+
 /**
  * 아이템 등급(1~8) 표기.
  * - **재료(수집 드랍)**: `workshops.json`의 `minTier`와 등급을 맞춤 — minTier 1→일반 … 5→전설.
  *   최종 희귀 드랍 일부만 신화·고대로 상향(에테르늄·최상 마정석·탐어·인어 등).
- * - 무기·도구·기타는 별도 밸런스 매핑.
+ * - 무기·방어구: `weapon_stats.json` / `armor_stats.json` 우선 (DB `Item.grade`와 어긋날 수 있음).
  */
 /** 무기 강화 상한(+N): 일반5 … 초월30 — `shared/weaponEnhanceLimits.ts` */
 export const ITEM_GRADE_LABELS = [
@@ -26,6 +30,24 @@ export function clampItemGrade(g: number): ItemGradeIndex {
 
 export function itemGradeLabel(grade: number): string {
   return ITEM_GRADE_LABELS[clampItemGrade(grade) - 1] ?? ITEM_GRADE_LABELS[0];
+}
+
+/** UI·강화 상한용 — 장비는 stats JSON, 그 외는 DB → fallback 매핑 */
+export function resolveDisplayItemGrade(itemId: string, dbGrade?: number | null): ItemGradeIndex {
+  const id = normalizeItemId(itemId);
+  if (id) {
+    const weapon = getWeaponStats(id);
+    if (weapon) return clampItemGrade(weapon.grade);
+    const armor = getArmorStats(id);
+    if (armor) return clampItemGrade(armor.grade);
+  }
+  if (dbGrade != null && Number.isFinite(dbGrade)) return clampItemGrade(dbGrade);
+  return defaultItemGradeForItemId(itemId);
+}
+
+export function itemGradeViewForItem(itemId: string, dbGrade?: number | null) {
+  const grade = resolveDisplayItemGrade(itemId, dbGrade);
+  return { grade, gradeLabel: itemGradeLabel(grade) };
 }
 
 const G = {
@@ -115,7 +137,38 @@ const ITEM_GRADE_BY_ID: Record<string, number> = {
   item_ether_staff: G.신화,
 
   item_accessory: G.레어,
-  item_enhance_scroll: G.유니크,
+
+  weapon_wood_sword: G.일반,
+  weapon_stone_sword: G.일반,
+  weapon_red_gold_sword: G.레어,
+  weapon_steel_sword: G.유니크,
+  weapon_gold_sword: G.영웅,
+  weapon_diamond_sword: G.전설,
+
+  armor_leather_helmet: G.일반,
+  armor_leather_armor: G.일반,
+  armor_leather_pants: G.일반,
+  armor_leather_boots: G.일반,
+  armor_chain_helmet: G.일반,
+  armor_chain_armor: G.일반,
+  armor_chain_pants: G.일반,
+  armor_chain_boots: G.일반,
+  armor_crimson_helmet: G.레어,
+  armor_crimson_armor: G.레어,
+  armor_crimson_pants: G.레어,
+  armor_crimson_boots: G.레어,
+  armor_iron_helmet: G.유니크,
+  armor_iron_armor: G.유니크,
+  armor_iron_pants: G.유니크,
+  armor_iron_boots: G.유니크,
+  armor_golden_helmet: G.영웅,
+  armor_golden_armor: G.영웅,
+  armor_golden_pants: G.영웅,
+  armor_golden_boots: G.영웅,
+  armor_diamond_helmet: G.전설,
+  armor_diamond_armor: G.전설,
+  armor_diamond_pants: G.전설,
+  armor_diamond_boots: G.전설,
 };
 
 export function defaultItemGradeForItemId(itemId: string): ItemGradeIndex {
@@ -123,26 +176,12 @@ export function defaultItemGradeForItemId(itemId: string): ItemGradeIndex {
   return clampItemGrade(typeof g === "number" ? g : 1);
 }
 
-/** 아이템 이름 표시용 Tailwind 클래스 (등급별 색상) */
+/** 아이템 이름 표시용 등급 색 — `globals.css` `.item-grade-name--N` (툴팁과 동일 팔레트) */
 export function itemGradeNameClassName(grade: number): string {
-  switch (clampItemGrade(grade)) {
-    case 1:
-      return "text-zinc-500";
-    case 2:
-      return "text-blue-600";
-    case 3:
-      return "text-purple-600";
-    case 4:
-      return "text-orange-500";
-    case 5:
-      return "text-red-600";
-    case 6:
-      return "font-semibold text-fuchsia-400 [text-shadow:0_0_12px_rgba(232,121,249,0.9),0_0_24px_rgba(168,85,247,0.5)]";
-    case 7:
-      return "font-semibold text-amber-800 [text-shadow:0_0_3px_rgba(180,83,9,0.5),0_0_8px_rgba(234,179,8,0.25)]";
-    case 8:
-      return "inline-block max-w-full rounded px-1 py-px font-semibold bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-950 text-white [box-shadow:0_0_12px_rgba(255,255,255,0.75),0_0_24px_rgba(226,232,240,0.45)]";
-    default:
-      return "text-zinc-900";
-  }
+  return `item-grade-name item-grade-name--${clampItemGrade(grade)}`;
+}
+
+/** 카드·슬롯 테두리/배경 — `globals.css` `.item-grade-frame--N` */
+export function itemGradeFrameClassName(grade: number): string {
+  return `item-grade-frame item-grade-frame--${clampItemGrade(grade)}`;
 }

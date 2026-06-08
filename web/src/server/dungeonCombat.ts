@@ -24,6 +24,8 @@ export function computePartyPower(input: {
     weaponOptionBonus?: number | null;
     /** 방어구 HP/DEF 기반 전투력 환산 합 */
     armorPowerBonus?: number | null;
+    /** 스킬 전투력 보너스 */
+    skillPowerBonus?: number | null;
     level?: number | null;
     fighterRank?: number | null;
     strength?: number | null;
@@ -53,6 +55,8 @@ export function computePartyPower(input: {
     }
     const ap = Math.max(0, Math.floor(m.armorPowerBonus ?? 0));
     power += ap;
+    const sp = Math.max(0, Math.floor(m.skillPowerBonus ?? 0));
+    power += sp;
     const stats = minionBaseStatsFromRow({
       strength: m.strength ?? undefined,
       agility: m.agility ?? undefined,

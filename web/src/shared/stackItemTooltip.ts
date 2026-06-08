@@ -4,6 +4,7 @@ import {
   isMinionRecruitItemId,
 } from "@/shared/minionRecruit";
 import { getArmorStats, isArmorInventoryItem, armorSlotLabelKo } from "@/shared/armorStatsData";
+import { isOptionConsumableItemId } from "@/shared/optionConsumables";
 
 export type StackItemTooltipData = {
   itemId: string;
@@ -33,6 +34,7 @@ export function shouldShowStackItemTooltip(it: StackItemTooltipData): boolean {
   if (it.category === "물약") return true;
   if (isArmorInventoryItem(it)) return true;
   if (isMinionRecruitCategory(it.category) || isMinionRecruitItemId(it.itemId)) return true;
+  if (isOptionConsumableItemId(it.itemId)) return true;
   return false;
 }
 
@@ -46,6 +48,7 @@ export function stackItemTooltipSubtitle(it: StackItemTooltipData): string {
   if (isMinionRecruitItemId(it.itemId) || isMinionRecruitCategory(it.category)) {
     return `미니언 고용권 · ${stackItemGradeLabel(it)}`;
   }
+  if (isOptionConsumableItemId(it.itemId)) return `장비 옵션 · ${stackItemGradeLabel(it)}`;
   return `${it.category} · ${stackItemGradeLabel(it)}`;
 }
 
@@ -72,6 +75,26 @@ export function stackItemTooltipBodyLines(it: StackItemTooltipData): string[] {
   if (isMinionRecruitItemId(it.itemId) || isMinionRecruitCategory(it.category)) {
     lines.push("미니언 후보 중 1명을 선택해 고용합니다. (고용권 1개 소모)");
     lines.push("사용 시 수집·전투 중 한 종류의 후보 직업이 무작위로 제시됩니다.");
+    return lines;
+  }
+
+  if (it.itemId === "item_appraisal_scroll") {
+    lines.push("미감정 무기·방어구의 옵션을 확인합니다.");
+    lines.push("인벤토리 무기/방어구 탭에서 대상을 선택한 뒤 사용하세요.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_destruction") {
+    lines.push("감정된 장비의 옵션 중 봉인되지 않은 1개를 무작위로 제거합니다.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_chaos") {
+    lines.push("감정된 장비의 모든 옵션 종류를 변경합니다. 티어(T)는 유지됩니다.");
+    lines.push("봉인된 옵션은 변경되지 않습니다.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_seal") {
+    lines.push("감정된 장비의 옵션 중 1개를 봉인합니다. (장비당 최대 1개)");
+    lines.push("봉인된 옵션은 소멸·혼돈의 영향을 받지 않습니다.");
     return lines;
   }
 

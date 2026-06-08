@@ -21,19 +21,29 @@ import {
 } from "@/shared/minionEquipSlots";
 import type { MinionCombatBreakdown } from "@/shared/minionCombatStats";
 import { armorSlotsFromMinionRow, computeMinionCombatBreakdown } from "@/shared/minionCombatStats";
-import type { MinionEquipmentView } from "@/shared/minionEquipSlots";
+import { buildMinionEquipmentViewWithTooltips } from "@/shared/minionEquipmentView";
 import { slotToBagCategory, type EquipBagCategory } from "@/shared/minionEquipBag";
 import { canMinionEquipWeaponForClass } from "@/shared/minionWeaponRules";
+import { canMinionEquipItemByLevel, minEquipLevelForItem } from "@/shared/itemEquipLevel";
+import { useGameFrameOptional } from "@/app/_components/GameFrameContext";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import { MinionStatPanel } from "@/app/_components/MinionStatPanel";
 import { MinionStatAllocatePanel } from "@/app/_components/MinionStatAllocatePanel";
+import { MinionCreateFlow } from "@/app/_components/MinionCreateFlow";
+import { KnightOrderPanel } from "@/app/_components/KnightOrderPanel";
+import {
+  MINION_ALT_CREATE_LEVEL,
+  type MinionCreateEligibility,
+} from "@/shared/minionCreate";
 import { MinionSkillsPanel } from "@/app/_components/MinionSkillsPanel";
+import type { KnightOrderView } from "@/shared/meDashboard";
 import type { MinionBaseStats, MinionStatKey } from "@/shared/minionBaseStats";
 import type { MinionCombatClass } from "@/shared/minionDerivedClass";
 import type { MinionSkillView } from "@/shared/minionSkills";
+import { serializeMinionSkillLevels } from "@/shared/minionSkills";
 
 import { useEscapeClose } from "@/shared/useEscapeClose";
 
@@ -61,6 +71,7 @@ type MinionRow = {
   xpToNext: number;
   xpProgress: number;
   unspentStatPoints: number;
+  unspentSkillPoints?: number;
   isMaxLevel: boolean;
   baseStats: MinionBaseStats;
   jobType: string;
@@ -95,6 +106,15 @@ type MinionRow = {
   traits: MinionTraitRow[];
 };
 
+function skillLevelsJsonFromViews(skills: MinionSkillView[] | undefined) {
+  if (!skills?.length) return null;
+  const levels: Record<string, number> = {};
+  for (const s of skills) {
+    if (s.level > 0) levels[s.id] = s.level;
+  }
+  return serializeMinionSkillLevels(levels);
+}
+
 function combatBreakdownFromMinionRow(m: MinionRow | null): MinionCombatBreakdown | null {
   if (!m) return null;
   const fighterRank = m.traits.find((t) => t.type === "FIGHTER")?.rank ?? 0;
@@ -102,6 +122,8 @@ function combatBreakdownFromMinionRow(m: MinionRow | null): MinionCombatBreakdow
     level: m.level,
     fighterRank,
     baseStats: m.baseStats,
+    combatClass: m.combatClass,
+    skillLevelsJson: skillLevelsJsonFromViews(m.skills),
     weapon: m.equippedWeapon
       ? {
           baseItemId: m.equippedWeapon.baseItemId,
@@ -116,33 +138,6 @@ function combatBreakdownFromMinionRow(m: MinionRow | null): MinionCombatBreakdow
       equippedBootsItemId: m.equippedBootsItemId,
     }),
   });
-}
-
-function buildEquipmentView(m: MinionRow | null): MinionEquipmentView {
-  if (!m) return {};
-  const view: MinionEquipmentView = {};
-  if (m.equippedWeapon) {
-    view.weapon = {
-      baseItemId: m.equippedWeapon.baseItemId,
-      name: m.equippedWeapon.name,
-      enhanceLevel: m.equippedWeapon.enhanceLevel,
-      grade: m.equippedWeapon.grade,
-    };
-  }
-  const armor = m.equippedArmor;
-  if (armor?.helmet) {
-    view.helmet = { baseItemId: armor.helmet.itemId, name: armor.helmet.name, enhanceLevel: 0, grade: armor.helmet.grade };
-  }
-  if (armor?.armor) {
-    view.armor = { baseItemId: armor.armor.itemId, name: armor.armor.name, enhanceLevel: 0, grade: armor.armor.grade };
-  }
-  if (armor?.pants) {
-    view.pants = { baseItemId: armor.pants.itemId, name: armor.pants.name, enhanceLevel: 0, grade: armor.pants.grade };
-  }
-  if (armor?.shoes) {
-    view.shoes = { baseItemId: armor.shoes.itemId, name: armor.shoes.name, enhanceLevel: 0, grade: armor.shoes.grade };
-  }
-  return view;
 }
 
 function armorInstanceIdForSlot(m: MinionRow, slotId: MinionEquipSlotId): string | null {
@@ -169,13 +164,27 @@ function armorItemIdForSlot(m: MinionRow, slotId: MinionEquipSlotId): string | n
   return null;
 }
 
+type EquipOptionRow = {
+  kind: string;
+  optionId?: string;
+  label: string;
+  tier: number;
+  tierLabel: string;
+  displayValue: number;
+  hidden?: boolean;
+  locked?: boolean;
+};
+
 type WeaponInstanceRow = {
   id: string;
   baseItemId: string;
   name: string;
   enhanceLevel: number;
-  createdAt: string;
+  createdAt?: string;
   grade?: number;
+  gradeLabel?: string;
+  identified?: boolean;
+  options?: EquipOptionRow[];
   icon?: string | null;
   iconSrc?: string;
 };
@@ -184,8 +193,12 @@ type ArmorInstanceRow = {
   id: string;
   baseItemId: string;
   name: string;
-  createdAt: string;
+  enhanceLevel?: number;
+  createdAt?: string;
   grade?: number;
+  gradeLabel?: string;
+  identified?: boolean;
+  options?: EquipOptionRow[];
   icon?: string | null;
   iconSrc?: string;
 };
@@ -195,6 +208,7 @@ type StackRow = {
   name: string;
   quantity: number;
   grade?: number;
+  gradeLabel?: string;
   category?: string;
   icon?: string | null;
   iconSrc?: string;
@@ -236,6 +250,17 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
   const [activeSlot, setActiveSlot] = useState<MinionEquipSlotId>("weapon");
   const [notice, setNotice] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [knightOrder, setKnightOrder] = useState<KnightOrderView | null>(null);
+  const [representativeMinionId, setRepresentativeMinionId] = useState<string | null>(null);
+  const [minionCreate, setMinionCreate] = useState<MinionCreateEligibility>({
+    canCreate: false,
+    minionCount: 0,
+    maxOwned: 10,
+    highestLevel: 0,
+    requiredLevel: MINION_ALT_CREATE_LEVEL,
+    isFirstSlot: true,
+  });
+  const frame = useGameFrameOptional();
 
   const equipMode = equipModeMinionId != null;
 
@@ -250,8 +275,14 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
         weaponInstances?: WeaponInstanceRow[];
         armorInstances?: ArmorInstanceRow[];
         inventory?: Array<StackRow & { category?: string }>;
+        knightOrder?: KnightOrderView;
+        representativeMinionId?: string | null;
+        minionCreate?: MinionCreateEligibility;
       }>(`/api/minions/panel`);
       if (r?.ok) {
+        if (r.minionCreate) setMinionCreate(r.minionCreate);
+        setRepresentativeMinionId(r.representativeMinionId ?? null);
+        setKnightOrder(r.knightOrder ?? null);
         setMinions(r.minions ?? []);
         setMaxDungeonOwned(r.maxDungeonOwned ?? 10);
         setWeaponInstances(r.weaponInstances ?? []);
@@ -349,10 +380,25 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
     return blocked;
   }, [minions, equipMinion]);
 
-  const equipmentView = useMemo(
-    () => buildEquipmentView(equipMode ? equipMinion : selected),
-    [equipMinion, selected, equipMode],
-  );
+  const equipmentView = useMemo(() => {
+    const m = equipMode ? equipMinion : selected;
+    if (!m) return {};
+    return buildMinionEquipmentViewWithTooltips(
+      {
+        equippedWeapon: m.equippedWeapon
+          ? {
+              id: m.equippedWeapon.id,
+              baseItemId: m.equippedWeapon.baseItemId,
+              name: m.equippedWeapon.name,
+              enhanceLevel: m.equippedWeapon.enhanceLevel,
+              grade: m.equippedWeapon.grade,
+            }
+          : null,
+        equippedArmor: m.equippedArmor,
+      },
+      { weaponInstances, armorInstances },
+    );
+  }, [equipMinion, selected, equipMode, weaponInstances, armorInstances]);
 
   const detailCombatStats = useMemo(
     () => combatBreakdownFromMinionRow(equipMode ? equipMinion : selected),
@@ -400,6 +446,21 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
     try {
       await postJson("/api/minions/weapon/equip", { minionId, weaponInstanceId });
       await refresh();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function setRepresentativeMinion(minionId: string) {
+    setBusy("representative");
+    setError(null);
+    try {
+      await apiPostJson("/api/minions/representative", { minionId });
+      setRepresentativeMinionId(minionId);
+      setNotice("홈 화면 대표 미니언으로 지정했어요.");
+      await frame?.refreshSummary({ force: true });
     } catch (err) {
       setError(err);
     } finally {
@@ -456,6 +517,22 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
     }
   }
 
+  async function allocateSkillsForMinion(minionId: string, skills: Record<string, number>) {
+    setBusy("allocate-skills");
+    setError(null);
+    try {
+      const r = await postJson<{ ok: boolean }>("/api/minions/skills/allocate", { minionId, skills });
+      if (r?.ok) {
+        await refresh();
+        setNotice("스킬을 배분했어요.");
+      }
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function openEquipMode(minionId: string) {
     setEquipModeMinionId(minionId);
     setSelectedId(minionId);
@@ -476,6 +553,13 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
     const payload = parseEquipDragPayload(raw);
     if (!payload) return;
 
+    const rejectIfLevelTooLow = (baseItemId: string) => {
+      if (canMinionEquipItemByLevel(equipMinion.level, baseItemId)) return false;
+      const required = minEquipLevelForItem(baseItemId);
+      setNotice(`착용하려면 Lv${required} 이상이 필요합니다. (현재 Lv${equipMinion.level})`);
+      return true;
+    };
+
     if (slotId === "weapon") {
       if (payload.kind === "weapon") {
         const combatClass = (equipMinion.combatClass ?? "ADVENTURER") as MinionCombatClass;
@@ -483,6 +567,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
           setNotice("현재 직업은 해당 무기를 착용할 수 없습니다.");
           return;
         }
+        if (rejectIfLevelTooLow(payload.baseItemId)) return;
         await equipWeaponForMinion(equipMinion.id, payload.weaponInstanceId);
         return;
       }
@@ -495,6 +580,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
         setNotice(`${slotLabel(slotId)} 착용 기능은 곧 추가됩니다.`);
         return;
       }
+      if (rejectIfLevelTooLow(payload.baseItemId)) return;
       await equipArmorForMinion(equipMinion.id, slotId, { armorInstanceId: payload.armorInstanceId });
       return;
     }
@@ -504,6 +590,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
         setNotice(`${slotLabel(slotId)} 착용 기능은 곧 추가됩니다.`);
         return;
       }
+      if (rejectIfLevelTooLow(payload.itemId)) return;
       await equipArmorForMinion(equipMinion.id, slotId, { itemId: payload.itemId });
       return;
     }
@@ -528,7 +615,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
               <p className="mt-1 text-xs text-[var(--game-muted)]">
                 {equipMode
                   ? `${detailMinion ? minionDisplayLabel(detailMinion) : ""} — 슬롯 선택 후 왼쪽에서 장비를 고르세요`
-                  : "등급·직업은 고용 시 확정 · 장비는 슬롯에서 착용"}
+                  : `캐릭터 생성 · 부캐는 Lv${MINION_ALT_CREATE_LEVEL} 이상 후 · 장비는 슬롯에서 착용`}
               </p>
             </div>
             <GameBtn variant="ghost" disabled={!!busy} onClick={() => void refresh()}>
@@ -552,6 +639,23 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
         <GamePanelLoading label="미니언 정보를 불러오는 중…" />
       ) : !user ? null : (
         <>
+      {!equipMode ? (
+        <MinionCreateFlow
+          eligibility={minionCreate}
+          busyId={busy}
+          setBusy={setBusy}
+          onError={setError}
+          onNotice={setNotice}
+          onCreated={async () => {
+            await refresh();
+            void frame?.refreshSummary({ force: true });
+          }}
+          compact={embedded}
+        />
+      ) : null}
+      {!equipMode && knightOrder ? (
+        <KnightOrderPanel knightOrder={knightOrder} compact className="minion-shell__knight" />
+      ) : null}
       <div className={`minion-layout ${equipMode ? "minion-layout--equip" : ""} ${embedded ? "minion-layout--fit" : ""}`}>
         <aside
           className={equipMode ? "minion-equip-bag-aside" : "minion-roster"}
@@ -565,6 +669,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
               armorInstances={armorInstances}
               inventory={inventoryStacks}
               minionCombatClass={equipMinion.combatClass ?? "ADVENTURER"}
+              minionLevel={equipMinion.level}
               equippedWeaponInstanceId={equipMinion.equippedWeaponInstanceId}
               equippedStackItemId={stackItemIdForSlot(equipMinion, activeSlot)}
               equippedArmorInstanceId={armorInstanceIdForSlot(equipMinion, activeSlot)}
@@ -606,6 +711,9 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
                         {m.unspentStatPoints > 0 ? (
                           <span className="minion-roster-card__stat-badge">{m.unspentStatPoints}P</span>
                         ) : null}
+                        {(m.unspentSkillPoints ?? 0) > 0 ? (
+                          <span className="minion-roster-card__skill-badge">스{m.unspentSkillPoints}</span>
+                        ) : null}
                       </div>
                     </>
                   ) : (
@@ -614,9 +722,14 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
                     <span className="minion-roster-card__name text-sm font-semibold text-[var(--game-text)]">
                       {minionDisplayLabel(m)}
                     </span>
-                    {m.unspentStatPoints > 0 ? (
-                      <span className="minion-roster-card__stat-badge">{m.unspentStatPoints}P</span>
-                    ) : null}
+                    <span className="flex shrink-0 items-center gap-1">
+                      {m.unspentStatPoints > 0 ? (
+                        <span className="minion-roster-card__stat-badge">{m.unspentStatPoints}P</span>
+                      ) : null}
+                      {(m.unspentSkillPoints ?? 0) > 0 ? (
+                        <span className="minion-roster-card__skill-badge">스{m.unspentSkillPoints}</span>
+                      ) : null}
+                    </span>
                   </div>
                       <div className="mt-1 flex items-center gap-2 text-[11px] text-[var(--game-muted)]">
                         {(m.combatPower ?? m.combatStats?.combatPower) != null ? (
@@ -692,9 +805,19 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
                       <MinionStatPanel stats={detailCombatStats} minimal />
                     ) : null}
                   </div>
-                  <GameBtn className="minion-detail-head__equip-btn" onClick={() => openEquipMode(selected!.id)} disabled={!!busy}>
-                    장비
-                  </GameBtn>
+                  <div className="flex flex-col gap-1">
+                    <GameBtn className="minion-detail-head__equip-btn" onClick={() => openEquipMode(selected!.id)} disabled={!!busy}>
+                      장비
+                    </GameBtn>
+                    <GameBtn
+                      variant="ghost"
+                      className="minion-detail-head__equip-btn text-[10px]"
+                      disabled={!!busy || representativeMinionId === selected!.id}
+                      onClick={() => void setRepresentativeMinion(selected!.id)}
+                    >
+                      {representativeMinionId === selected!.id ? "홈 대표" : "대표 지정"}
+                    </GameBtn>
+                  </div>
                 </div>
 
                 {selected!.baseStats ? (
@@ -719,7 +842,18 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
                 ) : null}
 
                 {selected!.skills && selected!.skills.length > 0 ? (
-                  <MinionSkillsPanel skills={selected!.skills} compact />
+                  <MinionSkillsPanel
+                    minionId={selected!.id}
+                    skills={selected!.skills}
+                    unspentSkillPoints={selected!.unspentSkillPoints ?? 0}
+                    compact={(selected!.unspentSkillPoints ?? 0) <= 0}
+                    busy={busy === "allocate-skills"}
+                    onApply={
+                      (selected!.unspentSkillPoints ?? 0) > 0
+                        ? (skills) => allocateSkillsForMinion(selected!.id, skills)
+                        : undefined
+                    }
+                  />
                 ) : null}
               </div>
             ) : (
@@ -763,7 +897,18 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
                 ) : null}
 
                 {selected!.skills && selected!.skills.length > 0 ? (
-                  <MinionSkillsPanel skills={selected!.skills} compact={embedded} />
+                  <MinionSkillsPanel
+                    minionId={selected!.id}
+                    skills={selected!.skills}
+                    unspentSkillPoints={selected!.unspentSkillPoints ?? 0}
+                    compact={embedded && (selected!.unspentSkillPoints ?? 0) <= 0}
+                    busy={busy === "allocate-skills"}
+                    onApply={
+                      (selected!.unspentSkillPoints ?? 0) > 0
+                        ? (skills) => allocateSkillsForMinion(selected!.id, skills)
+                        : undefined
+                    }
+                  />
                 ) : null}
 
                 {detailCombatStats ? (
@@ -789,6 +934,13 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
                 <div className="flex flex-wrap gap-2 pt-1">
                   <GameBtn onClick={() => openEquipMode(selected!.id)} disabled={!!busy}>
                     장비 착용
+                  </GameBtn>
+                  <GameBtn
+                    variant="ghost"
+                    disabled={!!busy || representativeMinionId === selected!.id}
+                    onClick={() => void setRepresentativeMinion(selected!.id)}
+                  >
+                    {representativeMinionId === selected!.id ? "홈 대표 미니언" : "홈 대표로 지정"}
                   </GameBtn>
                 </div>
 

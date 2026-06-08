@@ -7,6 +7,8 @@ import {
   stackItemTooltipSubtitle,
   type StackItemTooltipData,
 } from "@/shared/stackItemTooltip";
+import { isArmorInventoryItem } from "@/shared/armorStatsData";
+import { minEquipLevelForItem } from "@/shared/itemEquipLevel";
 import type { ReactNode } from "react";
 
 function fmtQty(n: number) {
@@ -16,11 +18,19 @@ function fmtQty(n: number) {
 export function StackItemTooltipContent({ item }: { item: StackItemTooltipData }) {
   const grade = stackItemGradeIndex(item);
   const bodyLines = stackItemTooltipBodyLines(item);
+  const equipLevel =
+    isArmorInventoryItem(item) ? minEquipLevelForItem(item.itemId, item.grade) : 1;
 
   return (
     <div className={`item-tooltip item-tooltip--grade-${grade}`}>
       <div className="item-tooltip__name">{item.name}</div>
       <div className="item-tooltip__category">{stackItemTooltipSubtitle(item)}</div>
+      {equipLevel > 1 ? (
+        <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
+          <span>착용 레벨</span>
+          <span>Lv {equipLevel}+</span>
+        </div>
+      ) : null}
 
       <div className="item-tooltip__divider" />
 

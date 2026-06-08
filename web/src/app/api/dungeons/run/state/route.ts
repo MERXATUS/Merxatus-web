@@ -22,8 +22,13 @@ export async function GET(req: Request) {
     return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
   try {
+    await prisma.dungeonRun.updateMany({
+      where: { userId: auth.userId, status: "RUNNING", autoExplore: true },
+      data: { status: "STOPPED" },
+    });
+
     const run = await prisma.dungeonRun.findFirst({
-      where: { userId: auth.userId, status: "RUNNING" },
+      where: { userId: auth.userId, status: "RUNNING", autoExplore: false },
       orderBy: { startedAt: "desc" },
       include: { party: { include: { minion: true } } },
     });
@@ -45,7 +50,11 @@ export async function GET(req: Request) {
       : [];
     const weaponById = new Map(weapons.map((w) => [w.id, w]));
 
-    const combatPreview = await getActiveRunCombatPreview(auth.userId);
+    const combatPreview = await getActiveRunCombatPreview(auth.userId, {
+      existingRun: run,
+      dungeon,
+      skipClearChance: true,
+    });
     const partyPower = combatPreview?.partyPower ?? 0;
     const clearChance = combatPreview?.clearChance ?? 0;
     const hpByMinion = new Map((combatPreview?.partyHp ?? []).map((e) => [e.minionId, e]));
@@ -126,6 +135,7 @@ export async function GET(req: Request) {
       availableWaves,
       pendingLoot: run.pendingLootJson ?? "[]",
       pendingLootItems,
+      pendingGold: Math.max(0, Math.floor(run.pendingGold ?? 0)),
       recoveryPotions,
     });
   } catch (e) {

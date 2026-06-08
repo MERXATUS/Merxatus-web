@@ -2,6 +2,8 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { applyCraftingDropsToRaid } from "@/server/applyCraftingDrops";
+import { normalizeRaidFaction } from "@/shared/raidFaction";
 
 const DropSchema = z.object({
   itemId: z.string().min(1),
@@ -21,6 +23,7 @@ const RaidSchema = z.object({
   name: z.string().min(1),
   maxPhases: z.number().int().min(1).max(12),
   maxPartySize: z.number().int().min(1).max(10).default(3),
+  faction: z.enum(["demon", "angel", "void"]).optional().default("void"),
   encounters: z.array(EncounterSchema).min(1),
   drops: z.array(DropSchema).min(1),
   phaseDrops: z.array(DropSchema).optional().default([]),
@@ -37,11 +40,16 @@ function resolveDataDir() {
   return path.join(cwd, "data");
 }
 
+let raidsCache: { raids: RaidDef[] } | null = null;
+
 export async function loadRaids() {
+  if (raidsCache) return raidsCache;
   const p = path.join(resolveDataDir(), "raids.json");
   const raw = JSON.parse(await readFile(p, "utf8")) as unknown;
-  const raids = z.array(RaidSchema).parse(raw);
-  return { raids };
+  const parsed = z.array(RaidSchema).parse(raw);
+  const raids = parsed.map(applyCraftingDropsToRaid);
+  raidsCache = { raids };
+  return raidsCache;
 }
 
 export function raidEncounterForPhase(raid: RaidDef, phase: number) {

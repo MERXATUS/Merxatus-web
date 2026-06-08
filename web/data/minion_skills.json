@@ -1,0 +1,90 @@
+{
+  "rules": {
+    "pointsPerLevel": 1,
+    "promotionBonusPoints": 3
+  },
+  "skills": [
+    {
+      "id": "adventure_strike",
+      "name": "모험가 타격",
+      "description": "기본 타격 숙련. 레벨당 전투력이 소폭 오릅니다.",
+      "tier": 1,
+      "maxLevel": 10,
+      "powerPerLevel": 2,
+      "damagePctPerLevel": 0.3,
+      "activeHitDamagePctPerLevel": 0.5
+    },
+    {
+      "id": "sword_slash",
+      "name": "베기",
+      "description": "검술의 기본. 레벨당 전투력·피해가 오릅니다.",
+      "tier": 2,
+      "maxLevel": 15,
+      "powerPerLevel": 4,
+      "damagePctPerLevel": 0.5,
+      "activeHitDamagePctPerLevel": 1
+    },
+    {
+      "id": "sword_guard",
+      "name": "검막",
+      "description": "방어 자세. 레벨당 방어력·체력이 오릅니다.",
+      "tier": 2,
+      "maxLevel": 10,
+      "powerPerLevel": 2,
+      "defPerLevel": 2,
+      "hpPerLevel": 3,
+      "damagePctPerLevel": 0.15,
+      "activeHitDamagePctPerLevel": 0.3
+    },
+    {
+      "id": "warrior_cleave",
+      "name": "강타",
+      "description": "강력한 일격. 레벨당 전투력·피해가 크게 오릅니다.",
+      "tier": 3,
+      "maxLevel": 15,
+      "powerPerLevel": 6,
+      "damagePctPerLevel": 1,
+      "activeHitDamagePctPerLevel": 1.5
+    },
+    {
+      "id": "wind_blade_rush",
+      "name": "질풍 베기",
+      "description": "연속 베기. 레벨당 전투력·피해가 오릅니다.",
+      "tier": 3,
+      "maxLevel": 15,
+      "powerPerLevel": 5,
+      "damagePctPerLevel": 0.85,
+      "activeHitDamagePctPerLevel": 1.2
+    },
+    {
+      "id": "magic_blade_arc",
+      "name": "마력 베기",
+      "description": "마력 검기. 레벨당 전투력·피해가 오릅니다.",
+      "tier": 3,
+      "maxLevel": 15,
+      "powerPerLevel": 5,
+      "damagePctPerLevel": 0.75,
+      "activeHitDamagePctPerLevel": 1
+    },
+    {
+      "id": "shield_blade_counter",
+      "name": "반격",
+      "description": "방어와 반격. 레벨당 방어·체력이 오릅니다.",
+      "tier": 3,
+      "maxLevel": 15,
+      "powerPerLevel": 4,
+      "defPerLevel": 3,
+      "hpPerLevel": 4,
+      "damagePctPerLevel": 0.4,
+      "activeHitDamagePctPerLevel": 0.6
+    }
+  ],
+  "classPools": {
+    "ADVENTURER": ["adventure_strike"],
+    "SWORDSMAN": ["adventure_strike", "sword_slash", "sword_guard"],
+    "WARRIOR": ["adventure_strike", "sword_slash", "sword_guard", "warrior_cleave"],
+    "WIND_BLADE": ["adventure_strike", "sword_slash", "sword_guard", "wind_blade_rush"],
+    "MAGIC_BLADE": ["adventure_strike", "sword_slash", "sword_guard", "magic_blade_arc"],
+    "SHIELD_BLADE": ["adventure_strike", "sword_slash", "sword_guard", "shield_blade_counter"]
+  }
+}

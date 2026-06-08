@@ -8,6 +8,7 @@ import { itemGradeNameClassName } from "@/server/itemGrade";
 type Props = {
   open: boolean;
   loot: DungeonLootRow[];
+  pendingGold?: number;
   onConfirm: () => void;
   onCancel: () => void;
   /** 누적 보상을 포기하고 탐험만 종료 */
@@ -33,6 +34,12 @@ export function DungeonCashoutConfirmModal(props: Props) {
           보상 수령으로 안전하게 나가거나, 한 층 더 도전할 수 있습니다. 패배하면 누적 보상이 사라집니다.
         </p>
         <div className="dungeon-settlement-modal__scroll mt-1 min-h-0 flex-1">
+          {(props.pendingGold ?? 0) > 0 ? (
+            <div className="dungeon-pending-loot__gold-row mb-2">
+              <span className="dungeon-pending-loot__gold-label">골드</span>
+              <span className="dungeon-pending-loot__gold-value">+{(props.pendingGold ?? 0).toLocaleString()} G</span>
+            </div>
+          ) : null}
           {props.loot.length > 0 ? (
             <ul className="dungeon-settlement__loot-list dungeon-pending-loot__list dungeon-pending-loot__list--modal">
               {props.loot.map((x) => (
@@ -45,9 +52,9 @@ export function DungeonCashoutConfirmModal(props: Props) {
                 </li>
               ))}
             </ul>
-          ) : (
+          ) : (props.pendingGold ?? 0) <= 0 ? (
             <p className="dungeon-settlement__empty">아직 누적 보상이 없습니다.</p>
-          )}
+          ) : null}
         </div>
         <div className="mt-4 flex shrink-0 gap-2">
           <GameBtn variant="ghost" className="h-10 flex-1" onClick={props.onCancel}>

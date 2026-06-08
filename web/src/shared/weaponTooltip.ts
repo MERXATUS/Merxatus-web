@@ -1,6 +1,8 @@
 import { GAME_RULES } from "@/server/gameRules";
 import { clampItemGrade, itemGradeLabel } from "@/server/itemGrade";
 import { weaponPowerBonusFromOptionRows } from "@/shared/itemOptionCatalog";
+import type { OptionRealm } from "@/shared/equipmentBlessings";
+import { blessedEquipmentDisplayName } from "@/shared/equipmentBlessings";
 import { normalizeOptionId } from "@/shared/itemOptionCatalog";
 import { getWeaponStats, weaponCombatPowerFromStats } from "@/shared/weaponStatsData";
 
@@ -11,6 +13,11 @@ export type WeaponTooltipOption = {
   tier: number;
   tierLabel: string;
   displayValue: number;
+  hidden?: boolean;
+  locked?: boolean;
+  realm?: OptionRealm;
+  affix?: string | null;
+  realmLabel?: string;
 };
 
 export type WeaponTooltipData = {
@@ -20,6 +27,7 @@ export type WeaponTooltipData = {
   enhanceLevel: number;
   grade?: number;
   gradeLabel?: string;
+  identified?: boolean;
   options?: WeaponTooltipOption[];
 };
 
@@ -60,9 +68,12 @@ export function weaponTotalPower(w: WeaponTooltipData): number {
 }
 
 export function weaponDisplayName(w: WeaponTooltipData): string {
-  const base = w.name.trim() || w.baseItemId;
-  const plus = w.enhanceLevel > 0 ? ` +${w.enhanceLevel}` : "";
-  return `${base}${plus}`;
+  const base = (w.name ?? "").trim() || w.baseItemId;
+  return blessedEquipmentDisplayName(
+    base,
+    w.options?.map((o) => ({ realm: o.realm, affix: o.affix })),
+    w.enhanceLevel,
+  );
 }
 
 export function weaponGradeLabel(w: WeaponTooltipData): string {

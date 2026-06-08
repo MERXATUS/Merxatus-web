@@ -8,7 +8,9 @@ import {
   initBattleArena,
   lineDelay,
   type BattleArenaFrame,
+  type BattleFloatDamage,
 } from "@/shared/dungeonCombatReplay";
+import { playCombatSfx } from "@/shared/gameCombatSfx";
 
 type Props = {
   replay: DungeonCombatReplay | null;
@@ -20,14 +22,65 @@ type Props = {
   showFeed?: boolean;
   shakeOnHit?: boolean;
   lowHpVignette?: boolean;
+  idleHint?: string;
+  isBoss?: boolean;
 };
 
 function hpPct(hp: number, maxHp: number) {
   return Math.max(0, Math.min(100, Math.round((hp / Math.max(1, maxHp)) * 100)));
 }
 
+function floaterClassName(fl: BattleFloatDamage) {
+  if (fl.kind === "heal") return "dungeon-arena__floater dungeon-arena__floater--heal";
+  if (fl.kind === "block") return "dungeon-arena__floater dungeon-arena__floater--block";
+  const tone = fl.side === "party" ? "party" : "enemy";
+  const parts = ["dungeon-arena__floater", "dungeon-arena__damage", `dungeon-arena__damage--${tone}`];
+  if (fl.hitKind === "crit") parts.push("dungeon-arena__damage--crit");
+  if (fl.hitKind === "extra") parts.push("dungeon-arena__damage--extra");
+  return parts.join(" ");
+}
+
+function floaterLabel(fl: BattleFloatDamage) {
+  if (fl.kind === "heal") return `+${fl.damage}`;
+  if (fl.kind === "block") return "막기!";
+  return `-${fl.damage}`;
+}
+
+function fighterHitClass(
+  fighterId: string,
+  frame: BattleArenaFrame,
+  side: "party" | "enemy",
+) {
+  if (frame.hitTargetId !== fighterId) return "";
+  if (frame.hitFlash === "block") return "dungeon-arena__fighter--block";
+  if (frame.hitFlash === "crit") {
+    return side === "enemy" ? "dungeon-arena__enemy--crit" : "dungeon-arena__fighter--crit";
+  }
+  if (frame.hitFlash === "extra") {
+    return side === "enemy" ? "dungeon-arena__enemy--extra" : "dungeon-arena__fighter--extra";
+  }
+  return side === "enemy" ? "dungeon-arena__enemy--hit" : "dungeon-arena__fighter--hit";
+}
+
+function feedClassName(tone: BattleArenaFrame["lastLogTone"]) {
+  if (tone === "neutral") return "dungeon-arena__feed";
+  return `dungeon-arena__feed dungeon-arena__feed--${tone}`;
+}
+
 export function DungeonCombatArena(props: Props) {
-  const { replay, lines, playing, onComplete, onFrame, compact, showFeed = true, shakeOnHit, lowHpVignette } = props;
+  const {
+    replay,
+    lines,
+    playing,
+    onComplete,
+    onFrame,
+    compact,
+    showFeed = true,
+    shakeOnHit,
+    lowHpVignette,
+    idleHint,
+    isBoss,
+  } = props;
   const [frame, setFrame] = useState<BattleArenaFrame | null>(null);
   const [shaking, setShaking] = useState(false);
   const timerRef = useRef<number | null>(null);
@@ -71,9 +124,12 @@ export function DungeonCombatArena(props: Props) {
       current = applyCombatLogLine(current, line, floaterSeq);
       setFrame({ ...current, floaters: [...current.floaters] });
       onFrameRef.current?.(current);
-      if (shakeOnHit && line.t === "hit") {
+      if (shakeOnHit && line.t === "hit" && (line.kind === "crit" || line.kind === "extra" || !line.kind)) {
         setShaking(true);
-        window.setTimeout(() => setShaking(false), 280);
+        window.setTimeout(() => setShaking(false), line.kind === "crit" ? 360 : 280);
+      }
+      if (line.t === "skill") {
+        playCombatSfx("start");
       }
       i += 1;
       timerRef.current = window.setTimeout(step, lineDelay(line));
@@ -96,6 +152,7 @@ export function DungeonCombatArena(props: Props) {
       className={[
         "dungeon-arena",
         playing ? "dungeon-arena--live" : "",
+        isBoss ? "dungeon-arena--boss" : "",
         compact ? "dungeon-arena--compact" : "",
         shaking ? "dungeon-arena--shake" : "",
         lowHpVignette ? "dungeon-arena--danger" : "",
@@ -110,13 +167,25 @@ export function DungeonCombatArena(props: Props) {
 
       {!frame ? (
         <p className="dungeon-arena__idle">
-          {playing ? "전투 준비 중…" : "「다음 층」을 눌러\n실시간 전투를 관전하세요."}
+          {playing
+            ? "전투 준비 중…"
+            : idleHint ?? "「다음 층」을 눌러\n실시간 전투를 관전하세요."}
         </p>
       ) : (
         <>
           {frame.banner ? (
-            <div className={`dungeon-arena__banner ${frame.floor > 0 && frame.enemyName.includes("Boss") ? "dungeon-arena__banner--boss" : ""}`.trim()}>
+            <div
+              className={`dungeon-arena__banner ${isBoss || frame.enemyName.includes("Boss") ? "dungeon-arena__banner--boss" : ""}`.trim()}
+            >
               {frame.banner}
+            </div>
+          ) : null}
+          {frame.skillBanner ? (
+            <div className="dungeon-arena__skill-banner" role="status">
+              {frame.skillActor ? (
+                <span className="dungeon-arena__skill-banner-actor">{frame.skillActor}</span>
+              ) : null}
+              <span className="dungeon-arena__skill-banner-name">{frame.skillBanner}</span>
             </div>
           ) : null}
           <div className="dungeon-arena__field">
@@ -128,7 +197,7 @@ export function DungeonCombatArena(props: Props) {
                     "dungeon-arena__fighter",
                     f.dead ? "dungeon-arena__fighter--dead" : "",
                     frame.actingId === f.id ? "dungeon-arena__fighter--acting" : "",
-                    frame.hitTargetId === f.id ? "dungeon-arena__fighter--hit" : "",
+                    fighterHitClass(f.id, frame, "party"),
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -160,11 +229,8 @@ export function DungeonCombatArena(props: Props) {
                   {frame.floaters
                     .filter((fl) => fl.targetId === f.id)
                     .map((fl) => (
-                      <span
-                        key={fl.id}
-                        className={`dungeon-arena__damage dungeon-arena__damage--${fl.side}`}
-                      >
-                        -{fl.damage}
+                      <span key={fl.id} className={floaterClassName(fl)}>
+                        {floaterLabel(fl)}
                       </span>
                     ))}
                 </div>
@@ -181,7 +247,7 @@ export function DungeonCombatArena(props: Props) {
                   "dungeon-arena__enemy",
                   enemy.dead ? "dungeon-arena__enemy--dead" : "",
                   frame.actingId === enemy.id ? "dungeon-arena__enemy--acting" : "",
-                  frame.hitTargetId === enemy.id ? "dungeon-arena__enemy--hit" : "",
+                  fighterHitClass(enemy.id, frame, "enemy"),
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -208,8 +274,8 @@ export function DungeonCombatArena(props: Props) {
                 {frame.floaters
                   .filter((fl) => fl.targetId === enemy.id)
                   .map((fl) => (
-                    <span key={fl.id} className="dungeon-arena__damage dungeon-arena__damage--party">
-                      -{fl.damage}
+                    <span key={fl.id} className={floaterClassName(fl)}>
+                      {floaterLabel(fl)}
                     </span>
                   ))}
               </div>
@@ -223,7 +289,7 @@ export function DungeonCombatArena(props: Props) {
               {frame.outcome === "WIN" ? "✦ 층 클리어!" : "✦ 전멸…"}
             </div>
           ) : showFeed && frame.lastLog ? (
-            <p className="dungeon-arena__feed">{frame.lastLog}</p>
+            <p className={feedClassName(frame.lastLogTone)}>{frame.lastLog}</p>
           ) : null}
         </>
       )}

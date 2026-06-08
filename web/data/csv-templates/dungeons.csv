@@ -1,9 +1,9 @@
 Id,Name,Mode,BaseWaveSeconds,MaxFloors,MaxParty
-Dungeon_Slime_Forest,슬라임의 숲,PUSH_LUCK,8,10,1
-Dungeon_Goblin_Den,고블린 굴,PUSH_LUCK,8,14,1
-Dungeon_Wolf_Ravine,늑대들의 계곡,PUSH_LUCK,8,16,1
-Dungeon_Crypt_Of_Dead,망자의 무덤,PUSH_LUCK,8,18,1
-Dungeon_Scorch_Rift,화염 협곡,PUSH_LUCK,8,20,1
-Dungeon_Frost_Citadel,얼음 요새,PUSH_LUCK,8,22,1
-Dungeon_Dragon_Roost,용의 둥지,PUSH_LUCK,8,24,1
-Dungeon_Void_Rift,심연의 균열,PUSH_LUCK,8,26,1
+Dungeon_Slime_Forest,마계 · 오염의 웅덩이,PUSH_LUCK,8,10,1
+Dungeon_Goblin_Den,마계 · 군번의 심굴,PUSH_LUCK,8,14,1
+Dungeon_Wolf_Ravine,마계 · 피의 사구,PUSH_LUCK,8,16,1
+Dungeon_Crypt_Of_Dead,천계 · 낙천자의 묘,PUSH_LUCK,8,18,1
+Dungeon_Scorch_Rift,천계 · 심판의 화염,PUSH_LUCK,8,20,1
+Dungeon_Frost_Citadel,천계 · 서릿빛 성벽,PUSH_LUCK,8,22,1
+Dungeon_Dragon_Roost,이계 · 차원 용혈,PUSH_LUCK,8,24,1
+Dungeon_Void_Rift,이계 · 공허 균열,PUSH_LUCK,8,26,1

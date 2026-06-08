@@ -22,15 +22,22 @@
   },
   "weapon_steel_sword": {
     "name": "철 검",
-    "grade": 2,
-    "atk": 2.5,
+    "grade": 3,
+    "atk": 3.5,
     "magic": 0,
     "icon": "Icon_Steel_Sword"
   },
   "weapon_gold_sword": {
     "name": "금 검",
-    "grade": 3,
+    "grade": 4,
     "atk": 5,
+    "magic": 0,
+    "icon": "Icon_Gold_Sword"
+  },
+  "weapon_diamond_sword": {
+    "name": "다이아 검",
+    "grade": 5,
+    "atk": 7,
     "magic": 0,
     "icon": "Icon_Gold_Sword"
   }

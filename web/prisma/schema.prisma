@@ -100,6 +100,13 @@ model User {
 
   /** 0..N-1 = 진행 중 단계, 100 = 튜토리얼 완료 (`shared/tutorial`) */
   tutorialStep Int @default(0)
+  /** 홈 대시보드에 표시할 대표 미니언 */
+  representativeMinionId String?
+  representativeMinion   Minion? @relation("UserRepresentativeMinion", fields: [representativeMinionId], references: [id], onDelete: SetNull)
+
+  /** 자동 탐험 일일 웨이브 집계 (UTC 일자 키와 쌍) */
+  autoExploreDailyWaves Int @default(0)
+  autoExploreDayKey     String @default("")
 
   wallet    Wallet?
   botBudget BotBudget?
@@ -109,6 +116,7 @@ model User {
   weaponInstances WeaponInstance[]
   armorInstances ArmorInstance[]
   dungeonRuns DungeonRun[]
+  dungeonGoldEarns DungeonGoldEarn[]
   raidRuns RaidRun[]
   towerRuns TowerRun[]
   leaderboardEntries LeaderboardEntry[]
@@ -123,6 +131,9 @@ model User {
 
   friendshipsSent     Friendship[] @relation("FriendshipRequester")
   friendshipsReceived Friendship[] @relation("FriendshipAddressee")
+
+  pvpAttacks  PvpMatch[] @relation("PvpAttacker")
+  pvpDefenses PvpMatch[] @relation("PvpDefender")
 
   chatMessages         ChatMessage[]
 
@@ -362,12 +373,17 @@ model Minion {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  representativeForUsers User[] @relation("UserRepresentativeMinion")
 
   level Int @default(1)
   /** 현재 레벨에서 다음 레벨까지 누적 경험치 */
   experience Int @default(0)
   /** 레벨업으로 받은 미배분 스탯 포인트 */
   unspentStatPoints Int @default(0)
+  /** 레벨업·전직으로 받은 미배분 스킬 포인트 */
+  unspentSkillPoints Int @default(0)
+  /** 스킬 id → 레벨 JSON (예: {"sword_slash":3}) */
+  skillLevelsJson String @default("{}")
   jobType MinionJobType @default(ADVENTURER)
 
   /** 기본 스탯 — 0에서 시작, 레벨업 배분으로만 성장 */
@@ -449,6 +465,7 @@ model ArmorInstance {
   id         String @id @default(cuid())
   userId     String
   baseItemId String
+  enhanceLevel Int @default(0)
   status ArmorInstanceStatus @default(OWNED)
   /** JSON 배열: `{ optionId, tier }[]` 제작 시 부여 옵션 */
   optionsJson String @default("[]")
@@ -540,14 +557,33 @@ model DungeonRun {
   floor Int @default(1)
   /** PUSH_LUCK: 누적 보상(정산 전). 예: [{"itemId":"item_slime_gel","qty":3}] */
   pendingLootJson String @default("[]")
+  /** PUSH_LUCK: 정산 전 누적 골드 */
+  pendingGold Int @default(0)
   /** PUSH_LUCK: 파티원 층간 유지 HP. 예: [{"minionId":"…","hp":80,"maxHp":120,"label":"전사 1"}] */
   partyHpJson String @default("[]")
+  /** true면 AUTO_WAVES 틱(배속·일일 한도) — 던전 mode와 무관 */
+  autoExplore Boolean @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   party DungeonPartyMember[]
 
   @@index([userId])
   @@index([dungeonId])
+}
+
+/** 던전 층 클리어 등으로 지갑에 들어온 골드 — 홈 골드 흐름 집계용 */
+model DungeonGoldEarn {
+  id        String   @id @default(cuid())
+  userId    String
+  dungeonId String
+  floor     Int
+  amount    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([dungeonId, createdAt])
 }
 
 model DungeonPartyMember {
@@ -627,6 +663,24 @@ model TowerRun {
 
   @@index([userId, status])
   @@index([seasonKey])
+}
+
+model PvpMatch {
+  id               String   @id @default(cuid())
+  attackerId       String
+  defenderId       String
+  attackerMinionId String
+  defenderMinionId String
+  /** ATTACKER_WIN | DEFENDER_WIN */
+  outcome          String
+  combatLogJson    String
+  createdAt        DateTime @default(now())
+
+  attacker User @relation("PvpAttacker", fields: [attackerId], references: [id], onDelete: Cascade)
+  defender User @relation("PvpDefender", fields: [defenderId], references: [id], onDelete: Cascade)
+
+  @@index([attackerId, createdAt])
+  @@index([defenderId, createdAt])
 }
 
 model TowerPartyMember {

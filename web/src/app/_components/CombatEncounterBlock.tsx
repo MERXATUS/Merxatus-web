@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { DungeonCombatArena } from "@/app/_components/DungeonCombatArena";
 import { PushLuckRiskBar } from "@/app/_components/PushLuckRiskBar";
@@ -22,16 +23,21 @@ type Props = {
   pendingSummary?: string;
   floorLabel?: string;
   isBoss?: boolean;
+  bossGateIdle?: boolean;
   encounterLabel?: string;
+  preparingLabel?: string;
   className?: string;
+  /** 전투 패널 하단 — 던전 「다음 층」 등 */
+  actions?: ReactNode;
+  idleHint?: string;
 };
 
 export function CombatEncounterBlock(props: Props) {
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [arenaPlaying, setArenaPlaying] = useState(false);
   const [sfxMuted, setSfxMuted] = useState(false);
   const [lowHp, setLowHp] = useState(false);
   const prevHitRef = useRef<string | null>(null);
+  const prevSfxRef = useRef<string | null>(null);
   const prevOutcomeRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -40,36 +46,28 @@ export function CombatEncounterBlock(props: Props) {
 
   useEffect(() => {
     if (!props.playing || !props.replay || props.lines.length === 0) {
-      setCountdown(null);
       setArenaPlaying(false);
       setLowHp(false);
       prevHitRef.current = null;
+      prevSfxRef.current = null;
       prevOutcomeRef.current = null;
       return;
     }
-    setCountdown(props.isBoss ? 3 : 2);
-    setArenaPlaying(false);
-  }, [props.playing, props.replay, props.lines, props.isBoss]);
-
-  useEffect(() => {
-    if (countdown === null) return;
-    playCombatSfx("tick");
-    const delay = props.isBoss ? 720 : 520;
-    const t = window.setTimeout(() => {
-      if (countdown <= 1) {
-        setCountdown(null);
-        setArenaPlaying(true);
-        playCombatSfx("start");
-      } else {
-        setCountdown(countdown - 1);
-      }
-    }, delay);
-    return () => clearTimeout(t);
-  }, [countdown, props.isBoss]);
+    setArenaPlaying(true);
+    playCombatSfx("start");
+  }, [props.playing, props.replay, props.lines]);
 
   const handleFrame = (frame: BattleArenaFrame | null) => {
-    if (frame?.hitTargetId && frame.hitTargetId !== prevHitRef.current) {
-      playCombatSfx("hit");
+    if (frame?.lastSfx) {
+      const sfxKey = `${frame.lastLog ?? ""}:${frame.lastSfx}`;
+      if (sfxKey !== prevSfxRef.current) {
+        if (frame.lastSfx !== "skill") {
+          playCombatSfx(frame.lastSfx);
+        }
+        prevSfxRef.current = sfxKey;
+      }
+    }
+    if (frame?.hitTargetId) {
       prevHitRef.current = frame.hitTargetId;
     }
     if (frame?.outcome && frame.outcome !== prevOutcomeRef.current) {
@@ -85,6 +83,8 @@ export function CombatEncounterBlock(props: Props) {
     props.onFrame?.(frame);
   };
 
+  const showArena = !props.bossGateIdle || props.playing;
+
   return (
     <div className={`combat-encounter ${props.className ?? ""}`.trim()}>
       {props.clearChance != null && (props.playing || arenaPlaying) ? (
@@ -97,31 +97,32 @@ export function CombatEncounterBlock(props: Props) {
         />
       ) : null}
 
-      {countdown !== null ? (
-        <div
-          className={`combat-countdown ${props.isBoss ? "combat-countdown--boss" : ""}`.trim()}
-          role="status"
-        >
-          {props.isBoss ? (
-            <p className="combat-countdown__boss">⚠ {props.encounterLabel ?? "보스"} 등장</p>
-          ) : (
-            <p className="combat-countdown__hint">{props.encounterLabel ?? "전투 개시"}</p>
-          )}
-          <span className="combat-countdown__num">{countdown}</span>
+      {props.bossGateIdle && !props.playing ? (
+        <div className="dungeon-boss-gate">
+          <div className="dungeon-arena__banner dungeon-arena__banner--boss">보스 방 도착</div>
+          <p className="dungeon-boss-gate__hint">
+            {props.idleHint ?? "「보스 입장」으로 최종 전투를 시작하세요."}
+          </p>
         </div>
       ) : null}
 
-      <DungeonCombatArena
-        replay={props.replay}
-        lines={props.lines}
-        playing={arenaPlaying}
-        compact={props.embedded}
-        onComplete={props.onComplete}
-        onFrame={handleFrame}
-        showFeed={false}
-        shakeOnHit={arenaPlaying}
-        lowHpVignette={lowHp && arenaPlaying}
-      />
+      {showArena ? (
+        <DungeonCombatArena
+          replay={props.replay}
+          lines={props.lines}
+          playing={arenaPlaying}
+          compact={props.embedded}
+          idleHint={props.preparingLabel ?? props.idleHint}
+          isBoss={props.isBoss}
+          onComplete={props.onComplete}
+          onFrame={handleFrame}
+          showFeed={false}
+          shakeOnHit={arenaPlaying}
+          lowHpVignette={lowHp && arenaPlaying}
+        />
+      ) : null}
+
+      {props.actions ? <div className="combat-encounter__actions">{props.actions}</div> : null}
 
       <div className="combat-encounter__foot">
         <button

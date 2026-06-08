@@ -5,15 +5,16 @@ import { ItemIcon } from "@/app/_components/ItemIcon";
 import { MinionEquipDoll } from "@/app/_components/MinionEquipDoll";
 import { MinionStatPanel } from "@/app/_components/MinionStatPanel";
 import { useGameFrame } from "@/app/_components/GameFrameContext";
+import { KnightOrderPanel } from "@/app/_components/KnightOrderPanel";
 import { GameBtn, GamePanel } from "@/app/_components/gameUi";
 import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
 import { GAME_FRAME_REFRESH_EVENT, type GameTabKey } from "@/shared/gameNav";
-import type { MeDashboard, MeDashboardGoldDay } from "@/shared/meDashboard";
+import type { MeDashboardRepresentativeMinion } from "@/shared/meDashboard";
 import { buildMinionEquipmentView } from "@/shared/minionEquipmentView";
-import { apiGetJson, apiPostJson } from "@/shared/sessionClient";
+import { fetchCombatRoster, type CombatRosterMinion } from "@/shared/combatRosterClient";
+import { apiPostJson } from "@/shared/sessionClient";
 import { formatPanelError } from "@/shared/formatPanelError";
-
-type GoldTrendRange = "week" | "month";
+import { useSessionUser } from "@/app/_components/SessionProvider";
 
 function fmtGold(n: number) {
   return Math.floor(n).toLocaleString();
@@ -26,198 +27,11 @@ function fmtSignedGold(n: number) {
   return "0";
 }
 
-function buildGoldLineChart(days: MeDashboardGoldDay[]) {
-  const width = 320;
-  const height = 72;
-  const pad = { top: 8, right: 6, bottom: 4, left: 6 };
-  const values = days.map((d) => d.netGold);
-  const minVal = Math.min(0, ...values);
-  const maxVal = Math.max(0, ...values);
-  const span = maxVal - minVal || 1;
-  const chartW = width - pad.left - pad.right;
-  const chartH = height - pad.top - pad.bottom;
-
-  const points = days.map((day, i) => {
-    const x =
-      pad.left + (days.length <= 1 ? chartW / 2 : (i / (days.length - 1)) * chartW);
-    const y = pad.top + chartH - ((day.netGold - minVal) / span) * chartH;
-    return { x, y, day };
-  });
-
-  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" ");
-  const zeroY = pad.top + chartH - ((0 - minVal) / span) * chartH;
-  const areaPath =
-    points.length > 0
-      ? `${linePath} L ${points[points.length - 1]!.x.toFixed(2)} ${zeroY.toFixed(2)} L ${points[0]!.x.toFixed(2)} ${zeroY.toFixed(2)} Z`
-      : "";
-
-  return { width, height, points, linePath, areaPath, zeroY, hasNegative: minVal < 0, hasPositive: maxVal > 0 };
-}
-
-function shouldShowChartLabel(index: number, total: number, range: GoldTrendRange) {
-  if (total <= 1) return true;
-  if (range === "week") return true;
-  const step = Math.max(1, Math.ceil(total / 7));
-  return index === 0 || index === total - 1 || index % step === 0;
-}
-
-function GoldTrendChart(props: {
-  range: GoldTrendRange;
-  onRangeChange: (r: GoldTrendRange) => void;
-  days: MeDashboardGoldDay[];
-  netTotal: number;
-}) {
-  const chart = useMemo(() => buildGoldLineChart(props.days), [props.days]);
-  const title = props.range === "week" ? "주간 골드 흐름" : "월간 골드 흐름";
-  const lineUp = props.netTotal >= 0;
-
-  return (
-    <div className="home-chart">
-      <div className="home-chart__head">
-        <div className="home-chart__head-left">
-          <span className="home-chart__title">{title}</span>
-          <div className="home-chart__range" role="tablist" aria-label="골드 흐름 기간">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={props.range === "week"}
-              className={`home-chart__range-btn ${props.range === "week" ? "home-chart__range-btn--active" : ""}`}
-              onClick={() => props.onRangeChange("week")}
-            >
-              주간
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={props.range === "month"}
-              className={`home-chart__range-btn ${props.range === "month" ? "home-chart__range-btn--active" : ""}`}
-              onClick={() => props.onRangeChange("month")}
-            >
-              월간
-            </button>
-          </div>
-        </div>
-        <span
-          className={`home-chart__total ${props.netTotal >= 0 ? "home-chart__total--up" : "home-chart__total--down"}`}
-        >
-          {fmtSignedGold(props.netTotal)}G
-        </span>
-      </div>
-
-      <div
-        className={`home-chart__plot ${props.range === "month" ? "home-chart__plot--month" : ""}`}
-        role="img"
-        aria-label={`${title} 꺾은선 그래프`}
-      >
-        <svg
-          viewBox={`0 0 ${chart.width} ${chart.height}`}
-          preserveAspectRatio="none"
-          className="home-chart__svg"
-        >
-          {chart.hasNegative && chart.hasPositive ? (
-            <line
-              x1={6}
-              x2={chart.width - 6}
-              y1={chart.zeroY}
-              y2={chart.zeroY}
-              className="home-chart__zero-line"
-            />
-          ) : null}
-          {chart.areaPath ? (
-            <path
-              d={chart.areaPath}
-              className={`home-chart__area ${lineUp ? "home-chart__area--up" : "home-chart__area--down"}`}
-            />
-          ) : null}
-          {chart.linePath ? (
-            <path
-              d={chart.linePath}
-              className={`home-chart__line ${lineUp ? "home-chart__line--up" : "home-chart__line--down"}`}
-            />
-          ) : null}
-          {chart.points.map((p) => (
-            <circle
-              key={p.day.date}
-              cx={p.x}
-              cy={p.y}
-              r={props.range === "month" ? 1.6 : 2.4}
-              className={`home-chart__dot ${p.day.netGold >= 0 ? "home-chart__dot--up" : "home-chart__dot--down"}`}
-            >
-              <title>
-                {p.day.label} {fmtSignedGold(p.day.netGold)}G
-              </title>
-            </circle>
-          ))}
-        </svg>
-        <div className="home-chart__labels" aria-hidden>
-          {props.days.map((d, i) =>
-            shouldShowChartLabel(i, props.days.length, props.range) ? (
-              <span key={d.date} className="home-chart__day">
-                {d.label}
-              </span>
-            ) : (
-              <span key={d.date} className="home-chart__day home-chart__day--spacer" />
-            ),
-          )}
-        </div>
-      </div>
-      <p className="home-chart__hint">거래소·황실 등 골드 거래 기준 (추정 자산 제외)</p>
-    </div>
-  );
-}
-
-function QuickStatus(props: { onNavigate: (tab: GameTabKey) => void }) {
-  const frame = useGameFrame();
-  const s = frame.summary;
-
-  if (!s) {
-    return <GamePanelLoading label="상태 불러오는 중…" />;
-  }
-
-  const rows = [
-    {
-      label: "던전",
-      value: s.dungeon.active && s.dungeon.name ? `${s.dungeon.name} 탐험 중` : "대기",
-      tab: "dungeon" as const,
-    },
-    {
-      label: "용병",
-      value: `${s.mercenaries.count}/${s.mercenaries.maxCount}명 · 최고 Lv${s.mercenaries.topLevel ?? "—"}`,
-      tab: "minions" as const,
-    },
-    {
-      label: "거래",
-      value: `매물 ${s.market.activeListingCount}/${s.market.maxActiveListings}건`,
-      tab: "market" as const,
-    },
-    {
-      label: "인벤",
-      value: `종류 ${s.inventory.kindCount} · 무기 ${s.inventory.weaponCount}`,
-      tab: "inventory" as const,
-    },
-  ];
-
-  return (
-    <div className="home-quick">
-      <div className="home-quick__title">지금 상황</div>
-      <ul className="home-quick__list">
-        {rows.map((r) => (
-          <li key={r.label}>
-            <button type="button" className="home-quick__row" onClick={() => props.onNavigate(r.tab)}>
-              <span className="home-quick__label">{r.label}</span>
-              <span className="home-quick__val">{r.value}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function StrongestMinionCard(props: {
-  minion: NonNullable<MeDashboard["strongestMinion"]>;
+function RepresentativeMinionCard(props: {
+  minion: MeDashboardRepresentativeMinion;
   embedded?: boolean;
   onOpenMinions: () => void;
+  onChangeRepresentative: () => void;
 }) {
   const { minion, embedded } = props;
   const equipmentView = useMemo(
@@ -230,20 +44,25 @@ function StrongestMinionCard(props: {
   );
 
   return (
-    <div className={`home-minion-detail ${embedded ? "home-minion-detail--fit" : ""}`}>
-      <div className="minion-detail-grid home-minion-detail__grid">
-        <MinionEquipDoll equipment={equipmentView} compact />
+    <div className={`home-minion-detail ${embedded ? "home-minion-detail--fit home-minion-detail--hero" : ""}`}>
+      <div className={`minion-detail-grid home-minion-detail__grid ${embedded ? "minion-detail-grid--fit" : ""}`}>
+        <MinionEquipDoll equipment={equipmentView} compact={embedded} />
         <div className="min-w-0 space-y-2">
           <div>
             <h3 className="text-sm font-bold text-[var(--game-text)]">
               {minion.combatClassLabel}{" "}
               <span className="text-xs font-semibold text-[var(--game-muted)]">Lv {minion.level}</span>
+              {minion.unspentSkillPoints > 0 ? (
+                <span className="home-minion-detail__skill-badge">스킬 {minion.unspentSkillPoints}P</span>
+              ) : null}
             </h3>
-            <p className="mt-0.5 text-[10px] font-semibold text-[var(--game-gold-bright)]">
-              전투력 {minion.combatStats.combatPower.toLocaleString()}
-            </p>
+            {!embedded ? (
+              <p className="mt-0.5 text-[10px] font-semibold text-[var(--game-gold-bright)]">
+                전투력 {minion.combatStats.combatPower.toLocaleString()}
+              </p>
+            ) : null}
           </div>
-          <MinionStatPanel stats={minion.combatStats} compact />
+          <MinionStatPanel stats={minion.combatStats} compact={!embedded} minimal={embedded} />
           {!embedded && minion.traits.length > 0 ? (
             <div>
               <div className="game-stat-label mb-1">특성</div>
@@ -259,10 +78,61 @@ function StrongestMinionCard(props: {
               </ul>
             </div>
           ) : null}
-          <GameBtn variant="ghost" className="h-8 w-full text-xs" onClick={props.onOpenMinions}>
-            미니언 관리
+          <div className="flex gap-2">
+            <GameBtn variant="ghost" className="h-8 flex-1 text-xs" onClick={props.onChangeRepresentative}>
+              대표 변경
+            </GameBtn>
+            <GameBtn variant="ghost" className="h-8 flex-1 text-xs" onClick={props.onOpenMinions}>
+              미니언 관리
+            </GameBtn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RepresentativePickModal(props: {
+  open: boolean;
+  roster: CombatRosterMinion[];
+  busy: boolean;
+  onClose: () => void;
+  onPick: (minionId: string) => void;
+}) {
+  if (!props.open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal>
+      <div className="game-subpanel-inset max-h-[70vh] w-full max-w-md overflow-y-auto p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="text-sm font-bold text-[var(--game-text)]">대표 미니언 선택</h3>
+          <GameBtn variant="ghost" className="h-8 px-2 text-xs" onClick={props.onClose} disabled={props.busy}>
+            닫기
           </GameBtn>
         </div>
+        {props.roster.length === 0 ? (
+          <p className="text-xs text-[var(--game-muted)]">미니언이 없어요.</p>
+        ) : (
+          <ul className="space-y-2">
+            {props.roster.map((m) => (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  disabled={props.busy}
+                  className="flex w-full items-center justify-between rounded-lg border border-[var(--game-border)] bg-black/20 px-3 py-2 text-left text-xs hover:bg-black/35 disabled:opacity-50"
+                  onClick={() => props.onPick(m.id)}
+                >
+                  <span>
+                    {m.combatClassLabel} · Lv {m.level}
+                  </span>
+                  <span className="tabular-nums text-[var(--game-gold-bright)]">
+                    {(m.combatStats?.combatPower ?? m.combatPower ?? 0).toLocaleString()}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -270,51 +140,51 @@ function StrongestMinionCard(props: {
 
 export function HomeOverviewPanel(props: { embedded?: boolean; onNavigate: (tab: GameTabKey) => void }) {
   const frame = useGameFrame();
-  const [data, setData] = useState<MeDashboard | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user } = useSessionUser();
   const [error, setError] = useState<unknown>(null);
-  const [goldRange, setGoldRange] = useState<GoldTrendRange>("week");
   const [settlingId, setSettlingId] = useState<string | null>(null);
+  const [pickOpen, setPickOpen] = useState(false);
+  const [pickRoster, setPickRoster] = useState<CombatRosterMinion[]>([]);
+  const [repBusy, setRepBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const r = await apiGetJson<MeDashboard>("/api/me/dashboard");
-      setData(r);
-    } catch (e) {
-      setError(e);
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!frame.loggedIn) {
-      setLoading(false);
-      setData(null);
-      return;
-    }
-    setLoading(true);
-    void load();
-  }, [frame.loggedIn, load]);
+  const data = frame.dashboardLight;
 
   useEffect(() => {
     if (!props.embedded) return;
-    const onRefresh = () => void load();
+    const onRefresh = () => void frame.refreshSummary({ force: true });
     window.addEventListener(GAME_FRAME_REFRESH_EVENT, onRefresh);
     return () => window.removeEventListener(GAME_FRAME_REFRESH_EVENT, onRefresh);
-  }, [props.embedded, load]);
+  }, [props.embedded, frame]);
 
-  const chartDays = useMemo(() => {
-    if (!data) return [];
-    return goldRange === "week" ? data.goldTrend.week : data.goldTrend.month;
-  }, [data, goldRange]);
+  const openRepresentativePicker = useCallback(async () => {
+    if (!user) return;
+    setError(null);
+    try {
+      const roster = await fetchCombatRoster(user.id);
+      setPickRoster(roster);
+      setPickOpen(true);
+    } catch (e) {
+      setError(e);
+    }
+  }, [user]);
 
-  const chartNet = useMemo(() => {
-    if (!data) return 0;
-    return goldRange === "week" ? data.goldTrend.weekNetGold : data.goldTrend.monthNetGold;
-  }, [data, goldRange]);
+  const setRepresentative = useCallback(
+    async (minionId: string) => {
+      setRepBusy(true);
+      setError(null);
+      try {
+        await apiPostJson("/api/minions/representative", { minionId });
+        setPickOpen(false);
+        await frame.refreshSummary({ force: true });
+        window.dispatchEvent(new CustomEvent(GAME_FRAME_REFRESH_EVENT));
+      } catch (e) {
+        setError(e);
+      } finally {
+        setRepBusy(false);
+      }
+    },
+    [frame],
+  );
 
   const settlePending = useCallback(
     async (listingId: string) => {
@@ -322,7 +192,7 @@ export function HomeOverviewPanel(props: { embedded?: boolean; onNavigate: (tab:
       setError(null);
       try {
         await apiPostJson<{ ok: boolean }>("/api/market/settle", { listingId });
-        await load();
+        await frame.refreshSummary({ force: true });
         window.dispatchEvent(new CustomEvent(GAME_FRAME_REFRESH_EVENT));
       } catch (e) {
         setError(e);
@@ -330,14 +200,14 @@ export function HomeOverviewPanel(props: { embedded?: boolean; onNavigate: (tab:
         setSettlingId(null);
       }
     },
-    [load],
+    [frame],
   );
 
   if (!frame.loggedIn) {
     return <GamePanelInfo>로그인하면 대시보드를 볼 수 있어요.</GamePanelInfo>;
   }
 
-  if (loading && !data) {
+  if (frame.summaryLoading && !data) {
     return <GamePanelLoading label="대시보드 불러오는 중…" />;
   }
 
@@ -349,7 +219,8 @@ export function HomeOverviewPanel(props: { embedded?: boolean; onNavigate: (tab:
     return <GamePanelLoading label="대시보드 준비 중…" />;
   }
 
-  const { assets, pendingSales, strongestMinion } = data;
+  const { assets, pendingSales, representativeMinion, knightOrder, totalUnspentSkillPoints, leaderboardHighlights } =
+    data;
 
   return (
     <GamePanel className={`home-overview ${props.embedded ? "home-overview--fit panel-fit" : ""}`}>
@@ -397,27 +268,62 @@ export function HomeOverviewPanel(props: { embedded?: boolean; onNavigate: (tab:
         </div>
       </div>
 
-      <div className="home-overview__grid">
-        <section className="home-panel home-panel--chart">
-          <GoldTrendChart
-            range={goldRange}
-            onRangeChange={setGoldRange}
-            days={chartDays}
-            netTotal={chartNet}
-          />
-        </section>
+      <KnightOrderPanel knightOrder={knightOrder} compact={props.embedded} className="home-overview__knight" />
 
-        <section className="home-panel home-panel--minion">
-          <div className="home-panel__title">최강 미니언</div>
-          {strongestMinion ? (
-            <StrongestMinionCard
-              embedded={props.embedded}
-              minion={strongestMinion}
-              onOpenMinions={() => props.onNavigate("minions")}
-            />
-          ) : (
-            <p className="home-panel__empty">미니언이 없어요.</p>
-          )}
+      <section className="home-panel home-overview__ranking">
+        <div className="home-panel__title-row">
+          <div className="home-panel__title">내 랭킹</div>
+          <GameBtn variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => props.onNavigate("ranking")}>
+            전체 보기
+          </GameBtn>
+        </div>
+        {leaderboardHighlights.length === 0 ? (
+          <p className="home-panel__empty">탑·레이드에 도전하면 순위가 기록돼요.</p>
+        ) : (
+          <ul className="home-ranking-highlights">
+            {leaderboardHighlights.map((h) => (
+              <li key={h.boardKey} className="home-ranking-highlights__row">
+                <span className="home-ranking-highlights__label">{h.label}</span>
+                <span className="home-ranking-highlights__rank">#{h.rank}</span>
+                <span className="home-ranking-highlights__score">{h.scoreLabel}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <div className="home-overview__grid home-overview__grid--no-chart">
+        <section className="home-panel home-panel--minion home-panel--span-wide">
+          <div className="home-panel__title-row">
+            <div className="home-panel__title">대표 미니언</div>
+            {totalUnspentSkillPoints > 0 ? (
+              <button
+                type="button"
+                className="home-panel__skill-pill"
+                title="미니언 관리에서 스킬 배분"
+                onClick={() => props.onNavigate("minions")}
+              >
+                스킬 포인트 {totalUnspentSkillPoints}
+              </button>
+            ) : null}
+          </div>
+          <div className="home-panel__body home-panel__body--minion">
+            {representativeMinion ? (
+              <RepresentativeMinionCard
+                embedded={props.embedded}
+                minion={representativeMinion}
+                onOpenMinions={() => props.onNavigate("minions")}
+                onChangeRepresentative={() => void openRepresentativePicker()}
+              />
+            ) : (
+              <div className="space-y-2 text-center">
+                <p className="home-panel__empty">홈에 표시할 대표 미니언을 지정해 주세요.</p>
+                <GameBtn className="h-8 text-xs" onClick={() => void openRepresentativePicker()}>
+                  대표 미니언 선택
+                </GameBtn>
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="home-panel home-panel--sales">
@@ -460,15 +366,19 @@ export function HomeOverviewPanel(props: { embedded?: boolean; onNavigate: (tab:
             거래소 열기
           </GameBtn>
         </section>
-
-        <section className="home-panel home-panel--status">
-          <QuickStatus onNavigate={props.onNavigate} />
-        </section>
       </div>
 
       {error ? (
         <p className="home-overview__warn text-xs text-amber-300/90">{formatPanelError(error)}</p>
       ) : null}
+
+      <RepresentativePickModal
+        open={pickOpen}
+        roster={pickRoster}
+        busy={repBusy}
+        onClose={() => setPickOpen(false)}
+        onPick={(id) => void setRepresentative(id)}
+      />
     </GamePanel>
   );
 }

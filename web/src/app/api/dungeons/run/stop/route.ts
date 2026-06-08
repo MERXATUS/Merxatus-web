@@ -26,11 +26,12 @@ export async function POST(req: Request) {
 
   const pending = safeParsePendingLoot(run.pendingLootJson ?? "[]");
   const forfeitedLoot = await enrichLootEntries(prisma, pending);
+  const forfeitedGold = Math.max(0, Math.floor(run.pendingGold ?? 0));
 
   await prisma.dungeonRun.update({
     where: { id: run.id },
-    data: { status: "STOPPED", pendingLootJson: "[]" },
+    data: { status: "STOPPED", pendingLootJson: "[]", pendingGold: 0 },
   });
 
-  return Response.json({ ok: true, forfeitedLoot });
+  return Response.json({ ok: true, forfeitedLoot, forfeitedGold });
 }

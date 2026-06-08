@@ -1,6 +1,7 @@
 "use client";
 
 import { ItemIcon } from "@/app/_components/ItemIcon";
+import { MinionEquippedItemTooltip } from "@/app/_components/MinionEquippedItemTooltip";
 import {
   EQUIP_DRAG_MIME,
   isMinionEquipSlotEnabled,
@@ -97,6 +98,7 @@ function slotClass(
 }
 
 function SlotContents(props: {
+  slotId: MinionEquipSlotId;
   label: string;
   item: MinionEquippedItemView | null;
   filled: boolean;
@@ -107,16 +109,18 @@ function SlotContents(props: {
   if (props.filled && props.item) {
     const lv = props.item.enhanceLevel ?? 0;
     return (
-      <div className="minion-equip-slot__item">
-        <ItemIcon
-          itemId={props.item.baseItemId}
-          icon={props.item.icon}
-          size={props.iconSize}
-          className="minion-equip-slot__icon"
-          eager
-        />
-        {lv > 0 ? <span className="minion-equip-slot__enhance">+{lv}</span> : null}
-      </div>
+      <MinionEquippedItemTooltip item={props.item} slotId={props.slotId}>
+        <div className="minion-equip-slot__item">
+          <ItemIcon
+            itemId={props.item.baseItemId}
+            icon={props.item.icon}
+            size={props.iconSize}
+            className="minion-equip-slot__icon"
+            eager
+          />
+          {lv > 0 ? <span className="minion-equip-slot__enhance">+{lv}</span> : null}
+        </div>
+      </MinionEquippedItemTooltip>
     );
   }
   return (

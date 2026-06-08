@@ -14,7 +14,7 @@ import {
   promotionStateFromRow,
   resolveMinionCombatClass,
 } from "@/shared/minionPromotion";
-import { skillViewsForCombatClass } from "@/shared/minionSkills";
+import { skillViewsForMinion } from "@/shared/minionSkills";
 
 export const runtime = "nodejs";
 
@@ -71,6 +71,8 @@ export async function POST(req: Request) {
         level: m.level ?? 1,
         fighterRank,
         baseStats,
+        combatClass,
+        skillLevelsJson: m.skillLevelsJson,
         weapon: m.equippedWeaponInstance
           ? {
               baseItemId: m.equippedWeaponInstance.baseItemId,
@@ -102,7 +104,8 @@ export async function POST(req: Request) {
         promotionTier: promotion.promotionTier,
         canPromoteFirst: promotionInfo.canPromoteFirst,
         canPromoteSecond: promotionInfo.canPromoteSecond,
-        skills: skillViewsForCombatClass(combatClass),
+        skills: skillViewsForMinion({ combatClass, skillLevelsJson: m.skillLevelsJson }),
+        unspentSkillPoints: m.unspentSkillPoints ?? 0,
         combatStats,
       };
     });

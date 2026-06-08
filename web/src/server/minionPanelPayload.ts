@@ -1,11 +1,14 @@
 import { prisma } from "@/server/db";
 import { ensureMinionEntitiesForUser } from "@/server/ensureMinionEntitiesForUser";
 import { attachIcons, getItemIconMap } from "@/server/itemCatalog";
-import { itemGradeLabel } from "@/server/itemGrade";
+import { itemGradeLabel, itemGradeViewForItem } from "@/server/itemGrade";
 import { loadMinionArmorIdsForUser } from "@/server/minionArmorDb";
 import { MAX_DUNGEON_MINIONS } from "@/server/minionCapacity";
 import { mapMinionToListRow } from "@/server/minionListBuild";
-import { formatOptionRows, parseOptionsJson } from "@/server/itemOptions";
+import { formatEquipmentOptionDisplay, parseEquipmentOptionsPayload } from "@/server/equipmentOptions";
+import { loadKnightOrderBonuses } from "@/server/knightOrder";
+import { knightOrderToView } from "@/server/knightOrderView";
+import { getMinionCreateEligibility } from "@/server/minionCreate";
 
 const minionInclude = {
   traits: true,
@@ -17,7 +20,8 @@ export async function loadMinionPanelPayload(userId: string) {
     console.warn("[minionPanelPayload] ensureMinionEntitiesForUser", e);
   });
 
-  const [armorByMinionId, minions, weaponInstances, armorInstances, iconMap] = await Promise.all([
+  const [armorByMinionId, minions, weaponInstances, armorInstances, iconMap, knightOrderRaw, userRow, minionCreate] =
+    await Promise.all([
     loadMinionArmorIdsForUser(prisma, userId),
     prisma.minion.findMany({
       where: { userId },
@@ -38,6 +42,12 @@ export async function loadMinionPanelPayload(userId: string) {
       take: 200,
     }),
     getItemIconMap(),
+    loadKnightOrderBonuses(prisma, userId),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { representativeMinionId: true },
+    }),
+    getMinionCreateEligibility(prisma, userId),
   ]);
 
   const armorInstById = new Map(
@@ -47,6 +57,9 @@ export async function loadMinionPanelPayload(userId: string) {
   return {
     maxDungeonOwned: MAX_DUNGEON_MINIONS,
     maxOwned: MAX_DUNGEON_MINIONS,
+    representativeMinionId: userRow?.representativeMinionId ?? null,
+    minionCreate,
+    knightOrder: knightOrderToView(knightOrderRaw),
     minions: minions.map((m) =>
       mapMinionToListRow(m, armorByMinionId, { armorInstancesById: armorInstById }),
     ),
@@ -56,9 +69,9 @@ export async function loadMinionPanelPayload(userId: string) {
         baseItemId: w.baseItemId,
         name: w.baseItem.name,
         enhanceLevel: w.enhanceLevel,
-        grade: w.baseItem.grade,
-        gradeLabel: itemGradeLabel(w.baseItem.grade),
-        options: formatOptionRows(parseOptionsJson(w.optionsJson), "weapon"),
+        ...itemGradeViewForItem(w.baseItemId, w.baseItem.grade),
+        identified: parseEquipmentOptionsPayload(w.optionsJson).identified,
+        options: formatEquipmentOptionDisplay(w.optionsJson, "weapon"),
       })),
       iconMap,
       "baseItemId",
@@ -68,10 +81,11 @@ export async function loadMinionPanelPayload(userId: string) {
         id: a.id,
         baseItemId: a.baseItemId,
         name: a.baseItem.name,
+        enhanceLevel: a.enhanceLevel,
         createdAt: a.createdAt,
-        grade: a.baseItem.grade,
-        gradeLabel: itemGradeLabel(a.baseItem.grade),
-        options: formatOptionRows(parseOptionsJson(a.optionsJson), "armor"),
+        ...itemGradeViewForItem(a.baseItemId, a.baseItem.grade),
+        identified: parseEquipmentOptionsPayload(a.optionsJson).identified,
+        options: formatEquipmentOptionDisplay(a.optionsJson, "armor"),
       })),
       iconMap,
       "baseItemId",

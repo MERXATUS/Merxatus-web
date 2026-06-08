@@ -1,10 +1,8 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-/** Merxatus `Dungeon_Slime_Forest` → 시드 `dungeon_slime_forest_1` */
-const DUNGEON_ID_ALIASES = {
-  dungeon_slime_forest: "dungeon_slime_forest_1",
-};
+/** Merxatus `Dungeon_Slime_Forest` → `dungeon_slime_forest` */
+const DUNGEON_ID_ALIASES = {};
 
 function parseCsv(text) {
   const normalized = text.replace(/^\uFEFF/, "");

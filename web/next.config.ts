@@ -6,24 +6,17 @@ const nextConfig: NextConfig = {
   /** dev는 NEXT_DISABLE_TURBOPACK=1, production build는 `next build --webpack` */
   webpack(config, { dev }) {
     if (dev) {
-      const prev = config.watchOptions?.ignored;
-      const base = Array.isArray(prev) ? prev : prev ? [prev] : [];
-      const ignored = [
-        ...base.filter(
-          (p): p is string | RegExp =>
-            (typeof p === "string" && p.length > 0) || p instanceof RegExp,
-        ),
-        "**/.cursor/**",
-        "**/agent-transcripts/**",
-        "../.cursor/**",
-        "**/.git/**",
-        "**/prisma/migrations/**",
-        "**/data/**",
-        "**/node_modules/.prisma/**",
-      ];
       config.watchOptions = {
         ...config.watchOptions,
-        ignored,
+        ignored: [
+          "**/node_modules/**",
+          "**/.next/**",
+          "**/.git/**",
+          "**/.cursor/**",
+          "**/agent-transcripts/**",
+          "**/prisma/migrations/**",
+          "**/data/**",
+        ],
         /** Windows에서 연속 저장·감시 이벤트를 묶어 Compiling 스톰 완화 */
         aggregateTimeout: 800,
       };

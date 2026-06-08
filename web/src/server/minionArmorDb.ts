@@ -159,7 +159,7 @@ export function getArmorInstanceFieldValue(row: MinionArmorIds, field: MinionArm
 
 export function buildArmorLoadoutFromIds(
   armorIds: MinionArmorIds,
-  instancesById: Map<string, { baseItemId: string; optionsJson: string }>,
+  instancesById: Map<string, { baseItemId: string; optionsJson: string; enhanceLevel?: number }>,
 ): MinionArmorLoadout {
   const slotMap: Array<["helmet" | "armor" | "pants" | "shoes", keyof MinionArmorIds, keyof MinionArmorIds]> = [
     ["helmet", "equippedHelmetInstanceId", "equippedHelmetItemId"],
@@ -173,7 +173,11 @@ export function buildArmorLoadoutFromIds(
     if (instId) {
       const inst = instancesById.get(instId);
       if (inst) {
-        out[slot] = { itemId: inst.baseItemId, optionsJson: inst.optionsJson };
+        out[slot] = {
+          itemId: inst.baseItemId,
+          optionsJson: inst.optionsJson,
+          enhanceLevel: inst.enhanceLevel ?? 0,
+        };
         continue;
       }
     }
@@ -183,7 +187,7 @@ export function buildArmorLoadoutFromIds(
   return out;
 }
 
-type ArmorInstanceCombatRow = { baseItemId: string; optionsJson: string };
+type ArmorInstanceCombatRow = { baseItemId: string; optionsJson: string; enhanceLevel: number };
 
 export async function loadArmorInstanceMapForIds(
   tx: Pick<PrismaClient, "armorInstance">,
@@ -199,8 +203,44 @@ export async function loadArmorInstanceMapForIds(
   if (!ids.length) return new Map();
   const rows = await tx.armorInstance.findMany({
     where: { id: { in: ids }, userId },
-    select: { id: true, baseItemId: true, optionsJson: true },
+    select: { id: true, baseItemId: true, optionsJson: true, enhanceLevel: true },
     take: 20,
   });
-  return new Map(rows.map((r) => [r.id, { baseItemId: r.baseItemId, optionsJson: r.optionsJson }]));
+  return new Map(
+    rows.map((r) => [
+      r.id,
+      { baseItemId: r.baseItemId, optionsJson: r.optionsJson, enhanceLevel: r.enhanceLevel ?? 0 },
+    ]),
+  );
+}
+
+/** 유저 미니언 전체 착용 방어구 인스턴스 — 홈·목록 전투력/표시용 */
+export async function loadArmorInstanceMapForUser(
+  tx: Pick<PrismaClient, "armorInstance">,
+  userId: string,
+  armorByMinionId: Map<string, MinionArmorIds>,
+): Promise<Map<string, ArmorInstanceCombatRow>> {
+  const ids = new Set<string>();
+  for (const row of armorByMinionId.values()) {
+    for (const id of [
+      row.equippedHelmetInstanceId,
+      row.equippedChestInstanceId,
+      row.equippedPantsInstanceId,
+      row.equippedBootsInstanceId,
+    ]) {
+      if (id) ids.add(id);
+    }
+  }
+  if (!ids.size) return new Map();
+  const rows = await tx.armorInstance.findMany({
+    where: { userId, id: { in: [...ids] } },
+    select: { id: true, baseItemId: true, optionsJson: true, enhanceLevel: true },
+    take: 200,
+  });
+  return new Map(
+    rows.map((r) => [
+      r.id,
+      { baseItemId: r.baseItemId, optionsJson: r.optionsJson, enhanceLevel: r.enhanceLevel ?? 0 },
+    ]),
+  );
 }

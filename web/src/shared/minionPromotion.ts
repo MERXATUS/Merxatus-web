@@ -7,9 +7,9 @@ import {
 } from "@/shared/minionDerivedClass";
 import { weaponArchetypeFromBaseItemId } from "@/shared/minionWeaponRules";
 
-/** 1차 전직(모험가 → 검사) 가능 레벨 */
+/** 1차 전직(모험가 → 검사) */
 export const MINION_FIRST_PROMOTION_LEVEL = 30;
-/** 2차 전직(검사 → 특화 클래스) 가능 레벨 */
+/** 2차 전직(검사 → 특화) — Lv1→70 전체 약 30~60분 목표 */
 export const MINION_SECOND_PROMOTION_LEVEL = 70;
 
 export type MinionPromotionTier = 0 | 1 | 2;

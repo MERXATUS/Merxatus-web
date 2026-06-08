@@ -12,13 +12,14 @@ import { DungeonCashoutConfirmModal } from "@/app/_components/DungeonCashoutConf
 import { GameBtn, GamePanel } from "@/app/_components/gameUi";
 import { GamePanelError, GamePanelLoading } from "@/app/_components/panelFeedback";
 import { useSessionUser } from "@/app/_components/SessionProvider";
-import { isDungeonPool } from "@/server/minionJobs";
 import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
 import type { CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatLog";
 import type { DungeonLootRow } from "@/shared/dungeonSettlement";
 import { readSavedPartyIds, resolveSavedPartyIds, writeSavedPartyIds } from "@/shared/savedParty";
 import { useEscapeClose } from "@/shared/useEscapeClose";
-import { apiGetJson, apiPostJson } from "@/shared/sessionClient";
+import { fetchCombatRoster } from "@/shared/combatRosterClient";
+import { API_CACHE_TTL } from "@/shared/apiCache";
+import { apiGetJson, apiGetJsonCached, apiPostJson } from "@/shared/sessionClient";
 
 const TOWER_PARTY_KEY = "tower_party_minion_ids_v1";
 const MAX_PARTY = 3;
@@ -61,18 +62,19 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
   const [combatIsBoss, setCombatIsBoss] = useState(false);
   const [playbackClearChance, setPlaybackClearChance] = useState<number | null>(null);
   const [cashoutConfirmOpen, setCashoutConfirmOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const pendingResultRef = useRef<AdvanceResult | null>(null);
 
   const refresh = useCallback(async () => {
     if (!user) return;
     setError(null);
     try {
-      const [towerR, minionR] = await Promise.all([
+      const [towerR, roster] = await Promise.all([
         apiGetJson<TowerState>("/api/tower/run/state"),
-        apiGetJson<{ ok: boolean; minions: MinionRow[] }>("/api/minions/list"),
+        fetchCombatRoster(user.id),
       ]);
       setState(towerR);
-      const roster = (minionR.minions ?? []).filter((m) => isDungeonPool(m.pool));
       setMinions(roster);
       if (!towerR.active) {
         setPartyIds(resolveSavedPartyIds(readSavedPartyIds(TOWER_PARTY_KEY), roster, MAX_PARTY));
@@ -82,10 +84,41 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
     }
   }, [user]);
 
+  const refreshLeaderboard = useCallback(async (force?: boolean) => {
+    if (!user) return;
+    setLeaderboardLoading(true);
+    try {
+      const boardR = await apiGetJsonCached<{
+        ok: boolean;
+        rank?: TowerState["rank"];
+        leaderboard?: LeaderRow[];
+      }>("/api/tower/leaderboard", { ttlMs: API_CACHE_TTL.towerLeaderboard, force });
+      setState((prev) =>
+        prev
+          ? {
+              ...prev,
+              rank: boardR.rank ?? prev.rank,
+              leaderboard: boardR.leaderboard ?? prev.leaderboard,
+            }
+          : prev,
+      );
+    } catch {
+      /* 랭킹은 부가 정보 */
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
-    if (sessionLoading) return;
+    if (!embedded && sessionLoading) return;
+    if (!user) return;
     void refresh();
-  }, [sessionLoading, user?.id, refresh]);
+  }, [embedded, sessionLoading, user?.id, refresh]);
+
+  useEffect(() => {
+    if (!leaderboardOpen || !user) return;
+    void refreshLeaderboard();
+  }, [leaderboardOpen, user?.id, refreshLeaderboard]);
 
   useEffect(() => {
     if (!embedded) return;
@@ -112,8 +145,8 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
     setPartyOpen(true);
     setPartyBusy(true);
     try {
-      const r = await apiGetJson<{ ok: boolean; minions: MinionRow[] }>("/api/minions/list");
-      if (r.ok) setMinions((r.minions ?? []).filter((m) => isDungeonPool(m.pool)));
+      const roster = await fetchCombatRoster(user!.id, { force: true });
+      setMinions(roster);
     } catch (e) {
       setError(e);
     } finally {
@@ -194,8 +227,9 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
     }
   }
 
-  if (sessionLoading) return <GamePanelLoading label="무한의 탑 불러오는 중…" />;
-  if (!user) return <p className="text-sm text-[var(--game-muted)]">로그인 후 이용할 수 있습니다.</p>;
+  if (!embedded && sessionLoading) return <GamePanelLoading label="삼계의 탑 불러오는 중…" />;
+  if (!embedded && !user) return <p className="text-sm text-[var(--game-muted)]">로그인 후 이용할 수 있습니다.</p>;
+  if (embedded && !user) return null;
 
   const active = state?.active ?? false;
 
@@ -203,8 +237,8 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
     <GamePanel className={embedded ? "panel-fit" : ""}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="game-label">무한의 탑</p>
-          <h2 className="game-title text-lg">{state?.config?.name ?? "무한의 탑"}</h2>
+          <p className="game-label">삼계의 탑</p>
+          <h2 className="game-title text-lg">{state?.config?.name ?? "삼계의 탑"}</h2>
           <p className="mt-1 text-xs text-[var(--game-muted)]">Push Luck · 층↑ 배수↑ · 랭킹은 최고 층 기준</p>
         </div>
         <span className={`dungeon-status-pill ${active ? "dungeon-status-pill--live" : ""}`.trim()}>
@@ -305,11 +339,18 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
             disabled={!!busy || partyIds.size === 0}
             onClick={async () => {
               setBusy("start");
+              setState((prev) => ({
+                ok: true,
+                active: true,
+                config: prev?.config ?? { name: "삼계의 탑", seasonKey: "" },
+                run: { floor: 1, bestFloor: 0, pendingLoot: [] },
+              }));
               try {
                 await apiPostJson("/api/tower/run/start", { minionIds: [...partyIds] });
                 setLastMsg("탑 도전 시작");
-                await refresh();
+                void refresh();
               } catch (e) {
+                setState((prev) => (prev?.active ? { ...prev, active: false, run: undefined } : prev));
                 setError(e);
               } finally {
                 setBusy(null);
@@ -321,21 +362,39 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
         </div>
       )}
 
-      {state?.leaderboard && state.leaderboard.length > 0 ? (
-        <div className="mt-4 game-subpanel-inset">
-          <p className="text-xs font-semibold text-[var(--game-muted)]">랭킹 TOP 10</p>
-          <ol className="mt-2 space-y-1 text-xs">
-            {state.leaderboard.map((row) => (
-              <li key={row.rank} className="flex justify-between">
-                <span>
-                  #{row.rank} {row.username}
-                </span>
-                <span className="tabular-nums">{row.score}층</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      ) : null}
+      <div className="mt-4">
+        <GameBtn
+          variant="ghost"
+          className="h-8 w-full text-xs"
+          onClick={() => setLeaderboardOpen((v) => !v)}
+        >
+          {leaderboardOpen ? "랭킹 접기" : "랭킹 보기"}
+          {state?.rank ? ` · 내 기록 ${state.rank.score}층 (#${state.rank.rank})` : ""}
+        </GameBtn>
+        {leaderboardOpen ? (
+          <div className="mt-2 game-subpanel-inset">
+            {leaderboardLoading && !state?.leaderboard?.length ? (
+              <p className="text-xs text-[var(--game-muted)]">랭킹 불러오는 중…</p>
+            ) : state?.leaderboard && state.leaderboard.length > 0 ? (
+              <>
+                <p className="text-xs font-semibold text-[var(--game-muted)]">랭킹 TOP 10</p>
+                <ol className="mt-2 space-y-1 text-xs">
+                  {state.leaderboard.map((row) => (
+                    <li key={row.rank} className="flex justify-between">
+                      <span>
+                        #{row.rank} {row.username}
+                      </span>
+                      <span className="tabular-nums">{row.score}층</span>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            ) : (
+              <p className="text-xs text-[var(--game-muted)]">아직 랭킹 기록이 없어요.</p>
+            )}
+          </div>
+        ) : null}
+      </div>
 
       <DungeonCashoutConfirmModal
         open={cashoutConfirmOpen}

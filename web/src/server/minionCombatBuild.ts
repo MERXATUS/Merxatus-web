@@ -1,9 +1,14 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { computeMemberPower } from "@/server/dungeonBattler";
 import { computePartyPower } from "@/server/dungeonCombat";
-import { weaponCombatBonusFromOptions } from "@/server/itemOptions";
+import { parseOptionsJson, weaponCombatBonusFromOptions } from "@/server/itemOptions";
 import type { MinionArmorIds } from "@/server/minionArmorDb";
 import { buildArmorLoadoutFromIds, loadMinionArmorIdsForUser } from "@/server/minionArmorDb";
+import {
+  combatModifiersFromOptionRows,
+  mergeCombatModifiers,
+  type EquipmentCombatModifiers,
+} from "@/shared/equipmentCombatModifiers";
 import {
   armorLoadoutFromSlotIds,
   combatMemberFromMinion,
@@ -15,6 +20,9 @@ import {
 import { minionBaseStatsFromRow, type MinionBaseStats } from "@/shared/minionBaseStats";
 import { minionCombatClassLabel, type MinionCombatClass } from "@/shared/minionDerivedClass";
 import { promotionStateFromRow, resolveMinionCombatClass } from "@/shared/minionPromotion";
+import { primaryCombatSkillForMinion } from "@/shared/minionSkills";
+import { loadKnightOrderBonuses, scalePartyPowerWithKnightOrder } from "@/server/knightOrder";
+import type { KnightOrderBonuses } from "@/shared/knightOrder";
 
 export type MinionWeaponEquip = {
   baseItemId: string;
@@ -26,6 +34,8 @@ export type MinionCombatEquipInput = {
   level: number;
   fighterRank: number;
   baseStats?: MinionBaseStats;
+  combatClass?: MinionCombatClass;
+  skillLevelsJson?: string | null;
   weapon: MinionWeaponEquip | null;
   armor: MinionArmorLoadout | MinionArmorSlots;
 };
@@ -39,11 +49,27 @@ function normalizeArmor(armor: MinionArmorLoadout | MinionArmorSlots): MinionArm
   if (isArmorSlotView(armor)) return armorLoadoutFromSlotIds(armor);
   return armor;
 }
+
+function combatModsFromEquip(input: MinionCombatEquipInput): EquipmentCombatModifiers {
+  const weaponRows = parseOptionsJson(input.weapon?.optionsJson ?? null);
+  const armor = normalizeArmor(input.armor);
+  const armorMods = (["helmet", "armor", "pants", "shoes"] as const).map((slot) => {
+    const piece = armor[slot];
+    if (!piece?.itemId) return combatModifiersFromOptionRows([], "armor");
+    return combatModifiersFromOptionRows(parseOptionsJson(piece.optionsJson ?? null), "armor");
+  });
+  return mergeCombatModifiers(
+    combatModifiersFromOptionRows(weaponRows, "weapon"),
+    ...armorMods,
+  );
+}
 function toCombatInput(input: MinionCombatEquipInput) {
   return {
     level: input.level,
     fighterRank: input.fighterRank,
     baseStats: minionBaseStatsFromRow(input.baseStats),
+    combatClass: input.combatClass,
+    skillLevelsJson: input.skillLevelsJson,
     weapon: input.weapon
       ? {
           baseItemId: input.weapon.baseItemId,
@@ -70,23 +96,33 @@ export function buildMinionPartyCombatRow(
     promotionClass?: string | null;
   },
 ) {
-  const { member, bonusHp, bonusDef } = combatMemberFromMinion(toCombatInput(input));
-  const combatClass = resolveMinionCombatClass(
-    promotionStateFromRow({
-      promotionTier: input.promotionTier,
-      promotionClass: input.promotionClass,
-    }),
-  );
+  const combatClass =
+    input.combatClass ??
+    resolveMinionCombatClass(
+      promotionStateFromRow({
+        promotionTier: input.promotionTier,
+        promotionClass: input.promotionClass,
+      }),
+    );
+  const combatInput = toCombatInput({ ...input, combatClass });
+  const built = combatMemberFromMinion(combatInput);
   const combatClassLabel = input.combatClassLabel ?? minionCombatClassLabel(combatClass);
+  const primarySkill = primaryCombatSkillForMinion(combatClass, input.skillLevelsJson);
+  const combatMods = combatModsFromEquip(input);
   return {
     minionId: input.minionId,
     combatClass,
     combatClassLabel,
     weaponBaseItemId: input.weapon?.baseItemId ?? null,
-    power: computeMemberPower(member),
-    bonusHp,
-    bonusDef,
-    row: member,
+    power: computeMemberPower(built.member),
+    bonusHp: built.bonusHp,
+    bonusDef: built.bonusDef,
+    skillDamageMult: built.skillDamageMult,
+    activeSkillName: primarySkill?.name ?? null,
+    activeSkillId: primarySkill?.id ?? null,
+    activeSkillLevel: primarySkill?.level ?? 0,
+    combatMods,
+    row: built.member,
   };
 }
 
@@ -102,12 +138,13 @@ type PartyMinionRow = {
     endurance?: number | null;
     promotionTier?: number | null;
     promotionClass?: string | null;
+    skillLevelsJson?: string | null;
   };
 };
 
 export type PartyCombatDb =
   | Prisma.TransactionClient
-  | Pick<PrismaClient, "minionTrait" | "weaponInstance" | "armorInstance" | "$queryRaw">;
+  | Pick<PrismaClient, "minion" | "minionTrait" | "weaponInstance" | "armorInstance" | "$queryRaw">;
 
 type CombatDb = PartyCombatDb;
 /** 던전·자동 웨이브 — UI와 동일한 장비/옵션/방어구 반영 */
@@ -153,7 +190,7 @@ export async function loadPartyCombatRows(tx: CombatDb, userId: string, party: P
   const armorInstances = armorInstanceIds.size
     ? await tx.armorInstance.findMany({
         where: { id: { in: [...armorInstanceIds] }, userId },
-        select: { id: true, baseItemId: true, optionsJson: true },
+        select: { id: true, baseItemId: true, optionsJson: true, enhanceLevel: true },
         take: 100,
       })
     : [];
@@ -178,6 +215,7 @@ export async function loadPartyCombatRows(tx: CombatDb, userId: string, party: P
       baseStats: minionBaseStatsFromRow(p.minion),
       promotionTier: p.minion.promotionTier,
       promotionClass: p.minion.promotionClass,
+      skillLevelsJson: p.minion.skillLevelsJson,
       weapon: wi
         ? {
             baseItemId: wi.baseItemId,
@@ -189,6 +227,8 @@ export async function loadPartyCombatRows(tx: CombatDb, userId: string, party: P
     });
   });
 
-  const partyPower = computePartyPower({ members: memberInputs.map((x) => x.row) });
-  return { memberInputs, partyPower };
+  const basePartyPower = computePartyPower({ members: memberInputs.map((x) => x.row) });
+  const knightOrder = await loadKnightOrderBonuses(tx, userId);
+  const partyPower = scalePartyPowerWithKnightOrder(basePartyPower, knightOrder);
+  return { memberInputs, partyPower, basePartyPower, knightOrder };
 }

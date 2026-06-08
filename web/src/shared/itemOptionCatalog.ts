@@ -1,5 +1,6 @@
 import armorOptionTiers from "../../data/armor_option_tiers.json";
 import weaponOptionTiers from "../../data/weapon_option_tiers.json";
+import { isMechanizedWeaponOptionId } from "@/shared/equipmentCombatModifiers";
 
 export type OptionTierRow = {
   name: string;
@@ -82,7 +83,7 @@ export function formatOptionValueForDisplay(optionId: string, tier: number, pool
   return legacyTierDisplayValue(optionId, tier);
 }
 
-const STAT_OPTION_IDS = new Set(["STAT_STR_ADD", "STAT_DEX_ADD", "STAT_INT_ADD"]);
+const STAT_OPTION_IDS = new Set(["STAT_STR_ADD", "STAT_DEX_ADD", "STAT_INT_ADD", "STAT_END_ADD"]);
 
 export function isStatOptionId(optionId: string): boolean {
   return STAT_OPTION_IDS.has(normalizeOptionId(optionId));
@@ -92,6 +93,7 @@ export type EquipmentStatBonus = {
   strength: number;
   agility: number;
   intelligence: number;
+  endurance: number;
 };
 
 export function statBonusFromOptionRows(
@@ -99,13 +101,14 @@ export function statBonusFromOptionRows(
   pool: "weapon" | "armor",
 ): EquipmentStatBonus {
   const catalog = optionCatalogForPool(pool);
-  const out = { strength: 0, agility: 0, intelligence: 0 };
+  const out = { strength: 0, agility: 0, intelligence: 0, endurance: 0 };
   for (const row of rows) {
     const id = normalizeOptionId(row.optionId);
     const v = optionTierValue(catalog, id, row.tier);
     if (id === "STAT_STR_ADD") out.strength += v;
     else if (id === "STAT_DEX_ADD") out.agility += v;
     else if (id === "STAT_INT_ADD") out.intelligence += v;
+    else if (id === "STAT_END_ADD") out.endurance += v;
     else if (id === "ALL_STAT_PCT" && pool === "weapon") {
       // 올스탯 % — flat 보너스에 % 가산 (기본 스탯 없이 장비 옵션만 반영 시 0 기준)
       continue;
@@ -116,12 +119,53 @@ export function statBonusFromOptionRows(
 
 const WEAPON_POWER_OPTION_PREFIXES = ["PHY_ATK_", "MAG_ATK_", "FINAL_DMG_", "CRIT_", "ATK_SPD_", "ARMOR_PEN_", "LIFE_STEAL_", "DMG_VS_"];
 
+/**
+ * 유틸 % 옵션 → CP 환산 (표시값 1당).
+ * 전투 시뮬과 이중 반영을 막기 위해 flat·공격력 옵션(0.08~0.35)보다 낮게 잡음.
+ * ITEM_RARITY_PCT는 드랍 전용이라 0.
+ */
+export const UTIL_OPTION_CP_PER_DISPLAY_UNIT: Record<string, number> = {
+  ATK_SPD_PCT: 0.11,
+  CRIT_CHANCE_PCT: 0.13,
+  CRIT_DMG_PCT: 0.09,
+  ARMOR_PEN_PCT: 0.1,
+  FINAL_DMG_PCT: 0.12,
+  LIFE_STEAL_PCT: 0.1,
+  DMG_VS_BOSS_PCT: 0.07,
+  DMG_VS_ANGEL_PCT: 0.07,
+  DMG_VS_DEMON_PCT: 0.07,
+  BLOCK_PCT: 0.11,
+  DMG_RED_PCT: 0.11,
+};
+
+export function utilOptionPowerFromDisplayValue(optionId: string, displayValue: number): number {
+  const id = normalizeOptionId(optionId);
+  const weight = UTIL_OPTION_CP_PER_DISPLAY_UNIT[id];
+  if (!weight || displayValue <= 0) return 0;
+  return displayValue * weight;
+}
+
+export function armorUtilPowerBonusFromOptionRows(rows: Array<{ optionId: string; tier: number }>): number {
+  let sum = 0;
+  for (const row of rows) {
+    const id = normalizeOptionId(row.optionId);
+    if (id !== "BLOCK_PCT" && id !== "DMG_RED_PCT") continue;
+    const v = optionTierValue(ARMOR_OPTION_CATALOG, id, row.tier);
+    sum += utilOptionPowerFromDisplayValue(id, v);
+  }
+  return Math.round(sum * 100) / 100;
+}
+
 export function weaponPowerBonusFromOptionRows(rows: Array<{ optionId: string; tier: number }>): number {
   let sum = 0;
   for (const row of rows) {
     const id = normalizeOptionId(row.optionId);
     const v = optionTierValue(WEAPON_OPTION_CATALOG, id, row.tier);
     if (v <= 0) continue;
+    if (isMechanizedWeaponOptionId(id)) {
+      if (id !== "ITEM_RARITY_PCT") sum += utilOptionPowerFromDisplayValue(id, v);
+      continue;
+    }
     if (id === "PHY_ATK_ADD" || id === "MAG_ATK_ADD") sum += v * 0.08;
     else if (id.endsWith("_PCT") || id.includes("_PCT")) sum += v * 0.35;
     else if (WEAPON_POWER_OPTION_PREFIXES.some((p) => id.startsWith(p))) sum += v * 0.25;

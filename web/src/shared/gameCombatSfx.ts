@@ -1,6 +1,6 @@
 const MUTE_KEY = "merxatus_combat_sfx_mute";
 
-type SfxKind = "tick" | "start" | "hit" | "ko" | "win" | "loss";
+type SfxKind = "tick" | "start" | "hit" | "crit" | "extra" | "heal" | "block" | "ko" | "win" | "loss";
 
 let ctx: AudioContext | null = null;
 
@@ -56,6 +56,22 @@ export function playCombatSfx(kind: SfxKind) {
       break;
     case "hit":
       tone(120, 0.07, "square", 0.045);
+      break;
+    case "crit":
+      tone(180, 0.05, "square", 0.05);
+      setTimeout(() => tone(520, 0.12, "sawtooth", 0.055), 40);
+      break;
+    case "extra":
+      tone(280, 0.05, "triangle", 0.042);
+      setTimeout(() => tone(360, 0.07, "triangle", 0.038), 35);
+      break;
+    case "heal":
+      tone(440, 0.08, "sine", 0.035);
+      setTimeout(() => tone(660, 0.1, "sine", 0.032), 60);
+      break;
+    case "block":
+      tone(90, 0.06, "square", 0.048);
+      setTimeout(() => tone(70, 0.08, "square", 0.04), 50);
       break;
     case "ko":
       tone(90, 0.15, "sawtooth", 0.05);

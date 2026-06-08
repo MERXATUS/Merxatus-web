@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { GameBtn, GamePanel } from "@/app/_components/gameUi";
 import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
 import { useSessionUser } from "@/app/_components/SessionProvider";
-import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
+import { API_CACHE_TTL } from "@/shared/apiCache";
+import { apiGetJson, apiGetJsonCached, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import { formatPanelError } from "@/shared/formatPanelError";
 import { START_TRADE_WITH_EVENT, TRADE_START_USERNAME_KEY } from "@/shared/gameNav";
 import { ItemIcon } from "@/app/_components/ItemIcon";
@@ -44,6 +45,12 @@ function sideLabel(side: "A" | "B") {
   return side === "A" ? "A" : "B";
 }
 
+type TradeInvState = {
+  inventory: Array<{ itemId: string; name: string; category: string; quantity: number; grade?: number; icon?: string | null; iconSrc?: string }>;
+  weaponInstances?: Array<{ id: string; baseItemId: string; name: string; enhanceLevel: number; grade?: number; icon?: string | null; iconSrc?: string }>;
+  armorInstances?: Array<{ id: string; baseItemId: string; name: string; grade?: number; icon?: string | null; iconSrc?: string }>;
+};
+
 export function TradePanel() {
   const { user, loading: sessionLoading } = useSessionUser();
   const [busy, setBusy] = useState<string | null>(null);
@@ -52,11 +59,7 @@ export function TradePanel() {
   const [trade, setTrade] = useState<TradeSession | null>(null);
   const [invBusy, setInvBusy] = useState(false);
   const [invError, setInvError] = useState<unknown>(null);
-  const [inv, setInv] = useState<{
-    inventory: Array<{ itemId: string; name: string; category: string; quantity: number; grade?: number; icon?: string | null; iconSrc?: string }>;
-    weaponInstances?: Array<{ id: string; baseItemId: string; name: string; enhanceLevel: number; grade?: number; icon?: string | null; iconSrc?: string }>;
-    armorInstances?: Array<{ id: string; baseItemId: string; name: string; grade?: number; icon?: string | null; iconSrc?: string }>;
-  } | null>(null);
+  const [inv, setInv] = useState<TradeInvState | null>(null);
 
   const [counterpartyUsername, setCounterpartyUsername] = useState("");
 
@@ -139,12 +142,25 @@ export function TradePanel() {
     setInvBusy(true);
     setInvError(null);
     try {
-      const r = await apiGetJson<any>("/api/me/state");
-      if (r?.ok) {
+      const [inv, weapons, armor] = await Promise.all([
+        apiGetJsonCached<{ ok: boolean; inventory?: TradeInvState["inventory"] }>(
+          "/api/me/state?scope=inventory",
+          { ttlMs: API_CACHE_TTL.meStateInventory },
+        ),
+        apiGetJsonCached<{ ok: boolean; weaponInstances?: TradeInvState["weaponInstances"] }>(
+          "/api/me/state?scope=weapons",
+          { ttlMs: API_CACHE_TTL.meStateWeapons },
+        ),
+        apiGetJsonCached<{ ok: boolean; armorInstances?: TradeInvState["armorInstances"] }>(
+          "/api/me/state?scope=armor",
+          { ttlMs: API_CACHE_TTL.meStateArmor },
+        ),
+      ]);
+      if (inv?.ok) {
         setInv({
-          inventory: r.inventory ?? [],
-          weaponInstances: r.weaponInstances ?? [],
-          armorInstances: r.armorInstances ?? [],
+          inventory: inv.inventory ?? [],
+          weaponInstances: weapons.weaponInstances ?? [],
+          armorInstances: armor.armorInstances ?? [],
         });
       }
     } catch (e) {

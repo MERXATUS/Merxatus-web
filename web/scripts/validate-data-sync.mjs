@@ -74,11 +74,11 @@ async function main() {
 
   assert(Array.isArray(dungeons) && dungeons.length >= 8, `dungeons.json: ${dungeons?.length}`);
 
-  assert(Array.isArray(raids) && raids.length >= 9, `raids.json: ${raids?.length}`);
+  assert(Array.isArray(raids) && raids.length >= 43, `raids.json: ${raids?.length}`);
 
   assert(tower?.drops?.length >= 1, "tower.json: drops missing");
 
-  assert(Object.keys(monsters).length >= 16, `monsters.json: ${Object.keys(monsters).length}`);
+  assert(Object.keys(monsters).length >= 45, `monsters.json: ${Object.keys(monsters).length}`);
 
   assert(Object.keys(weapons).length >= 5, "weapon_stats.json");
 
@@ -108,11 +108,9 @@ async function main() {
 
     "item_lesser_mana_stone",
 
-    "item_enhance_scroll_low",
-
-    "item_enhance_scroll_mid",
-
-    "item_enhance_scroll_high",
+    "item_lesser_mana_stone",
+    "item_mana_stone",
+    "item_greater_mana_stone",
 
     "weapon_gold_sword",
 

@@ -8,7 +8,9 @@ export async function GET(req: Request) {
   try {
     const auth = requireUserId(req, null);
     if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
-    const out = await getTowerRunState(auth.userId);
+    const url = new URL(req.url);
+    const includeLeaderboard = url.searchParams.get("leaderboard") === "1";
+    const out = await getTowerRunState(auth.userId, { includeLeaderboard });
     return Response.json(out);
   } catch (e) {
     return jsonApiError(e);

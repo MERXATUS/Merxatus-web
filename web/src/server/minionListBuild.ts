@@ -3,13 +3,14 @@ import { armorIdsFromRow, buildArmorLoadoutFromIds, type MinionArmorIds } from "
 import { weaponCombatBonusFromOptions } from "@/server/itemOptions";
 import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
 import { minionLevelProgress } from "@/shared/minionLevel";
+import { itemGradeViewForItem } from "@/server/itemGrade";
 import { minionRoleLabel } from "@/server/minionJobs";
 import {
   minionPromotionAvailability,
   promotionStateFromRow,
   resolveMinionCombatClass,
 } from "@/shared/minionPromotion";
-import { skillViewsForCombatClass } from "@/shared/minionSkills";
+import { skillViewsForMinion } from "@/shared/minionSkills";
 import { getArmorStats } from "@/shared/armorStatsData";
 import {
   armorSlotsFromMinionRow,
@@ -29,7 +30,7 @@ type MinionRow = Awaited<ReturnType<PrismaClient["minion"]["findMany"]>>[number]
   } | null;
 };
 
-function armorEquippedView(
+export function armorEquippedView(
   armorIds: MinionArmorIds,
   instancesById?: Map<string, { baseItemId: string; optionsJson: string }>,
 ) {
@@ -53,6 +54,56 @@ function armorEquippedView(
   };
 }
 
+export function mapMinionToPartyPickRow(m: MinionRow) {
+  const lv = m.level ?? 1;
+  const fighterRank = (m.traits ?? []).find((t) => t.type === "FIGHTER")?.rank ?? 0;
+  const combatClass = resolveMinionCombatClass(promotionStateFromRow(m));
+  const combatPower = computeMinionCombatPower({
+    level: lv,
+    fighterRank,
+    baseStats: minionBaseStatsFromRow(m),
+    combatClass,
+    skillLevelsJson: m.skillLevelsJson,
+    weapon: m.equippedWeaponInstance
+      ? {
+          baseItemId: m.equippedWeaponInstance.baseItemId,
+          enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
+          optionBonus: weaponCombatBonusFromOptions(m.equippedWeaponInstance.optionsJson),
+        }
+      : null,
+    armor: {},
+  });
+
+  return {
+    id: m.id,
+    level: lv,
+    pool: "dungeon",
+    combatClassLabel: minionRoleLabel({ combatClass }),
+    combatPower,
+    combatStats: { combatPower },
+    equippedWeapon: m.equippedWeaponInstance?.baseItem
+      ? {
+          id: m.equippedWeaponInstanceId!,
+          baseItemId: m.equippedWeaponInstance.baseItemId,
+          name: m.equippedWeaponInstance.baseItem.name,
+          enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
+          ...itemGradeViewForItem(
+            m.equippedWeaponInstance.baseItemId,
+            m.equippedWeaponInstance.baseItem.grade,
+          ),
+        }
+      : m.equippedWeaponInstance
+        ? {
+            id: m.equippedWeaponInstanceId!,
+            baseItemId: m.equippedWeaponInstance.baseItemId,
+            name: m.equippedWeaponInstance.baseItemId,
+            enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
+            grade: 1,
+          }
+        : null,
+  };
+}
+
 export function mapMinionToListRow(
   m: MinionRow,
   armorByMinionId: Map<string, MinionArmorIds>,
@@ -69,7 +120,7 @@ export function mapMinionToListRow(
   const promotion = promotionStateFromRow(m);
   const combatClass = resolveMinionCombatClass(promotion);
   const promotionInfo = minionPromotionAvailability({ level: lv, promotionTier: promotion.promotionTier });
-  const skills = skillViewsForCombatClass(combatClass);
+  const skills = skillViewsForMinion({ combatClass, skillLevelsJson: m.skillLevelsJson });
   const levelProgress = minionLevelProgress({
     level: lv,
     experience: m.experience ?? 0,
@@ -80,6 +131,8 @@ export function mapMinionToListRow(
     level: lv,
     fighterRank,
     baseStats,
+    combatClass,
+    skillLevelsJson: m.skillLevelsJson,
     weapon: m.equippedWeaponInstance
       ? {
           baseItemId: m.equippedWeaponInstance.baseItemId,
@@ -105,6 +158,7 @@ export function mapMinionToListRow(
     xpToNext: levelProgress.xpToNext,
     xpProgress: levelProgress.xpProgress,
     unspentStatPoints: levelProgress.unspentStatPoints,
+    unspentSkillPoints: Math.max(0, Math.floor(m.unspentSkillPoints ?? 0)),
     isMaxLevel: levelProgress.isMaxLevel,
     jobType: m.jobType,
     baseStats,
@@ -128,7 +182,10 @@ export function mapMinionToListRow(
           baseItemId: m.equippedWeaponInstance.baseItemId,
           name: m.equippedWeaponInstance.baseItem.name,
           enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
-          grade: m.equippedWeaponInstance.baseItem.grade,
+          ...itemGradeViewForItem(
+            m.equippedWeaponInstance.baseItemId,
+            m.equippedWeaponInstance.baseItem.grade,
+          ),
           optionBonus: combatInput.weapon?.optionBonus ?? 0,
         }
       : m.equippedWeaponInstance

@@ -59,8 +59,11 @@ Windows에서 Direct(db.*:5432)가 P1001 이면 **Session pooler** 를 쓰세요
 
 (pooler 6543 URL을 migrate 에 쓰면 실패합니다.)
 
-또는 Supabase SQL Editor에서 다음 파일 내용을 실행하세요:
-  prisma/migrations/20260531130100_raid_tower_leaderboard/migration.sql
+또는 Supabase SQL Editor에서 미적용 migration.sql 을 실행하세요. 예:
+  prisma/migrations/20260603140000_armor_enhance_level/migration.sql
+
+적용 후 반드시 (dev 서버를 끈 뒤):
+  npx prisma generate
 `);
   process.exit(1);
 }

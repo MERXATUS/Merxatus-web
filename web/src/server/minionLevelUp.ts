@@ -4,10 +4,12 @@ import { MINION_STAT_KEYS } from "@/shared/minionBaseStats";
 import {
   MINION_LEVEL_RULES,
   isMinionMaxLevel,
+  minionXpGrantMultiplier,
   type MinionStatAllocation,
   sumStatAllocation,
   xpRequiredForNextLevel,
 } from "@/shared/minionLevel";
+import { grantSkillPointsOnLevelUp } from "@/server/minionSkills";
 import {
   dungeonAutoWaveXpForStage,
   dungeonFloorXpForStage,
@@ -89,7 +91,9 @@ export async function grantMinionExperience(
   });
   if (!row) return null;
 
-  const next = applyXpToRow(row, xpAmount);
+  const mult = minionXpGrantMultiplier(row.level);
+  const adjustedXp = Math.max(0, Math.floor(xpAmount * mult));
+  const next = applyXpToRow(row, adjustedXp);
   if (next.xpGained <= 0) return next;
 
   await db.minion.update({
@@ -100,6 +104,10 @@ export async function grantMinionExperience(
       unspentStatPoints: next.unspentStatPoints,
     },
   });
+
+  if (next.levelsGained > 0) {
+    await grantSkillPointsOnLevelUp(db, minionId, next.levelsGained);
+  }
 
   return next;
 }

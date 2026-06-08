@@ -1,8 +1,19 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
+import { ArmorTooltipHover } from "@/app/_components/ArmorTooltip";
 import { ItemIcon } from "@/app/_components/ItemIcon";
-import { itemGradeNameClassName } from "@/server/itemGrade";
+import { StackItemTooltipHover } from "@/app/_components/StackItemTooltip";
+import { WeaponTooltipHover } from "@/app/_components/WeaponTooltip";
+import { itemGradeFrameClassName, itemGradeNameClassName } from "@/server/itemGrade";
+import type { ArmorTooltipData } from "@/shared/armorTooltip";
+import type { StackItemTooltipData } from "@/shared/stackItemTooltip";
+import type { WeaponTooltipData, WeaponTooltipOption } from "@/shared/weaponTooltip";
+import {
+  canMinionEquipItemByLevel,
+  minEquipLevelForGrade,
+  minEquipLevelForItem,
+} from "@/shared/itemEquipLevel";
 import { canMinionEquipWeaponForClass } from "@/shared/minionWeaponRules";
 import type { MinionCombatClass } from "@/shared/minionDerivedClass";
 import {
@@ -15,12 +26,17 @@ import {
   stackItemBagCategory,
   type EquipBagCategory,
 } from "@/shared/minionEquipBag";
+type EquipOptionRow = WeaponTooltipOption;
+
 type WeaponRow = {
   id: string;
   baseItemId: string;
   name: string;
   enhanceLevel: number;
   grade?: number;
+  gradeLabel?: string;
+  identified?: boolean;
+  options?: EquipOptionRow[];
   icon?: string | null;
   iconSrc?: string;
 };
@@ -29,7 +45,11 @@ type ArmorRow = {
   id: string;
   baseItemId: string;
   name: string;
+  enhanceLevel?: number;
   grade?: number;
+  gradeLabel?: string;
+  identified?: boolean;
+  options?: EquipOptionRow[];
   icon?: string | null;
   iconSrc?: string;
 };
@@ -39,6 +59,7 @@ type StackRow = {
   name: string;
   quantity: number;
   grade?: number;
+  gradeLabel?: string;
   category?: string;
   icon?: string | null;
   iconSrc?: string;
@@ -53,6 +74,9 @@ type BagCell =
       name: string;
       enhanceLevel: number;
       grade: number;
+      gradeLabel?: string;
+      identified?: boolean;
+      options?: EquipOptionRow[];
       icon?: string | null;
       iconSrc?: string;
       equipped: boolean;
@@ -63,7 +87,11 @@ type BagCell =
       armorInstanceId: string;
       baseItemId: string;
       name: string;
+      enhanceLevel: number;
       grade: number;
+      gradeLabel?: string;
+      identified?: boolean;
+      options?: EquipOptionRow[];
       icon?: string | null;
       iconSrc?: string;
     }
@@ -74,6 +102,8 @@ type BagCell =
       name: string;
       quantity: number;
       grade: number;
+      gradeLabel?: string;
+      category?: string;
       icon?: string | null;
       iconSrc?: string;
     }
@@ -86,6 +116,7 @@ export function MinionEquipBagPanel(props: {
   armorInstances?: ArmorRow[];
   inventory: StackRow[];
   minionCombatClass?: MinionCombatClass;
+  minionLevel?: number;
   equippedWeaponInstanceId: string | null;
   equippedStackItemId?: string | null;
   equippedArmorInstanceId?: string | null;
@@ -105,6 +136,7 @@ export function MinionEquipBagPanel(props: {
     armorInstances = [],
     inventory,
     minionCombatClass,
+    minionLevel,
     equippedWeaponInstanceId,
     equippedStackItemId,
     equippedArmorInstanceId,
@@ -138,6 +170,9 @@ export function MinionEquipBagPanel(props: {
           name: w.name,
           enhanceLevel: w.enhanceLevel,
           grade: w.grade ?? 1,
+          gradeLabel: w.gradeLabel,
+          identified: w.identified,
+          options: w.options,
           icon: w.icon,
           iconSrc: w.iconSrc,
           equipped: equippedWeaponInstanceId === w.id,
@@ -161,7 +196,11 @@ export function MinionEquipBagPanel(props: {
           armorInstanceId: a.id,
           baseItemId: a.baseItemId,
           name: a.name,
+          enhanceLevel: a.enhanceLevel ?? 0,
           grade: a.grade ?? 1,
+          gradeLabel: a.gradeLabel,
+          identified: a.identified,
+          options: a.options,
           icon: a.icon,
           iconSrc: a.iconSrc,
         });
@@ -177,6 +216,8 @@ export function MinionEquipBagPanel(props: {
           name: s.name,
           quantity: s.quantity,
           grade: s.grade ?? 1,
+          gradeLabel: s.gradeLabel,
+          category: s.category,
           icon: s.icon,
           iconSrc: s.iconSrc,
         });
@@ -198,6 +239,8 @@ export function MinionEquipBagPanel(props: {
         name: s.name,
         quantity: s.quantity,
         grade: s.grade ?? 1,
+        gradeLabel: s.gradeLabel,
+        category: s.category,
         icon: s.icon,
         iconSrc: s.iconSrc,
       });
@@ -235,6 +278,68 @@ export function MinionEquipBagPanel(props: {
       return JSON.stringify({ kind: "stack", itemId: cell.itemId });
     }
     return null;
+  }
+
+  function bagCellIcon(cell: Exclude<BagCell, { kind: "unequip" }>, iconItemId: string): ReactNode {
+    const icon = (
+      <ItemIcon
+        itemId={iconItemId}
+        icon={cell.icon}
+        iconSrc={cell.iconSrc}
+        size={48}
+        className="shrink-0"
+        eager
+      />
+    );
+
+    if (cell.kind === "weapon") {
+      const weapon: WeaponTooltipData = {
+        id: cell.weaponInstanceId,
+        baseItemId: cell.baseItemId,
+        name: cell.name,
+        enhanceLevel: cell.enhanceLevel,
+        grade: cell.grade,
+        gradeLabel: cell.gradeLabel,
+        identified: cell.identified,
+        options: cell.options,
+      };
+      return <WeaponTooltipHover weapon={weapon}>{icon}</WeaponTooltipHover>;
+    }
+
+    if (cell.kind === "armor") {
+      const armor: ArmorTooltipData = {
+        id: cell.armorInstanceId,
+        baseItemId: cell.baseItemId,
+        name: cell.name,
+        enhanceLevel: cell.enhanceLevel,
+        grade: cell.grade,
+        gradeLabel: cell.gradeLabel,
+        identified: cell.identified,
+        options: cell.options,
+      };
+      return <ArmorTooltipHover armor={armor}>{icon}</ArmorTooltipHover>;
+    }
+
+    const stack: StackItemTooltipData = {
+      itemId: cell.itemId,
+      name: cell.name,
+      category: cell.category ?? "방어구",
+      grade: cell.grade,
+      gradeLabel: cell.gradeLabel,
+      quantity: cell.quantity,
+    };
+    return <StackItemTooltipHover item={stack}>{icon}</StackItemTooltipHover>;
+  }
+
+  function cellLevelBlocked(cell: Exclude<BagCell, { kind: "unequip" }>): boolean {
+    if (minionLevel == null) return false;
+    const baseItemId = cell.kind === "stack" ? cell.itemId : cell.baseItemId;
+    return !canMinionEquipItemByLevel(minionLevel, baseItemId, cell.grade);
+  }
+
+  function cellRequiredLevel(cell: Exclude<BagCell, { kind: "unequip" }>): number {
+    const baseItemId = cell.kind === "stack" ? cell.itemId : cell.baseItemId;
+    return minEquipLevelForItem(baseItemId, cell.grade);
   }
 
   return (
@@ -299,6 +404,8 @@ export function MinionEquipBagPanel(props: {
             const payload = dragPayload(cell);
             const isWeapon = cell.kind === "weapon";
             const isArmor = cell.kind === "armor";
+            const levelBlocked = cellLevelBlocked(cell);
+            const requiredLevel = cellRequiredLevel(cell);
             const iconItemId =
               cell.kind === "weapon" || cell.kind === "armor" ? cell.baseItemId : cell.itemId;
 
@@ -306,29 +413,26 @@ export function MinionEquipBagPanel(props: {
               <button
                 key={cell.key}
                 type="button"
-                disabled={busy}
-                draggable={!!payload && !busy}
+                disabled={busy || levelBlocked}
+                draggable={!!payload && !busy && !levelBlocked}
                 className={[
                   "inventory-item-card inventory-item-card--compact minion-equip-bag-panel__cell",
+                  cell.kind === "weapon" || cell.kind === "armor"
+                    ? itemGradeFrameClassName(cell.grade)
+                    : "",
                   isWeapon && cell.equipped ? "minion-equip-bag-panel__cell--equipped" : "",
+                  levelBlocked ? "minion-equip-bag-panel__cell--blocked" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                onClick={() => payload && onPick(payload)}
+                onClick={() => payload && !levelBlocked && onPick(payload)}
                 onDragStart={(e) => {
                   if (!payload) return;
                   e.dataTransfer.setData(EQUIP_DRAG_MIME, payload);
                   e.dataTransfer.effectAllowed = "copy";
                 }}
               >
-                <ItemIcon
-                  itemId={iconItemId}
-                  icon={cell.icon}
-                  iconSrc={cell.iconSrc}
-                  size={48}
-                  className="shrink-0"
-                  eager
-                />
+                {bagCellIcon(cell, iconItemId)}
                 <div className="inventory-item-card__body min-w-0">
                   <span className={`inventory-item-card__name ${itemGradeNameClassName(cell.grade)}`}>
                     {cell.name}
@@ -336,6 +440,8 @@ export function MinionEquipBagPanel(props: {
                   </span>
                   {cell.kind === "stack" ? (
                     <span className="inventory-item-card__meta">×{cell.quantity}</span>
+                  ) : levelBlocked ? (
+                    <span className="minion-equip-bag-panel__level-tag">Lv{requiredLevel} 필요</span>
                   ) : isWeapon && cell.equipped ? (
                     <span className="minion-equip-bag-panel__equipped-tag">착용 중</span>
                   ) : isArmor && equippedArmorInstanceId === cell.armorInstanceId ? (

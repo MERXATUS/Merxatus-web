@@ -2,5 +2,6 @@ WeaponId,Name,Category,Grade,Atk,Magic,Icon
 Weapon_Wood_Sword,나무 검,Weapon,1,1,0,Icon_Wood_Sword
 Weapon_Stone_Sword,돌 검,Weapon,1,1.5,0,Icon_Stone_Sword
 Weapon_Red_Gold_Sword,적빛 검,Weapon,2,2.5,0,Icon_Red_Gold_Sword
-Weapon_Steel_Sword,철 검,Weapon,2,2.5,0,Icon_Steel_Sword
-Weapon_Gold_Sword,금 검,Weapon,3,5,0,Icon_Gold_Sword
+Weapon_Steel_Sword,철 검,Weapon,3,3.5,0,Icon_Steel_Sword
+Weapon_Gold_Sword,금 검,Weapon,4,5,0,Icon_Gold_Sword
+Weapon_Diamond_Sword,다이아 검,Weapon,5,7,0,Icon_Gold_Sword

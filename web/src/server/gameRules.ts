@@ -1,3 +1,9 @@
+import { AUTO_EXPLORE_RULES } from "@/shared/autoExplore";
+import { MAX_EQUIPMENT_OWNED } from "@/shared/equipmentCapacity";
+import { DEFAULT_KNIGHT_ORDER_RULES } from "@/shared/knightOrder";
+import { MINION_LEVEL_RULES } from "@/shared/minionLevel";
+import { MINION_SKILL_RULES } from "@/shared/minionSkills";
+
 export const GAME_RULES = {
   combat: {
     /** 무기 전투력(미니언 개별 장착) */
@@ -5,11 +11,14 @@ export const GAME_RULES = {
       weapon_wood_sword: 1,
       weapon_stone_sword: 2,
       weapon_red_gold_sword: 3,
-      weapon_steel_sword: 3,
+      weapon_steel_sword: 4,
       weapon_gold_sword: 5,
+      weapon_diamond_sword: 7,
     } as const,
     /** 장착 무기 강화 1단계당 추가 전투력(베이스 무기 파워에 가산) */
     weaponLevelPowerPerLevel: 1,
+    /** 방어구 강화 1단계당 베이스 HP·DEF 추가 비율 */
+    armorLevelStatPctPerLevel: 0.03,
     /** 미니언 기본 전투력(아직 레벨/스탯이 없어서 고정값으로 시작) */
     baseMinionPower: 5,
     /** 승률 하한/상한 */
@@ -19,14 +28,24 @@ export const GAME_RULES = {
     /** 전투 특성 랭크 1당 전투력 보너스 */
     fighterTraitPowerPerRank: 3,
   },
+  /** 무기·방어구 인스턴스 합산 보유 상한 — `shared/equipmentCapacity.ts` */
+  equipment: {
+    maxOwned: MAX_EQUIPMENT_OWNED,
+  },
+  /** 기사단(유니온) — 보유 미니언 총 레벨 합산 보너스 */
+  knightOrder: DEFAULT_KNIGHT_ORDER_RULES,
   /** 미니언 보유 상한 */
   minion: {
     maxDungeonOwned: 10,
     /** 레벨·경험치·스탯 배분 — `shared/minionLevel.ts` */
     levelUp: {
-      maxLevel: 200,
-      statPointsPerLevel: 3,
-      maxStatPerAttribute: 150,
+      maxLevel: MINION_LEVEL_RULES.maxLevel,
+      statPointsPerLevel: MINION_LEVEL_RULES.statPointsPerLevel,
+      maxStatPerAttribute: MINION_LEVEL_RULES.maxStatPerAttribute,
+    },
+    skill: {
+      pointsPerLevel: MINION_SKILL_RULES.pointsPerLevel,
+      promotionBonusPoints: MINION_SKILL_RULES.promotionBonusPoints,
     },
     /** 기본 4스탯 — 전투력 환산 가중치(스탯 1당) */
     baseStats: {
@@ -45,6 +64,8 @@ export const GAME_RULES = {
   weaponUpgrade: {
     maxLevel: 30,
   },
+  /** 자동 탐험(AUTO_WAVES) — 배속 BM, 상세는 `shared/autoExplore.ts` */
+  autoExplore: AUTO_EXPLORE_RULES,
   market: {
     feeBps: 500, // 5%
     /** 유저당 동시 ACTIVE 매물 상한 */
@@ -93,7 +114,7 @@ export const GAME_RULES = {
     seedStacks: [
       { itemId: "item_lesser_mana_stone", quantity: 30 },
       { itemId: "item_mana_stone", quantity: 15 },
-      { itemId: "item_enhance_scroll_low", quantity: 10 },
+      { itemId: "item_greater_mana_stone", quantity: 5 },
     ],
   },
   chat: {

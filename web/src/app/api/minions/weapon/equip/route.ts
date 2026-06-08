@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
+import { assertMinionCanEquipBaseItem } from "@/server/minionEquipLevelCheck";
 import { canMinionEquipWeaponForClass } from "@/shared/minionWeaponRules";
 import { promotionStateFromRow, resolveMinionCombatClass } from "@/shared/minionPromotion";
 
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
       if (inst.status !== "OWNED") throw new Error("WEAPON_LOCKED");
       const combatClass = resolveMinionCombatClass(promotionStateFromRow(m));
       if (!canMinionEquipWeaponForClass(combatClass, inst.baseItemId)) throw new Error("WEAPON_JOB_MISMATCH");
+      assertMinionCanEquipBaseItem({ minionLevel: m.level, baseItemId: inst.baseItemId });
 
       const same = m.equippedWeaponInstanceId === weaponInstanceId;
       const updated = await tx.minion.update({

@@ -1,4 +1,4 @@
-import type { CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatLog";
+import type { CombatHitKind, CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatLog";
 import type { CombatPortraitView } from "@/shared/combatPortrait";
 
 export type BattleFighterView = {
@@ -11,12 +11,18 @@ export type BattleFighterView = {
   portrait?: CombatPortraitView;
 };
 
+export type BattleFloaterKind = "damage" | "heal" | "block";
+
 export type BattleFloatDamage = {
   id: string;
   targetId: string;
   damage: number;
   side: "party" | "enemy";
+  kind?: BattleFloaterKind;
+  hitKind?: CombatHitKind;
 };
+
+export type CombatFeedTone = "neutral" | "crit" | "extra" | "heal" | "block";
 
 export type BattleArenaFrame = {
   floor: number;
@@ -28,6 +34,11 @@ export type BattleArenaFrame = {
   banner: string | null;
   outcome: "WIN" | "LOSS" | null;
   lastLog: string | null;
+  lastLogTone: CombatFeedTone;
+  lastSfx: "hit" | "crit" | "extra" | "heal" | "block" | "skill" | null;
+  hitFlash: CombatHitKind | "block" | null;
+  skillBanner: string | null;
+  skillActor: string | null;
 };
 
 export function initBattleArena(replay: DungeonCombatReplay): BattleArenaFrame {
@@ -61,6 +72,11 @@ export function initBattleArena(replay: DungeonCombatReplay): BattleArenaFrame {
     banner: `${replay.floor}층 · ${replay.enemy.name}`,
     outcome: null,
     lastLog: null,
+    lastLogTone: "neutral",
+    lastSfx: null,
+    hitFlash: null,
+    skillBanner: null,
+    skillActor: null,
   };
 }
 
@@ -69,12 +85,24 @@ function findFighter(fighters: BattleFighterView[], label: string, side?: Battle
   return pool.find((f) => f.label === label) ?? null;
 }
 
+function hitKindLabel(kind: CombatHitKind | undefined): string {
+  if (kind === "crit") return " 치명!";
+  if (kind === "extra") return " 추가타!";
+  return "";
+}
+
 function lineDelay(line: CombatLogLine): number {
   switch (line.t) {
     case "floor_start":
       return 520;
+    case "skill":
+      return 520;
     case "hit":
-      return 260;
+      return line.kind === "crit" ? 380 : line.kind === "extra" ? 240 : 260;
+    case "block":
+      return 300;
+    case "heal":
+      return 240;
     case "ko":
       return 380;
     case "result":
@@ -111,11 +139,34 @@ export function applyCombatLogLine(
         hitTargetId: null,
         banner: `${line.floor}층 · ${line.enemyName}`,
         lastLog: null,
+        lastLogTone: "neutral",
+        lastSfx: null,
+        hitFlash: null,
+        skillBanner: null,
+        skillActor: null,
+      };
+    }
+    case "skill": {
+      const actor = findFighter(fighters, line.actor, line.side);
+      return {
+        ...frame,
+        fighters,
+        floaters: [],
+        actingId: actor?.id ?? null,
+        hitTargetId: null,
+        banner: null,
+        skillBanner: line.skillName,
+        skillActor: line.actor,
+        lastLog: `${line.actor} · ${line.skillName}!`,
+        lastLogTone: "neutral",
+        lastSfx: "skill",
+        hitFlash: null,
       };
     }
     case "hit": {
       const actor = findFighter(fighters, line.actor, line.side);
       const target = findFighter(fighters, line.target, line.side === "party" ? "enemy" : "party");
+      const hitKind = line.kind ?? "normal";
       if (target) {
         target.hp = Math.max(0, target.hp - line.damage);
         if (target.hp <= 0) target.dead = true;
@@ -124,8 +175,15 @@ export function applyCombatLogLine(
           targetId: target.id,
           damage: line.damage,
           side: line.side,
+          kind: "damage",
+          hitKind,
         });
       }
+      const kindSuffix = hitKindLabel(hitKind);
+      const tone: CombatFeedTone =
+        hitKind === "crit" ? "crit" : hitKind === "extra" ? "extra" : "neutral";
+      const sfx: BattleArenaFrame["lastSfx"] =
+        hitKind === "crit" ? "crit" : hitKind === "extra" ? "extra" : "hit";
       return {
         ...frame,
         fighters,
@@ -133,7 +191,66 @@ export function applyCombatLogLine(
         actingId: actor?.id ?? null,
         hitTargetId: target?.id ?? null,
         banner: null,
-        lastLog: `${line.actor} → ${line.target}  ${line.damage}`,
+        skillBanner: null,
+        skillActor: null,
+        lastLog: `${line.actor} → ${line.target}  ${line.damage}${kindSuffix}`,
+        lastLogTone: tone,
+        lastSfx: sfx,
+        hitFlash: hitKind,
+      };
+    }
+    case "block": {
+      const blocker = findFighter(fighters, line.actor, "party");
+      if (blocker) {
+        floaters.push({
+          id: `f${floaterSeq}`,
+          targetId: blocker.id,
+          damage: 0,
+          side: "party",
+          kind: "block",
+        });
+      }
+      return {
+        ...frame,
+        fighters,
+        floaters,
+        actingId: blocker?.id ?? null,
+        hitTargetId: blocker?.id ?? null,
+        banner: null,
+        skillBanner: null,
+        skillActor: null,
+        lastLog: `${line.actor} 막기! (${line.attacker})`,
+        lastLogTone: "block",
+        lastSfx: "block",
+        hitFlash: "block",
+      };
+    }
+    case "heal": {
+      const healer = findFighter(fighters, line.actor, "party");
+      if (healer) {
+        healer.hp = Math.min(healer.maxHp, healer.hp + line.amount);
+        if (healer.hp > 0) healer.dead = false;
+        floaters.push({
+          id: `f${floaterSeq}`,
+          targetId: healer.id,
+          damage: line.amount,
+          side: "party",
+          kind: "heal",
+        });
+      }
+      return {
+        ...frame,
+        fighters,
+        floaters,
+        actingId: healer?.id ?? null,
+        hitTargetId: healer?.id ?? null,
+        banner: null,
+        skillBanner: null,
+        skillActor: null,
+        lastLog: `${line.actor} 흡혈 +${line.amount} HP`,
+        lastLogTone: "heal",
+        lastSfx: "heal",
+        hitFlash: null,
       };
     }
     case "ko": {
@@ -148,7 +265,12 @@ export function applyCombatLogLine(
         floaters: [],
         actingId: null,
         hitTargetId: ko?.id ?? null,
+        skillBanner: null,
+        skillActor: null,
         lastLog: `${line.name} 처치!`,
+        lastLogTone: "neutral",
+        lastSfx: null,
+        hitFlash: null,
       };
     }
     case "result":
@@ -160,7 +282,12 @@ export function applyCombatLogLine(
         hitTargetId: null,
         outcome: line.outcome,
         banner: line.outcome === "WIN" ? "층 클리어!" : "전멸…",
+        skillBanner: null,
+        skillActor: null,
         lastLog: line.outcome === "WIN" ? "✦ 층 클리어!" : "✦ 전멸…",
+        lastLogTone: "neutral",
+        lastSfx: null,
+        hitFlash: null,
       };
     default:
       return frame;

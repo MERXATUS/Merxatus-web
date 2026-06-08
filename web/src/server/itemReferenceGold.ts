@@ -64,9 +64,11 @@ const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
   item_lesser_mana_stone: T1,
   item_mana_stone: T3,
   item_greater_mana_stone: T5,
-  item_enhance_scroll_low: T2,
-  item_enhance_scroll_mid: T3,
-  item_enhance_scroll_high: T5,
+  item_enhance_scroll_protect: T4,
+  item_appraisal_scroll: T2,
+  item_gem_destruction: T4,
+  item_gem_chaos: T5,
+  item_gem_seal: T5,
   item_raid_shard: T4,
   item_minion_ticket: T5,
 
@@ -104,7 +106,6 @@ const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
 
   // --- 기타 ---
   item_accessory: 55,
-  item_enhance_scroll: 40,
 };
 
 export function referenceGoldPerUnit(itemId: string): number {

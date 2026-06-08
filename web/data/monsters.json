@@ -1,6 +1,6 @@
 {
   "slime": {
-    "name": "슬라임",
+    "name": "악마 마염혈",
     "grade": 1,
     "hp": 70,
     "atk": 5,
@@ -9,7 +9,7 @@
     "def": 0
   },
   "goblin": {
-    "name": "고블린",
+    "name": "악마 군번",
     "grade": 1,
     "hp": 90,
     "atk": 7,
@@ -18,7 +18,7 @@
     "def": 1
   },
   "wolf": {
-    "name": "사나운 늑대",
+    "name": "악마 마수 사냥개",
     "grade": 2,
     "hp": 110,
     "atk": 9,
@@ -27,7 +27,7 @@
     "def": 2
   },
   "skeleton": {
-    "name": "스켈레톤",
+    "name": "천사 낙천 유골",
     "grade": 2,
     "hp": 130,
     "atk": 11,
@@ -36,7 +36,7 @@
     "def": 3
   },
   "fire_salamander": {
-    "name": "화염 도롱뇽",
+    "name": "천사 심판 화령",
     "grade": 3,
     "hp": 150,
     "atk": 10,
@@ -45,7 +45,7 @@
     "def": 2
   },
   "ice_wisp": {
-    "name": "얼음 정령",
+    "name": "천사 서릿빛 성령",
     "grade": 3,
     "hp": 170,
     "atk": 9,
@@ -54,7 +54,7 @@
     "def": 3
   },
   "dragon_whelp": {
-    "name": "어린 용",
+    "name": "이계 유룡",
     "grade": 4,
     "hp": 200,
     "atk": 14,
@@ -72,7 +72,7 @@
     "def": 3
   },
   "slime_king": {
-    "name": "슬라임킹",
+    "name": "악마 마염 군주",
     "grade": 2,
     "hp": 220,
     "atk": 10,
@@ -81,7 +81,7 @@
     "def": 2
   },
   "goblin_chieftain": {
-    "name": "고블린 우두머리",
+    "name": "악마 군번장",
     "grade": 3,
     "hp": 280,
     "atk": 14,
@@ -90,7 +90,7 @@
     "def": 10
   },
   "wolf_alpha": {
-    "name": "늑대 왕",
+    "name": "악마 마수왕",
     "grade": 3,
     "hp": 340,
     "atk": 16,
@@ -98,8 +98,134 @@
     "as": 1,
     "def": 8
   },
+  "demon_barbatos": {
+    "name": "악마 바르바토스",
+    "grade": 3,
+    "hp": 360,
+    "atk": 17,
+    "magic": 6,
+    "as": 1,
+    "def": 9
+  },
+  "demon_lerajie": {
+    "name": "악마 레라지에",
+    "grade": 3,
+    "hp": 390,
+    "atk": 18,
+    "magic": 8,
+    "as": 1,
+    "def": 10
+  },
+  "demon_eligos": {
+    "name": "악마 엘리고스",
+    "grade": 4,
+    "hp": 420,
+    "atk": 19,
+    "magic": 10,
+    "as": 1,
+    "def": 11
+  },
+  "demon_naberius": {
+    "name": "악마 나베리우스",
+    "grade": 4,
+    "hp": 450,
+    "atk": 20,
+    "magic": 12,
+    "as": 1,
+    "def": 12
+  },
+  "demon_glasya": {
+    "name": "악마 글라샤",
+    "grade": 4,
+    "hp": 480,
+    "atk": 21,
+    "magic": 14,
+    "as": 1,
+    "def": 13
+  },
+  "demon_bune": {
+    "name": "악마 부네",
+    "grade": 5,
+    "hp": 510,
+    "atk": 22,
+    "magic": 16,
+    "as": 1,
+    "def": 14
+  },
+  "demon_ronove": {
+    "name": "악마 론베",
+    "grade": 5,
+    "hp": 540,
+    "atk": 23,
+    "magic": 18,
+    "as": 1,
+    "def": 15
+  },
+  "demon_baal": {
+    "name": "악마 바알",
+    "grade": 5,
+    "hp": 570,
+    "atk": 24,
+    "magic": 20,
+    "as": 1,
+    "def": 16
+  },
+  "demon_agares": {
+    "name": "악마 아가레스",
+    "grade": 5,
+    "hp": 600,
+    "atk": 25,
+    "magic": 22,
+    "as": 1,
+    "def": 17
+  },
+  "demon_paimon": {
+    "name": "악마 파이몬",
+    "grade": 5,
+    "hp": 630,
+    "atk": 26,
+    "magic": 24,
+    "as": 1,
+    "def": 18
+  },
+  "demon_astaroth": {
+    "name": "악마 아스타로트",
+    "grade": 6,
+    "hp": 660,
+    "atk": 27,
+    "magic": 26,
+    "as": 1,
+    "def": 19
+  },
+  "demon_asmodeus": {
+    "name": "악마 아스모데우스",
+    "grade": 6,
+    "hp": 690,
+    "atk": 28,
+    "magic": 28,
+    "as": 1,
+    "def": 20
+  },
+  "demon_belial": {
+    "name": "악마 벨리알",
+    "grade": 6,
+    "hp": 720,
+    "atk": 29,
+    "magic": 30,
+    "as": 1,
+    "def": 21
+  },
+  "demon_vassago": {
+    "name": "악마 바사고",
+    "grade": 6,
+    "hp": 750,
+    "atk": 30,
+    "magic": 32,
+    "as": 1,
+    "def": 22
+  },
   "skeleton_lord": {
-    "name": "망자의 군주",
+    "name": "천사 낙천 장군",
     "grade": 4,
     "hp": 400,
     "atk": 18,
@@ -108,7 +234,7 @@
     "def": 14
   },
   "flame_tyrant": {
-    "name": "화염 폭군",
+    "name": "천사 심판 폭군",
     "grade": 4,
     "hp": 480,
     "atk": 16,
@@ -117,7 +243,7 @@
     "def": 12
   },
   "frost_titan": {
-    "name": "서리 거인",
+    "name": "천사 서릿빛 거신",
     "grade": 5,
     "hp": 550,
     "atk": 14,
@@ -125,8 +251,134 @@
     "as": 1,
     "def": 18
   },
+  "angel_cassiel": {
+    "name": "천사 카시엘",
+    "grade": 3,
+    "hp": 370,
+    "atk": 15,
+    "magic": 14,
+    "as": 1,
+    "def": 12
+  },
+  "angel_sachiel": {
+    "name": "천사 사키엘",
+    "grade": 3,
+    "hp": 400,
+    "atk": 16,
+    "magic": 16,
+    "as": 1,
+    "def": 13
+  },
+  "angel_anael": {
+    "name": "천사 아나엘",
+    "grade": 4,
+    "hp": 430,
+    "atk": 17,
+    "magic": 18,
+    "as": 1,
+    "def": 14
+  },
+  "angel_raphael": {
+    "name": "천사 라파엘",
+    "grade": 4,
+    "hp": 460,
+    "atk": 18,
+    "magic": 20,
+    "as": 1,
+    "def": 15
+  },
+  "angel_gabriel": {
+    "name": "천사 가브리엘",
+    "grade": 4,
+    "hp": 490,
+    "atk": 19,
+    "magic": 22,
+    "as": 1,
+    "def": 16
+  },
+  "angel_michael": {
+    "name": "천사 미카엘",
+    "grade": 5,
+    "hp": 520,
+    "atk": 20,
+    "magic": 24,
+    "as": 1,
+    "def": 17
+  },
+  "angel_uriel": {
+    "name": "천사 우리엘",
+    "grade": 5,
+    "hp": 550,
+    "atk": 21,
+    "magic": 26,
+    "as": 1,
+    "def": 18
+  },
+  "angel_metatron": {
+    "name": "천사 메타트론",
+    "grade": 6,
+    "hp": 580,
+    "atk": 23,
+    "magic": 28,
+    "as": 1,
+    "def": 18
+  },
+  "angel_raziel": {
+    "name": "천사 라지엘",
+    "grade": 6,
+    "hp": 610,
+    "atk": 24,
+    "magic": 30,
+    "as": 1,
+    "def": 19
+  },
+  "angel_zadkiel": {
+    "name": "천사 자드키엘",
+    "grade": 6,
+    "hp": 640,
+    "atk": 25,
+    "magic": 32,
+    "as": 1,
+    "def": 20
+  },
+  "angel_camael": {
+    "name": "천사 카마엘",
+    "grade": 6,
+    "hp": 670,
+    "atk": 26,
+    "magic": 34,
+    "as": 1,
+    "def": 21
+  },
+  "angel_haniel": {
+    "name": "천사 하니엘",
+    "grade": 6,
+    "hp": 700,
+    "atk": 27,
+    "magic": 36,
+    "as": 1,
+    "def": 22
+  },
+  "angel_zophiel": {
+    "name": "천사 조피엘",
+    "grade": 6,
+    "hp": 730,
+    "atk": 28,
+    "magic": 38,
+    "as": 1,
+    "def": 23
+  },
+  "angel_raguel": {
+    "name": "천사 라구엘",
+    "grade": 6,
+    "hp": 760,
+    "atk": 29,
+    "magic": 40,
+    "as": 1,
+    "def": 24
+  },
   "elder_dragon": {
-    "name": "고룡",
+    "name": "차원 고룡",
     "grade": 5,
     "hp": 650,
     "atk": 22,
@@ -135,7 +387,7 @@
     "def": 14
   },
   "void_harbinger": {
-    "name": "심연 사자",
+    "name": "이계 사자",
     "grade": 5,
     "hp": 750,
     "atk": 20,
@@ -144,7 +396,7 @@
     "def": 16
   },
   "void_overlord": {
-    "name": "공허 거상",
+    "name": "공허 군주",
     "grade": 6,
     "hp": 900,
     "atk": 24,

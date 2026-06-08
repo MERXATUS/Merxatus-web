@@ -6,7 +6,8 @@ import { readSavedPartyIds, resolveSavedPartyIds, writeSavedPartyIds } from "@/s
 import { useEscapeClose } from "@/shared/useEscapeClose";
 import { isDungeonPool } from "@/server/minionJobs";
 import { useSessionUser } from "@/app/_components/SessionProvider";
-import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
+import { API_CACHE_TTL } from "@/shared/apiCache";
+import { apiGetJson, apiGetJsonCached, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import { GameBtn, GamePanel, GamePanelTitle, GameStat } from "@/app/_components/gameUi";
 import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
 import { minionPortraitView, monsterIdFromDisplayName, monsterPortraitView } from "@/shared/combatPortrait";
@@ -15,7 +16,6 @@ import { partyHpFromArena, type BattleArenaFrame } from "@/shared/dungeonCombatR
 import { CombatEncounterBlock } from "@/app/_components/CombatEncounterBlock";
 import { DungeonCashoutConfirmModal } from "@/app/_components/DungeonCashoutConfirmModal";
 import { DungeonPartyPickModal } from "@/app/_components/DungeonPartyPickModal";
-import { PushLuckRiskBar } from "@/app/_components/PushLuckRiskBar";
 import { DungeonRunSettlementModal } from "@/app/_components/DungeonRunSettlementModal";
 import {
   DungeonPartyHpList,
@@ -40,6 +40,7 @@ import {
 import { pushLuckFloorGoldReward, pushLuckLootMultiplier } from "@/shared/dungeonPushLuck";
 import { pickBestRecoveryPotion, pickLowestHpMemberId } from "@/shared/potionEffects";
 import { normalizeItemIdLower } from "@/shared/itemId";
+import { fetchCombatRoster } from "@/shared/combatRosterClient";
 
 type DungeonDef = {
   id: string;
@@ -50,6 +51,7 @@ type DungeonDef = {
   baseWaveSeconds: number;
   stage?: {
     stageOrder: number;
+    realm?: "마계" | "천계" | "이계";
     recommendedLevel: number;
     recommendedLevelMax: number;
     recommendedLevelLabel: string;
@@ -73,6 +75,7 @@ type RunState = {
   party?: Array<{ minionId: string; hp?: number; maxHp?: number; label?: string }>;
   pendingLoot?: string;
   pendingLootItems?: Array<{ itemId: string; qty: number; name: string; grade: number }>;
+  pendingGold?: number;
   recoveryPotions?: RecoveryPotion[];
 };
 
@@ -85,20 +88,25 @@ type AdvanceResult = {
   minionXpGrants?: MinionXpGrantPayload[];
   cashedOut?: DungeonLootRow[];
   forfeitedLoot?: DungeonLootRow[];
+  forfeitedGold?: number;
   goldGained?: number;
+  pendingGold?: number;
   lootMultiplier?: number;
   isBoss?: boolean;
   clearChance?: number;
+  floor?: number;
 };
 
 type CashoutResult = {
   ok: boolean;
   cashedOut?: DungeonLootRow[];
+  goldGained?: number;
 };
 
 type StopResult = {
   ok: boolean;
   forfeitedLoot?: DungeonLootRow[];
+  forfeitedGold?: number;
 };
 
 type DungeonMinionRow = {
@@ -188,7 +196,6 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const [run, setRun] = useState<RunState | null>(null);
   const [minions, setMinions] = useState<DungeonMinionRow[]>([]);
   const [partyIds, setPartyIds] = useState<Set<string>>(new Set());
-  const [itemNames, setItemNames] = useState<Map<string, string>>(new Map());
   const [logLines, setLogLines] = useState<DisplayLogLine[]>([]);
   const [playingLog, setPlayingLog] = useState(false);
   const [battleReplay, setBattleReplay] = useState<DungeonCombatReplay | null>(null);
@@ -200,27 +207,70 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const [settlement, setSettlement] = useState<DungeonSettlement | null>(null);
   const [lastFloorBonus, setLastFloorBonus] = useState<string | null>(null);
   const [combatIsBoss, setCombatIsBoss] = useState(false);
-  const [playbackClearChance, setPlaybackClearChance] = useState<number | null>(null);
+  const [autoAdvance, setAutoAdvance] = useState(false);
+  const autoAdvanceRef = useRef(false);
+  const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [battlePreparing, setBattlePreparing] = useState(false);
   const [cashoutConfirmOpen, setCashoutConfirmOpen] = useState(false);
   const [pendingLootSummaryOpen, setPendingLootSummaryOpen] = useState(false);
   const [partyOpen, setPartyOpen] = useState(false);
   const [partyBusy, setPartyBusy] = useState(false);
   const [potionModalOpen, setPotionModalOpen] = useState(false);
+  /** 탐험 세션 — run.active 갱신 전·후 UI 깜빡임(스테이지 선택) 방지 */
+  const [runSession, setRunSession] = useState(false);
   const logId = useRef(0);
+
+  const exploring = runSession || !!run?.active || playingLog;
+
+  function setAutoAdvanceOn(on: boolean) {
+    autoAdvanceRef.current = on;
+    setAutoAdvance(on);
+    if (!on && autoAdvanceTimer.current) {
+      clearTimeout(autoAdvanceTimer.current);
+      autoAdvanceTimer.current = null;
+    }
+  }
+
+  function queueAutoAdvance() {
+    if (!autoAdvanceRef.current) return;
+    if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
+    autoAdvanceTimer.current = setTimeout(() => {
+      autoAdvanceTimer.current = null;
+      if (!autoAdvanceRef.current) return;
+      void advance();
+    }, 700);
+  }
 
   const floor = Math.max(1, Math.floor(run?.run?.floor ?? 1));
   const maxFloors = dungeon?.maxFloors ?? 20;
   const maxParty = Math.max(1, dungeon?.maxPartySize ?? 1);
-  const floorPct = Math.min(100, Math.round((floor / maxFloors) * 100));
+  const atBossGate = exploring && floor >= maxFloors && !playingLog && !battlePreparing;
+  const floorPct = atBossGate
+    ? Math.min(99, Math.round(((maxFloors - 1) / maxFloors) * 100))
+    : Math.min(99, Math.round(((Math.min(floor, maxFloors) - 1) / maxFloors) * 100));
+  const floorLabel = atBossGate
+    ? `보스 · ${maxFloors}층`
+    : exploring
+      ? `${Math.min(floor, maxFloors)} / ${maxFloors}층`
+      : `최대 ${maxFloors}층`;
+  const advanceActionLabel = playingLog
+    ? "전투 중…"
+    : busy === "advance" || busy === "start" || battlePreparing
+      ? floor >= maxFloors
+        ? "보스 입장 중…"
+        : "전투 준비…"
+      : floor >= maxFloors
+        ? "보스 입장"
+        : "다음 층";
   const cashoutLoot = useMemo(() => {
     if (run?.pendingLootItems?.length) return run.pendingLootItems;
     return parseLoot(run?.pendingLoot ?? "[]").map((x) => ({
       itemId: x.itemId,
       qty: x.qty,
-      name: itemNames.get(x.itemId) ?? x.itemId,
+      name: x.itemId,
       grade: 1,
     }));
-  }, [run?.pendingLootItems, run?.pendingLoot, itemNames]);
+  }, [run?.pendingLootItems, run?.pendingLoot]);
 
   const stagePickerRows = useMemo(() => {
     return listDungeonStagePickerOptions()
@@ -256,7 +306,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
 
   const selectStage = useCallback(
     (stageOrder: number, dungeonId?: string) => {
-      if (run?.active || busy) return;
+      if (exploring || busy) return;
       const row = stagePickerRows.find((r) => r.stageOrder === stageOrder);
       if (!row) return;
       const next =
@@ -272,7 +322,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         /* ignore */
       }
     },
-    [run?.active, busy, stagePickerRows],
+    [exploring, busy, stagePickerRows],
   );
 
   const partyChips = useMemo(() => {
@@ -289,7 +339,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }, [partyIds, minions]);
 
   const partyRoster = useMemo(() => {
-    if (!run?.active || !run.party?.length) return null;
+    if (!exploring || !run?.party?.length) return null;
     const liveHp = battleFrame ? partyHpFromArena(battleFrame.fighters) : null;
     return run.party.map((p) => {
       const live = liveHp?.find((h) => h.minionId === p.minionId);
@@ -306,7 +356,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         dead: hp <= 0,
       };
     });
-  }, [run?.active, run?.party, minions, battleFrame]);
+  }, [exploring, run?.party, minions, battleFrame]);
 
   const partyAlive = partyRoster?.filter((m) => !m.dead).length ?? 0;
   const recoveryPotions = run?.recoveryPotions ?? [];
@@ -379,7 +429,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }
 
   const canHealParty =
-    run?.active &&
+    exploring &&
     recoveryPotions.some((p) => p.quantity > 0) &&
     (partyRoster?.some((m) => !m.dead && m.hp < m.maxHp) ?? false);
 
@@ -418,6 +468,50 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     sessionXpRef.current = new Map();
   }
 
+  function endRunSession() {
+    setRunSession(false);
+  }
+
+  function applyRunStateFromApi(state: RunState) {
+    if (state.ok) {
+      setRun(state);
+      if (state.active) setRunSession(true);
+      else if (!playingLog) endRunSession();
+      if (state.active && state.dungeon) setDungeon(state.dungeon);
+      if (state.active && state.party?.length) {
+        setPartyIds(new Set(state.party.map((p) => p.minionId)));
+      }
+    }
+  }
+
+  function optimisticRunAfterStart() {
+    setRunSession(true);
+    setRun({
+      ok: true,
+      active: true,
+      run: {
+        id: "pending",
+        dungeonId: dungeon!.id,
+        wins: 0,
+        losses: 0,
+        floor: 1,
+      },
+      dungeon: dungeon ?? undefined,
+      party: [...partyIds].map((minionId) => ({ minionId })),
+      combat: { partyPower: 0, clearChance: 0 },
+      pendingLootItems: [],
+    });
+  }
+
+  function patchRunAfterAdvance(r: AdvanceResult) {
+    if (r.result !== "WIN") return;
+    const fought = Math.max(1, Math.floor(r.floor ?? 1));
+    const nextFloor = Math.min(maxFloors, fought + 1);
+    setRun((prev) =>
+      prev?.active && prev.run ? { ...prev, run: { ...prev.run, floor: nextFloor } } : prev,
+    );
+  }
+
   function buildXpGrantRows(): DungeonSettlement["xpGrants"] {
     return [...sessionXpRef.current.values()].map((g) => ({
       ...g,
@@ -440,6 +534,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }
 
   function showSettlementAfterAdvance(adv: AdvanceResult) {
+    setAutoAdvanceOn(false);
     if (adv.result === "LOSS") {
       openSettlement({
         kind: "defeat",
@@ -447,8 +542,10 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         xpGrants: buildXpGrantRows(),
         loot: [],
         forfeitedLoot: adv.forfeitedLoot ?? [],
+        forfeitedGold: adv.forfeitedGold,
       });
-      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [] } : prev));
+      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [], pendingGold: 0 } : prev));
+      endRunSession();
       return;
     }
     if (adv.result === "WIN_AND_CASHOUT") {
@@ -461,11 +558,13 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         lootMultiplier: adv.lootMultiplier,
       });
       resetSessionXp();
-      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [] } : prev));
+      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [], pendingGold: 0 } : prev));
+      endRunSession();
     }
   }
 
   async function executeForfeit() {
+    setAutoAdvanceOn(false);
     setCashoutConfirmOpen(false);
     setBusy("stop");
     try {
@@ -476,9 +575,11 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         xpGrants: buildXpGrantRows(),
         loot: [],
         forfeitedLoot: r.forfeitedLoot ?? cashoutLoot,
+        forfeitedGold: r.forfeitedGold ?? run?.pendingGold,
       });
       resetSessionXp();
-      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [] } : prev));
+      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [], pendingGold: 0 } : prev));
+      endRunSession();
     } catch (e) {
       setError(e);
     } finally {
@@ -487,6 +588,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }
 
   async function executeCashout() {
+    setAutoAdvanceOn(false);
     setCashoutConfirmOpen(false);
     setBusy("cashout");
     try {
@@ -496,9 +598,11 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         subtitle: "안전하게 보상을 수령했습니다.",
         xpGrants: buildXpGrantRows(),
         loot: r.cashedOut ?? [],
+        goldGained: r.goldGained,
       });
       resetSessionXp();
-      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [] } : prev));
+      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [], pendingGold: 0 } : prev));
+      endRunSession();
     } catch (e) {
       setError(e);
     } finally {
@@ -506,45 +610,47 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     }
   }
 
-  async function refresh() {
+  async function refreshRunState() {
     if (!user) return;
     try {
-      const [list, state, minionR] = await Promise.all([
-        getJson<{ ok: boolean; dungeons: DungeonDef[] }>("/api/dungeons/list"),
+      const state = await getJson<RunState>("/api/dungeons/run/state");
+      applyRunStateFromApi(state);
+    } catch (e) {
+      if (!isUnauthorizedError(e)) setError(e);
+    }
+  }
+
+  async function refresh(options?: { runStateOnly?: boolean }) {
+    if (!user) return;
+    if (options?.runStateOnly) {
+      await refreshRunState();
+      return;
+    }
+    try {
+      const [list, state, roster] = await Promise.all([
+        apiGetJsonCached<{ ok: boolean; dungeons: DungeonDef[] }>("/api/dungeons/list?lite=1", {
+          ttlMs: API_CACHE_TTL.dungeonsList,
+        }),
         getJson<RunState>("/api/dungeons/run/state"),
-        getJson<{ ok: boolean; minions: DungeonMinionRow[] }>("/api/minions/list"),
+        fetchCombatRoster(user.id),
       ]);
-      const roster =
-        minionR.ok ? (minionR.minions ?? []).filter((m) => isDungeonPool(m.pool)) : minions;
-      if (minionR.ok) setMinions(roster);
+      if (roster.length) setMinions(roster as DungeonMinionRow[]);
       if (list.ok) {
         setDungeons(list.dungeons);
       }
       if (state.ok) {
-        setRun(state);
-        if (state.active && state.dungeon) {
-          setDungeon(state.dungeon);
-        } else if (list.ok) {
+        applyRunStateFromApi(state);
+        if (!state.active && list.ok) {
           const next = resolveDungeonFromList(list.dungeons, dungeon?.id);
           setDungeon(next);
         }
-        if (state.active && state.party?.length) {
-          setPartyIds(new Set(state.party.map((p) => p.minionId)));
-        } else if (minionR.ok) {
+        if (!state.active && roster.length) {
           const cap = Math.max(1, (state.dungeon ?? dungeon)?.maxPartySize ?? 1);
-          setPartyIds(resolveSavedPartyIds(readSavedPartyIds(PARTY_KEY), roster, cap));
+          setPartyIds(resolveSavedPartyIds(readSavedPartyIds(PARTY_KEY), roster as DungeonMinionRow[], cap));
         }
       } else if (list.ok) {
         const next = resolveDungeonFromList(list.dungeons, dungeon?.id);
         setDungeon(next);
-      }
-      try {
-        const me = await getJson<{ ok: boolean; inventory: Array<{ itemId: string; name: string }> }>(
-          "/api/me/state",
-        );
-        if (me.ok) setItemNames(new Map(me.inventory.map((x) => [x.itemId, x.name])));
-      } catch {
-        /* ignore */
       }
     } catch (e) {
       if (!isUnauthorizedError(e)) setError(e);
@@ -552,7 +658,15 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }
 
   function finishBattlePlayback() {
+    const adv = pendingAdvanceResultRef.current;
+    pendingAdvanceResultRef.current = null;
+
+    if (adv?.result === "WIN") {
+      patchRunAfterAdvance(adv);
+    }
+
     setPlayingLog(false);
+    setBattlePreparing(false);
     setBattleFrame(null);
     setBattleReplay(null);
     setBattleLines([]);
@@ -573,20 +687,28 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
           : prev,
       );
     }
-    const adv = pendingAdvanceResultRef.current;
-    pendingAdvanceResultRef.current = null;
+
     if (adv && (adv.result === "LOSS" || adv.result === "WIN_AND_CASHOUT")) {
+      setCombatIsBoss(false);
       showSettlementAfterAdvance(adv);
       return;
     }
     if (adv?.result === "WIN") {
       const mult = adv.lootMultiplier ?? 1;
       const gold = adv.goldGained ?? 0;
-      if (mult > 1 || gold > 0) {
+      const fought = Math.max(1, Math.floor(adv.floor ?? 1));
+      const reachedBoss = fought + 1 >= maxFloors;
+      setCombatIsBoss(false);
+      if (reachedBoss) {
+        setLastFloorBonus("보스 방 도착 · 아래 「보스 입장」으로 최종 전투를 시작하세요.");
+      } else if (mult > 1 || gold > 0) {
         setLastFloorBonus(`층 클리어 · 드랍 ×${mult}${gold > 0 ? ` · +${gold.toLocaleString()} G` : ""}`);
       }
+      if (autoAdvanceRef.current) {
+        queueAutoAdvance();
+      }
     }
-    void refresh();
+    void refresh({ runStateOnly: true });
   }
 
   function fallbackCombatReplay(lines: CombatLogLine[]): DungeonCombatReplay | null {
@@ -617,6 +739,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }
 
   function startBattlePlayback(lines: CombatLogLine[], replay: DungeonCombatReplay | null, boss?: boolean) {
+    setBattlePreparing(false);
     if (!lines.length || !replay) {
       finishBattlePlayback();
       return;
@@ -627,11 +750,16 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     setPlayingLog(true);
   }
 
+  useEffect(() => () => {
+    if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
+  }, []);
+
   useEffect(() => {
-    if (sessionLoading) return;
+    if (!embedded && sessionLoading) return;
+    if (!user) return;
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, sessionLoading]);
+  }, [user?.id, sessionLoading, embedded]);
 
   useEffect(() => {
     if (!embedded) return;
@@ -642,21 +770,23 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }, [embedded]);
 
   useEffect(() => {
-    if (sessionLoading || !user || playingLog) return;
-    const t = setInterval(() => void refresh(), 5000);
+    if (sessionLoading || !user || playingLog || !exploring) return;
+    const t = setInterval(() => {
+      void refresh({ runStateOnly: true });
+    }, 5000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, playingLog]);
+  }, [user, playingLog, exploring]);
 
   useEffect(() => {
-    if (run?.active) return;
+    if (exploring) return;
     if (!minions.length) return;
     setPartyIds((prev) => {
       const trimmed = resolveSavedPartyIds([...prev], minions, maxParty);
       if (trimmed.size > 0) return trimmed;
       return resolveSavedPartyIds(readSavedPartyIds(PARTY_KEY), minions, maxParty);
     });
-  }, [minions, maxParty, run?.active]);
+  }, [minions, maxParty, exploring]);
 
   useEscapeClose(partyOpen, () => setPartyOpen(false));
   useEscapeClose(!!settlement, dismissSettlement);
@@ -667,8 +797,8 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     setPartyOpen(true);
     setPartyBusy(true);
     try {
-      const r = await getJson<{ ok: boolean; minions: DungeonMinionRow[] }>("/api/minions/list");
-      if (r.ok) setMinions(r.minions ?? []);
+      const roster = await fetchCombatRoster(user!.id, { force: true });
+      setMinions(roster as DungeonMinionRow[]);
     } catch (e) {
       setError(e);
     } finally {
@@ -696,18 +826,56 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     setPartyOpen(false);
   }
 
+  async function runAdvanceFloor(opts?: { dungeonId?: string; minionIds?: string[] }) {
+    setRunSession(true);
+    const body =
+      opts?.dungeonId && opts.minionIds?.length
+        ? { dungeonId: opts.dungeonId, minionIds: opts.minionIds }
+        : {};
+    const r = await postJson<AdvanceResult>("/api/dungeons/run/advance", body);
+    pendingPartyHpRef.current = r.partyHp ?? null;
+    pendingAdvanceResultRef.current = r;
+    mergeSessionXp(r.minionXpGrants);
+    const replay = r.combatReplay ?? fallbackCombatReplay(r.combatLog ?? []);
+    startBattlePlayback(r.combatLog ?? [], replay, r.isBoss);
+    return r;
+  }
+
+  async function startRun(enableAuto = false) {
+    if (!dungeon) return;
+    setAutoAdvanceOn(enableAuto);
+    setBusy("start");
+    setLogLines([]);
+    setLastFloorBonus(null);
+    setError(null);
+    optimisticRunAfterStart();
+    try {
+      resetSessionXp();
+      setBusy("advance");
+      await runAdvanceFloor({ dungeonId: dungeon.id, minionIds: [...partyIds] });
+    } catch (e) {
+      setAutoAdvanceOn(false);
+      endRunSession();
+      setRun((prev) => (prev?.active ? { ...prev, active: false } : prev));
+      setError(e);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function advance() {
     setBusy("advance");
     setError(null);
+    const enteringBoss = floor >= maxFloors;
+    if (enteringBoss) {
+      setCombatIsBoss(true);
+      setBattlePreparing(true);
+    }
     try {
-      const r = await postJson<AdvanceResult>("/api/dungeons/run/advance", {});
-      pendingPartyHpRef.current = r.partyHp ?? null;
-      pendingAdvanceResultRef.current = r;
-      setPlaybackClearChance(r.clearChance ?? null);
-      mergeSessionXp(r.minionXpGrants);
-      const replay = r.combatReplay ?? fallbackCombatReplay(r.combatLog ?? []);
-      startBattlePlayback(r.combatLog ?? [], replay, r.isBoss);
+      await runAdvanceFloor();
     } catch (e) {
+      setBattlePreparing(false);
+      if (enteringBoss) setCombatIsBoss(false);
       setError(e);
     } finally {
       setBusy(null);
@@ -721,8 +889,11 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
           {!embedded ? (
             <div>
               <p className="game-label">던전</p>
-              <h2 className="game-title mt-1 text-lg">{dungeon?.name ?? "슬라임의 숲"}</h2>
-              <p className="mt-1 text-xs text-[var(--game-muted)]">층마다 실시간 전투 · 패배 시 보상 소멸</p>
+              <h2 className="game-title mt-1 text-lg">{dungeon?.name ?? "마계 · 오염의 웅덩이"}</h2>
+              <p className="mt-1 text-xs text-[var(--game-muted)]">
+                층마다 실시간 전투 · 패배 시 보상 소멸
+                {autoAdvance && exploring ? " · 다음 층 자동 진행 중" : ""}
+              </p>
               {dungeon?.stage ? (
                 <p className="mt-1 text-[11px] font-semibold text-[var(--game-gold-bright)]">
                   권장 {dungeon.stage.recommendedLevelLabel}
@@ -734,43 +905,43 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
             </div>
           ) : (
             <div className="min-w-0">
-              <h2 className="game-title text-sm">{dungeon?.name ?? "슬라임의 숲"}</h2>
+              <h2 className="game-title text-sm">{dungeon?.name ?? "마계 · 오염의 웅덩이"}</h2>
               {dungeon?.stage ? (
                 <p className="mt-0.5 text-[10px] text-[var(--game-muted)]">
+                  {dungeon.stage.realm ? `${dungeon.stage.realm} · ` : ""}
                   스테이지 {dungeon.stage.stageOrder} · 권장 {dungeon.stage.recommendedLevelLabel}
                 </p>
               ) : null}
             </div>
           )}
-          <span className={`dungeon-status-pill ${run?.active ? "dungeon-status-pill--live" : ""}`.trim()}>
-            {run?.active ? "● 탐험 중" : "○ 대기"}
+          <span className={`dungeon-status-pill ${exploring ? "dungeon-status-pill--live" : ""}`.trim()}>
+            {autoAdvance && exploring ? "● 자동 탐험" : exploring ? "● 탐험 중" : "○ 대기"}
           </span>
         </div>
         <div className="dungeon-floor-track">
-          <div className="dungeon-floor-fill" style={{ width: `${run?.active ? floorPct : 0}%` }} />
+          <div className="dungeon-floor-fill" style={{ width: `${exploring ? floorPct : 0}%` }} />
         </div>
         <p className={`text-right text-[11px] font-semibold tabular-nums text-[var(--game-muted)] ${embedded ? "mt-1" : "mt-2"}`}>
-          {run?.active ? `${floor} / ${maxFloors}층` : `최대 ${maxFloors}층`}
+          {floorLabel}
         </p>
-        {run?.active ? (
+        {exploring ? (
           <p className="text-right text-[10px] text-[var(--game-muted)]">
-            이번 층 드랍 ×{pushLuckLootMultiplier(floor)}
-            {selectedStageOrder > 0
-              ? ` · 클리어 +${pushLuckFloorGoldReward(floor, selectedStageOrder).toLocaleString()} G`
-              : null}
+            {atBossGate ? (
+              <span className="font-semibold text-rose-300">최종 보스 대기 중</span>
+            ) : (
+              <>
+                이번 층 드랍 ×{pushLuckLootMultiplier(floor)}
+                {selectedStageOrder > 0
+                  ? ` · 클리어 +${pushLuckFloorGoldReward(floor, selectedStageOrder).toLocaleString()} G`
+                  : null}
+              </>
+            )}
           </p>
         ) : null}
         {lastFloorBonus ? (
           <p className="text-right text-[11px] font-semibold text-[var(--game-gold-bright)]">{lastFloorBonus}</p>
         ) : null}
-        {run?.active && run.combat?.clearChance != null && !playingLog ? (
-          <PushLuckRiskBar
-            className="mt-2"
-            clearChance={run.combat.clearChance}
-            floorLabel={`${floor} / ${maxFloors}층`}
-          />
-        ) : null}
-        {!run?.active && stagePickerRows.length > 0 ? (
+        {!exploring && stagePickerRows.length > 0 ? (
           <div className={`dungeon-stage-picker ${embedded ? "dungeon-stage-picker--compact" : ""}`.trim()}>
             <div className="dungeon-stage-picker__head">
               <span className="dungeon-stage-picker__title">스테이지 선택</span>
@@ -797,6 +968,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                         onClick={() => selectStage(row.stageOrder)}
                       >
                         <span className="dungeon-stage-tab-btn__order">ST.{row.stageOrder}</span>
+                        <span className={`dungeon-realm-tag dungeon-realm-tag--${row.realm}`}>{row.realm}</span>
                         <span className="dungeon-stage-tab-btn__name">{row.name}</span>
                       </GameBtn>
                     </span>
@@ -806,7 +978,12 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
             </div>
             {selectedStageRow && selectedStageDungeon ? (
               <div className="dungeon-stage-picker__detail">
-                <div className="dungeon-stage-picker__detail-name">{selectedStageRow.name}</div>
+                <div className="dungeon-stage-picker__detail-head">
+                  <span className={`dungeon-realm-tag dungeon-realm-tag--${selectedStageRow.realm}`}>
+                    {selectedStageRow.realm}
+                  </span>
+                  <div className="dungeon-stage-picker__detail-name">{selectedStageRow.displayName}</div>
+                </div>
                 <div className="dungeon-stage-picker__detail-meta">
                   권장 {selectedStageRow.recommendedLevelLabel.replace(/^Lv\s*/i, "레벨 ")}
                   {selectedStageDungeon.maxFloors ? (
@@ -834,7 +1011,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
               </div>
             ) : null}
           </div>
-        ) : run?.active ? (
+        ) : exploring ? (
           <p className={`${embedded ? "mt-1.5 text-[10px]" : "mt-2 text-xs"} text-[var(--game-muted-dim)]`}>
             탐험 중에는 스테이지를 변경할 수 없습니다.
           </p>
@@ -852,19 +1029,8 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         <div className={embedded ? "dungeon-sidebar-fit" : "flex flex-col gap-3"}>
           <GamePanel className={embedded ? "!p-2" : "!p-3"}>
             <GamePanelTitle>{embedded ? "전투·파티" : "전투"}</GamePanelTitle>
-            {!embedded ? (
-              <p className="mt-1 text-[10px] leading-snug text-[var(--game-muted)]">
-                클리어 확률은 현재 층 전투를 여러 번 시뮬한 추정치입니다.
-              </p>
-            ) : null}
-            <div className={`${embedded ? "mt-1.5" : "mt-2"} grid grid-cols-2 gap-1.5`}>
+            <div className={embedded ? "mt-1.5" : "mt-2"}>
               <GameStat label="전투력" value={run?.combat?.partyPower ?? "—"} highlight />
-              <GameStat
-                label="클리어 확률"
-                value={run?.combat ? `${Math.round(run.combat.clearChance * 100)}%` : "—"}
-              />
-              <GameStat label="승" value={run?.run?.wins ?? 0} />
-              <GameStat label="패" value={run?.run?.losses ?? 0} />
             </div>
             {run?.combat?.partyPower != null && run.combat.partyPower < 120 && !embedded ? (
               <p className="mt-2 text-[11px] leading-snug text-[var(--game-muted)]">
@@ -878,11 +1044,11 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
               <>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   <span className="text-[10px] text-[var(--game-muted)]">
-                    {run?.active && partyRoster
+                    {exploring && partyRoster
                       ? `생존 ${partyAlive}/${partyRoster.length}`
                       : `파티 ${partyIds.size}/${maxParty}`}
                   </span>
-                  {!run?.active || !partyRoster?.length
+                  {!exploring || !partyRoster?.length
                     ? partyChips.length === 0
                       ? (
                           <span className="text-[10px] text-[var(--game-muted-dim)]">미선택</span>
@@ -896,7 +1062,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                         )
                     : null}
                 </div>
-                {run?.active && partyRoster && partyRoster.length > 0 ? (
+                {exploring && partyRoster && partyRoster.length > 0 ? (
                   <DungeonPartyHpList
                     roster={partyRoster}
                     potions={recoveryPotions}
@@ -908,7 +1074,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                 <GameBtn
                   variant="ghost"
                   className="mt-1.5 h-8 w-full text-[10px]"
-                  disabled={!!busy}
+                  disabled={!!busy || exploring}
                   onClick={() => void openParty()}
                 >
                   파티 편성
@@ -927,7 +1093,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                   : `${partyIds.size}/${maxParty}`}
               </span>
             </div>
-            {run?.active && partyRoster && partyRoster.length > 0 ? (
+            {exploring && partyRoster && partyRoster.length > 0 ? (
               <DungeonPartyHpList
                 roster={partyRoster}
                 potions={recoveryPotions}
@@ -947,52 +1113,38 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                 )}
               </div>
             )}
-            <GameBtn variant="ghost" className="mt-2 h-9 w-full text-xs" disabled={!!busy} onClick={() => void openParty()}>
+            <GameBtn
+              variant="ghost"
+              className="mt-2 h-9 w-full text-xs"
+              disabled={!!busy || exploring}
+              onClick={() => void openParty()}
+            >
               파티 편성
             </GameBtn>
           </GamePanel>
           ) : null}
 
+          {exploring ? (
           <GamePanel className={embedded ? "!p-2" : "!p-3"}>
             <GamePanelTitle>{embedded ? "명령" : "명령"}</GamePanelTitle>
             <div className={`dungeon-action-grid ${embedded ? "mt-1.5" : "mt-2"}`}>
               <GameBtn
-                variant="primary"
-                className={embedded ? "h-8 text-xs" : "h-10 text-sm"}
-                disabled={!!busy || !dungeon || partyIds.size === 0 || run?.active}
-                onClick={async () => {
-                  if (!dungeon) return;
-                  setBusy("start");
-                  setLogLines([]);
-                  setLastFloorBonus(null);
-                  try {
-                    await postJson("/api/dungeons/run/start", {
-                      dungeonId: dungeon.id,
-                      minionIds: [...partyIds],
-                    });
-                    resetSessionXp();
-                    await refresh();
-                  } catch (e) {
-                    setError(e);
-                  } finally {
-                    setBusy(null);
-                  }
-                }}
+                variant={autoAdvance ? "gold" : "ghost"}
+                className={`dungeon-action-span ${embedded ? "h-8 text-xs" : "h-9 text-xs"}`}
+                disabled={!!busy || playingLog}
+                onClick={() => setAutoAdvanceOn(!autoAdvance)}
               >
-                탐험 시작
-              </GameBtn>
-              <GameBtn variant="gold" className={embedded ? "h-8 text-xs" : "h-10 text-sm"} disabled={!!busy || !run?.active || playingLog} onClick={() => void advance()}>
-                {playingLog ? "전투 중…" : "다음 층"}
+                {autoAdvance ? "자동 진행 중 · 중지" : "다음 층 자동"}
               </GameBtn>
               <GameBtn
                 variant="ghost"
                 className={embedded ? "h-8 text-xs" : "h-10 text-sm"}
-                disabled={!!busy || !run?.active || playingLog}
+                disabled={!!busy || playingLog}
                 onClick={() => setCashoutConfirmOpen(true)}
               >
                 정산
               </GameBtn>
-              {run?.active && recoveryPotions.length > 0 ? (
+              {recoveryPotions.length > 0 ? (
                 <>
                   <GameBtn
                     variant="ghost"
@@ -1012,30 +1164,81 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                   </GameBtn>
                 </>
               ) : null}
-              {run?.active ? (
-                <GameBtn
-                  variant="ghost"
-                  className={`dungeon-action-span ${embedded ? "h-8 text-xs" : "h-9 text-xs"}`}
-                  disabled={!!busy}
-                  onClick={() => setPendingLootSummaryOpen(true)}
-                >
-                  정산 시 수령
-                  {cashoutLoot.length > 0 ? ` · ${cashoutLoot.length}종` : ""}
-                </GameBtn>
-              ) : null}
+              <GameBtn
+                variant="ghost"
+                className={`dungeon-action-span ${embedded ? "h-8 text-xs" : "h-9 text-xs"}`}
+                disabled={!!busy}
+                onClick={() => setPendingLootSummaryOpen(true)}
+              >
+                정산 시 수령
+                {cashoutLoot.length > 0 || (run?.pendingGold ?? 0) > 0
+                  ? [
+                      cashoutLoot.length > 0 ? `${cashoutLoot.length}종` : null,
+                      (run?.pendingGold ?? 0) > 0 ? `${(run?.pendingGold ?? 0).toLocaleString()}G` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : ""}
+              </GameBtn>
             </div>
           </GamePanel>
+          ) : null}
         </div>
 
         <CombatEncounterBlock
           embedded={embedded}
-          playing={playingLog}
+          playing={playingLog || battlePreparing}
           replay={battleReplay}
           lines={battleLines}
-          isBoss={combatIsBoss}
-          encounterLabel={combatIsBoss ? "보스전" : undefined}
-          clearChance={playbackClearChance ?? run?.combat?.clearChance ?? null}
-          floorLabel={`${battleReplay?.floor ?? floor}층`}
+          isBoss={combatIsBoss || atBossGate}
+          bossGateIdle={atBossGate}
+          encounterLabel={combatIsBoss || atBossGate ? "보스전" : undefined}
+          floorLabel={atBossGate ? `보스 · ${maxFloors}층` : `${battleReplay?.floor ?? floor}층`}
+          idleHint={
+            atBossGate
+              ? autoAdvance
+                ? "보스 방 도착 · 곧 보스 전투가 자동으로 시작됩니다."
+                : "보스 방에 도달했습니다. 「보스 입장」으로 최종 전투를 시작하세요."
+              : exploring
+                ? autoAdvance
+                  ? "층 클리어 후 다음 층이 자동으로 진행됩니다."
+                  : floor >= maxFloors
+                    ? "「보스 입장」으로 최종 전투를 시작하세요."
+                    : "아래 버튼으로 다음 층 전투를 시작하세요."
+                : "스테이지·파티를 고른 뒤 탐험을 시작하세요. 자동 탐험은 다음 층을 연속 진행합니다."
+          }
+          preparingLabel={battlePreparing ? (floor >= maxFloors ? "보스 입장 중…" : "전투 준비 중…") : undefined}
+          actions={
+            exploring ? (
+              <GameBtn
+                variant="gold"
+                className={`combat-encounter__action-btn ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
+                disabled={!!busy || playingLog || battlePreparing}
+                onClick={() => void advance()}
+              >
+                {advanceActionLabel}
+              </GameBtn>
+            ) : (
+              <div className="flex w-full flex-col gap-2 sm:flex-row">
+                <GameBtn
+                  variant="primary"
+                  className={`combat-encounter__action-btn flex-1 ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
+                  disabled={!!busy || !dungeon || partyIds.size === 0}
+                  onClick={() => void startRun(false)}
+                >
+                  {busy === "start" ? "전투 준비…" : "탐험 시작"}
+                </GameBtn>
+                <GameBtn
+                  variant="gold"
+                  className={`combat-encounter__action-btn flex-1 ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
+                  disabled={!!busy || !dungeon || partyIds.size === 0}
+                  onClick={() => void startRun(true)}
+                >
+                  {busy === "start" ? "전투 준비…" : "자동 탐험"}
+                </GameBtn>
+              </div>
+            )
+          }
           onFrame={setBattleFrame}
           onComplete={finishBattlePlayback}
         />
@@ -1075,15 +1278,19 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       <PendingLootSummaryModal
         open={pendingLootSummaryOpen}
         loot={cashoutLoot}
+        pendingGold={run?.pendingGold}
         onClose={() => setPendingLootSummaryOpen(false)}
       />
 
       <DungeonCashoutConfirmModal
         open={cashoutConfirmOpen}
         loot={cashoutLoot}
+        pendingGold={run?.pendingGold}
         onCancel={() => setCashoutConfirmOpen(false)}
         onConfirm={() => void executeCashout()}
-        onForfeit={cashoutLoot.length > 0 ? () => void executeForfeit() : undefined}
+        onForfeit={
+          cashoutLoot.length > 0 || (run?.pendingGold ?? 0) > 0 ? () => void executeForfeit() : undefined
+        }
       />
 
       <DungeonRunSettlementModal

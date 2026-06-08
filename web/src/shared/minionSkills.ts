@@ -1,101 +1,294 @@
 import type { MinionCombatClass } from "@/shared/minionDerivedClass";
+import skillsCatalog from "../../data/minion_skills.json";
 
-/** 스킬 슬롯·레벨업 확장용 기본 타입 */
-export type MinionSkill = {
+/** 스킬 레벨업 — `gameRules.minion.skill`과 동기화 */
+export const MINION_SKILL_RULES = {
+  pointsPerLevel: skillsCatalog.rules.pointsPerLevel,
+  promotionBonusPoints: skillsCatalog.rules.promotionBonusPoints,
+} as const;
+
+export type MinionSkillTier = 1 | 2 | 3;
+
+export type MinionSkillDef = {
   id: string;
   name: string;
   description: string;
-  /** 1=기본, 2=전직 후, 3=2차 전직 후 */
-  tier: 1 | 2 | 3;
+  tier: MinionSkillTier;
   maxLevel: number;
+  powerPerLevel?: number;
+  hpPerLevel?: number;
+  defPerLevel?: number;
+  /** 전투 피해 % (스킬별 합산 후 1 + sum/100) */
+  damagePctPerLevel?: number;
+  /** 대표 스킬 발동 타격 추가 피해 % (레벨당) */
+  activeHitDamagePctPerLevel?: number;
 };
 
-const BASE_SKILLS: MinionSkill[] = [
-  {
-    id: "adventure_strike",
-    name: "모험가 타격",
-    description: "기본 공격. (스킬 시스템 확장 예정)",
-    tier: 1,
-    maxLevel: 5,
-  },
-];
-
-const SWORDSMAN_SKILLS: MinionSkill[] = [
-  {
-    id: "sword_slash",
-    name: "베기",
-    description: "검으로 적을 베어 공격합니다. (스킬 시스템 확장 예정)",
-    tier: 2,
-    maxLevel: 10,
-  },
-  {
-    id: "sword_guard",
-    name: "검막",
-    description: "짧은 시간 방어력이 상승합니다. (스킬 시스템 확장 예정)",
-    tier: 2,
-    maxLevel: 5,
-  },
-];
-
-const ADVANCED_SKILLS: Partial<Record<MinionCombatClass, MinionSkill[]>> = {
-  WARRIOR: [
-    {
-      id: "warrior_cleave",
-      name: "강타",
-      description: "힘을 모아 강력한 일격. (스킬 시스템 확장 예정)",
-      tier: 3,
-      maxLevel: 10,
-    },
-  ],
-  WIND_BLADE: [
-    {
-      id: "wind_blade_rush",
-      name: "질풍 베기",
-      description: "민첩함으로 연속 공격. (스킬 시스템 확장 예정)",
-      tier: 3,
-      maxLevel: 10,
-    },
-  ],
-  MAGIC_BLADE: [
-    {
-      id: "magic_blade_arc",
-      name: "마력 베기",
-      description: "마력이 깃든 검기. (스킬 시스템 확장 예정)",
-      tier: 3,
-      maxLevel: 10,
-    },
-  ],
-  SHIELD_BLADE: [
-    {
-      id: "shield_blade_counter",
-      name: "반격",
-      description: "방어 후 즉시 반격. (스킬 시스템 확장 예정)",
-      tier: 3,
-      maxLevel: 10,
-    },
-  ],
+export type SkillCombatBonuses = {
+  powerBonus: number;
+  bonusHp: number;
+  bonusDef: number;
+  damageMult: number;
 };
 
-/** 전투 클래스별 보유 스킬 목록 (현재는 스텁 — 추후 레벨·슬롯 DB 연동) */
-export function skillsForCombatClass(combatClass: MinionCombatClass): MinionSkill[] {
-  switch (combatClass) {
-    case "ADVENTURER":
-      return BASE_SKILLS;
-    case "SWORDSMAN":
-      return [...BASE_SKILLS, ...SWORDSMAN_SKILLS];
-    case "WARRIOR":
-    case "WIND_BLADE":
-    case "MAGIC_BLADE":
-    case "SHIELD_BLADE":
-      return [...BASE_SKILLS, ...SWORDSMAN_SKILLS, ...(ADVANCED_SKILLS[combatClass] ?? [])];
-    default:
-      return BASE_SKILLS;
+export type SkillBreakdownEntry = {
+  id: string;
+  name: string;
+  tier: MinionSkillTier;
+  level: number;
+  effectSummary: string;
+};
+
+export type SkillBreakdown = {
+  power: number;
+  hp: number;
+  def: number;
+  damagePct: number;
+  entries: SkillBreakdownEntry[];
+};
+
+const SKILL_BY_ID = new Map<string, MinionSkillDef>();
+const CLASS_POOLS = skillsCatalog.classPools as Record<MinionCombatClass, string[]>;
+
+for (const raw of skillsCatalog.skills) {
+  SKILL_BY_ID.set(raw.id, raw as MinionSkillDef);
+}
+
+export function skillDefById(skillId: string): MinionSkillDef | null {
+  return SKILL_BY_ID.get(skillId) ?? null;
+}
+
+export function skillsForCombatClass(combatClass: MinionCombatClass): MinionSkillDef[] {
+  const ids = CLASS_POOLS[combatClass] ?? CLASS_POOLS.ADVENTURER;
+  const out: MinionSkillDef[] = [];
+  for (const id of ids) {
+    const def = SKILL_BY_ID.get(id);
+    if (def) out.push(def);
+  }
+  return out;
+}
+
+export type MinionSkillLevels = Record<string, number>;
+
+export function parseMinionSkillLevels(json: string | null | undefined): MinionSkillLevels {
+  if (!json || json === "{}") return {};
+  try {
+    const v = JSON.parse(json) as unknown;
+    if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+    const out: MinionSkillLevels = {};
+    for (const [k, raw] of Object.entries(v)) {
+      if (typeof raw !== "number" || !Number.isFinite(raw)) continue;
+      const lv = Math.floor(raw);
+      if (lv > 0) out[k] = lv;
+    }
+    return out;
+  } catch {
+    return {};
   }
 }
 
-/** UI용 — 현재는 모든 스킬 Lv1 고정 */
-export type MinionSkillView = MinionSkill & { level: number };
+export function serializeMinionSkillLevels(levels: MinionSkillLevels): string {
+  const out: MinionSkillLevels = {};
+  for (const [k, v] of Object.entries(levels)) {
+    const lv = Math.floor(v);
+    if (lv > 0) out[k] = lv;
+  }
+  return JSON.stringify(out);
+}
 
+/** 전직·클래스에 맞는 스킬만 유지 */
+export function normalizeSkillLevelsForClass(
+  combatClass: MinionCombatClass,
+  levels: MinionSkillLevels,
+): MinionSkillLevels {
+  const allowed = new Set(skillsForCombatClass(combatClass).map((s) => s.id));
+  const out: MinionSkillLevels = {};
+  for (const [id, lv] of Object.entries(levels)) {
+    if (!allowed.has(id)) continue;
+    const def = skillDefById(id);
+    if (!def) continue;
+    out[id] = Math.min(def.maxLevel, Math.max(0, Math.floor(lv)));
+  }
+  return out;
+}
+
+/** 신규 미니언·빈 스킬 JSON — 1티어 기본 스킬만 Lv1 */
+export function defaultSkillLevelsForClass(combatClass: MinionCombatClass): MinionSkillLevels {
+  const out: MinionSkillLevels = {};
+  for (const s of skillsForCombatClass(combatClass)) {
+    if (s.tier === 1) out[s.id] = 1;
+  }
+  return out;
+}
+
+/** 전직 시 클래스 풀만 정리 — 자동 습득 없음 (포인트로 습득) */
+export function mergeSkillLevelsOnPromotion(
+  combatClass: MinionCombatClass,
+  prev: MinionSkillLevels,
+): MinionSkillLevels {
+  return normalizeSkillLevelsForClass(combatClass, { ...prev });
+}
+
+export function primarySkillActiveDamageMult(skillId: string, level: number): number {
+  const def = skillDefById(skillId);
+  if (!def || level <= 0) return 1;
+  const pct = (def.activeHitDamagePctPerLevel ?? 0) * level;
+  return 1 + pct / 100;
+}
+
+/** 전투 연출·스킬명 표시용 — 습득한 스킬 중 대표 1개 (고티어·피해 스킬 우선) */
+export function primaryCombatSkillForMinion(
+  combatClass: MinionCombatClass,
+  skillLevelsJson?: string | null,
+): { id: string; name: string; level: number } | null {
+  const levels = normalizeSkillLevelsForClass(
+    combatClass,
+    parseMinionSkillLevels(skillLevelsJson),
+  );
+  let best: MinionSkillDef | null = null;
+  let bestLevel = 0;
+  let bestScore = -1;
+  for (const s of skillsForCombatClass(combatClass)) {
+    const lv = levels[s.id] ?? 0;
+    if (lv <= 0) continue;
+    const score =
+      s.tier * 1000 +
+      (s.damagePctPerLevel ?? 0) * lv +
+      (s.powerPerLevel ?? 0) * lv * 0.1;
+    if (score > bestScore) {
+      bestScore = score;
+      best = s;
+      bestLevel = lv;
+    }
+  }
+  return best ? { id: best.id, name: best.name, level: bestLevel } : null;
+}
+
+export function aggregateSkillCombatBonuses(
+  combatClass: MinionCombatClass,
+  levels: MinionSkillLevels,
+): SkillCombatBonuses {
+  const normalized = normalizeSkillLevelsForClass(combatClass, levels);
+  let powerBonus = 0;
+  let bonusHp = 0;
+  let bonusDef = 0;
+  let damagePct = 0;
+
+  for (const s of skillsForCombatClass(combatClass)) {
+    const lv = normalized[s.id] ?? 0;
+    if (lv <= 0) continue;
+    powerBonus += (s.powerPerLevel ?? 0) * lv;
+    bonusHp += (s.hpPerLevel ?? 0) * lv;
+    bonusDef += (s.defPerLevel ?? 0) * lv;
+    damagePct += (s.damagePctPerLevel ?? 0) * lv;
+  }
+
+  return {
+    powerBonus: Math.floor(powerBonus),
+    bonusHp: Math.floor(bonusHp),
+    bonusDef: Math.floor(bonusDef),
+    damageMult: 1 + damagePct / 100,
+  };
+}
+
+export function skillBreakdownForClass(
+  combatClass: MinionCombatClass,
+  skillLevelsJson?: string | null,
+): SkillBreakdown | null {
+  const levels = normalizeSkillLevelsForClass(
+    combatClass,
+    parseMinionSkillLevels(skillLevelsJson),
+  );
+  const bonuses = aggregateSkillCombatBonuses(combatClass, levels);
+  const entries: SkillBreakdownEntry[] = [];
+  for (const s of skillsForCombatClass(combatClass)) {
+    const level = levels[s.id] ?? 0;
+    if (level <= 0) continue;
+    entries.push({
+      id: s.id,
+      name: s.name,
+      tier: s.tier,
+      level,
+      effectSummary: skillEffectSummary(s, level),
+    });
+  }
+  if (entries.length === 0) return null;
+  return {
+    power: bonuses.powerBonus,
+    hp: bonuses.bonusHp,
+    def: bonuses.bonusDef,
+    damagePct: Math.round((bonuses.damageMult - 1) * 1000) / 10,
+    entries,
+  };
+}
+
+function skillEffectSummary(def: MinionSkillDef, level: number): string {
+  const parts: string[] = [];
+  if (def.powerPerLevel) parts.push(`전투력 +${def.powerPerLevel * level}`);
+  if (def.hpPerLevel) parts.push(`HP +${def.hpPerLevel * level}`);
+  if (def.defPerLevel) parts.push(`DEF +${def.defPerLevel * level}`);
+  if (def.damagePctPerLevel) parts.push(`피해 +${(def.damagePctPerLevel * level).toFixed(1)}%`);
+  if (def.activeHitDamagePctPerLevel) {
+    parts.push(`스킬타 +${(def.activeHitDamagePctPerLevel * level).toFixed(1)}%`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : def.description;
+}
+
+const TIER_LABELS: Record<MinionSkillTier, string> = {
+  1: "기본",
+  2: "전직",
+  3: "특화",
+};
+
+function acquireHintForSkill(def: MinionSkillDef, level: number): string {
+  if (level > 0) return skillEffectSummary(def, level);
+  if (def.tier === 1) return "스킬 포인트 1P로 습득";
+  if (def.tier === 2) return "검사 전직 후 포인트로 습득";
+  return "2차 전직 후 포인트로 습득";
+}
+
+export type MinionSkillView = {
+  id: string;
+  name: string;
+  description: string;
+  tier: MinionSkillTier;
+  tierLabel: string;
+  maxLevel: number;
+  level: number;
+  effectSummary: string;
+  acquireHint: string;
+  unlocked: boolean;
+};
+
+export function skillViewsForMinion(input: {
+  combatClass: MinionCombatClass;
+  skillLevelsJson?: string | null;
+}): MinionSkillView[] {
+  const levels = normalizeSkillLevelsForClass(
+    input.combatClass,
+    parseMinionSkillLevels(input.skillLevelsJson),
+  );
+  return skillsForCombatClass(input.combatClass).map((def) => {
+    const level = levels[def.id] ?? 0;
+    return {
+      id: def.id,
+      name: def.name,
+      description: def.description,
+      tier: def.tier,
+      tierLabel: TIER_LABELS[def.tier],
+      maxLevel: def.maxLevel,
+      level,
+      unlocked: level > 0,
+      effectSummary: level > 0 ? skillEffectSummary(def, level) : "",
+      acquireHint: acquireHintForSkill(def, level),
+    };
+  });
+}
+
+/** @deprecated — `skillViewsForMinion` 사용 */
 export function skillViewsForCombatClass(combatClass: MinionCombatClass): MinionSkillView[] {
-  return skillsForCombatClass(combatClass).map((s) => ({ ...s, level: 1 }));
+  return skillViewsForMinion({
+    combatClass,
+    skillLevelsJson: serializeMinionSkillLevels(defaultSkillLevelsForClass(combatClass)),
+  });
 }

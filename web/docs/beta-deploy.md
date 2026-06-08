@@ -29,8 +29,14 @@ npm run db:migrate
 # 또는: npx prisma migrate deploy
 ```
 
-`DIRECT_URL` 설정이 어렵다면 Supabase **SQL Editor**에서  
-`prisma/migrations/20260531130100_raid_tower_leaderboard/migration.sql` 내용을 실행해도 됩니다.
+`DIRECT_URL` 설정이 어렵다면 Supabase **SQL Editor**에서 미적용 `prisma/migrations/*/migration.sql` 을 실행합니다.  
+방어구 강화 오류(`Unknown argument enhanceLevel`) 시:
+
+```sql
+ALTER TABLE "ArmorInstance" ADD COLUMN IF NOT EXISTS "enhanceLevel" INTEGER NOT NULL DEFAULT 0;
+```
+
+적용 후 로컬에서 dev 서버를 **종료**하고 `cd web && npx prisma generate` → dev 재시작.
 
 초기 데이터:
 

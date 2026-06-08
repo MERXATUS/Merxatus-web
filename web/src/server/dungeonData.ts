@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { applyCraftingDropsToDungeon } from "@/server/applyCraftingDrops";
 
 const DungeonDropSchema = z.object({
   itemId: z.string().min(1),
@@ -55,11 +56,16 @@ function resolveDataDir() {
   return path.join(cwd, "data");
 }
 
+let dungeonsCache: { dungeons: DungeonDef[] } | null = null;
+
 export async function loadDungeons() {
+  if (dungeonsCache) return dungeonsCache;
   const dir = resolveDataDir();
   const p = path.join(dir, "dungeons.json");
   if (!existsSync(p)) throw new Error(`DUNGEONS_DATA_NOT_FOUND: ${p}`);
   const raw = await loadJsonFile<unknown>(p);
-  const dungeons = z.array(DungeonSchema).parse(raw);
-  return { dungeons };
+  const parsed = z.array(DungeonSchema).parse(raw);
+  const dungeons = parsed.map(applyCraftingDropsToDungeon);
+  dungeonsCache = { dungeons };
+  return dungeonsCache;
 }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { itemIconFieldsForItemId } from "@/server/itemCatalog";
+import { itemGradeViewForItem } from "@/server/itemGrade";
 import { activeListingVisibilityWhere, expireStaleActiveListings } from "@/server/market";
 
 export const runtime = "nodejs";
@@ -70,7 +71,7 @@ export async function GET(req: Request) {
         sellerId: l.sellerId,
         itemId: l.itemId,
         itemName: l.item.name,
-        itemGrade: l.item.grade,
+        itemGrade: itemGradeViewForItem(l.itemId, l.item.grade).grade,
         category: l.item.category,
         icon: iconFields.icon,
         iconSrc: iconFields.iconSrc,
@@ -81,7 +82,10 @@ export async function GET(req: Request) {
               name: l.weaponInstance.baseItem.name,
               enhanceLevel: l.weaponInstance.enhanceLevel,
               status: l.weaponInstance.status,
-              grade: l.weaponInstance.baseItem.grade,
+              ...itemGradeViewForItem(
+                l.weaponInstance.baseItemId,
+                l.weaponInstance.baseItem.grade,
+              ),
             }
           : null,
         quantity: l.quantity,

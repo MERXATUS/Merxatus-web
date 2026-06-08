@@ -274,9 +274,8 @@ async function main() {
 
   console.log("\n## 6. 병목·미구현 이슈\n");
   const issues = [
-    "item_enhance_scroll_*: +6~ 강화 필수, 드랍/획득처 CSV 미정",
     "item_slime_king_sig: 보스 드랍, items.json 미등록",
-    "item_lesser_mana_stone: 던전 드랍 · 하급 강화 주문서 재료",
+    "item_lesser_mana_stone: 던전·레이드·무탑 드랍 · 강화 재료",
     "미니언 레벨업 시스템 제거 → Lv1 고정",
     "궁수/마법사 무기·레시피 없음 → 전사만 유효",
     "10인 풀파티 전제 vs 설계(1/3/5인) 불일치",

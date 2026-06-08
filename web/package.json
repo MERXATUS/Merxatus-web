@@ -13,6 +13,7 @@
     "validate:data": "node scripts/validate-data-sync.mjs",
     "purge:orphan-items": "node --env-file=.env scripts/purge-orphan-inventory.mjs",
     "db:migrate": "node scripts/prisma-migrate-deploy.mjs",
+    "db:push": "node scripts/prisma-db-push.mjs",
     "db:check": "node --env-file=.env scripts/check-db.mjs",
     "db:baseline-migrate": "node scripts/prisma-baseline-and-migrate.mjs",
     "build": "next build --webpack",

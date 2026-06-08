@@ -10,9 +10,10 @@ export function normalizeMerxatusItemId(raw: string): string {
 /** 파일을 못 찾거나 파싱 결과가 비었을 때 쓰는 기본 표(레포 `Merxatus-Price.csv`와 동일). */
 export const MERXATUS_ROYAL_PRICE_CSV_FALLBACK = [
   "ItemID,Buy_Price,Sell_Price",
-  "Item_Stone,12,10",
-  "Item_Dark_Iron_Ore,120,100",
-  "Item_Red_Gold_Ore,1200,1000",
+  "Item_Lesser_Mana_Stone,11,9",
+  "Item_Mana_Stone,35,28",
+  "Item_Greater_Mana_Stone,104,85",
+  "Item_Appraisal_Scroll,20,16",
 ].join("\n");
 
 function splitCsvLine(line: string): string[] {

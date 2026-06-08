@@ -13,7 +13,7 @@ export function pushLuckFloorGoldReward(floor: number, stageOrder: number): numb
   const f = Math.max(1, Math.floor(floor));
   const stage = Math.max(1, Math.floor(stageOrder));
   const base = 8 + stage * 4;
-  return Math.floor(base * f * pushLuckLootMultiplier(f) * 0.25);
+  return Math.floor(base * f * pushLuckLootMultiplier(f));
 }
 
 export function scaleLootEntries<T extends { qty: number }>(

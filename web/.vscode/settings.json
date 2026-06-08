@@ -1,0 +1,11 @@
+{
+  "files.watcherExclude": {
+    "**/.next/**": true,
+    "**/node_modules/**": true,
+    "**/.git/**": true
+  },
+  "search.exclude": {
+    "**/.next": true,
+    "**/node_modules": true
+  }
+}

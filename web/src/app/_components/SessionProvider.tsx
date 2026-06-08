@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   SESSION_CHANGED_EVENT,
   fetchSessionUser,
@@ -15,9 +15,12 @@ type SessionContextValue = {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
+const FOCUS_REFRESH_DEBOUNCE_MS = 8_000;
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastFocusRefreshRef = useRef(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -40,14 +43,20 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       window.history.replaceState(null, "", qs ? `/?${qs}` : "/");
     }
     void refresh();
-    const onChanged = () => void refresh();
-    window.addEventListener(SESSION_CHANGED_EVENT, onChanged);
-    window.addEventListener("focus", onChanged);
-    window.addEventListener("pageshow", onChanged);
+    const onSessionChanged = () => void refresh();
+    const onFocusOrShow = () => {
+      const now = Date.now();
+      if (now - lastFocusRefreshRef.current < FOCUS_REFRESH_DEBOUNCE_MS) return;
+      lastFocusRefreshRef.current = now;
+      void refresh();
+    };
+    window.addEventListener(SESSION_CHANGED_EVENT, onSessionChanged);
+    window.addEventListener("focus", onFocusOrShow);
+    window.addEventListener("pageshow", onFocusOrShow);
     return () => {
-      window.removeEventListener(SESSION_CHANGED_EVENT, onChanged);
-      window.removeEventListener("focus", onChanged);
-      window.removeEventListener("pageshow", onChanged);
+      window.removeEventListener(SESSION_CHANGED_EVENT, onSessionChanged);
+      window.removeEventListener("focus", onFocusOrShow);
+      window.removeEventListener("pageshow", onFocusOrShow);
     };
   }, [refresh]);
 

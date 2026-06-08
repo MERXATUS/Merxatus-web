@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma, PRISMA_TX_OPTS } from "@/server/db";
+import { assertCanGrantEquipment } from "@/server/equipmentCapacity";
 
 export type TradeSide = "A" | "B";
 
@@ -351,6 +352,18 @@ export async function confirmTrade(input: { userId: string; tradeId: string }) {
       select: { side: true, kind: true, weaponInstanceId: true, armorInstanceId: true },
       take: 200,
     });
+    const incomingEquipment = new Map<string, number>();
+    for (const it of items) {
+      const toUser = it.side === "A" ? after.userBId : after.userAId;
+      if (it.kind === "WEAPON_INSTANCE" && it.weaponInstanceId) {
+        incomingEquipment.set(toUser, (incomingEquipment.get(toUser) ?? 0) + 1);
+      } else if (it.kind === "ARMOR_INSTANCE" && it.armorInstanceId) {
+        incomingEquipment.set(toUser, (incomingEquipment.get(toUser) ?? 0) + 1);
+      }
+    }
+    for (const [toUser, add] of incomingEquipment) {
+      await assertCanGrantEquipment(tx, toUser, add);
+    }
     for (const it of items) {
       const fromUser = it.side === "A" ? after.userAId : after.userBId;
       const toUser = it.side === "A" ? after.userBId : after.userAId;

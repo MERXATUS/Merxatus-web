@@ -9,6 +9,8 @@ export type GameTabKey =
   | "dungeon"
   | "raid"
   | "tower"
+  | "pvp"
+  | "ranking"
   | "minions"
   | "blackmarket";
 
@@ -30,7 +32,9 @@ export const GAME_TABS: GameTabDef[] = [
   { key: "home", label: "홈", shortLabel: "홈", glyph: "⌂", group: "core" },
   { key: "dungeon", label: "던전", shortLabel: "던전", glyph: "⚔", group: "core" },
   { key: "raid", label: "레이드", shortLabel: "레이드", glyph: "☗", group: "core" },
-  { key: "tower", label: "무한의 탑", shortLabel: "무탑", glyph: "▲", group: "core" },
+  { key: "tower", label: "삼계의 탑", shortLabel: "무탑", glyph: "▲", group: "core" },
+  { key: "pvp", label: "결투", shortLabel: "결투", glyph: "✦", group: "core" },
+  { key: "ranking", label: "랭킹", shortLabel: "랭킹", glyph: "◈", group: "core" },
   { key: "market", label: "거래소", shortLabel: "거래", glyph: "¤", group: "trade" },
   { key: "inventory", label: "인벤토리", shortLabel: "인벤", glyph: "◆", group: "other" },
   { key: "minions", label: "미니언", shortLabel: "미니언", glyph: "●", group: "other" },
@@ -53,6 +57,8 @@ const LEGACY_PANEL_MAP: Record<string, GameTabKey> = {
   dungeon: "dungeon",
   raid: "raid",
   tower: "tower",
+  pvp: "pvp",
+  ranking: "ranking",
   enhance: "enhance",
   hub: "home",
   home: "home",
@@ -87,6 +93,8 @@ export function resolveGameTab(pathname: string, searchParams: URLSearchParams):
   if (pathname === "/dungeon" || pathname === "/dungeons" || pathname.startsWith("/dungeon")) return "dungeon";
   if (pathname === "/raid" || pathname.startsWith("/raid")) return "raid";
   if (pathname === "/tower" || pathname.startsWith("/tower")) return "tower";
+  if (pathname === "/pvp" || pathname.startsWith("/pvp")) return "pvp";
+  if (pathname === "/ranking" || pathname.startsWith("/ranking")) return "ranking";
   if (pathname === "/enhance" || pathname.startsWith("/enhance/")) return "enhance";
   if (pathname === "/inventory" || pathname.startsWith("/inventory/")) return "inventory";
 
@@ -110,6 +118,10 @@ export function routeForGameTab(tab: GameTabKey): string {
       return "/raid";
     case "tower":
       return "/tower";
+    case "pvp":
+      return "/pvp";
+    case "ranking":
+      return "/ranking";
     case "enhance":
       return "/enhance";
     case "inventory":
@@ -135,6 +147,8 @@ export function visibleGameTabs(): GameTabDef[] {
   return GAME_TABS.filter((t) => {
     if (t.key === "raid" && !GAME_FEATURES.raidEnabled) return false;
     if (t.key === "tower" && !GAME_FEATURES.towerEnabled) return false;
+    if (t.key === "pvp" && !GAME_FEATURES.pvpEnabled) return false;
+    if (t.key === "ranking" && !GAME_FEATURES.towerEnabled && !GAME_FEATURES.raidEnabled && !GAME_FEATURES.pvpEnabled) return false;
     return true;
   });
 }

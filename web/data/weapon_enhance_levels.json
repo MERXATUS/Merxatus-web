@@ -2,210 +2,210 @@
   {
     "targetLevel": 1,
     "gold": 150,
-    "scrollItemId": "item_enhance_scroll_low",
+    "scrollItemId": "item_lesser_mana_stone",
     "scrollQty": 1,
     "successRate": 100
   },
   {
     "targetLevel": 2,
     "gold": 195,
-    "scrollItemId": "item_enhance_scroll_low",
+    "scrollItemId": "item_lesser_mana_stone",
     "scrollQty": 1,
     "successRate": 100
   },
   {
     "targetLevel": 3,
     "gold": 254,
-    "scrollItemId": "item_enhance_scroll_low",
+    "scrollItemId": "item_lesser_mana_stone",
     "scrollQty": 1,
     "successRate": 100
   },
   {
     "targetLevel": 4,
     "gold": 330,
-    "scrollItemId": "item_enhance_scroll_low",
+    "scrollItemId": "item_lesser_mana_stone",
     "scrollQty": 1,
     "successRate": 100
   },
   {
     "targetLevel": 5,
     "gold": 429,
-    "scrollItemId": "item_enhance_scroll_low",
+    "scrollItemId": "item_lesser_mana_stone",
     "scrollQty": 1,
     "successRate": 100
   },
   {
     "targetLevel": 6,
     "gold": 643,
-    "scrollItemId": "item_enhance_scroll_low",
+    "scrollItemId": "item_lesser_mana_stone",
     "scrollQty": 1,
     "successRate": 95
   },
   {
     "targetLevel": 7,
     "gold": 964,
-    "scrollItemId": "item_enhance_scroll_low",
+    "scrollItemId": "item_lesser_mana_stone",
     "scrollQty": 1,
     "successRate": 90
   },
   {
     "targetLevel": 8,
     "gold": 1446,
-    "scrollItemId": "item_enhance_scroll_low",
+    "scrollItemId": "item_lesser_mana_stone",
     "scrollQty": 1,
     "successRate": 85
   },
   {
     "targetLevel": 9,
     "gold": 2169,
-    "scrollItemId": "item_enhance_scroll_low",
+    "scrollItemId": "item_lesser_mana_stone",
     "scrollQty": 2,
     "successRate": 80
   },
   {
     "targetLevel": 10,
     "gold": 3254,
-    "scrollItemId": "item_enhance_scroll_low",
+    "scrollItemId": "item_lesser_mana_stone",
     "scrollQty": 2,
     "successRate": 75
   },
   {
     "targetLevel": 11,
     "gold": 6507,
-    "scrollItemId": "item_enhance_scroll_mid",
+    "scrollItemId": "item_mana_stone",
     "scrollQty": 1,
     "successRate": 70
   },
   {
     "targetLevel": 12,
     "gold": 13014,
-    "scrollItemId": "item_enhance_scroll_mid",
+    "scrollItemId": "item_mana_stone",
     "scrollQty": 1,
     "successRate": 65
   },
   {
     "targetLevel": 13,
     "gold": 26027,
-    "scrollItemId": "item_enhance_scroll_mid",
+    "scrollItemId": "item_mana_stone",
     "scrollQty": 2,
     "successRate": 60
   },
   {
     "targetLevel": 14,
     "gold": 52053,
-    "scrollItemId": "item_enhance_scroll_mid",
+    "scrollItemId": "item_mana_stone",
     "scrollQty": 2,
     "successRate": 55
   },
   {
     "targetLevel": 15,
     "gold": 104105,
-    "scrollItemId": "item_enhance_scroll_mid",
+    "scrollItemId": "item_mana_stone",
     "scrollQty": 3,
     "successRate": 50
   },
   {
     "targetLevel": 16,
     "gold": 156158,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 1,
     "successRate": 48
   },
   {
     "targetLevel": 17,
     "gold": 234237,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 1,
     "successRate": 45
   },
   {
     "targetLevel": 18,
     "gold": 351355,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 2,
     "successRate": 42
   },
   {
     "targetLevel": 19,
     "gold": 527033,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 2,
     "successRate": 39
   },
   {
     "targetLevel": 20,
     "gold": 790550,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 3,
     "successRate": 36
   },
   {
     "targetLevel": 21,
     "gold": 1185825,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 3,
     "successRate": 30
   },
   {
     "targetLevel": 22,
     "gold": 1778738,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 4,
     "successRate": 28
   },
   {
     "targetLevel": 23,
     "gold": 2668107,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 4,
     "successRate": 26
   },
   {
     "targetLevel": 24,
     "gold": 4002160,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 5,
     "successRate": 24
   },
   {
     "targetLevel": 25,
     "gold": 6003240,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 5,
     "successRate": 22
   },
   {
     "targetLevel": 26,
     "gold": 9004860,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 6,
     "successRate": 18
   },
   {
     "targetLevel": 27,
     "gold": 13507290,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 6,
     "successRate": 16
   },
   {
     "targetLevel": 28,
     "gold": 20260935,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 7,
     "successRate": 14
   },
   {
     "targetLevel": 29,
     "gold": 30391403,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 7,
     "successRate": 12
   },
   {
     "targetLevel": 30,
     "gold": 45587104,
-    "scrollItemId": "item_enhance_scroll_high",
+    "scrollItemId": "item_greater_mana_stone",
     "scrollQty": 8,
     "successRate": 10
   }

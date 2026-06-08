@@ -1,4 +1,5 @@
 import { prisma, PRISMA_TX_OPTS } from "@/server/db";
+import { assertCanGrantEquipment } from "@/server/equipmentCapacity";
 import { GAME_RULES } from "@/server/gameRules";
 
 type MarketDb = Pick<typeof prisma, "user">;
@@ -241,6 +242,7 @@ export async function buyFixedListingPartial(input: { listingId: string; buyerId
       if (!inst) throw new Error("WEAPON_INSTANCE_NOT_FOUND");
       if (inst.userId !== listing.sellerId) throw new Error("WEAPON_OWNER_MISMATCH");
       if (inst.status !== "LISTED") throw new Error("WEAPON_NOT_LISTED");
+      await assertCanGrantEquipment(tx, input.buyerId, 1);
       await tx.weaponInstance.update({
         where: { id: inst.id },
         data: { userId: input.buyerId, status: "OWNED" },
@@ -402,6 +404,7 @@ export async function settleAuctionListing(input: { listingId: string }) {
       if (!inst) throw new Error("WEAPON_INSTANCE_NOT_FOUND");
       if (inst.userId !== listing.sellerId) throw new Error("WEAPON_OWNER_MISMATCH");
       if (inst.status !== "LISTED") throw new Error("WEAPON_NOT_LISTED");
+      await assertCanGrantEquipment(tx, listing.highestBidderId, 1);
       await tx.weaponInstance.update({ where: { id: inst.id }, data: { userId: listing.highestBidderId, status: "OWNED" } });
     } else {
       await tx.inventoryStack.upsert({

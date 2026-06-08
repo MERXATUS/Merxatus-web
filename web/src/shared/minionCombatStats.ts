@@ -1,13 +1,22 @@
 import { computePartyPower } from "@/server/dungeonCombat";
+import {
+  aggregateSkillCombatBonuses,
+  normalizeSkillLevelsForClass,
+  parseMinionSkillLevels,
+  skillBreakdownForClass,
+  type SkillBreakdown,
+} from "@/shared/minionSkills";
+import type { MinionCombatClass } from "@/shared/minionDerivedClass";
 import { equipmentStatBonusFromOptions, parseOptionsJson } from "@/server/itemOptions";
-import { armorHpDefBonusFromOptionRows } from "@/shared/itemOptionCatalog";
+import { armorHpDefBonusFromOptionRows, armorUtilPowerBonusFromOptionRows } from "@/shared/itemOptionCatalog";
 import { armorItemCombatPower, getArmorStats } from "@/shared/armorStatsData";
 import type { MinionBaseStats } from "@/shared/minionBaseStats";
 import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
 import type { MinionEquipSlotId } from "@/shared/minionEquipSlots";
+import { armorEnhanceHpDefBonus, armorEnhancePowerBonus } from "@/shared/armorTooltip";
 import { weaponBasePower, weaponEnhancePowerBonus } from "@/shared/weaponTooltip";
 
-export type MinionArmorPiece = { itemId: string; optionsJson?: string | null };
+export type MinionArmorPiece = { itemId: string; optionsJson?: string | null; enhanceLevel?: number };
 export type MinionArmorLoadout = Partial<
   Record<"helmet" | "armor" | "pants" | "shoes", MinionArmorPiece | null>
 >;
@@ -19,6 +28,8 @@ export type MinionCombatInput = {
   level: number;
   fighterRank?: number;
   baseStats?: MinionBaseStats;
+  combatClass?: MinionCombatClass;
+  skillLevelsJson?: string | null;
   weapon?: {
     baseItemId: string;
     enhanceLevel: number;
@@ -45,6 +56,7 @@ export type MinionCombatBreakdown = {
     def: number;
     power: number;
   }>;
+  skillBreakdown: SkillBreakdown | null;
 };
 
 const SLOT_LABELS: Record<string, string> = {
@@ -63,7 +75,7 @@ function statsFromPower(power: number) {
 
 function equipmentStatBonus(input: MinionCombatInput) {
   const weapon = equipmentStatBonusFromOptions(input.weapon?.optionsJson ?? null, "weapon");
-  const armor = { strength: 0, agility: 0, intelligence: 0 };
+  const armor = { strength: 0, agility: 0, intelligence: 0, endurance: 0 };
   for (const slot of ["helmet", "armor", "pants", "shoes"] as const) {
     const piece = input.armor?.[slot];
     if (!piece?.itemId) continue;
@@ -71,11 +83,13 @@ function equipmentStatBonus(input: MinionCombatInput) {
     armor.strength += b.strength;
     armor.agility += b.agility;
     armor.intelligence += b.intelligence;
+    armor.endurance += b.endurance;
   }
   return {
     strength: weapon.strength + armor.strength,
     agility: weapon.agility + armor.agility,
     intelligence: weapon.intelligence + armor.intelligence,
+    endurance: weapon.endurance + armor.endurance,
   };
 }
 
@@ -95,20 +109,34 @@ function minionBaseMember(input: Pick<MinionCombatInput, "level" | "fighterRank"
   };
 }
 
+function skillBonusesForInput(input: MinionCombatInput) {
+  if (!input.combatClass) {
+    return { powerBonus: 0, bonusHp: 0, bonusDef: 0, damageMult: 1 };
+  }
+  const levels = normalizeSkillLevelsForClass(
+    input.combatClass,
+    parseMinionSkillLevels(input.skillLevelsJson),
+  );
+  return aggregateSkillCombatBonuses(input.combatClass, levels);
+}
+
 function memberWithWeapon(input: MinionCombatInput) {
   const stats = minionBaseStatsFromRow(input.baseStats);
   const statBonus = equipmentStatBonus(input);
+  const skill = skillBonusesForInput(input);
   return {
     weaponBaseItemId: input.weapon?.baseItemId ?? null,
     weaponEnhanceLevel: input.weapon?.enhanceLevel ?? 0,
     weaponOptionBonus: input.weapon?.optionBonus ?? 0,
+    skillPowerBonus: skill.powerBonus,
     level: input.level,
     fighterRank: input.fighterRank ?? 0,
     armorPowerBonus: sumArmorPower(input.armor),
     strength: stats.strength + statBonus.strength,
     agility: stats.agility + statBonus.agility,
     intelligence: stats.intelligence + statBonus.intelligence,
-    endurance: stats.endurance,
+    endurance: stats.endurance + statBonus.endurance,
+    skillDamageMult: skill.damageMult,
   };
 }
 
@@ -125,10 +153,13 @@ function sumArmorStats(armor?: MinionArmorLoadout) {
     if (!row) continue;
     const optRows = parseOptionsJson(piece.optionsJson);
     const optHpDef = armorHpDefBonusFromOptionRows(optRows, row.hp, row.def);
-    const pieceHp = row.hp + optHpDef.hp;
-    const pieceDef = row.def + optHpDef.def;
+    const enhHpDef = armorEnhanceHpDefBonus(piece.enhanceLevel ?? 0, row.hp, row.def);
+    const pieceHp = row.hp + optHpDef.hp + enhHpDef.hp;
+    const pieceDef = row.def + optHpDef.def + enhHpDef.def;
     hp += pieceHp;
     def += pieceDef;
+    const enhPower = armorEnhancePowerBonus(piece.enhanceLevel ?? 0);
+    const utilPower = armorUtilPowerBonusFromOptionRows(parseOptionsJson(piece.optionsJson ?? null));
     pieces.push({
       slot,
       slotLabel: SLOT_LABELS[slot] ?? slot,
@@ -136,7 +167,7 @@ function sumArmorStats(armor?: MinionArmorLoadout) {
       name: row.name,
       hp: pieceHp,
       def: pieceDef,
-      power: armorItemCombatPower(piece.itemId),
+      power: armorItemCombatPower(piece.itemId) + enhPower + utilPower,
     });
   }
   return { hp, def, pieces };
@@ -147,7 +178,10 @@ function sumArmorPower(armor?: MinionArmorLoadout) {
   if (!armor) return 0;
   for (const slot of ["helmet", "armor", "pants", "shoes"] as const) {
     const piece = armor[slot];
-    if (piece?.itemId) p += armorItemCombatPower(piece.itemId);
+    if (piece?.itemId) {
+      p += armorItemCombatPower(piece.itemId) + armorEnhancePowerBonus(piece.enhanceLevel ?? 0);
+      p += armorUtilPowerBonusFromOptionRows(parseOptionsJson(piece.optionsJson ?? null));
+    }
   }
   return p;
 }
@@ -167,6 +201,10 @@ export function computeMinionCombatBreakdown(input: MinionCombatInput): MinionCo
   const { hp: armorHp, def: armorDef, pieces } = sumArmorStats(input.armor);
   const armorPower = sumArmorPower(input.armor);
 
+  const skill = skillBonusesForInput(input);
+  const skillBreakdown = input.combatClass
+    ? skillBreakdownForClass(input.combatClass, input.skillLevelsJson)
+    : null;
   const combatPower = computePartyPower({ members: [memberWithWeapon(input)] });
 
   const baseStats = statsFromPower(basePower);
@@ -187,13 +225,13 @@ export function computeMinionCombatBreakdown(input: MinionCombatInput): MinionCo
       label: "HP",
       base: baseStats.maxHp,
       equip: armorHp,
-      total: baseStats.maxHp + armorHp,
+      total: baseStats.maxHp + armorHp + skill.bonusHp,
     },
     def: {
       label: "DEF",
       base: 0,
       equip: armorDef,
-      total: armorDef,
+      total: armorDef + skill.bonusDef,
     },
     atk: {
       label: "ATK",
@@ -204,6 +242,7 @@ export function computeMinionCombatBreakdown(input: MinionCombatInput): MinionCo
       max: totalStats.atkMax + weaponAtk,
     },
     armorPieces: pieces,
+    skillBreakdown,
   };
 }
 
@@ -240,9 +279,11 @@ export function armorSlotsFromMinionRow(m: {
 
 export function combatMemberFromMinion(input: MinionCombatInput) {
   const armor = sumArmorStats(input.armor);
+  const skill = skillBonusesForInput(input);
   return {
     member: memberWithWeapon(input),
-    bonusHp: armor.hp,
-    bonusDef: armor.def,
+    bonusHp: armor.hp + skill.bonusHp,
+    bonusDef: armor.def + skill.bonusDef,
+    skillDamageMult: skill.damageMult,
   };
 }

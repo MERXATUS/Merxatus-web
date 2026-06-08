@@ -63,6 +63,49 @@ export async function listLeaderboard(input: {
   }));
 }
 
+export async function incrementLeaderboardScore(input: {
+  userId: string;
+  boardKey: string;
+  seasonKey: string;
+  delta?: number;
+  displayName?: string | null;
+}) {
+  const delta = Math.max(1, Math.floor(input.delta ?? 1));
+  const existing = await prisma.leaderboardEntry.findUnique({
+    where: {
+      boardKey_seasonKey_userId: {
+        boardKey: input.boardKey,
+        seasonKey: input.seasonKey,
+        userId: input.userId,
+      },
+    },
+  });
+  if (existing) {
+    return prisma.leaderboardEntry.update({
+      where: {
+        boardKey_seasonKey_userId: {
+          boardKey: input.boardKey,
+          seasonKey: input.seasonKey,
+          userId: input.userId,
+        },
+      },
+      data: {
+        score: existing.score + delta,
+        ...(input.displayName != null ? { displayName: input.displayName } : {}),
+      },
+    });
+  }
+  return prisma.leaderboardEntry.create({
+    data: {
+      boardKey: input.boardKey,
+      seasonKey: input.seasonKey,
+      userId: input.userId,
+      score: delta,
+      displayName: input.displayName ?? null,
+    },
+  });
+}
+
 export async function getUserLeaderboardRank(input: {
   userId: string;
   boardKey: string;

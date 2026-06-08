@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { StackItemTooltipHover } from "@/app/_components/StackItemTooltip";
 import { WeaponTooltipHover } from "@/app/_components/WeaponTooltip";
 import { shouldShowStackItemTooltip } from "@/shared/stackItemTooltip";
 import { GameBtn, GamePanel } from "@/app/_components/gameUi";
 import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
-import { itemGradeNameClassName } from "@/server/itemGrade";
+import { itemGradeFrameClassName, itemGradeNameClassName } from "@/server/itemGrade";
 import { MinionRecruitReveal } from "@/app/_components/MinionRecruitReveal";
 import { useSessionUser } from "@/app/_components/SessionProvider";
-import { isUnauthorizedError } from "@/shared/sessionClient";
-import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
+import { API_CACHE_TTL } from "@/shared/apiCache";
+import { apiGetJsonCached, isUnauthorizedError } from "@/shared/sessionClient";
+import { GAME_FRAME_REFRESH_EVENT, routeForGameTab } from "@/shared/gameNav";
+import { notifyOpenForge } from "@/shared/forgeNav";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import {
   isMinionRecruitCategory,
@@ -20,15 +23,22 @@ import {
 } from "@/shared/minionRecruit";
 import { isLootBoxItemId } from "@/shared/boxOpen";
 import {
+  renderEquipOptionChips,
+} from "@/app/_components/EquipmentConsumableBar";
+import {
   armorSlotLabelKo,
   getArmorStats,
   isArmorInventoryItem,
 } from "@/shared/armorStatsData";
 import { weaponBaseStatLine } from "@/shared/weaponStatsData";
+import { armorDisplayName } from "@/shared/armorTooltip";
+import { weaponDisplayName } from "@/shared/weaponTooltip";
+import { equipmentCapacityLabel } from "@/shared/equipmentCapacity";
 
 type MeState = {
   ok: true;
   wallet: { goldAvailable: number; goldLocked: number };
+  equipment?: { ownedCount: number; maxOwned: number };
   inventory: Array<{
     itemId: string;
     name: string;
@@ -49,18 +59,37 @@ type MeState = {
     gradeLabel?: string;
     icon?: string | null;
     iconSrc?: string;
-    options?: Array<{ kind: string; label: string; tier: number; tierLabel: string; displayValue: number }>;
+    identified?: boolean;
+    options?: Array<{
+      kind: string;
+      label: string;
+      tier: number;
+      tierLabel: string;
+      displayValue: number;
+      hidden?: boolean;
+      locked?: boolean;
+    }>;
   }>;
   armorInstances?: Array<{
     id: string;
     baseItemId: string;
     name: string;
+    enhanceLevel: number;
     createdAt: string;
     grade?: number;
     gradeLabel?: string;
     icon?: string | null;
     iconSrc?: string;
-    options?: Array<{ kind: string; label: string; tier: number; tierLabel: string; displayValue: number }>;
+    identified?: boolean;
+    options?: Array<{
+      kind: string;
+      label: string;
+      tier: number;
+      tierLabel: string;
+      displayValue: number;
+      hidden?: boolean;
+      locked?: boolean;
+    }>;
   }>;
   myListings: Array<{
     id: string;
@@ -88,19 +117,38 @@ type WeaponInstanceRow = {
   gradeLabel?: string;
   icon?: string | null;
   iconSrc?: string;
-  options?: Array<{ kind: string; label: string; tier: number; tierLabel: string; displayValue: number }>;
+  identified?: boolean;
+  options?: Array<{
+    kind: string;
+    label: string;
+    tier: number;
+    tierLabel: string;
+    displayValue: number;
+    hidden?: boolean;
+    locked?: boolean;
+  }>;
 };
 
 type ArmorInstanceRow = {
   id: string;
   baseItemId: string;
   name: string;
+  enhanceLevel: number;
   createdAt: string;
   grade?: number;
   gradeLabel?: string;
   icon?: string | null;
   iconSrc?: string;
-  options?: Array<{ kind: string; label: string; tier: number; tierLabel: string; displayValue: number }>;
+  identified?: boolean;
+  options?: Array<{
+    kind: string;
+    label: string;
+    tier: number;
+    tierLabel: string;
+    displayValue: number;
+    hidden?: boolean;
+    locked?: boolean;
+  }>;
 };
 
 async function readFetchBody(res: Response, requestUrl: string): Promise<unknown> {
@@ -195,9 +243,21 @@ function friendlyInventoryApiError(e: unknown, itemNameById: Map<string, string>
   if (err === "NO_BOX") return "상자가 부족해.";
   if (err === "NOT_A_LOOT_BOX") return "개봉할 수 없는 아이템이야.";
   if (err === "BOX_TABLE_EMPTY") return "상자 보상 테이블을 찾을 수 없어. data:sync 후 다시 시도해.";
+  if (err === "NOT_OPTION_CONSUMABLE") return "장비 옵션 소모품만 사용할 수 있어.";
+  if (err === "NO_CONSUMABLE") return "소모품이 부족해.";
+  if (err === "NOT_FOUND") return "대상 장비를 찾을 수 없어.";
+  if (err === "EQUIPMENT_LOCKED") return "거래소 등록 중인 장비에는 사용할 수 없어.";
+  if (err === "ALREADY_IDENTIFIED") return "이미 감정된 장비예요.";
+  if (err === "NEEDS_APPRAISAL") return "감정 주문서로 먼저 감정해야 해요.";
+  if (err === "NO_OPTIONS") return "적용할 옵션이 없어요.";
+  if (err === "NO_REMOVABLE_OPTION") return "제거할 수 있는 옵션이 없어요. (봉인 슬롯만 있거나 옵션이 없음)";
+  if (err === "SEAL_LIMIT_OR_NO_SLOT") return "봉인할 옵션 슬롯이 없거나 이미 봉인이 있어요.";
   if (err === "MAX_MINION_OWNED" || err === "MAX_GATHER_MINION_OWNED")
     return "수집 미니언은 최대 10마리까지 보유할 수 있어.";
   if (err === "MAX_DUNGEON_MINION_OWNED") return "던전 미니언은 최대 10마리까지 보유할 수 있어.";
+  if (err === "MAX_EQUIPMENT_OWNED") {
+    return "무기·방어구 보유 한도(100개)에 도달했어요. 분해하거나 거래소에 올린 뒤 다시 시도해 주세요.";
+  }
   if (err.startsWith("INSUFFICIENT_MATERIAL:")) {
     const id = err.slice("INSUFFICIENT_MATERIAL:".length);
     const label = itemNameById.get(id) ?? id;
@@ -439,6 +499,7 @@ type BoxOpenReveal = {
 
 export function InventoryPanel(props?: { onOpenMinions?: () => void } & EmbeddedPanelProps) {
   const embedded = props?.embedded ?? false;
+  const router = useRouter();
   const { user, loading: sessionLoading } = useSessionUser();
   const [me, setMe] = useState<MeState | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -455,7 +516,15 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
 
   const [nowMs, setNowMs] = useState(() => Date.now());
 
-  async function refresh() {
+  const openForgeForEquip = useCallback(
+    (kind: "weapon" | "armor", instanceId: string, mode: "enhance" | "craft" = "enhance") => {
+      notifyOpenForge({ kind, instanceId, mode });
+      router.push(routeForGameTab("enhance"));
+    },
+    [router],
+  );
+
+  async function refresh(force?: boolean) {
     setBusy("refresh");
     setError(null);
     try {
@@ -463,7 +532,25 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
         setMe(null);
         return;
       }
-      const r = await getJson<MeState>("/api/me/state");
+      const [inv, weapons, armor] = await Promise.all([
+        apiGetJsonCached<MeState>("/api/me/state?scope=inventory", {
+          ttlMs: API_CACHE_TTL.meStateInventory,
+          force,
+        }),
+        apiGetJsonCached<{ ok: true; weaponInstances?: MeState["weaponInstances"] }>(
+          "/api/me/state?scope=weapons",
+          { ttlMs: API_CACHE_TTL.meStateWeapons, force },
+        ),
+        apiGetJsonCached<{ ok: true; armorInstances?: MeState["armorInstances"] }>(
+          "/api/me/state?scope=armor",
+          { ttlMs: API_CACHE_TTL.meStateArmor, force },
+        ),
+      ]);
+      const r: MeState = {
+        ...inv,
+        weaponInstances: weapons.weaponInstances,
+        armorInstances: armor.armorInstances,
+      };
       if (r?.ok) setMe(r);
       else setMe(null);
     } catch (e) {
@@ -482,7 +569,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
 
   useEffect(() => {
     if (!embedded) return;
-    const onFrameRefresh = () => void refresh();
+    const onFrameRefresh = () => void refresh(true);
     window.addEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
     return () => window.removeEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -623,6 +710,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
         id: a.id,
         baseItemId: a.baseItemId,
         name: a.name,
+        enhanceLevel: a.enhanceLevel ?? 0,
         createdAt: a.createdAt,
         grade: a.grade,
         gradeLabel: a.gradeLabel,
@@ -667,6 +755,13 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
     });
     return sortWeaponRows(filtered, sortPrefs.weapons);
   }, [me, q, sortPrefs.weapons]);
+
+  const equipmentCapLabel = useMemo(() => {
+    const owned = me?.equipment?.ownedCount;
+    const max = me?.equipment?.maxOwned;
+    if (owned == null || max == null) return null;
+    return equipmentCapacityLabel(owned, max);
+  }, [me?.equipment?.ownedCount, me?.equipment?.maxOwned]);
 
   const sessionReady = embedded || !sessionLoading;
   const loggedIn = !!user;
@@ -715,6 +810,11 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
               >
                 재료·고용권
               </button>
+              {equipmentCapLabel ? (
+                <span className="inventory-equipment-cap" title="무기·방어구 인스턴스 합산">
+                  {equipmentCapLabel}
+                </span>
+              ) : null}
               </div>
               {!embedded ? (
                 <GameBtn variant="ghost" disabled={!!busy} onClick={() => void refresh()}>
@@ -820,8 +920,12 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
             <div>
               <div className="inventory-section-title">보유 무기</div>
               <div className="inventory-section-hint">
-                무기 목록 확인용이에요. 강화는 「강화소」, 판매는 거래소 「판매」 탭에서.
+                무기·방어구 강화·감정·보석 가공은 <strong>강화소</strong>에서 할 수 있어요.
               </div>
+            </div>
+
+            <div className="forge-link-banner">
+              감정 주문서·소멸/혼돈/봉인 보석 → 상단 메뉴 <strong>강화소</strong> → 「장비 가공」
             </div>
 
             {filteredWeapons.length === 0 ? (
@@ -831,7 +935,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                 {filteredWeapons.map((w) => {
                   const baseStatLine = weaponBaseStatLine(w.baseItemId);
                   const iconEl = (
-                    <WeaponTooltipHover weapon={w}>
+                    <WeaponTooltipHover weapon={{ ...w, identified: w.identified }}>
                       <ItemIcon
                         itemId={w.baseItemId}
                         icon={w.icon}
@@ -854,22 +958,19 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                   }
 
                   return (
-                    <div
-                      key={w.id}
-                      className="inventory-item-card"
-                    >
+                    <div key={w.id} className={`inventory-item-card ${itemGradeFrameClassName(w.grade ?? 1)}`}>
                       {iconEl}
                       <div className="inventory-item-card__body min-w-0">
                         <div className="inventory-item-card__title">
                           <div className="flex flex-wrap items-baseline gap-0">
                             <span className={`inventory-item-card__name ${itemGradeNameClassName(w.grade ?? 1)}`}>
-                              {w.name}
+                              {weaponDisplayName({ ...w, identified: w.identified })}
                             </span>
-                            {w.enhanceLevel > 0 ? (
-                              <span className="text-[var(--game-muted)]">{` +${w.enhanceLevel}`}</span>
-                            ) : null}
                           </div>
                           {w.gradeLabel ? <span className="inventory-badge-grade">{w.gradeLabel}</span> : null}
+                          {w.identified === false ? (
+                            <span className="inventory-badge-cat">미감정</span>
+                          ) : null}
                         </div>
                         {viewMode === "list" ? (
                           <>
@@ -880,22 +981,22 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                         {baseStatLine ? (
                           <div className="inventory-item-card__meta">{baseStatLine}</div>
                         ) : null}
-                        {(w.options?.length ?? 0) > 0 && viewMode === "list" ? (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {(w.options ?? []).map((op, i) => (
-                              <span
-                                key={`${op.kind}-${i}`}
-                                className="inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 text-[11px] inventory-option-emerald"
-                                title={`${op.label} · ${op.tierLabel}`}
-                              >
-                                <span className="font-semibold">{op.tierLabel}</span>
-                                <span className="truncate">{op.label}</span>
-                                <span className="tabular-nums font-semibold">
-                                  {op.displayValue >= 0 ? "+" : ""}
-                                  {op.displayValue}
-                                </span>
-                              </span>
-                            ))}
+                        {viewMode === "list" ? renderEquipOptionChips(w.options ?? [], "weapon") : null}
+                        {viewMode === "list" ? (
+                          <div className="inventory-item-card__actions">
+                            <GameBtn
+                              variant="ghost"
+                              className="inventory-btn-enhance"
+                              onClick={() => openForgeForEquip("weapon", w.id, "enhance")}
+                            >
+                              강화소
+                            </GameBtn>
+                            <GameBtn
+                              variant="ghost"
+                              onClick={() => openForgeForEquip("weapon", w.id, "craft")}
+                            >
+                              가공
+                            </GameBtn>
                           </div>
                         ) : null}
                       </div>
@@ -912,8 +1013,12 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
             <div>
               <div className="inventory-section-title">보유 방어구</div>
               <div className="inventory-section-hint">
-                제작 시 옵션이 붙어요. 미니언 관리 → 「장비 착용」에서 슬롯에 장착할 수 있습니다.
+                방어구 옵션 가공은 <strong>강화소</strong> → 「장비 가공」. 착용은 미니언 관리 → 「장비 착용」.
               </div>
+            </div>
+
+            <div className="forge-link-banner">
+              감정·보석 작업 → <strong>강화소</strong> → 「장비 가공」에서 무기·방어구를 선택하세요.
             </div>
 
             {filteredArmorInstances.length === 0 ? (
@@ -937,7 +1042,9 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                     return (
                       <div key={a.id} className="inventory-item-cell">
                         {iconEl}
-                        {(a.options?.length ?? 0) > 0 ? (
+                        {a.enhanceLevel > 0 ? (
+                          <span className="inventory-item-cell__badge">+{a.enhanceLevel}</span>
+                        ) : (a.options?.length ?? 0) > 0 ? (
                           <span className="inventory-item-cell__badge inventory-item-cell__badge--dot" />
                         ) : null}
                       </div>
@@ -945,18 +1052,20 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                   }
 
                   return (
-                    <div
-                      key={a.id}
-                      className="inventory-item-card"
-                    >
+                    <div key={a.id} className={`inventory-item-card ${itemGradeFrameClassName(a.grade ?? 1)}`}>
                       {iconEl}
                       <div className="inventory-item-card__body min-w-0">
                         <div className="inventory-item-card__title">
-                          <div className={`inventory-item-card__name ${itemGradeNameClassName(a.grade ?? 1)}`}>
-                            {a.name}
+                          <div className="flex flex-wrap items-baseline gap-0">
+                            <span className={`inventory-item-card__name ${itemGradeNameClassName(a.grade ?? 1)}`}>
+                              {armorDisplayName({ ...a, identified: a.identified })}
+                            </span>
                           </div>
                           {a.gradeLabel ? <span className="inventory-badge-grade">{a.gradeLabel}</span> : null}
                           {slotLabel ? <span className="inventory-badge-cat">{slotLabel}</span> : null}
+                          {a.identified === false ? (
+                            <span className="inventory-badge-cat">미감정</span>
+                          ) : null}
                         </div>
                         {viewMode === "list" ? (
                           <>
@@ -969,21 +1078,22 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                             HP +{stats.hp} · DEF +{stats.def}
                           </div>
                         ) : null}
-                        {(a.options?.length ?? 0) > 0 && viewMode === "list" ? (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {(a.options ?? []).map((op, i) => (
-                              <span
-                                key={`${op.kind}-${i}`}
-                                className="inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 text-[11px] inventory-option-sky"
-                                title={`${op.label} · ${op.tierLabel}`}
-                              >
-                                <span className="font-semibold">{op.tierLabel}</span>
-                                <span className="truncate">{op.label}</span>
-                                <span className="tabular-nums font-semibold">
-                                  +{op.displayValue}
-                                </span>
-                              </span>
-                            ))}
+                        {viewMode === "list" ? renderEquipOptionChips(a.options ?? [], "armor") : null}
+                        {viewMode === "list" ? (
+                          <div className="inventory-item-card__actions">
+                            <GameBtn
+                              variant="ghost"
+                              className="inventory-btn-enhance"
+                              onClick={() => openForgeForEquip("armor", a.id, "enhance")}
+                            >
+                              강화소
+                            </GameBtn>
+                            <GameBtn
+                              variant="ghost"
+                              onClick={() => openForgeForEquip("armor", a.id, "craft")}
+                            >
+                              가공
+                            </GameBtn>
                           </div>
                         ) : null}
                       </div>
@@ -1003,7 +1113,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
               </div>
             ) : (
               filteredMaterials.map((it) => {
-                const canRecruit = isMinionRecruitItemId(it.itemId) || isMinionRecruitCategory(it.category);
+                const canRecruit = false;
                 const canOpenBox = isLootBoxItemId(it.itemId);
                 const icon = (
                   <ItemIcon

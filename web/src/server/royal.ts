@@ -2,12 +2,7 @@ import { prisma } from "@/server/db";
 import { honorTitleForPoints } from "@/server/honorTitles";
 import { GAME_RULES } from "@/server/gameRules";
 import { itemIconFieldsForItemId } from "@/server/itemCatalog";
-import { resolveRoyalPrice } from "@/server/royalPricing";
-
-/** 황실 거래 가능 재료 (Merxatus CSV 등으로 고등급도 가격표에 올릴 수 있음) */
-function isRoyalMaterial(item: { category: string; tradable: boolean }) {
-  return item.tradable && item.category === "재료";
-}
+import { isRoyalMaterialRow, loadRoyalMaterialItemIds, resolveRoyalPrice } from "@/server/royalPricing";
 
 function honorDeltaForTrade(grossGold: number) {
   // 간단 규칙: 1,000G당 1 명예(최소 1)
@@ -15,17 +10,26 @@ function honorDeltaForTrade(grossGold: number) {
 }
 
 export async function listRoyalPrices(userId: string) {
+  const catalog = await loadRoyalMaterialItemIds();
+  const royalItemIds = [...catalog];
+
   const [u0, prices, wallet] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { honorPoints: true, honorTitle: true, infamyPoints: true },
     }),
-    prisma.royalPrice.findMany({
-      where: { enabled: true, item: { tradable: true, category: "재료" } },
-      include: { item: { select: { id: true, name: true, category: true, grade: true, tradable: true } } },
-      orderBy: [{ item: { grade: "asc" } }, { itemId: "asc" }],
-      take: 200,
-    }),
+    royalItemIds.length === 0
+      ? Promise.resolve([])
+      : prisma.royalPrice.findMany({
+          where: {
+            enabled: true,
+            itemId: { in: royalItemIds },
+            item: { tradable: true, category: "재료" },
+          },
+          include: { item: { select: { id: true, name: true, category: true, grade: true, tradable: true } } },
+          orderBy: [{ item: { grade: "asc" } }, { itemId: "asc" }],
+          take: 200,
+        }),
     prisma.wallet.findUnique({ where: { userId } }),
   ]);
   if (!u0) return { ok: false as const, error: "USER_NOT_FOUND" as const };
@@ -89,7 +93,8 @@ export async function royalBuy(input: { userId: string; itemId: string; quantity
     if (!item) return { ok: false as const, error: "ITEM_NOT_FOUND" as const };
     const pricing = await resolveRoyalPrice(tx, item);
     if (!pricing?.enabled) return { ok: false as const, error: "ITEM_NOT_AVAILABLE" as const };
-    if (!isRoyalMaterial(item)) return { ok: false as const, error: "ITEM_NOT_ALLOWED" as const };
+    const catalog = await loadRoyalMaterialItemIds();
+    if (!isRoyalMaterialRow(item, catalog)) return { ok: false as const, error: "ITEM_NOT_ALLOWED" as const };
 
     const grossGold = Math.max(0, Number(pricing.buyPricePerUnit) * qty);
     if (wallet.goldAvailable < grossGold) return { ok: false as const, error: "INSUFFICIENT_GOLD" as const };
@@ -142,7 +147,8 @@ export async function royalSell(input: { userId: string; itemId: string; quantit
     if (!item) return { ok: false as const, error: "ITEM_NOT_FOUND" as const };
     const pricing = await resolveRoyalPrice(tx, item);
     if (!pricing?.enabled) return { ok: false as const, error: "ITEM_NOT_AVAILABLE" as const };
-    if (!isRoyalMaterial(item)) return { ok: false as const, error: "ITEM_NOT_ALLOWED" as const };
+    const catalog = await loadRoyalMaterialItemIds();
+    if (!isRoyalMaterialRow(item, catalog)) return { ok: false as const, error: "ITEM_NOT_ALLOWED" as const };
     if (!stack || stack.quantity < qty) return { ok: false as const, error: "INSUFFICIENT_ITEMS" as const };
 
     const grossGold = Math.max(0, Number(pricing.sellPricePerUnit) * qty);

@@ -84,6 +84,27 @@ export type MinionEquippedItemView = {
 
   icon?: string | null;
 
+  /** 인스턴스 UUID — 툴팁·상세 표시 */
+  instanceId?: string;
+
+  gradeLabel?: string;
+
+  identified?: boolean;
+
+  options?: Array<{
+    kind: string;
+    optionId?: string;
+    label: string;
+    tier: number;
+    tierLabel: string;
+    displayValue: number;
+    hidden?: boolean;
+    locked?: boolean;
+  }>;
+
+  /** weapon | armor(인스턴스) | stack(스택 방어구) */
+  equipKind?: "weapon" | "armor" | "stack";
+
 };
 
 
