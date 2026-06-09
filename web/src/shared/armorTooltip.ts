@@ -3,7 +3,7 @@ import type { OptionRealm } from "@/shared/equipmentBlessings";
 import { blessedEquipmentDisplayName } from "@/shared/equipmentBlessings";
 import { armorHpDefBonusFromOptionRows, armorUtilPowerBonusFromOptionRows } from "@/shared/itemOptionCatalog";
 import { normalizeOptionId } from "@/shared/itemOptionCatalog";
-import { GAME_RULES } from "@/server/gameRules";
+import { ARMOR_LEVEL_STAT_PCT_PER_LEVEL } from "@/shared/armorEnhanceRules";
 import { armorItemCombatPower, armorSlotLabelKo, getArmorStats } from "@/shared/armorStatsData";
 import { weaponEnhancePowerBonus } from "@/shared/weaponTooltip";
 
@@ -36,7 +36,7 @@ export type ArmorTooltipData = {
 export function armorEnhanceHpDefBonus(enhanceLevel: number, baseHp: number, baseDef: number) {
   const lv = Math.max(0, Math.floor(enhanceLevel));
   if (lv <= 0) return { hp: 0, def: 0 };
-  const rate = GAME_RULES.combat.armorLevelStatPctPerLevel;
+  const rate = ARMOR_LEVEL_STAT_PCT_PER_LEVEL;
   return {
     hp: Math.floor(baseHp * rate * lv),
     def: Math.floor(baseDef * rate * lv),

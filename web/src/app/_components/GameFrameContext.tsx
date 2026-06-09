@@ -17,6 +17,7 @@ export type GameFrameContextValue = {
   gold: number | null;
   loggedIn: boolean;
   sessionLoading: boolean;
+  summaryError: unknown;
 };
 
 const GameFrameContext = createContext<GameFrameContextValue | null>(null);

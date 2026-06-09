@@ -12,7 +12,12 @@ import { loadPartyCombatRows, type PartyCombatDb } from "@/server/minionCombatBu
 import { grantLootToUser } from "@/server/grantLootToUser";
 import { grantDungeonRunGold } from "@/server/dungeonGoldEarn";
 import { grantDungeonFloorXp, grantMinionsExperience } from "@/server/minionLevelUp";
-import { dungeonAutoWaveXpForStage, stageOrderForDungeonId } from "@/shared/dungeonStageProgression";
+import { checkDungeonPartyEligibility, dungeonEnemyCombatMults } from "@/shared/dungeonDifficulty";
+import {
+  assertDungeonStage,
+  dungeonAutoWaveXpForStage,
+  stageOrderForDungeonId,
+} from "@/shared/dungeonStageProgression";
 import {
   pushLuckFloorGoldReward,
   pushLuckLootMultiplier,
@@ -79,8 +84,31 @@ export async function initializeDungeonRunPartyHp(userId: string, runId: string)
 }
 
 type CreatePushLuckRunResult =
-  | { ok: false; error: "MINION_NOT_FOUND" | "PARTY_TOO_LARGE" }
+  | { ok: false; error: "MINION_NOT_FOUND" | "PARTY_TOO_LARGE" | string }
   | { ok: true; runId: string; dungeon: DungeonDef };
+
+async function assertDungeonPartyEligible(
+  userId: string,
+  dungeon: DungeonDef,
+  minionIds: string[],
+) {
+  const stage = assertDungeonStage(dungeon.id);
+  const minions = await prisma.minion.findMany({
+    where: { id: { in: minionIds }, userId },
+    select: { id: true, level: true },
+  });
+  if (minions.length !== minionIds.length) throw new Error("MINION_NOT_FOUND");
+
+  const eligibility = checkDungeonPartyEligibility({
+    stage,
+    partyLevels: minions.map((m) => m.level),
+  });
+  if (!eligibility.ok) {
+    throw new Error(
+      `DUNGEON_PARTY_LEVEL_TOO_LOW:${eligibility.minLevel}:${eligibility.partyLevel}`,
+    );
+  }
+}
 
 /** PUSH_LUCK 던전 런 생성 — 기존 RUNNING 런은 STOP */
 export async function createPushLuckDungeonRun(input: {
@@ -94,6 +122,13 @@ export async function createPushLuckDungeonRun(input: {
   const maxParty = input.dungeon.maxPartySize ?? 1;
   if (ids.length === 0 || ids.length > maxParty) {
     return { ok: false, error: "PARTY_TOO_LARGE" };
+  }
+
+  try {
+    await assertDungeonPartyEligible(input.userId, input.dungeon, ids);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "DUNGEON_PARTY_INELIGIBLE";
+    return { ok: false, error: message };
   }
 
   const run = await prisma.$transaction(async (tx) => {
@@ -125,7 +160,6 @@ export async function createPushLuckDungeonRun(input: {
   });
 
   if (!run.ok) return run;
-  await initializeDungeonRunPartyHp(input.userId, run.runId);
   return { ok: true, runId: run.runId, dungeon: input.dungeon };
 }
 
@@ -446,6 +480,9 @@ export async function getActiveRunCombatPreview(
     const enemy: FloorEnemy = { name: floorMonster.monster.name, monster: floorMonster.monster };
     const isBoss = floorMonster.category === "BOSS";
     enemyName = enemy.name;
+    const maxFloors = dungeon.maxFloors ?? 20;
+    const stageOrder = stageOrderForDungeonId(dungeon.id) ?? 1;
+    const enemyCombatMults = dungeonEnemyCombatMults({ stageOrder, floor, maxFloors, isBoss });
     const enemyTags = inferEnemyCombatTags({
       category: floorMonster.category,
       monsterId: floorMonster.monsterId,
@@ -453,13 +490,14 @@ export async function getActiveRunCombatPreview(
     });
     clearChance = estimateFloorWinChance({
       floor,
-      maxFloors: dungeon.maxFloors ?? 20,
+      maxFloors,
       party: combatants,
       enemy,
       partyHp: partyHpMap,
       samples: 48,
       partyDamageMult: knightOrderPartyDamageMult(knightOrder, isBoss),
       enemyTags,
+      enemyCombatMults,
     });
   }
 
@@ -489,6 +527,9 @@ export async function advancePushLuckFloor(input: { userId: string; dungeon: Dun
   const floorMonster = await resolveFloorMonster(input.dungeon, floor);
   const enemy: FloorEnemy = { name: floorMonster.monster.name, monster: floorMonster.monster };
   const isBoss = floorMonster.category === "BOSS";
+  const maxFloors = input.dungeon.maxFloors ?? 20;
+  const stageOrder = stageOrderForDungeonId(input.dungeon.id) ?? 1;
+  const enemyCombatMults = dungeonEnemyCombatMults({ stageOrder, floor, maxFloors, isBoss });
   const partyDamageMult = knightOrderPartyDamageMult(knightOrder, isBoss);
   const enemyTags = inferEnemyCombatTags({
     category: floorMonster.category,
@@ -502,15 +543,17 @@ export async function advancePushLuckFloor(input: { userId: string; dungeon: Dun
     partyHpStart,
     combatants,
     memberInputs,
+    enemyCombatMults,
   );
   const battle = simulateFloorCombat({
     floor,
-    maxFloors: input.dungeon.maxFloors ?? 20,
+    maxFloors,
     party: combatants,
     enemy,
     partyHp: partyHpStart,
     partyDamageMult,
     enemyTags,
+    enemyCombatMults,
   });
   const combatLog: CombatLogLine[] = battle.log;
   const partyHpAfter = snapshotsToEntries(battle.partyHp);
@@ -557,9 +600,8 @@ export async function advancePushLuckFloor(input: { userId: string; dungeon: Dun
       : [];
   const gained = scaleLootEntries(mergeLoot(rawLoot, rawBoss), lootMult);
   const nextPending = mergeLoot(pending, gained);
-  const nextFloor = Math.min((input.dungeon.maxFloors ?? 20) + 1, floor + 1);
+  const nextFloor = Math.min(maxFloors + 1, floor + 1);
 
-  const stageOrder = stageOrderForDungeonId(input.dungeon.id) ?? 1;
   const floorGold = pushLuckFloorGoldReward(floor, stageOrder);
   const nextPendingGold = Math.max(0, Math.floor(run.pendingGold ?? 0)) + floorGold;
 

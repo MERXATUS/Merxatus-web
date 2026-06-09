@@ -7,7 +7,6 @@ import {
   partyPickChips,
   type PartyPickMinionRow,
 } from "@/app/_components/DungeonPartyPickModal";
-import { PushLuckRiskBar } from "@/app/_components/PushLuckRiskBar";
 import { DungeonCashoutConfirmModal } from "@/app/_components/DungeonCashoutConfirmModal";
 import { GameBtn, GamePanel } from "@/app/_components/gameUi";
 import { GamePanelError, GamePanelLoading } from "@/app/_components/panelFeedback";
@@ -60,7 +59,6 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
   const [battleReplay, setBattleReplay] = useState<DungeonCombatReplay | null>(null);
   const [battleLines, setBattleLines] = useState<CombatLogLine[]>([]);
   const [combatIsBoss, setCombatIsBoss] = useState(false);
-  const [playbackClearChance, setPlaybackClearChance] = useState<number | null>(null);
   const [cashoutConfirmOpen, setCashoutConfirmOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
@@ -204,7 +202,6 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
       return;
     }
     setCombatIsBoss(!!adv.isBoss);
-    setPlaybackClearChance(adv.clearChance ?? null);
     setBattleReplay(replay);
     setBattleLines(lines);
     setPlayingLog(true);
@@ -262,14 +259,6 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
             <p className="text-xs text-[var(--game-muted)]">이번 run 최고: {state.run.bestFloor}층</p>
           </div>
 
-          {state.combat?.clearChance != null && !playingLog ? (
-            <PushLuckRiskBar
-              clearChance={state.combat.clearChance}
-              floorLabel={`${state.run.floor}층`}
-              pendingSummary={pendingSummary || undefined}
-            />
-          ) : null}
-
           <CombatEncounterBlock
             embedded={embedded}
             playing={playingLog}
@@ -277,9 +266,9 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
             lines={battleLines}
             isBoss={combatIsBoss || !!state.combat?.isBoss}
             encounterLabel={combatIsBoss ? `${state.run.floor}층 보스` : `${state.run.floor}층`}
-            clearChance={playbackClearChance ?? state.combat?.clearChance ?? null}
             floorLabel={`${state.run.floor}층`}
             pendingSummary={pendingSummary || undefined}
+            hideEnemyPortrait
             onComplete={finishBattlePlayback}
           />
 

@@ -1,5 +1,8 @@
-import { GAME_RULES } from "@/server/gameRules";
 import { clampItemGrade, itemGradeLabel } from "@/server/itemGrade";
+import {
+  WEAPON_BASE_POWER_BY_ITEM_ID,
+  WEAPON_LEVEL_POWER_PER_LEVEL,
+} from "@/shared/weaponPowerRules";
 import { weaponPowerBonusFromOptionRows } from "@/shared/itemOptionCatalog";
 import type { OptionRealm } from "@/shared/equipmentBlessings";
 import { blessedEquipmentDisplayName } from "@/shared/equipmentBlessings";
@@ -34,7 +37,7 @@ export type WeaponTooltipData = {
 export function weaponBasePower(baseItemId: string): number {
   const fromStats = weaponCombatPowerFromStats(baseItemId);
   if (fromStats > 0) return fromStats;
-  const map = GAME_RULES.combat.weaponPowerByItemId as Record<string, number>;
+  const map = WEAPON_BASE_POWER_BY_ITEM_ID;
   const v = map[baseItemId];
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
 }
@@ -47,7 +50,7 @@ export function weaponBaseAtkMagic(baseItemId: string): { atk: number; magic: nu
 
 export function weaponEnhancePowerBonus(enhanceLevel: number): number {
   const lv = Math.max(0, Math.floor(enhanceLevel));
-  return lv * GAME_RULES.combat.weaponLevelPowerPerLevel;
+  return lv * WEAPON_LEVEL_POWER_PER_LEVEL;
 }
 
 export function weaponOptionPowerBonus(options?: WeaponTooltipOption[]): number {

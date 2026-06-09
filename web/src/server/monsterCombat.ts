@@ -1,7 +1,14 @@
 import type { MonsterDef } from "@/server/monsterData";
 
+export type FighterCombatStats = {
+  maxHp: number;
+  atkMin: number;
+  atkMax: number;
+  def: number;
+};
+
 /** monster.csv 스탯 → 전투 HP/공격 */
-export function fighterStatsFromMonster(m: MonsterDef) {
+export function fighterStatsFromMonster(m: MonsterDef): FighterCombatStats {
   const atk = Math.max(1, Math.floor(m.atk));
   const magicBonus = Math.max(0, Math.floor(m.magic));
   return {
@@ -9,6 +16,26 @@ export function fighterStatsFromMonster(m: MonsterDef) {
     atkMin: atk,
     atkMax: atk + magicBonus + Math.max(1, Math.floor(atk * 0.15)),
     def: Math.max(0, Math.floor(m.def)),
+  };
+}
+
+export function scaleFighterStats(stats: FighterCombatStats, mult: number): FighterCombatStats {
+  const m = Math.max(1, mult);
+  return scaleFighterStatsByChannel(stats, { hp: m, atk: m, def: m });
+}
+
+export function scaleFighterStatsByChannel(
+  stats: FighterCombatStats,
+  mult: { hp: number; atk: number; def: number },
+): FighterCombatStats {
+  const hpM = Math.max(1, mult.hp);
+  const atkM = Math.max(1, mult.atk);
+  const defM = Math.max(0, mult.def);
+  return {
+    maxHp: Math.max(1, Math.floor(stats.maxHp * hpM)),
+    atkMin: Math.max(1, Math.floor(stats.atkMin * atkM)),
+    atkMax: Math.max(1, Math.floor(stats.atkMax * atkM)),
+    def: Math.max(0, Math.floor(stats.def * defM)),
   };
 }
 

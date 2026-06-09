@@ -211,11 +211,19 @@ export function HomeOverviewPanel(props: { embedded?: boolean; onNavigate: (tab:
     return <GamePanelLoading label="대시보드 불러오는 중…" />;
   }
 
-  if (error && !data) {
-    return <GamePanelError error={error} />;
-  }
+  const bootstrapFailed = frame.summaryError ?? (error && !data ? error : null);
 
   if (!data) {
+    if (bootstrapFailed) {
+      return (
+        <div className="space-y-3">
+          <GamePanelError error={bootstrapFailed} />
+          <GameBtn variant="ghost" className="h-8 text-xs" onClick={() => void frame.refreshSummary({ force: true })}>
+            다시 불러오기
+          </GameBtn>
+        </div>
+      );
+    }
     return <GamePanelLoading label="대시보드 준비 중…" />;
   }
 

@@ -33,7 +33,9 @@ export async function POST(req: Request) {
       message === "MINION_NOT_FOUND" ||
       message === "PARTY_TOO_LARGE" ||
       message === "NOT_PUSH_LUCK_DUNGEON" ||
-      message === "AUTO_EXPLORE_ACTIVE"
+      message === "AUTO_EXPLORE_ACTIVE" ||
+      message.startsWith("DUNGEON_PARTY_LEVEL_TOO_LOW:") ||
+      message.startsWith("DUNGEON_PARTY_POWER_TOO_LOW:")
         ? 400
         : message === "DUNGEON_NOT_FOUND"
           ? 404

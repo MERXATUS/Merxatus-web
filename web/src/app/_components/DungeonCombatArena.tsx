@@ -24,6 +24,7 @@ type Props = {
   lowHpVignette?: boolean;
   idleHint?: string;
   isBoss?: boolean;
+  hideEnemyPortrait?: boolean;
 };
 
 function hpPct(hp: number, maxHp: number) {
@@ -80,6 +81,7 @@ export function DungeonCombatArena(props: Props) {
     lowHpVignette,
     idleHint,
     isBoss,
+    hideEnemyPortrait,
   } = props;
   const [frame, setFrame] = useState<BattleArenaFrame | null>(null);
   const [shaking, setShaking] = useState(false);
@@ -252,7 +254,7 @@ export function DungeonCombatArena(props: Props) {
                   .filter(Boolean)
                   .join(" ")}
               >
-                {enemy.portrait ? (
+                {!hideEnemyPortrait && enemy.portrait ? (
                   <CombatPortrait
                     portrait={enemy.portrait}
                     size={enemyPortraitSize}

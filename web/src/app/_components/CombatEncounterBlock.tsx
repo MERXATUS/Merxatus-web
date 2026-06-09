@@ -30,6 +30,8 @@ type Props = {
   /** 전투 패널 하단 — 던전 「다음 층」 등 */
   actions?: ReactNode;
   idleHint?: string;
+  /** 적 초상(몬스터 아이콘) 숨김 — 무한의 탑 등 */
+  hideEnemyPortrait?: boolean;
 };
 
 export function CombatEncounterBlock(props: Props) {
@@ -114,6 +116,7 @@ export function CombatEncounterBlock(props: Props) {
           compact={props.embedded}
           idleHint={props.preparingLabel ?? props.idleHint}
           isBoss={props.isBoss}
+          hideEnemyPortrait={props.hideEnemyPortrait}
           onComplete={props.onComplete}
           onFrame={handleFrame}
           showFeed={false}

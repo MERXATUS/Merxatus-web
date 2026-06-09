@@ -219,6 +219,7 @@ export function GameFrame() {
   const [minionPanelTab, setMinionPanelTab] = useState<MinionPanelTab>("dungeon");
   const lastSummaryRefreshRef = useRef(0);
   const [error, setError] = useState<unknown>(null);
+  const [summaryError, setSummaryError] = useState<unknown>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summary, setSummary] = useState<MeSummary | null>(null);
   const [dashboardLight, setDashboardLight] = useState<MeDashboardLight | null>(null);
@@ -257,6 +258,7 @@ export function GameFrame() {
   const refreshSummary = useCallback(
     async (opts?: { force?: boolean }) => {
       setError(null);
+      setSummaryError(null);
       if (!sessionUser) {
         setSummary(null);
         setDashboardLight(null);
@@ -269,6 +271,9 @@ export function GameFrame() {
           ttlMs: API_CACHE_TTL.bootstrap,
           force: opts?.force,
         });
+        if (!boot?.summary || !boot?.dashboard) {
+          throw new Error("BOOTSTRAP_INCOMPLETE");
+        }
         setSummary(boot.summary);
         setDashboardLight(boot.dashboard);
         if (boot.summary.dungeon?.active && activeTab !== "dungeon") {
@@ -282,6 +287,7 @@ export function GameFrame() {
           setRunState(null);
         }
       } catch (e) {
+        setSummaryError(e);
         setError(e);
       } finally {
         setSummaryLoading(false);
@@ -369,6 +375,7 @@ export function GameFrame() {
       gold,
       loggedIn: !!sessionUser,
       sessionLoading,
+      summaryError,
     }),
     [
       activeTab,
@@ -382,6 +389,7 @@ export function GameFrame() {
       gold,
       sessionUser,
       sessionLoading,
+      summaryError,
     ],
   );
 

@@ -42,7 +42,16 @@ export const CELESTIAL_ARMOR_OPTION_IDS = [
   "STAT_END_ADD",
 ] as const;
 
-export const ABYSS_ARMOR_OPTION_IDS = ["DMG_RED_PCT", "BLOCK_PCT"] as const;
+export const ABYSS_ARMOR_OPTION_IDS = [
+  "DMG_RED_PCT",
+  "BLOCK_PCT",
+  "CRIT_RESIST_PCT",
+  "EVASION_PCT",
+  "REGEN_HP_ADD",
+  "THORN_PCT",
+  "LIFE_STEAL_PCT",
+  "FINAL_DMG_PCT",
+] as const;
 
 const CELESTIAL_AFFIXES = [
   "성광의",
@@ -87,16 +96,14 @@ export function blessingOptionIdsForRealm(
   return [...(realm === "celestial" ? CELESTIAL_ARMOR_OPTION_IDS : ABYSS_ARMOR_OPTION_IDS)];
 }
 
-/** 드랍 슬롯 — 천계·마계 1개씩 고정 후 번갈아 추가 */
+/** 드랍 슬롯마다 천계·마계 중 랜덤 (중복·연속 동일 realm 허용) */
+export function rollLootRealmForSlot(rnd = Math.random): OptionRealm {
+  return rnd() < 0.5 ? "celestial" : "abyss";
+}
+
+/** @deprecated — `rollLootRealmForSlot` per slot */
 export function blessedSlotRealms(totalSlots: number): OptionRealm[] {
-  const n = Math.max(2, Math.floor(totalSlots));
-  const plan: OptionRealm[] = ["celestial", "abyss"];
-  let next: OptionRealm = "celestial";
-  for (let i = 2; i < n; i++) {
-    plan.push(next);
-    next = next === "celestial" ? "abyss" : "celestial";
-  }
-  return plan;
+  return Array.from({ length: Math.max(1, Math.floor(totalSlots)) }, () => "celestial" as OptionRealm);
 }
 
 export function isBlessedOption(opt: BlessedOptionFields): boolean {

@@ -1821,11 +1821,58 @@ body:has(.game-frame) {
   min-height: 0;
   flex: 1;
   max-height: none;
+  overflow-y: auto;
+}
+
+.enhance-forge--fit .forge-lobby {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.enhance-forge--fit .forge-lobby__banner {
+  flex-shrink: 0;
+  padding: 0.5rem 0.65rem;
+}
+
+.enhance-forge--fit .forge-lobby__title {
+  font-size: 1.05rem;
+}
+
+.enhance-forge--fit .forge-lobby__lead {
+  display: none;
+}
+
+.enhance-forge--fit .forge-lobby__panel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.enhance-forge--fit .forge-lobby__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  max-height: none;
+}
+
+.enhance-forge--fit .forge-equip-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  align-content: start;
+}
+
+.enhance-forge--fit .forge-equip-cell {
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
 }
 
 .enhance-forge--fit .forge-equip-cell__icon {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 100%;
+  height: 100%;
+  max-width: 2.1rem;
+  max-height: 2.1rem;
 }
 
 .enhance-forge--fit .forge-material-cell__icon,
@@ -1842,12 +1889,23 @@ body:has(.game-frame) {
 }
 
 .enhance-forge--fit .enhance-item-burst {
-  width: 5rem;
-  height: 5rem;
+  width: 4.25rem;
+  height: 4.25rem;
 }
 
 .enhance-forge--fit .enhance-forge__detail {
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.enhance-forge--fit .enhance-bench__focus {
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.enhance-forge--fit .enhance-bench__options {
+  max-height: 5rem;
+  overflow-y: auto;
 }
 
 .market-board--fit {
@@ -9628,9 +9686,10 @@ body:has(.game-frame) {
 .forge-lobby__card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 0.75rem;
   width: 100%;
+  flex-shrink: 0;
   padding: 0.65rem 0.75rem;
   border-radius: 0.65rem;
   border: 1px solid transparent;
@@ -9744,6 +9803,9 @@ body:has(.game-frame) {
 
 .forge-lobby__card-options {
   margin-top: 0.1rem;
+  max-height: 5.25rem;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .forge-lobby__card-options .forge-equip-options {
@@ -10437,6 +10499,8 @@ body:has(.game-frame) {
   border: 1px solid transparent;
   background: rgba(0, 0, 0, 0.25);
   cursor: pointer;
+  overflow: hidden;
+  min-width: 0;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
@@ -10533,6 +10597,9 @@ body:has(.game-frame) {
 .forge-equip-cell__icon {
   width: 2.75rem;
   height: 2.75rem;
+  max-width: 100%;
+  max-height: 100%;
+  flex-shrink: 0;
 }
 
 .forge-equip-cell__badge {

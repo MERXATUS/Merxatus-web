@@ -16,6 +16,7 @@ type SessionContextValue = {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 const FOCUS_REFRESH_DEBOUNCE_MS = 8_000;
+const SESSION_FETCH_TIMEOUT_MS = 20_000;
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -24,7 +25,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const next = await fetchSessionUser();
+      const next = await Promise.race([
+        fetchSessionUser(),
+        new Promise<null>((_, reject) => {
+          window.setTimeout(() => reject(new Error("SESSION_TIMEOUT")), SESSION_FETCH_TIMEOUT_MS);
+        }),
+      ]);
       setUser(next);
       return next;
     } catch {

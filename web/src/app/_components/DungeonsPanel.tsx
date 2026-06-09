@@ -37,7 +37,9 @@ import {
   listDungeonStagePickerOptions,
   stageOrderForDungeonId,
 } from "@/shared/dungeonStageProgression";
+import { checkDungeonPartyEligibility } from "@/shared/dungeonDifficulty";
 import { pushLuckFloorGoldReward, pushLuckLootMultiplier } from "@/shared/dungeonPushLuck";
+import { assertDungeonStage } from "@/shared/dungeonStageProgression";
 import { pickBestRecoveryPotion, pickLowestHpMemberId } from "@/shared/potionEffects";
 import { normalizeItemIdLower } from "@/shared/itemId";
 import { fetchCombatRoster } from "@/shared/combatRosterClient";
@@ -55,6 +57,8 @@ type DungeonDef = {
     recommendedLevel: number;
     recommendedLevelMax: number;
     recommendedLevelLabel: string;
+    recommendedPartyPower?: number;
+    minPartyLevel?: number;
     journeyXpPool: number;
     fullClearXp: number;
   };
@@ -337,6 +341,24 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     }
     return out;
   }, [partyIds, minions]);
+
+  const partyEligibility = useMemo(() => {
+    if (!dungeon?.id || partyIds.size === 0) return null;
+    try {
+      const stage = assertDungeonStage(dungeon.id);
+      return checkDungeonPartyEligibility({
+        stage,
+        partyLevels: [...partyIds]
+          .map((id) => minions.find((m) => m.id === id)?.level ?? 0)
+          .filter((lv) => lv > 0),
+      });
+    } catch {
+      return null;
+    }
+  }, [dungeon?.id, partyIds, minions]);
+
+  const canStartDungeon =
+    !!dungeon && partyIds.size > 0 && (partyEligibility == null || partyEligibility.ok);
 
   const partyRoster = useMemo(() => {
     if (!exploring || !run?.party?.length) return null;
@@ -848,12 +870,19 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     setLogLines([]);
     setLastFloorBonus(null);
     setError(null);
+    setBattlePreparing(true);
     optimisticRunAfterStart();
     try {
       resetSessionXp();
+      await postJson<{ ok: boolean; runId?: string }>("/api/dungeons/run/start", {
+        dungeonId: dungeon.id,
+        minionIds: [...partyIds],
+      });
       setBusy("advance");
-      await runAdvanceFloor({ dungeonId: dungeon.id, minionIds: [...partyIds] });
+      await runAdvanceFloor();
     } catch (e) {
+      setBattlePreparing(false);
+      setPlayingLog(false);
       setAutoAdvanceOn(false);
       endRunSession();
       setRun((prev) => (prev?.active ? { ...prev, active: false } : prev));
@@ -875,6 +904,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       await runAdvanceFloor();
     } catch (e) {
       setBattlePreparing(false);
+      setPlayingLog(false);
       if (enteringBoss) setCombatIsBoss(false);
       setError(e);
     } finally {
@@ -897,6 +927,11 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
               {dungeon?.stage ? (
                 <p className="mt-1 text-[11px] font-semibold text-[var(--game-gold-bright)]">
                   권장 {dungeon.stage.recommendedLevelLabel}
+                  {dungeon.stage.minPartyLevel != null ? (
+                    <span className="ml-2 font-normal text-[var(--game-muted)]">
+                      · 입장 평균 Lv{dungeon.stage.minPartyLevel}+
+                    </span>
+                  ) : null}
                   <span className="ml-2 font-normal text-[var(--game-muted)]">
                     · 올클 {dungeon.stage.fullClearXp.toLocaleString()} EXP
                   </span>
@@ -1219,23 +1254,31 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                 {advanceActionLabel}
               </GameBtn>
             ) : (
-              <div className="flex w-full flex-col gap-2 sm:flex-row">
-                <GameBtn
-                  variant="primary"
-                  className={`combat-encounter__action-btn flex-1 ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
-                  disabled={!!busy || !dungeon || partyIds.size === 0}
-                  onClick={() => void startRun(false)}
-                >
-                  {busy === "start" ? "전투 준비…" : "탐험 시작"}
-                </GameBtn>
-                <GameBtn
-                  variant="gold"
-                  className={`combat-encounter__action-btn flex-1 ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
-                  disabled={!!busy || !dungeon || partyIds.size === 0}
-                  onClick={() => void startRun(true)}
-                >
-                  {busy === "start" ? "전투 준비…" : "자동 탐험"}
-                </GameBtn>
+              <div className="flex w-full flex-col gap-2">
+                {partyEligibility && !partyEligibility.ok ? (
+                  <p className="text-center text-xs text-amber-300/90">
+                    평균 레벨 부족 (현재 Lv{partyEligibility.partyLevel} / 필요 Lv
+                    {partyEligibility.minLevel})
+                  </p>
+                ) : null}
+                <div className="flex w-full flex-col gap-2 sm:flex-row">
+                  <GameBtn
+                    variant="primary"
+                    className={`combat-encounter__action-btn flex-1 ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
+                    disabled={!!busy || !canStartDungeon}
+                    onClick={() => void startRun(false)}
+                  >
+                    {busy === "start" ? "전투 준비…" : "탐험 시작"}
+                  </GameBtn>
+                  <GameBtn
+                    variant="gold"
+                    className={`combat-encounter__action-btn flex-1 ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
+                    disabled={!!busy || !canStartDungeon}
+                    onClick={() => void startRun(true)}
+                  >
+                    {busy === "start" ? "전투 준비…" : "자동 탐험"}
+                  </GameBtn>
+                </div>
               </div>
             )
           }

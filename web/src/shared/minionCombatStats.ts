@@ -1,4 +1,5 @@
 import { computePartyPower } from "@/server/dungeonCombat";
+import { partyStatsFromPower } from "@/shared/combatBalance";
 import {
   aggregateSkillCombatBonuses,
   normalizeSkillLevelsForClass,
@@ -67,10 +68,7 @@ const SLOT_LABELS: Record<string, string> = {
 };
 
 function statsFromPower(power: number) {
-  const p = Math.max(1, Math.floor(power));
-  const maxHp = Math.max(24, Math.floor(p * 3.2));
-  const baseAtk = Math.max(4, Math.floor(p * 0.35));
-  return { maxHp, atkMin: baseAtk, atkMax: baseAtk + Math.max(2, Math.floor(p * 0.12)) };
+  return partyStatsFromPower(power);
 }
 
 function equipmentStatBonus(input: MinionCombatInput) {

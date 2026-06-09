@@ -1,4 +1,5 @@
 import { cumulativeXpToLevel, MINION_EARLY_FAST_LEVEL, MINION_LEVEL_RULES } from "@/shared/minionLevel";
+import { dungeonDifficultyMetaForStage } from "@/shared/dungeonDifficulty";
 
 export type DungeonRealm = "마계" | "천계" | "이계";
 
@@ -193,6 +194,8 @@ export type DungeonStageMeta = {
   recommendedLevel: number;
   recommendedLevelMax: number;
   recommendedLevelLabel: string;
+  recommendedPartyPower: number;
+  minPartyLevel: number;
   journeyXpPool: number;
   fullClearXp: number;
 };
@@ -207,12 +210,15 @@ export function formatRecommendedLevelLabel(stage: Pick<DungeonStageDef, "recomm
 export function dungeonStageMetaFor(dungeonId: string, maxFloors: number): DungeonStageMeta | null {
   const stage = getDungeonStage(dungeonId);
   if (!stage) return null;
+  const difficulty = dungeonDifficultyMetaForStage(stage);
   return {
     stageOrder: stage.stageOrder,
     realm: stage.realm,
     recommendedLevel: stage.recommendedLevel,
     recommendedLevelMax: stage.recommendedLevelMax,
     recommendedLevelLabel: formatRecommendedLevelLabel(stage),
+    recommendedPartyPower: difficulty.recommendedPartyPower,
+    minPartyLevel: difficulty.minPartyLevel,
     journeyXpPool: dungeonStageJourneyXpPool(dungeonId),
     fullClearXp: dungeonFullClearXpForStage(dungeonId, maxFloors),
   };

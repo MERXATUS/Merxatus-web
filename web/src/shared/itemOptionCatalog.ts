@@ -136,6 +136,10 @@ export const UTIL_OPTION_CP_PER_DISPLAY_UNIT: Record<string, number> = {
   DMG_VS_DEMON_PCT: 0.07,
   BLOCK_PCT: 0.11,
   DMG_RED_PCT: 0.11,
+  CRIT_RESIST_PCT: 0.1,
+  EVASION_PCT: 0.11,
+  THORN_PCT: 0.09,
+  REGEN_HP_ADD: 0.14,
 };
 
 export function utilOptionPowerFromDisplayValue(optionId: string, displayValue: number): number {
@@ -149,8 +153,14 @@ export function armorUtilPowerBonusFromOptionRows(rows: Array<{ optionId: string
   let sum = 0;
   for (const row of rows) {
     const id = normalizeOptionId(row.optionId);
-    if (id !== "BLOCK_PCT" && id !== "DMG_RED_PCT") continue;
     const v = optionTierValue(ARMOR_OPTION_CATALOG, id, row.tier);
+    if (v <= 0) continue;
+    if (id === "FINAL_DMG_PCT" || id === "LIFE_STEAL_PCT") {
+      sum += utilOptionPowerFromDisplayValue(id, v);
+      continue;
+    }
+    const weight = UTIL_OPTION_CP_PER_DISPLAY_UNIT[id];
+    if (!weight) continue;
     sum += utilOptionPowerFromDisplayValue(id, v);
   }
   return Math.round(sum * 100) / 100;

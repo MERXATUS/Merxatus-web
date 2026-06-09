@@ -19,6 +19,10 @@ export type EquipmentCombatModifiers = {
   itemRarityPct: number;
   blockPct: number;
   dmgReducePct: number;
+  evasionPct: number;
+  critResistPct: number;
+  thornPct: number;
+  regenHpPerRound: number;
 };
 
 export type EnemyCombatTags = {
@@ -41,7 +45,16 @@ export const MECHANIZED_WEAPON_OPTION_IDS = new Set([
   "ITEM_RARITY_PCT",
 ]);
 
-export const MECHANIZED_ARMOR_OPTION_IDS = new Set(["BLOCK_PCT", "DMG_RED_PCT"]);
+export const MECHANIZED_ARMOR_OPTION_IDS = new Set([
+  "BLOCK_PCT",
+  "DMG_RED_PCT",
+  "CRIT_RESIST_PCT",
+  "EVASION_PCT",
+  "REGEN_HP_ADD",
+  "THORN_PCT",
+  "LIFE_STEAL_PCT",
+  "FINAL_DMG_PCT",
+]);
 
 export function emptyCombatModifiers(): EquipmentCombatModifiers {
   return {
@@ -57,6 +70,10 @@ export function emptyCombatModifiers(): EquipmentCombatModifiers {
     itemRarityPct: 0,
     blockPct: 0,
     dmgReducePct: 0,
+    evasionPct: 0,
+    critResistPct: 0,
+    thornPct: 0,
+    regenHpPerRound: 0,
   };
 }
 
@@ -94,6 +111,10 @@ export function combatModifiersFromOptionRows(
     else if (id === "ITEM_RARITY_PCT") out.itemRarityPct += v;
     else if (id === "BLOCK_PCT") out.blockPct += v;
     else if (id === "DMG_RED_PCT") out.dmgReducePct += v;
+    else if (id === "EVASION_PCT") out.evasionPct += v;
+    else if (id === "CRIT_RESIST_PCT") out.critResistPct += v;
+    else if (id === "THORN_PCT") out.thornPct += v;
+    else if (id === "REGEN_HP_ADD") out.regenHpPerRound += Math.floor(v);
   }
 
   return out;
@@ -116,6 +137,10 @@ export function mergeCombatModifiers(
     out.itemRarityPct += m.itemRarityPct;
     out.blockPct += m.blockPct;
     out.dmgReducePct += m.dmgReducePct;
+    out.evasionPct += m.evasionPct;
+    out.critResistPct += m.critResistPct;
+    out.thornPct += m.thornPct;
+    out.regenHpPerRound += m.regenHpPerRound;
   }
   return out;
 }

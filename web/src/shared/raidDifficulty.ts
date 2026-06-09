@@ -43,6 +43,30 @@ export function difficultyTabLabel(stars: number): string {
   return `${formatRaidDifficultyStars(s)} ${difficultyLabelForStars(s)}`;
 }
 
+/** 레이드 입장 최소 파티 전투력 = 권장치 × 이 비율 */
+export const RAID_MIN_PARTY_POWER_RATIO = 0.85;
+
+export function minimumPartyPowerForRaid(recommendedPartyPower: number): number {
+  const r = Math.max(1, Math.floor(recommendedPartyPower));
+  return Math.ceil(r * RAID_MIN_PARTY_POWER_RATIO);
+}
+
+/** 레이드 내 가장 높은 권장 파티 전투력 (다중 페이즈·입장 제한용) */
+export function maxRecommendedPartyPowerForRaid(
+  encounters: Array<{ monsterId: string; category: string }>,
+  enemyPowerByMonsterId: Map<string, number>,
+  maxPartySize = 3,
+): number {
+  let max = 0;
+  for (const enc of encounters) {
+    const ep = enemyPowerByMonsterId.get(enc.monsterId.trim().toLowerCase()) ?? 0;
+    if (ep <= 0) continue;
+    const isBoss = String(enc.category).toUpperCase() === "BOSS";
+    max = Math.max(max, recommendedPartyPowerForRaid(ep, isBoss, maxPartySize));
+  }
+  return max;
+}
+
 /** 몬스터 combatPowerFromMonster 와 같은 척도 — 파티 합산 권장치 */
 export function recommendedPartyPowerForRaid(enemyPower: number, isBoss: boolean, maxPartySize = 3): number {
   const ep = Math.max(1, Math.floor(enemyPower));
@@ -82,7 +106,8 @@ export function formatRaidDifficultyLine(meta: Pick<RaidDifficultyMeta, "recomme
 export function partyPowerAdequacy(partyPower: number, recommendedPartyPower: number): "low" | "ok" | "high" {
   const p = Math.max(0, Math.floor(partyPower));
   const r = Math.max(1, Math.floor(recommendedPartyPower));
-  if (p < r * 0.85) return "low";
+  const minRequired = minimumPartyPowerForRaid(r);
+  if (p < minRequired) return "low";
   if (p >= r * 1.15) return "high";
   return "ok";
 }

@@ -9,8 +9,11 @@ import {
   effectiveAtkSpdProcPct,
   effectiveBlockPct,
   effectiveCritChancePct,
+  effectiveCritResistPct,
   effectiveDmgReducePct,
+  effectiveEvasionPct,
   effectiveFinalDmgPct,
+  effectiveThornPct,
   lifeStealHealAmount,
 } from "@/shared/combatUtilBalance";
 import type { CombatantInput } from "@/server/dungeonBattler";
@@ -71,9 +74,14 @@ function resolvePvpHit(input: {
   rnd: () => number;
   hitKind?: "normal" | "extra";
   activeSkillHit?: boolean;
-}): { damage: number; kind: "normal" | "crit" | "extra"; blocked: boolean } {
+}): { damage: number; kind: "normal" | "crit" | "extra"; blocked: boolean; evaded?: boolean } {
   const { attacker, target, rnd } = input;
   const hitKind = input.hitKind ?? "normal";
+
+  const evasionChance = effectiveEvasionPct(target.combatMods.evasionPct);
+  if (evasionChance > 0 && rnd() * 100 < evasionChance) {
+    return { damage: 0, kind: hitKind === "extra" ? "extra" : "normal", blocked: false, evaded: true };
+  }
 
   const blockChance = effectiveBlockPct(target.combatMods.blockPct);
   if (blockChance > 0 && rnd() * 100 < blockChance) {
@@ -100,6 +108,10 @@ function resolvePvpHit(input: {
   if (critChance > 0 && rnd() * 100 < critChance) {
     const critMult = 1 + Math.max(0, attacker.combatMods.critDmgPct) / 100;
     dmg = Math.max(1, Math.floor(dmg * critMult));
+    if (target.combatMods.critResistPct > 0) {
+      const resist = effectiveCritResistPct(target.combatMods.critResistPct);
+      dmg = Math.max(1, Math.floor(dmg * (1 - resist / 100)));
+    }
     return { damage: dmg, kind: hitKind === "extra" ? "extra" : "crit", blocked: false };
   }
 
@@ -126,6 +138,16 @@ function performPvpAttack(input: {
     hitKind: input.hitKind,
     activeSkillHit: input.activeSkillHit,
   });
+
+  if (hit.evaded) {
+    input.log.push({
+      t: "evade",
+      side: input.target.logSide,
+      actor: input.target.label,
+      attacker: input.attacker.label,
+    });
+    return;
+  }
 
   if (hit.blocked) {
     input.log.push({
@@ -162,6 +184,29 @@ function performPvpAttack(input: {
     }
   }
 
+  if (
+    hit.damage > 0 &&
+    input.target.combatMods.thornPct > 0 &&
+    input.attacker.hp > 0
+  ) {
+    const thornDmg = Math.max(
+      1,
+      Math.floor(hit.damage * (effectiveThornPct(input.target.combatMods.thornPct) / 100)),
+    );
+    input.attacker.hp = Math.max(0, input.attacker.hp - thornDmg);
+    input.log.push({
+      t: "hit",
+      side: input.target.logSide,
+      actor: input.target.label,
+      target: input.attacker.label,
+      damage: thornDmg,
+      kind: "extra",
+    });
+    if (input.attacker.hp <= 0) {
+      input.log.push({ t: "ko", side: input.attacker.logSide, name: input.attacker.label });
+    }
+  }
+
   if (input.target.hp <= 0) {
     input.log.push({ t: "ko", side: input.target.logSide, name: input.target.label });
   }
@@ -195,6 +240,17 @@ export function simulatePvpDuel(input: {
 
   while (round < maxRounds && attacker.hp > 0 && defender.hp > 0) {
     round += 1;
+
+    for (const fighter of [attacker, defender]) {
+      const regen = fighter.combatMods.regenHpPerRound;
+      if (regen <= 0 || fighter.hp <= 0) continue;
+      const before = fighter.hp;
+      fighter.hp = Math.min(fighter.maxHp, fighter.hp + regen);
+      const actual = fighter.hp - before;
+      if (actual > 0) {
+        log.push({ t: "heal", side: fighter.logSide, actor: fighter.label, amount: actual });
+      }
+    }
 
     if (attacker.activeSkillName) {
       log.push({

@@ -10,12 +10,13 @@ import {
   weaponPowerBonusFromOptionRows,
 } from "@/shared/itemOptionCatalog";
 import {
-  blessedSlotRealms,
   blessingOptionIdsForRealm,
   realmLabelKo,
   rollBlessingAffix,
+  rollLootRealmForSlot,
   type OptionRealm,
 } from "@/shared/equipmentBlessings";
+import { lootOptionSlotCountForGrade } from "@/shared/lootOptionBalance";
 import {
   filterOptionIdsForGrade,
   maxOptionTierForGrade,
@@ -30,32 +31,8 @@ export type RolledOption = {
   affix?: string;
 };
 
-function shuffle<T>(arr: T[], rnd: () => number): T[] {
-
-  const a = [...arr];
-
-  for (let i = a.length - 1; i > 0; i--) {
-
-    const j = Math.floor(rnd() * (i + 1));
-
-    [a[i], a[j]] = [a[j]!, a[i]!];
-
-  }
-
-  return a;
-
-}
-
-
-
 export function maxOptionSlotsForGrade(grade: number): number {
-
-  const g = clampItemGrade(grade);
-
-  const table: Record<number, number> = { 1: 1, 2: 1, 3: 2, 4: 2, 5: 3, 6: 3, 7: 4, 8: 4 };
-
-  return table[g] ?? 1;
-
+  return lootOptionSlotCountForGrade(grade);
 }
 
 
@@ -92,48 +69,6 @@ export function rollLootOptionTier(grade: number, rnd: () => number): number {
 
 
 
-/** 던전·레이드 루트 드랍 — 등급별 옵션 슬롯 수(최소~최대) */
-
-const LOOT_OPTION_SLOT_RANGE: Record<number, { min: number; max: number }> = {
-
-  1: { min: 1, max: 1 },
-
-  2: { min: 1, max: 1 },
-
-  3: { min: 1, max: 2 },
-
-  4: { min: 2, max: 2 },
-
-  5: { min: 2, max: 3 },
-
-  6: { min: 3, max: 3 },
-
-  7: { min: 3, max: 4 },
-
-  8: { min: 4, max: 4 },
-
-};
-
-
-
-function rollLootOptionSlotCount(grade: number, rnd: () => number): number {
-
-  const g = clampItemGrade(grade);
-
-  const range = LOOT_OPTION_SLOT_RANGE[g] ?? { min: 1, max: 1 };
-
-  if (range.min >= range.max) return range.max;
-
-  const fillBias = Math.min(0.88, 0.32 + g * 0.09);
-
-  if (rnd() < fillBias) return range.max;
-
-  return range.min + Math.floor(rnd() * (range.max - range.min + 1));
-
-}
-
-
-
 function optionPoolForCategory(category: string, itemGrade: number): string[] {
 
   const grade = clampItemGrade(itemGrade);
@@ -148,11 +83,9 @@ function optionPoolForCategory(category: string, itemGrade: number): string[] {
 
 
 
-function pickFromPool(pool: string[], used: Set<string>, rnd: () => number): string | null {
-  let candidates = pool.filter((id) => !used.has(normalizeOptionId(id)));
-  if (candidates.length === 0) candidates = pool;
-  if (candidates.length === 0) return null;
-  return shuffle(candidates, rnd)[0] ?? null;
+function pickRandomFromPool(pool: string[], rnd: () => number): string | null {
+  if (pool.length === 0) return null;
+  return pool[Math.floor(rnd() * pool.length)] ?? null;
 }
 
 function capLootTierForOption(optionId: string, tier: number, grade: number): number {
@@ -174,23 +107,17 @@ function rollBlessedOptionsForLoot(input: {
   const poolKind = input.category === "무기" ? "weapon" : input.category === "방어구" ? "armor" : null;
   if (!poolKind) return [];
 
-  const realms = blessedSlotRealms(input.slotCount);
-  const usedIds = new Set<string>();
   const out: RolledOption[] = [];
 
-  for (const realm of realms) {
-    let ids = filterOptionIdsForGrade(
+  for (let i = 0; i < input.slotCount; i++) {
+    const realm = rollLootRealmForSlot(input.rnd);
+    const ids = filterOptionIdsForGrade(
       blessingOptionIdsForRealm(poolKind, realm),
       grade,
       poolKind,
     );
-    if (realm === "abyss") {
-      const hasRarity = out.some((o) => normalizeOptionId(o.optionId) === "ITEM_RARITY_PCT");
-      if (hasRarity) ids = ids.filter((id) => normalizeOptionId(id) !== "ITEM_RARITY_PCT");
-    }
-    const picked = pickFromPool(ids, usedIds, input.rnd);
+    const picked = pickRandomFromPool(ids, input.rnd);
     if (!picked) continue;
-    usedIds.add(normalizeOptionId(picked));
     const tier = capLootTierForOption(
       picked,
       rollOptionTierForGrade(grade, "loot", input.rnd),
@@ -229,17 +156,16 @@ function rollOptionsFromPool(input: {
 
 
 
-  const count = Math.min(pool.length, input.slotCount);
-
-  const ids = shuffle(pool, input.rnd).slice(0, count);
-
-  return ids.map((optionId) => ({
-
-    optionId,
-
-    tier: rollOptionTierForGrade(grade, input.tierMode, input.rnd),
-
-  }));
+  const out: RolledOption[] = [];
+  for (let i = 0; i < input.slotCount; i++) {
+    const optionId = pickRandomFromPool(pool, input.rnd);
+    if (!optionId) break;
+    out.push({
+      optionId,
+      tier: rollOptionTierForGrade(grade, input.tierMode, input.rnd),
+    });
+  }
+  return out;
 
 }
 
@@ -289,7 +215,7 @@ export function rollOptionsForLootDrop(input: {
 }): RolledOption[] {
   const rnd = input.rnd ?? Math.random;
   const grade = clampItemGrade(input.itemGrade);
-  const slotCount = Math.max(2, rollLootOptionSlotCount(grade, rnd));
+  const slotCount = lootOptionSlotCountForGrade(grade);
   return rollBlessedOptionsForLoot({
     category: input.category,
     itemGrade: grade,
@@ -392,17 +318,7 @@ export function rollOptionIdsKeepingTiers(
 
     if (lockedIndices.has(i)) return o;
 
-    const used = new Set(
-
-      options.filter((_, j) => j !== i && !lockedIndices.has(j)).map((x) => normalizeOptionId(x.optionId)),
-
-    );
-
-    let candidates = pool.filter((id) => !used.has(id));
-
-    if (candidates.length === 0) candidates = pool;
-
-    const picked = shuffle(candidates, rnd)[0] ?? pool[0]!;
+    const picked = pickRandomFromPool(pool, rnd) ?? pool[0]!;
 
     return { optionId: picked, tier: o.tier };
 

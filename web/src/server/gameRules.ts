@@ -1,24 +1,34 @@
 import { AUTO_EXPLORE_RULES } from "@/shared/autoExplore";
+import { PARTY_POWER_TO_COMBAT, RAID_ENEMY_STAT_MULT } from "@/shared/combatBalance";
+import { DUNGEON_MIN_PARTY_LEVEL_RATIO } from "@/shared/dungeonDifficulty";
+import { RAID_MIN_PARTY_POWER_RATIO } from "@/shared/raidDifficulty";
 import { MAX_EQUIPMENT_OWNED } from "@/shared/equipmentCapacity";
 import { DEFAULT_KNIGHT_ORDER_RULES } from "@/shared/knightOrder";
 import { MINION_LEVEL_RULES } from "@/shared/minionLevel";
 import { MINION_SKILL_RULES } from "@/shared/minionSkills";
+import { LOOT_OPTION_MAX_SLOTS, LOOT_OPTION_SLOTS_BY_GRADE } from "@/shared/lootOptionBalance";
+import { ARMOR_LEVEL_STAT_PCT_PER_LEVEL } from "@/shared/armorEnhanceRules";
+import {
+  WEAPON_BASE_POWER_BY_ITEM_ID,
+  WEAPON_LEVEL_POWER_PER_LEVEL,
+} from "@/shared/weaponPowerRules";
 
 export const GAME_RULES = {
   combat: {
+    /** 전투력 → HP/공격 환산 — `shared/combatBalance.ts` */
+    partyPowerToCombat: PARTY_POWER_TO_COMBAT,
+    /** 레이드 적 스탯 배율 */
+    raidEnemyStatMult: RAID_ENEMY_STAT_MULT,
+    /** 레이드 입장 최소 파티 전투력 = 권장 × 비율 */
+    raidMinPartyPowerRatio: RAID_MIN_PARTY_POWER_RATIO,
+    /** 던전 입장 최소 파티 평균 레벨 = 권장 하한 × 비율 (전투력 제한 없음) */
+    dungeonMinPartyLevelRatio: DUNGEON_MIN_PARTY_LEVEL_RATIO,
     /** 무기 전투력(미니언 개별 장착) */
-    weaponPowerByItemId: {
-      weapon_wood_sword: 1,
-      weapon_stone_sword: 2,
-      weapon_red_gold_sword: 3,
-      weapon_steel_sword: 4,
-      weapon_gold_sword: 5,
-      weapon_diamond_sword: 7,
-    } as const,
+    weaponPowerByItemId: WEAPON_BASE_POWER_BY_ITEM_ID,
     /** 장착 무기 강화 1단계당 추가 전투력(베이스 무기 파워에 가산) */
-    weaponLevelPowerPerLevel: 1,
+    weaponLevelPowerPerLevel: WEAPON_LEVEL_POWER_PER_LEVEL,
     /** 방어구 강화 1단계당 베이스 HP·DEF 추가 비율 */
-    armorLevelStatPctPerLevel: 0.03,
+    armorLevelStatPctPerLevel: ARMOR_LEVEL_STAT_PCT_PER_LEVEL,
     /** 미니언 기본 전투력(아직 레벨/스탯이 없어서 고정값으로 시작) */
     baseMinionPower: 5,
     /** 승률 하한/상한 */
@@ -31,6 +41,11 @@ export const GAME_RULES = {
   /** 무기·방어구 인스턴스 합산 보유 상한 — `shared/equipmentCapacity.ts` */
   equipment: {
     maxOwned: MAX_EQUIPMENT_OWNED,
+    /** 전투 드랍 옵션 — 등급별 슬롯(2/4/6)·천·마계 풀 후보 수 */
+    lootOptions: {
+      maxSlots: LOOT_OPTION_MAX_SLOTS,
+      slotsByGrade: LOOT_OPTION_SLOTS_BY_GRADE,
+    },
   },
   /** 기사단(유니온) — 보유 미니언 총 레벨 합산 보너스 */
   knightOrder: DEFAULT_KNIGHT_ORDER_RULES,

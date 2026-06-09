@@ -139,14 +139,8 @@ export function rerollOptionIdsKeepingTiersInPayload(
           category,
         )
       : fullPool;
-    const used = new Set(
-      payload.options
-        .filter((_, j) => j !== i && !locked.has(j))
-        .map((x) => x.optionId),
-    );
-    let candidates = pool.filter((id) => !used.has(id));
-    if (candidates.length === 0) candidates = pool.length > 0 ? pool : fullPool;
-    const picked = candidates[Math.floor(rnd() * candidates.length)] ?? o.optionId;
+    const pickPool = pool.length > 0 ? pool : fullPool;
+    const picked = pickPool[Math.floor(rnd() * pickPool.length)] ?? o.optionId;
     return {
       ...o,
       optionId: picked,

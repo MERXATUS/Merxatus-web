@@ -25,6 +25,7 @@ export type CombatLogLine =
     }
 
   | { t: "block"; side: "party" | "enemy"; actor: string; attacker: string }
+  | { t: "evade"; side: "party" | "enemy"; actor: string; attacker: string }
 
   | { t: "heal"; side: "party" | "enemy"; actor: string; amount: number }
 
@@ -95,6 +96,10 @@ export function formatCombatLogLine(line: CombatLogLine): string {
     case "block":
 
       return `${line.actor} 막기! (${line.attacker})`;
+
+    case "evade":
+
+      return `${line.actor} 회피! (${line.attacker})`;
 
     case "heal":
 

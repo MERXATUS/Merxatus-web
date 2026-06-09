@@ -7,7 +7,12 @@ import { getMonster } from "@/server/monsterData";
 import { loadRaids, raidEncounterForPhase, type RaidDef } from "@/server/raidData";
 import { loadMonsters } from "@/server/monsterData";
 import { combatPowerFromMonster } from "@/server/monsterCombat";
-import { raidDifficultyMeta } from "@/shared/raidDifficulty";
+import { raidEnemyStatMult } from "@/shared/combatBalance";
+import {
+  maxRecommendedPartyPowerForRaid,
+  minimumPartyPowerForRaid,
+  raidDifficultyMeta,
+} from "@/shared/raidDifficulty";
 import { safeParsePendingLoot, enrichLootEntries, snapshotsToEntries } from "@/server/dungeonRun";
 import { scaleLootEntries } from "@/shared/dungeonPushLuck";
 import { raidPartyLootMultiplier } from "@/shared/raidPartyLoot";
@@ -109,6 +114,28 @@ export async function startRaidRun(input: { userId: string; raidId: string; mini
   const minions = await prisma.minion.findMany({ where: { id: { in: ids }, userId: input.userId } });
   if (minions.length !== ids.length) throw new Error("MINION_NOT_FOUND");
 
+  const monsters = await loadMonsters();
+  const enemyPowerById = new Map(
+    Object.entries(monsters).map(([id, m]) => [id, combatPowerFromMonster(m)]),
+  );
+  const maxRecommended = maxRecommendedPartyPowerForRaid(
+    raid.encounters,
+    enemyPowerById,
+    raid.maxPartySize ?? 3,
+  );
+  const minPartyPower = minimumPartyPowerForRaid(maxRecommended);
+  const { partyPower } = await loadPartyCombatRows(
+    prisma,
+    input.userId,
+    ids.map((minionId) => ({
+      minionId,
+      minion: minions.find((m) => m.id === minionId)!,
+    })),
+  );
+  if (partyPower < minPartyPower) {
+    throw new Error(`RAID_PARTY_POWER_TOO_LOW:${minPartyPower}:${partyPower}`);
+  }
+
   const run = await prisma.raidRun.create({
     data: {
       userId: input.userId,
@@ -149,6 +176,7 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
   const entries = parsePartyHpJson(run.partyHpJson);
   const partyHpStart = Object.fromEntries(entries.map((e) => [e.minionId, { hp: e.hp, maxHp: e.maxHp }]));
   const isBoss = String(enc.category).toUpperCase() === "BOSS";
+  const enemyStatMult = raidEnemyStatMult(isBoss);
   const partyDamageMult = knightOrderPartyDamageMult(knightOrder, isBoss);
   const enemyTags = inferEnemyCombatTags({
     category: enc.category,
@@ -163,6 +191,7 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
     partyHpStart,
     combatants,
     memberInputs,
+    enemyStatMult,
   );
   const clearChance = estimateFloorWinChance({
     floor: phase,
@@ -173,6 +202,7 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
     samples: 32,
     partyDamageMult,
     enemyTags,
+    enemyStatMult,
   });
 
   const battle = simulateFloorCombat({
@@ -183,6 +213,7 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
     partyHp: partyHpStart,
     partyDamageMult,
     enemyTags,
+    enemyStatMult,
   });
 
   const combatLog: CombatLogLine[] = battle.log;
@@ -332,6 +363,7 @@ export async function getRaidCombatPreview(userId: string, existingRun?: RaidRun
   const entries = parsePartyHpJson(run.partyHpJson);
   const partyHp = Object.fromEntries(entries.map((e) => [e.minionId, { hp: e.hp, maxHp: e.maxHp }]));
   const isBoss = String(enc.category).toUpperCase() === "BOSS";
+  const enemyStatMult = raidEnemyStatMult(isBoss);
   const enemyTags = inferEnemyCombatTags({
     category: enc.category,
     monsterId: enc.monsterId,
@@ -346,6 +378,7 @@ export async function getRaidCombatPreview(userId: string, existingRun?: RaidRun
     samples: 32,
     partyDamageMult: knightOrderPartyDamageMult(knightOrder, isBoss),
     enemyTags,
+    enemyStatMult,
   });
   return { clearChance, phase, isBoss };
 }
@@ -415,6 +448,7 @@ export async function listRaidsPayload() {
         isBoss,
         enemyPower,
         recommendedPartyPower: diff.recommendedPartyPower,
+        minPartyPower: minimumPartyPowerForRaid(diff.recommendedPartyPower),
         recommendedPerMinion: diff.recommendedPerMinion,
         difficultyLabel: diff.label,
         difficultyStars: diff.stars,

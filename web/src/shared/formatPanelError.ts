@@ -6,12 +6,16 @@ export function formatPanelError(e: unknown): string {
   if (typeof e === "string") {
     const levelReq = parseMinionLevelTooLowError(e);
     if (levelReq != null) return minionLevelTooLowMessage(levelReq);
+    const mapped = mapErrorCode(e);
+    if (mapped) return mapped;
     if (looksLikeDbMigration(e)) return mapErrorCode("DB_MIGRATION_REQUIRED") ?? e;
     return e;
   }
   if (e instanceof Error) {
     const levelReq = parseMinionLevelTooLowError(e.message);
     if (levelReq != null) return minionLevelTooLowMessage(levelReq);
+    const mapped = mapErrorCode(e.message);
+    if (mapped) return mapped;
     if (looksLikeDbMigration(e.message)) return mapErrorCode("DB_MIGRATION_REQUIRED") ?? e.message;
     return e.message;
   }
@@ -65,6 +69,9 @@ function mapErrorCode(code: string): string | null {
 
   const exact: Record<string, string> = {
     BAD_REQUEST: "요청 형식이 잘못됐습니다. 새로고침 후 다시 시도해 주세요.",
+    REQUEST_TIMEOUT: "서버 응답이 지연되고 있습니다. 잠시 후 새로고침해 주세요.",
+    SESSION_TIMEOUT: "로그인 확인 시간이 초과됐습니다. 새로고침해 주세요.",
+    BOOTSTRAP_INCOMPLETE: "대시보드 데이터를 불러오지 못했습니다. 새로고침해 주세요.",
     USER_NOT_FOUND: "유저를 찾을 수 없습니다. 로그인을 확인해 주세요.",
     UNAUTHORIZED: "로그인이 필요합니다.",
     FORBIDDEN: "이 작업을 수행할 권한이 없습니다.",
@@ -135,6 +142,36 @@ function mapErrorCode(code: string): string | null {
     const parts = code.split(":");
     if (parts.length >= 3) return `${parts[1]}에는 ${parts[2]}만 배치할 수 있습니다.`;
     return "이 시설에 맞지 않는 직업의 미니언입니다.";
+  }
+
+  if (code.startsWith("DUNGEON_PARTY_LEVEL_TOO_LOW:")) {
+    const parts = code.split(":");
+    const min = Number(parts[1] ?? 0);
+    const have = Number(parts[2] ?? 0);
+    if (Number.isFinite(min) && Number.isFinite(have) && min > 0) {
+      return `파티 평균 레벨이 부족합니다. (현재 Lv${have} / 최소 Lv${min} 필요)`;
+    }
+    return "파티 레벨이 이 던전 권장 구간보다 낮습니다.";
+  }
+
+  if (code.startsWith("DUNGEON_PARTY_POWER_TOO_LOW:")) {
+    const parts = code.split(":");
+    const min = Number(parts[1] ?? 0);
+    const have = Number(parts[2] ?? 0);
+    if (Number.isFinite(min) && Number.isFinite(have) && min > 0) {
+      return `파티 전투력이 부족합니다. (현재 ${have.toLocaleString()} / 최소 ${min.toLocaleString()} 필요)`;
+    }
+    return "파티 전투력이 이 던전 권장 구간보다 낮습니다.";
+  }
+
+  if (code.startsWith("RAID_PARTY_POWER_TOO_LOW:")) {
+    const parts = code.split(":");
+    const min = Number(parts[1] ?? 0);
+    const have = Number(parts[2] ?? 0);
+    if (Number.isFinite(min) && Number.isFinite(have) && min > 0) {
+      return `파티 전투력이 부족합니다. (현재 ${have.toLocaleString()} / 최소 ${min.toLocaleString()} 필요)`;
+    }
+    return "파티 전투력이 부족해 레이드를 시작할 수 없습니다.";
   }
 
   return null;

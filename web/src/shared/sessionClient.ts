@@ -13,8 +13,32 @@ export function notifySessionChanged() {
   window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
 }
 
+const DEFAULT_FETCH_TIMEOUT_MS = 25_000;
+
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  return fetch(input, { credentials: "include", ...init });
+  const timeoutMs =
+    typeof window === "undefined" || (typeof init?.signal === "object" && init.signal != null)
+      ? null
+      : DEFAULT_FETCH_TIMEOUT_MS;
+  if (!timeoutMs) {
+    return fetch(input, { credentials: "include", ...init });
+  }
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, {
+      credentials: "include",
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error("REQUEST_TIMEOUT");
+    }
+    throw e;
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
 function throwApiError(json: unknown, status: number): never {

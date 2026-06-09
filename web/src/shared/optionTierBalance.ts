@@ -34,20 +34,26 @@ export const OPTION_TIER_MAX_CRAFT: Record<ItemGradeIndex, number> = {
 /** 이 등급 미만 아이템 옵션 풀에서 제외 */
 const WEAPON_OPTION_MIN_GRADE: Record<string, number> = {
   CRIT_DMG_PCT: 2,
-  ARMOR_PEN_PCT: 3,
-  LIFE_STEAL_PCT: 3,
-  FINAL_DMG_PCT: 4,
-  ITEM_RARITY_PCT: 4,
-  DMG_VS_BOSS_PCT: 5,
-  DMG_VS_ANGEL_PCT: 5,
-  DMG_VS_DEMON_PCT: 5,
+  ARMOR_PEN_PCT: 2,
+  LIFE_STEAL_PCT: 2,
+  FINAL_DMG_PCT: 3,
+  ITEM_RARITY_PCT: 3,
+  DMG_VS_BOSS_PCT: 4,
+  DMG_VS_ANGEL_PCT: 4,
+  DMG_VS_DEMON_PCT: 4,
 };
 
 const ARMOR_OPTION_MIN_GRADE: Record<string, number> = {
-  HP_PCT: 3,
-  DEF_PCT: 3,
-  DMG_RED_PCT: 4,
-  BLOCK_PCT: 4,
+  HP_PCT: 2,
+  DEF_PCT: 2,
+  DMG_RED_PCT: 3,
+  BLOCK_PCT: 3,
+  CRIT_RESIST_PCT: 3,
+  EVASION_PCT: 3,
+  REGEN_HP_ADD: 2,
+  THORN_PCT: 4,
+  LIFE_STEAL_PCT: 4,
+  FINAL_DMG_PCT: 5,
 };
 
 export type OptionTierRollMode = "loot" | "craft";
@@ -105,4 +111,13 @@ export function filterOptionIdsForGrade(optionIds: string[], grade: number, pool
   const g = clampItemGrade(grade);
   const eligible = optionIds.filter((id) => minItemGradeForOptionId(id, pool) <= g);
   return eligible.length > 0 ? eligible : optionIds;
+}
+
+/** 등급에서 실제 추첨 가능한 옵션 ID 수 */
+export function countEligibleOptionsForGrade(
+  optionIds: string[],
+  grade: number,
+  pool: "weapon" | "armor",
+): number {
+  return filterOptionIdsForGrade(optionIds, grade, pool).length;
 }

@@ -30,6 +30,18 @@ export function effectiveBlockPct(raw: number): number {
   return scaleProcPct(raw, 60);
 }
 
+export function effectiveEvasionPct(raw: number): number {
+  return scaleProcPct(raw, 45);
+}
+
+export function effectiveCritResistPct(raw: number): number {
+  return Math.min(70, scalePassivePct(raw));
+}
+
+export function effectiveThornPct(raw: number): number {
+  return Math.min(50, scalePassivePct(raw));
+}
+
 export function effectiveArmorPenPct(raw: number): number {
   return Math.min(90, scalePassivePct(raw));
 }

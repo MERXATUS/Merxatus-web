@@ -101,6 +101,8 @@ function lineDelay(line: CombatLogLine): number {
       return line.kind === "crit" ? 380 : line.kind === "extra" ? 240 : 260;
     case "block":
       return 300;
+    case "evade":
+      return 280;
     case "heal":
       return 240;
     case "ko":
@@ -200,13 +202,13 @@ export function applyCombatLogLine(
       };
     }
     case "block": {
-      const blocker = findFighter(fighters, line.actor, "party");
+      const blocker = findFighter(fighters, line.actor, line.side);
       if (blocker) {
         floaters.push({
           id: `f${floaterSeq}`,
           targetId: blocker.id,
           damage: 0,
-          side: "party",
+          side: line.side,
           kind: "block",
         });
       }
@@ -220,6 +222,32 @@ export function applyCombatLogLine(
         skillBanner: null,
         skillActor: null,
         lastLog: `${line.actor} 막기! (${line.attacker})`,
+        lastLogTone: "block",
+        lastSfx: "block",
+        hitFlash: "block",
+      };
+    }
+    case "evade": {
+      const evader = findFighter(fighters, line.actor, line.side);
+      if (evader) {
+        floaters.push({
+          id: `f${floaterSeq}`,
+          targetId: evader.id,
+          damage: 0,
+          side: line.side,
+          kind: "block",
+        });
+      }
+      return {
+        ...frame,
+        fighters,
+        floaters,
+        actingId: evader?.id ?? null,
+        hitTargetId: evader?.id ?? null,
+        banner: null,
+        skillBanner: null,
+        skillActor: null,
+        lastLog: `${line.actor} 회피! (${line.attacker})`,
         lastLogTone: "block",
         lastSfx: "block",
         hitFlash: "block",

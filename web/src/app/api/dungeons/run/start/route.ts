@@ -1,16 +1,17 @@
 import { z } from "zod";
 import { requireUserId } from "@/server/auth";
-import { advanceOrStartPushLuckFloor } from "@/server/dungeonRun";
+import { createPushLuckDungeonRun } from "@/server/dungeonRun";
+import { loadDungeons } from "@/server/dungeonData";
 
 export const runtime = "nodejs";
 
-/** @deprecated — `/api/dungeons/run/advance`에 `dungeonId`·`minionIds`를 넘기면 동일 */
 const BodySchema = z.object({
   dungeonId: z.string().min(1),
   minionIds: z.array(z.string().min(1)).min(1).max(10),
   userId: z.string().min(1).optional(),
 });
 
+/** PUSH_LUCK 던전 런만 생성 — 1층 전투는 `/api/dungeons/run/advance` */
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
   const parsed = BodySchema.safeParse(json);
@@ -20,20 +21,32 @@ export async function POST(req: Request) {
   if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
   try {
-    const out = await advanceOrStartPushLuckFloor({
+    const { dungeons } = await loadDungeons();
+    const dungeon = dungeons.find((d) => d.id === parsed.data.dungeonId);
+    if (!dungeon) return Response.json({ ok: false, error: "DUNGEON_NOT_FOUND" }, { status: 404 });
+    if (dungeon.mode !== "PUSH_LUCK") {
+      return Response.json({ ok: false, error: "NOT_PUSH_LUCK_DUNGEON" }, { status: 400 });
+    }
+
+    const created = await createPushLuckDungeonRun({
       userId: auth.userId,
-      dungeonId: parsed.data.dungeonId,
+      dungeon,
       minionIds: parsed.data.minionIds,
     });
-    return Response.json(out);
+    if (!created.ok) {
+      const err = created.error;
+      const status =
+        err === "MINION_NOT_FOUND" ||
+        err === "PARTY_TOO_LARGE" ||
+        err.startsWith("DUNGEON_PARTY_LEVEL_TOO_LOW:") ||
+        err.startsWith("DUNGEON_PARTY_POWER_TOO_LOW:")
+          ? 400
+          : 400;
+      return Response.json({ ok: false, error: err }, { status });
+    }
+    return Response.json({ ok: true, runId: created.runId });
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";
-    const status =
-      message === "MINION_NOT_FOUND" || message === "PARTY_TOO_LARGE" || message === "NOT_PUSH_LUCK_DUNGEON"
-        ? 400
-        : message === "DUNGEON_NOT_FOUND"
-          ? 404
-          : 500;
-    return Response.json({ ok: false, error: message }, { status });
+    return Response.json({ ok: false, error: message }, { status: 500 });
   }
 }

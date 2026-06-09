@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CombatEncounterBlock } from "@/app/_components/CombatEncounterBlock";
+import { DungeonRunSettlementModal } from "@/app/_components/DungeonRunSettlementModal";
 import {
   DungeonPartyPickModal,
   partyPickChips,
@@ -14,6 +15,7 @@ import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
 import type { CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatLog";
 import { readSavedPartyIds, resolveSavedPartyIds, writeSavedPartyIds } from "@/shared/savedParty";
 import { useEscapeClose } from "@/shared/useEscapeClose";
+import type { DungeonLootRow, DungeonSettlement } from "@/shared/dungeonSettlement";
 import { formatRaidPartyLootMultiplier, raidPartyLootMultiplier } from "@/shared/raidPartyLoot";
 import { raidKindLabel } from "@/shared/raidBossKind";
 import { RAID_FACTION_LABELS, RAID_FACTION_ORDER, type RaidFaction } from "@/shared/raidFaction";
@@ -39,6 +41,7 @@ type RaidDef = {
   isBoss?: boolean;
   enemyPower?: number;
   recommendedPartyPower?: number;
+  minPartyPower?: number;
   recommendedPerMinion?: number;
   difficultyLabel?: string;
   difficultyStars?: number;
@@ -65,6 +68,8 @@ type AdvanceResult = {
   clearChance?: number;
   lootMultiplier?: number;
   goldGained?: number;
+  loot?: DungeonLootRow[];
+  forfeitedLoot?: DungeonLootRow[];
   combatLog?: CombatLogLine[];
   combatReplay?: DungeonCombatReplay;
   isBoss?: boolean;
@@ -90,6 +95,7 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
   const [difficultyStarTab, setDifficultyStarTab] = useState(1);
   const [factionTab, setFactionTab] = useState<RaidFaction>("demon");
   const pendingResultRef = useRef<AdvanceResult | null>(null);
+  const [clearSettlement, setClearSettlement] = useState<DungeonSettlement | null>(null);
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -246,6 +252,27 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
     setPartyOpen(false);
   }
 
+  function openRaidClearSettlement(adv: AdvanceResult, raidName: string) {
+    const lootMultLabel =
+      adv.lootMultiplier && adv.lootMultiplier > 1
+        ? formatRaidPartyLootMultiplier(run?.partySize ?? partyIds.size, maxParty)
+        : null;
+    setClearSettlement({
+      kind: "clear",
+      title: "레이드 클리어!",
+      subtitle: lootMultLabel ? `${raidName} · 보상 ${lootMultLabel}` : raidName,
+      xpGrants: [],
+      loot: adv.loot ?? [],
+      goldGained: adv.goldGained,
+      lootMultiplier: adv.lootMultiplier,
+    });
+  }
+
+  function dismissClearSettlement() {
+    setClearSettlement(null);
+    void refresh();
+  }
+
   function finishBattlePlayback() {
     setPlayingLog(false);
     setBattleReplay(null);
@@ -254,10 +281,11 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
     pendingResultRef.current = null;
     if (adv) {
       if (adv.result === "CLEARED") {
-        const mult = adv.lootMultiplier && adv.lootMultiplier > 1 ? ` · 보상 ${formatRaidPartyLootMultiplier(run?.partySize ?? partyIds.size, maxParty)}` : "";
-        const gold = adv.goldGained && adv.goldGained > 0 ? ` · +${adv.goldGained.toLocaleString()}G` : "";
-        setLastMsg(`레이드 클리어!${mult}${gold}`);
-      } else if (adv.result === "LOSS") setLastMsg("전멸… 누적 보상 소멸");
+        const raidName = run?.run?.raidName ?? raids.find((r) => r.id === selectedRaidId)?.name ?? "레이드";
+        openRaidClearSettlement(adv, raidName);
+        return;
+      }
+      if (adv.result === "LOSS") setLastMsg("전멸… 누적 보상 소멸");
       else {
         const mult =
           adv.lootMultiplier && adv.lootMultiplier > 1
@@ -293,6 +321,8 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
     selectedRaid?.recommendedPartyPower != null
       ? partyPowerAdequacy(partyPower, selectedRaid.recommendedPartyPower)
       : null;
+  const minPartyPower = selectedRaid?.minPartyPower ?? 0;
+  const canStartRaid = partyIds.size > 0 && !!selectedRaidId && (minPartyPower <= 0 || partyPower >= minPartyPower);
 
   function pickRaid(raidId: string) {
     setSelectedRaidId(raidId);
@@ -533,10 +563,15 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
               파티 편성
             </GameBtn>
           </div>
+          {powerAdequacy === "low" && minPartyPower > 0 ? (
+            <p className="text-xs text-amber-300/90">
+              최소 파티 전투력 {minPartyPower.toLocaleString()} 필요 (현재 {partyPower.toLocaleString()})
+            </p>
+          ) : null}
           <GameBtn
             variant="gold"
             className="w-full h-10"
-            disabled={!!busy || partyIds.size === 0 || !selectedRaidId}
+            disabled={!!busy || !canStartRaid}
             onClick={async () => {
               setBusy("start");
               const raid = raids.find((r) => r.id === selectedRaidId);
@@ -578,6 +613,12 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
         onClose={() => setPartyOpen(false)}
         onToggle={toggleParty}
         onConfirm={confirmParty}
+      />
+
+      <DungeonRunSettlementModal
+        open={!!clearSettlement}
+        settlement={clearSettlement}
+        onConfirm={dismissClearSettlement}
       />
     </GamePanel>
   );

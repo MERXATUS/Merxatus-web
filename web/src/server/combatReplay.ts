@@ -1,4 +1,5 @@
-import { fighterStatsFromMonster } from "@/server/monsterCombat";
+import { fighterStatsFromMonster, scaleFighterStatsByChannel } from "@/server/monsterCombat";
+import type { DungeonEnemyCombatMults } from "@/shared/dungeonDifficulty";
 import type { FloorEnemy } from "@/server/dungeonBattler";
 import type { MinionCombatClass } from "@/shared/minionDerivedClass";
 import { minionPortraitView, monsterPortraitView } from "@/shared/combatPortrait";
@@ -15,8 +16,19 @@ export function buildCombatReplay(
     combatClass: MinionCombatClass;
     weaponBaseItemId: string | null;
   }>,
+  enemyCombatMults: DungeonEnemyCombatMults | number = 1,
 ): DungeonCombatReplay {
-  const enemyStats = fighterStatsFromMonster(enemy.monster);
+  const baseEnemyStats = fighterStatsFromMonster(enemy.monster);
+  const enemyStats =
+    typeof enemyCombatMults === "number"
+      ? enemyCombatMults > 1
+        ? scaleFighterStatsByChannel(baseEnemyStats, {
+            hp: enemyCombatMults,
+            atk: enemyCombatMults,
+            def: enemyCombatMults,
+          })
+        : baseEnemyStats
+      : scaleFighterStatsByChannel(baseEnemyStats, enemyCombatMults);
   const memberById = new Map(memberInputs.map((m) => [m.minionId, m]));
   return {
     floor,

@@ -1,6 +1,13 @@
 import { computePartyPower } from "@/server/dungeonCombat";
 
-import { applyDefense, fighterStatsFromMonster } from "@/server/monsterCombat";
+import { partyStatsFromPower } from "@/shared/combatBalance";
+import {
+  applyDefense,
+  fighterStatsFromMonster,
+  scaleFighterStats,
+  scaleFighterStatsByChannel,
+} from "@/server/monsterCombat";
+import type { DungeonEnemyCombatMults } from "@/shared/dungeonDifficulty";
 
 import type { MonsterDef } from "@/server/monsterData";
 
@@ -23,8 +30,11 @@ import {
   effectiveAtkSpdProcPct,
   effectiveBlockPct,
   effectiveCritChancePct,
+  effectiveCritResistPct,
   effectiveDmgReducePct,
+  effectiveEvasionPct,
   effectiveFinalDmgPct,
+  effectiveThornPct,
   effectiveVsTagBonusPct,
   lifeStealHealAmount,
 } from "@/shared/combatUtilBalance";
@@ -120,23 +130,7 @@ function randInt(min: number, max: number, rnd = Math.random) {
 
 
 export function statsFromPower(power: number) {
-
-  const p = Math.max(1, Math.floor(power));
-
-  const maxHp = Math.max(24, Math.floor(p * 3.2));
-
-  const baseAtk = Math.max(4, Math.floor(p * 0.35));
-
-  return {
-
-    maxHp,
-
-    atkMin: baseAtk,
-
-    atkMax: baseAtk + Math.max(2, Math.floor(p * 0.18)),
-
-  };
-
+  return partyStatsFromPower(power);
 }
 
 
@@ -269,7 +263,7 @@ function resolveHitDamage(input: {
 
   activeSkillHit?: boolean;
 
-}): { damage: number; kind: HitKind; blocked: boolean } {
+}): { damage: number; kind: HitKind; blocked: boolean; evaded?: boolean } {
 
   const { attacker, target, rnd } = input;
 
@@ -282,15 +276,15 @@ function resolveHitDamage(input: {
 
 
   if (target.side === "party") {
-
-    const blockChance = effectiveBlockPct(target.combatMods.blockPct);
-
-    if (blockChance > 0 && rnd() * 100 < blockChance) {
-
-      return { damage: 0, kind: "normal", blocked: true };
-
+    const evasionChance = effectiveEvasionPct(target.combatMods.evasionPct);
+    if (evasionChance > 0 && rnd() * 100 < evasionChance) {
+      return { damage: 0, kind: "normal", blocked: false, evaded: true };
     }
 
+    const blockChance = effectiveBlockPct(target.combatMods.blockPct);
+    if (blockChance > 0 && rnd() * 100 < blockChance) {
+      return { damage: 0, kind: "normal", blocked: true };
+    }
   }
 
 
@@ -341,13 +335,13 @@ function resolveHitDamage(input: {
     const critChance = effectiveCritChancePct(attacker.combatMods.critChancePct);
 
     if (critChance > 0 && rnd() * 100 < critChance) {
-
       const critMult = 1 + Math.max(0, attacker.combatMods.critDmgPct) / 100;
-
       dmg = Math.max(1, Math.floor(dmg * critMult));
-
+      if (target.side === "party" && target.combatMods.critResistPct > 0) {
+        const resist = effectiveCritResistPct(target.combatMods.critResistPct);
+        dmg = Math.max(1, Math.floor(dmg * (1 - resist / 100)));
+      }
       return { damage: dmg, kind: "crit", blocked: false };
-
     }
 
   }
@@ -438,25 +432,25 @@ function performAttack(input: {
 
 
 
-  if (hit.blocked) {
-
+  if (hit.evaded) {
     log.push({
-
-      t: "block",
-
-      side: "party",
-
+      t: "evade",
+      side: target.side,
       actor: target.label,
-
       attacker: attacker.label,
-
     });
-
     return;
-
   }
 
-
+  if (hit.blocked) {
+    log.push({
+      t: "block",
+      side: target.side,
+      actor: target.label,
+      attacker: attacker.label,
+    });
+    return;
+  }
 
   target.hp = Math.max(0, target.hp - hit.damage);
 
@@ -480,7 +474,30 @@ function performAttack(input: {
 
   applyLifeSteal(attacker, hit.damage, log);
 
-
+  if (
+    attacker.side === "enemy" &&
+    target.side === "party" &&
+    hit.damage > 0 &&
+    target.combatMods.thornPct > 0 &&
+    attacker.hp > 0
+  ) {
+    const thornDmg = Math.max(
+      1,
+      Math.floor(hit.damage * (effectiveThornPct(target.combatMods.thornPct) / 100)),
+    );
+    attacker.hp = Math.max(0, attacker.hp - thornDmg);
+    log.push({
+      t: "hit",
+      side: "party",
+      actor: target.label,
+      target: attacker.label,
+      damage: thornDmg,
+      kind: "extra",
+    });
+    if (attacker.hp <= 0) {
+      log.push({ t: "ko", side: attacker.side, name: attacker.label });
+    }
+  }
 
   if (target.hp <= 0) {
 
@@ -518,6 +535,10 @@ export function estimateFloorWinChance(input: {
 
   enemyTags?: EnemyCombatTags;
 
+  enemyStatMult?: number;
+
+  enemyCombatMults?: DungeonEnemyCombatMults;
+
 }): number {
 
   const n = Math.max(8, Math.min(200, Math.floor(input.samples ?? 48)));
@@ -541,6 +562,10 @@ export function estimateFloorWinChance(input: {
       partyDamageMult: input.partyDamageMult,
 
       enemyTags: input.enemyTags,
+
+      enemyStatMult: input.enemyStatMult,
+
+      enemyCombatMults: input.enemyCombatMults,
 
     });
 
@@ -588,6 +613,11 @@ export function simulateFloorCombat(input: {
 
   enemyTags?: EnemyCombatTags;
 
+  /** 레이드 등 — 몬스터 CSV 스탯 배율 (기본 1) */
+  enemyStatMult?: number;
+  /** 던전 — HP·공격·방어 채널별 배율 */
+  enemyCombatMults?: DungeonEnemyCombatMults;
+
 }): { outcome: "WIN" | "LOSS"; log: CombatLogLine[]; partyHp: PartyHpSnapshot[] } {
 
   const rnd = input.rnd ?? Math.random;
@@ -598,7 +628,13 @@ export function simulateFloorCombat(input: {
 
   const enemyLabel = `[${input.enemy.name}]`;
 
-  const enemyStats = fighterStatsFromMonster(input.enemy.monster);
+  const baseEnemyStats = fighterStatsFromMonster(input.enemy.monster);
+  const enemyStats = input.enemyCombatMults
+    ? scaleFighterStatsByChannel(baseEnemyStats, input.enemyCombatMults)
+    : (() => {
+        const enemyStatMult = Math.max(1, input.enemyStatMult ?? 1);
+        return enemyStatMult > 1 ? scaleFighterStats(baseEnemyStats, enemyStatMult) : baseEnemyStats;
+      })();
 
   const log: CombatLogLine[] = [
 
@@ -701,6 +737,16 @@ export function simulateFloorCombat(input: {
     round += 1;
 
     const aliveParty = pickAlive(partyFighters, "party");
+    for (const fighter of aliveParty) {
+      const regen = fighter.combatMods.regenHpPerRound;
+      if (regen <= 0 || fighter.hp <= 0) continue;
+      const before = fighter.hp;
+      fighter.hp = Math.min(fighter.maxHp, fighter.hp + regen);
+      const actual = fighter.hp - before;
+      if (actual > 0) {
+        log.push({ t: "heal", side: "party", actor: fighter.label, amount: actual });
+      }
+    }
 
     const aliveEnemies = pickAlive(enemies, "enemy");
 

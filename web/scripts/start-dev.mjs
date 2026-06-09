@@ -18,6 +18,19 @@ function clearStaleDevRouteTypes() {
   }
 }
 
+/** Windows — .next/dev/server 잠금(errno -4094) 시 깨진 산출물 제거 */
+function clearStaleDevServerOutput() {
+  if (process.platform !== "win32") return;
+  const devServer = path.join(webRoot, ".next", "dev", "server");
+  if (!existsSync(devServer)) return;
+  try {
+    rmSync(devServer, { recursive: true, force: true });
+    console.log("[dev] cleared stale .next/dev/server (Windows cache lock fix)");
+  } catch {
+    /* ignore — 다른 프로세스가 잡고 있으면 killPort3000 후 재시도 */
+  }
+}
+
 function killPort3000() {
   try {
     const out = execSync('netstat -ano | findstr ":3000"', { encoding: "utf8" });
@@ -42,6 +55,7 @@ function killPort3000() {
 
 if (process.platform === "win32") {
   killPort3000();
+  clearStaleDevServerOutput();
 }
 
 clearStaleDevRouteTypes();
@@ -56,7 +70,13 @@ console.log("[dev] starting Next.js on http://localhost:3000…");
 const child = spawn(process.execPath, [nextBin, "dev", "--webpack"], {
   cwd: webRoot,
   stdio: "inherit",
-  env: process.env,
+  env: {
+    ...process.env,
+    // Windows 경로·백신·동기화 폴더에서 파일 감시/쓰기 오류 완화
+    ...(process.platform === "win32"
+      ? { WATCHPACK_POLLING: process.env.WATCHPACK_POLLING ?? "true" }
+      : {}),
+  },
 });
 
 child.on("error", (err) => {
