@@ -30,14 +30,25 @@ export function ForgeEquipGrid(props: {
   onToggleSelect?: (id: string) => void;
   toolbar?: ReactNode;
   emptyMessage?: string;
+  /** 분해 탭 — 상단 전체 너비 그리드 */
+  layout?: "rail" | "salvage";
 }) {
+  const gridLayout = props.layout ?? "rail";
   return (
-    <aside className="forge-equip-rail">
+    <aside className={`forge-equip-rail ${gridLayout === "salvage" ? "forge-equip-rail--salvage" : ""}`.trim()}>
       <div className="forge-rail__head">
         <p className="forge-rail__title">{props.title}</p>
       </div>
       {props.toolbar ? <div className="forge-rail__toolbar">{props.toolbar}</div> : null}
-      <div className="forge-equip-grid">
+      <div
+        className={[
+          "forge-equip-grid",
+          props.equipKind === "armor" ? "forge-equip-grid--armor" : "",
+          gridLayout === "salvage" ? "forge-equip-grid--salvage" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {props.items.length === 0 ? (
           <p className="forge-rail__empty">{props.emptyMessage ?? "없음"}</p>
         ) : (
@@ -47,7 +58,7 @@ export function ForgeEquipGrid(props: {
               : item.id === props.selectedId;
             const lv = item.enhanceLevel ?? 0;
             const icon = (
-              <ItemIcon itemId={item.baseItemId} size={44} className="item-icon forge-equip-cell__icon" />
+              <ItemIcon itemId={item.baseItemId} size={32} className="item-icon forge-equip-cell__icon" />
             );
             const iconWithTooltip = isWeaponItem(item, props.equipKind) ? (
               <WeaponTooltipHover weapon={{ ...item, identified: item.identified }}>
@@ -69,7 +80,7 @@ export function ForgeEquipGrid(props: {
                 }
                 aria-pressed={active}
               >
-                {iconWithTooltip}
+                <div className="forge-equip-cell__icon-slot">{iconWithTooltip}</div>
                 {props.multiSelect && active ? (
                   <span className="forge-equip-cell__check" aria-hidden>
                     ✓

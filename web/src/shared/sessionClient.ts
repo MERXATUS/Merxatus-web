@@ -72,12 +72,24 @@ export async function apiPostJson<T>(url: string, body: unknown): Promise<T> {
   const json = (await res.json().catch(() => ({}))) as T;
   if (!res.ok) throwApiError(json, res.status);
   invalidateApiCache("/api/me");
-  invalidateApiCache("/api/minions");
-  invalidateApiCache("/api/inventory");
-  invalidateApiCache("/api/dungeons");
-  invalidateApiCache("/api/raids");
-  invalidateApiCache("/api/tower");
-  invalidateApiCache("/api/trade");
+  if (url.includes("/dungeons/")) {
+    invalidateApiCache("/api/dungeons");
+    invalidateApiCache("/api/me/summary");
+  } else if (url.includes("/raids/")) {
+    invalidateApiCache("/api/raids");
+  } else if (url.includes("/tower/")) {
+    invalidateApiCache("/api/tower");
+  } else if (url.includes("/minions/")) {
+    invalidateApiCache("/api/minions");
+    invalidateApiCache("/api/me");
+  } else if (url.includes("/inventory/")) {
+    invalidateApiCache("/api/inventory");
+    invalidateApiCache("/api/me");
+  } else if (url.includes("/trade/")) {
+    invalidateApiCache("/api/trade");
+  } else if (url.includes("/market/")) {
+    invalidateApiCache("/api/me");
+  }
   return json;
 }
 

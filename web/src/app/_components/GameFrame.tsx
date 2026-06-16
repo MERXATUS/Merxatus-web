@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AuthTopBar } from "@/app/_components/AuthTopBar";
+import { LoginWelcomePanel } from "@/app/_components/LoginWelcomePanel";
 import { ChatPanel } from "@/app/_components/ChatPanel";
 import { GameFrameProvider } from "@/app/_components/GameFrameContext";
 import { HomeOverviewPanel } from "@/app/_components/HomeOverviewPanel";
@@ -35,7 +36,7 @@ import { prefetchCombatRoster } from "@/shared/combatRosterClient";
 import { googleAuthErrorMessage } from "@/shared/googleAuthErrors";
 import { API_CACHE_TTL } from "@/shared/apiCache";
 import type { MeDashboardLight } from "@/shared/meDashboard";
-import type { DungeonRunState, MeBootstrap, MeSummary } from "@/shared/meSummary";
+import type { DungeonRunState, MeSummary } from "@/shared/meSummary";
 import { useEscapeClose } from "@/shared/useEscapeClose";
 import { apiGetJson, apiGetJsonCached, apiPostJson, notifySessionChanged } from "@/shared/sessionClient";
 
@@ -51,23 +52,19 @@ const InventoryPanel = dynamic(
 );
 const WeaponEnhancePanel = dynamic(
   () => import("@/app/_components/WeaponEnhancePanel").then((m) => m.WeaponEnhancePanel),
-  { loading: () => panelLoading("강화소 불러오는 중…") },
-);
-const RoyalPanel = dynamic(
-  () => import("@/app/_components/RoyalPanel").then((m) => m.RoyalPanel),
-  { loading: () => panelLoading("황실 불러오는 중…") },
+  { loading: () => panelLoading("대장간 불러오는 중…") },
 );
 const DungeonsPanel = dynamic(
   () => import("@/app/_components/DungeonsPanel").then((m) => m.DungeonsPanel),
-  { loading: () => null },
+  { loading: () => panelLoading("던전 불러오는 중…") },
 );
 const RaidsPanel = dynamic(
   () => import("@/app/_components/RaidsPanel").then((m) => m.RaidsPanel),
-  { loading: () => null },
+  { loading: () => panelLoading("레이드 불러오는 중…") },
 );
 const TowerPanel = dynamic(
   () => import("@/app/_components/TowerPanel").then((m) => m.TowerPanel),
-  { loading: () => null },
+  { loading: () => panelLoading("무한의 탑 불러오는 중…") },
 );
 const RankingPanel = dynamic(
   () => import("@/app/_components/RankingPanel").then((m) => m.RankingPanel),
@@ -80,10 +77,6 @@ const PvpPanel = dynamic(
 const MinionManagementPanel = dynamic(
   () => import("@/app/_components/MinionManagementPanel").then((m) => m.MinionManagementPanel),
   { loading: () => panelLoading("미니언 불러오는 중…") },
-);
-const BlackMarketPanel = dynamic(
-  () => import("@/app/_components/BlackMarketPanel").then((m) => m.BlackMarketPanel),
-  { loading: () => panelLoading("암시장 불러오는 중…") },
 );
 
 function fmtInt(n: unknown) {
@@ -183,8 +176,6 @@ function GameFrameContent(props: {
       return <InventoryPanel embedded onOpenMinions={onOpenMinions} />;
     case "enhance":
       return <WeaponEnhancePanel embedded />;
-    case "royal":
-      return <RoyalPanel embedded />;
     case "dungeon":
       return <DungeonsPanel embedded />;
     case "raid":
@@ -197,8 +188,6 @@ function GameFrameContent(props: {
       return <RankingPanel embedded />;
     case "minions":
       return <MinionManagementPanel embedded />;
-    case "blackmarket":
-      return <BlackMarketPanel embedded />;
     default:
       return null;
   }
@@ -221,6 +210,7 @@ export function GameFrame() {
   const [error, setError] = useState<unknown>(null);
   const [summaryError, setSummaryError] = useState<unknown>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
   const [summary, setSummary] = useState<MeSummary | null>(null);
   const [dashboardLight, setDashboardLight] = useState<MeDashboardLight | null>(null);
   const [runState, setRunState] = useState<DungeonRunState | null>(null);
@@ -264,20 +254,24 @@ export function GameFrame() {
         setDashboardLight(null);
         setRunState(null);
         setSummaryLoading(false);
+        setDashboardLoading(false);
         return;
       }
+      let summaryLoaded = false;
       try {
-        const boot = await apiGetJsonCached<MeBootstrap>("/api/me/bootstrap", {
-          ttlMs: API_CACHE_TTL.bootstrap,
+        const nextSummary = await apiGetJsonCached<MeSummary>("/api/me/summary", {
+          ttlMs: API_CACHE_TTL.summary,
           force: opts?.force,
         });
-        if (!boot?.summary || !boot?.dashboard) {
-          throw new Error("BOOTSTRAP_INCOMPLETE");
-        }
-        setSummary(boot.summary);
-        setDashboardLight(boot.dashboard);
-        if (boot.summary.dungeon?.active && activeTab !== "dungeon") {
-          void apiGetJson<DungeonRunState>("/api/dungeons/run/state")
+        if (!nextSummary?.ok) throw new Error("SUMMARY_INCOMPLETE");
+        setSummary(nextSummary);
+        summaryLoaded = true;
+
+        if (nextSummary.dungeon?.active && activeTab !== "dungeon") {
+          void apiGetJsonCached<DungeonRunState>("/api/dungeons/run/state", {
+            ttlMs: API_CACHE_TTL.runState,
+            force: opts?.force,
+          })
             .then((rs) => {
               if (rs?.active) setRunState(rs);
               else setRunState(null);
@@ -291,6 +285,28 @@ export function GameFrame() {
         setError(e);
       } finally {
         setSummaryLoading(false);
+      }
+
+      if (!summaryLoaded) {
+        setDashboardLight(null);
+        setDashboardLoading(false);
+        return;
+      }
+
+      setDashboardLoading(true);
+      try {
+        const nextDashboard = await apiGetJsonCached<MeDashboardLight>("/api/me/dashboard", {
+          ttlMs: API_CACHE_TTL.dashboardLight,
+          force: opts?.force,
+        });
+        if (!nextDashboard?.ok) throw new Error("DASHBOARD_INCOMPLETE");
+        setDashboardLight(nextDashboard);
+        setSummaryError(null);
+      } catch (e) {
+        setSummaryError(e);
+        console.error("[GameFrame] dashboard load failed", e);
+      } finally {
+        setDashboardLoading(false);
       }
     },
     [sessionUser, activeTab],
@@ -369,6 +385,7 @@ export function GameFrame() {
       minionPanelTab,
       summary,
       summaryLoading,
+      dashboardLoading,
       dashboardLight,
       runState,
       refreshSummary,
@@ -383,6 +400,7 @@ export function GameFrame() {
       minionPanelTab,
       summary,
       summaryLoading,
+      dashboardLoading,
       dashboardLight,
       runState,
       refreshSummary,
@@ -446,7 +464,7 @@ export function GameFrame() {
                 sessionLoading ? (
                   <GamePanelLoading label="세션 확인 중…" />
                 ) : (
-                  <GamePanelInfo>로그인이 필요합니다. 화면 오른쪽 위에서 Google 로그인을 진행해 주세요.</GamePanelInfo>
+                  <LoginWelcomePanel />
                 )
               ) : (
                 <GameFrameContent

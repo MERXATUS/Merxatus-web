@@ -49,6 +49,7 @@ type RaidDef = {
 type MinionRow = PartyPickMinionRow & { pool?: string };
 type RunState = {
   active: boolean;
+  combatActive?: boolean;
   combat?: { isBoss?: boolean };
   lootMultiplier?: number;
   partySize?: number;
@@ -63,12 +64,15 @@ type RunState = {
 };
 
 type AdvanceResult = {
+  ok?: boolean;
   result: string;
   phase?: number;
   clearChance?: number;
   lootMultiplier?: number;
   goldGained?: number;
   loot?: DungeonLootRow[];
+  lootGained?: DungeonLootRow[];
+  pendingLoot?: DungeonLootRow[];
   forfeitedLoot?: DungeonLootRow[];
   combatLog?: CombatLogLine[];
   combatReplay?: DungeonCombatReplay;
@@ -87,30 +91,35 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [lastMsg, setLastMsg] = useState<string | null>(null);
+  const [combatActive, setCombatActive] = useState(false);
   const [playingLog, setPlayingLog] = useState(false);
   const [battleReplay, setBattleReplay] = useState<DungeonCombatReplay | null>(null);
   const [battleLines, setBattleLines] = useState<CombatLogLine[]>([]);
-  const [combatIsBoss, setCombatIsBoss] = useState(false);
   const [bossPickerOpen, setBossPickerOpen] = useState(false);
   const [difficultyStarTab, setDifficultyStarTab] = useState(1);
   const [factionTab, setFactionTab] = useState<RaidFaction>("demon");
   const pendingResultRef = useRef<AdvanceResult | null>(null);
   const [clearSettlement, setClearSettlement] = useState<DungeonSettlement | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     if (!user) return;
     setError(null);
+    setDataLoading(true);
     try {
       const [listR, stateR, roster] = await Promise.all([
         apiGetJsonCached<{ ok: boolean; raids: RaidDef[] }>("/api/raids/list", {
           ttlMs: API_CACHE_TTL.raidsList,
         }),
-        apiGetJson<RunState & { ok: boolean }>("/api/raids/run/state"),
+        apiGetJsonCached<RunState & { ok: boolean }>("/api/raids/run/state", {
+          ttlMs: API_CACHE_TTL.runState,
+        }),
         fetchCombatRoster(user.id),
       ]);
       setRaids(listR.raids ?? []);
       setRun(stateR);
       setMinions(roster);
+      // ATB 전투 상태가 남아 있어도 UI는 로그 전투로 통일한다.
       if (!selectedRaidId && listR.raids?.[0]) setSelectedRaidId(listR.raids[0].id);
       if (!stateR.active) {
         const cap = Math.max(1, listR.raids?.find((r) => r.id === (selectedRaidId || listR.raids?.[0]?.id))?.maxPartySize ?? 3);
@@ -118,6 +127,8 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
       }
     } catch (e) {
       setError(e);
+    } finally {
+      setDataLoading(false);
     }
   }, [user, selectedRaidId]);
 
@@ -274,6 +285,7 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
   }
 
   function finishBattlePlayback() {
+    setCombatActive(false);
     setPlayingLog(false);
     setBattleReplay(null);
     setBattleLines([]);
@@ -297,18 +309,29 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
     void refresh();
   }
 
-  function startBattlePlayback(adv: AdvanceResult) {
-    const lines = adv.combatLog ?? [];
-    const replay = adv.combatReplay ?? null;
-    if (!lines.length || !replay) {
-      finishBattlePlayback();
-      return;
+  async function startRaidCombat() {
+    if (!run?.run?.raidId) return;
+    setBusy("combat");
+    setLastMsg(null);
+    setError(null);
+    try {
+      const r = await apiPostJson<AdvanceResult>("/api/raids/run/advance", { raidId: run.run.raidId });
+      pendingResultRef.current = r;
+      const lines = r.combatLog ?? [];
+      const replay = r.combatReplay ?? null;
+      if (lines.length && replay) {
+        setBattleReplay(replay);
+        setBattleLines(lines);
+        setPlayingLog(true);
+        setCombatActive(true);
+      } else {
+        finishBattlePlayback();
+      }
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(null);
     }
-    pendingResultRef.current = adv;
-    setCombatIsBoss(!!adv.isBoss);
-    setBattleReplay(replay);
-    setBattleLines(lines);
-    setPlayingLog(true);
   }
 
   if (!embedded && sessionLoading) return <GamePanelLoading label="레이드 불러오는 중…" />;
@@ -343,7 +366,8 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
       </div>
 
       {error ? <GamePanelError className="mt-3" error={error} /> : null}
-      {lastMsg && !playingLog ? <p className="mt-2 text-sm text-[var(--game-gold-bright)]">{lastMsg}</p> : null}
+      {dataLoading && raids.length === 0 ? <GamePanelLoading label="레이드 불러오는 중…" /> : null}
+      {lastMsg && !combatActive ? <p className="mt-2 text-sm text-[var(--game-gold-bright)]">{lastMsg}</p> : null}
 
       {active && run?.run ? (
         <div className="mt-4 space-y-3">
@@ -362,37 +386,24 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
             playing={playingLog}
             replay={battleReplay}
             lines={battleLines}
-            isBoss={combatIsBoss || !!run.combat?.isBoss}
-            encounterLabel={combatIsBoss ? `${run.run.raidName} (보스)` : run.run.raidName}
-            floorLabel={run.run.maxPhases > 1 ? `페이즈 ${run.run.phase}` : run.run.raidName}
-            pendingSummary={pendingSummary || undefined}
             onComplete={finishBattlePlayback}
+            clearChance={null}
+            pendingSummary={pendingSummary}
+            floorLabel={run.run.maxPhases > 1 ? `페이즈 ${run.run.phase}` : "보스"}
+            isBoss={!!run.combat?.isBoss}
           />
 
           <div className="flex flex-wrap gap-2">
             <GameBtn
               variant="gold"
-              disabled={!!busy || playingLog}
-              onClick={async () => {
-                setBusy("advance");
-                setLastMsg(null);
-                try {
-                  const r = await apiPostJson<AdvanceResult>("/api/raids/run/advance", {
-                    raidId: run.run!.raidId,
-                  });
-                  startBattlePlayback(r);
-                } catch (e) {
-                  setError(e);
-                } finally {
-                  setBusy(null);
-                }
-              }}
+              disabled={!!busy || combatActive}
+              onClick={() => void startRaidCombat()}
             >
-              {playingLog ? "전투 중…" : run.run.maxPhases > 1 ? "다음 페이즈" : "보스 도전"}
+              {combatActive ? "전투 중…" : run.run.maxPhases > 1 ? "다음 페이즈" : "보스 도전"}
             </GameBtn>
             <GameBtn
               variant="ghost"
-              disabled={!!busy || playingLog}
+              disabled={!!busy || combatActive}
               onClick={async () => {
                 setBusy("stop");
                 try {

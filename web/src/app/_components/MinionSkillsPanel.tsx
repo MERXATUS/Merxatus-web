@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GameBtn } from "@/app/_components/gameUi";
 import type { MinionSkillView } from "@/shared/minionSkills";
+import { skillCombatPreviewLines } from "@/shared/skillCombatPreview";
 import { useHoldRepeat } from "@/shared/useHoldRepeat";
 
 type SkillDraft = Record<string, number>;
@@ -40,6 +41,18 @@ function SkillStepButton(props: {
   );
 }
 
+function SkillCombatPreview(props: { skillId: string; level: number }) {
+  const lines = skillCombatPreviewLines(props.skillId, Math.max(1, props.level));
+  if (!lines.length) return null;
+  return (
+    <ul className="minion-skills__preview">
+      {lines.map((line) => (
+        <li key={line}>{line}</li>
+      ))}
+    </ul>
+  );
+}
+
 function SkillAllocateCard(props: {
   skill: MinionSkillView;
   draft: SkillDraft;
@@ -55,7 +68,6 @@ function SkillAllocateCard(props: {
   const add = draft[skill.id] ?? 0;
   const cur = skill.level;
   const preview = cur + add;
-  const atCap = preview >= skill.maxLevel;
   const spent = draftTotal(draft);
   const remaining = unspentSkillPoints - spent;
   const changed = add > 0;
@@ -70,7 +82,6 @@ function SkillAllocateCard(props: {
         const rem = unspentSkillPoints - draftTotal(prev);
         if (rem <= 0) return false;
         if (!skill.unlocked && curDraft <= 0 && rem < 1) return false;
-        if (skill.level + curDraft >= skill.maxLevel) return false;
         next[skill.id] = curDraft + 1;
       } else {
         if (curDraft <= 0) return false;
@@ -91,14 +102,22 @@ function SkillAllocateCard(props: {
         <div className="minion-skills__item-head">
           <span className="minion-skills__name">
             {skill.name}
+            <span className="minion-skills__tier">{skill.kindLabel}</span>
             <span className="minion-skills__tier">{skill.tierLabel}</span>
           </span>
           <span className="minion-skills__level">
             {skill.unlocked ? `Lv ${cur}` : "미습득"}
           </span>
         </div>
-        <p className="minion-skills__desc">{skill.unlocked ? skill.effectSummary : skill.description}</p>
-        {!skill.unlocked ? <p className="minion-skills__hint">{skill.acquireHint}</p> : null}
+        <p className="minion-skills__desc">{skill.description}</p>
+        {skill.unlocked ? (
+          <SkillCombatPreview skillId={skill.id} level={cur} />
+        ) : (
+          <>
+            <p className="minion-skills__hint">{skill.acquireHint}</p>
+            <SkillCombatPreview skillId={skill.id} level={1} />
+          </>
+        )}
       </li>
     );
   }
@@ -116,6 +135,7 @@ function SkillAllocateCard(props: {
       <div className="minion-skills__item-head">
         <span className="minion-skills__name">
           {skill.name}
+          <span className="minion-skills__tier">{skill.kindLabel}</span>
           <span className="minion-skills__tier">{skill.tierLabel}</span>
         </span>
         <span className="minion-skills__level">
@@ -133,10 +153,15 @@ function SkillAllocateCard(props: {
         </span>
       </div>
       <p className="minion-skills__desc">{skill.description}</p>
-      {skill.unlocked && skill.effectSummary ? (
-        <p className="minion-skills__effect">{skill.effectSummary}</p>
+      {preview > 0 || add > 0 ? (
+        <SkillCombatPreview skillId={skill.id} level={Math.max(1, preview)} />
+      ) : skill.unlocked ? (
+        <SkillCombatPreview skillId={skill.id} level={cur} />
       ) : (
-        <p className="minion-skills__hint">{skill.acquireHint}</p>
+        <>
+          <p className="minion-skills__hint">{skill.acquireHint}</p>
+          <SkillCombatPreview skillId={skill.id} level={1} />
+        </>
       )}
       <div className="minion-skills__card-actions">
         <SkillStepButton
@@ -154,7 +179,7 @@ function SkillAllocateCard(props: {
         <SkillStepButton
           delta={1}
           className="minion-skills__step minion-skills__step--plus"
-          disabled={!!busy || remaining <= 0 || atCap}
+          disabled={!!busy || remaining <= 0}
           onStep={tryPlus}
           ariaLabel={`${skill.name} 1 증가`}
         />
@@ -170,12 +195,14 @@ export function MinionSkillsPanel(props: {
   compact?: boolean;
   busy?: boolean;
   onApply?: (allocation: SkillDraft) => void | Promise<void>;
+  onReset?: () => void | Promise<void>;
 }) {
-  const { skills, unspentSkillPoints, compact, busy, onApply } = props;
+  const { skills, unspentSkillPoints, compact, busy, onApply, onReset } = props;
   if (skills.length === 0) return null;
 
   const [draft, setDraft] = useState<SkillDraft>(() => emptyDraft(skills));
   const canAllocate = unspentSkillPoints > 0 && !!onApply;
+  const hasAllocatedSkills = skills.some((s) => s.level > 1);
 
   useEffect(() => {
     setDraft(emptyDraft(skills));
@@ -187,7 +214,14 @@ export function MinionSkillsPanel(props: {
   if (compact && !canAllocate) {
     return (
       <div className="minion-skills minion-skills--compact">
-        <span className="minion-skills__title">스킬</span>
+        <div className="minion-skills__head">
+          <span className="minion-skills__title">스킬</span>
+          {hasAllocatedSkills && onReset ? (
+            <GameBtn variant="ghost" className="minion-skills__reset-btn" disabled={!!busy} onClick={() => void onReset()}>
+              초기화
+            </GameBtn>
+          ) : null}
+        </div>
         <ul className="minion-skills__chips">
           {skills.map((skill) => (
             <li key={skill.id} className="minion-skills__chip">
@@ -204,15 +238,26 @@ export function MinionSkillsPanel(props: {
     <div className={["minion-skills", canAllocate ? "minion-skills--active" : ""].filter(Boolean).join(" ")}>
       <div className="minion-skills__head">
         <div className="minion-skills__title">스킬</div>
-        {canAllocate ? (
+        {canAllocate || (hasAllocatedSkills && onReset) ? (
           <div className="minion-skills__allocate-head">
-            <div className="minion-skills__points">
-              <span className="minion-skills__points-badge">{remaining}</span>
-              <span className="minion-skills__points-label">포인트 남음</span>
+            {canAllocate ? (
+              <div className="minion-skills__points">
+                <span className="minion-skills__points-badge">{remaining}</span>
+                <span className="minion-skills__points-label">포인트 남음</span>
+              </div>
+            ) : null}
+            <div className="minion-skills__head-actions">
+              {hasAllocatedSkills && onReset ? (
+                <GameBtn variant="ghost" disabled={!!busy} onClick={() => void onReset()}>
+                  초기화
+                </GameBtn>
+              ) : null}
+              {canAllocate ? (
+                <GameBtn variant="primary" disabled={!!busy || spent <= 0} onClick={() => void onApply?.(draft)}>
+                  적용
+                </GameBtn>
+              ) : null}
             </div>
-            <GameBtn variant="primary" disabled={!!busy || spent <= 0} onClick={() => void onApply?.(draft)}>
-              적용
-            </GameBtn>
           </div>
         ) : null}
       </div>

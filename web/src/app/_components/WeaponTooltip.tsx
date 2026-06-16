@@ -69,7 +69,7 @@ export function WeaponTooltipContent({ weapon }: { weapon: WeaponTooltipData }) 
       </div>
       {enhance > 0 ? (
         <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
-          <span>강화 (+{weapon.enhanceLevel})</span>
+          <span>제련 (+{weapon.enhanceLevel})</span>
           <span>+{enhance}</span>
         </div>
       ) : null}

@@ -1524,7 +1524,10 @@ body:has(.game-frame) {
   flex: 1;
   flex-direction: column;
   gap: 0.25rem;
-  overflow: hidden;
+  overflow-x: hidden;
+  /* 평소엔 스크롤 없음. 상단+스탯이 너무 길어 스킬이 잘릴 때만 바깥 스크롤 */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .minion-detail-stack--fit .minion-detail-head--fit {
@@ -1629,8 +1632,8 @@ body:has(.game-frame) {
 
 .minion-detail-stack--fit .minion-skills:not(.minion-skills--compact) {
   display: flex;
-  min-height: 0;
-  flex: 1;
+  flex: 1 1 5.5rem;
+  min-height: 5.5rem;
   flex-direction: column;
   padding: 0.28rem 0.32rem;
   border-radius: 0.45rem;
@@ -1663,9 +1666,10 @@ body:has(.game-frame) {
 
 .minion-detail-stack--fit .minion-skills__list {
   min-height: 0;
-  flex: 1;
+  flex: 1 1 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   gap: 0.22rem;
 }
 
@@ -1692,7 +1696,13 @@ body:has(.game-frame) {
 }
 
 .minion-detail-stack--fit .minion-skills__effect {
-  display: none;
+  margin-top: 0.08rem;
+  font-size: 0.5rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .minion-detail-stack--fit .minion-skills__card-actions {
@@ -1713,6 +1723,8 @@ body:has(.game-frame) {
 
 .minion-detail-stack--fit .minion-skills--compact {
   flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: flex-start;
   padding: 0.18rem 0.28rem;
 }
 
@@ -1856,23 +1868,23 @@ body:has(.game-frame) {
   max-height: none;
 }
 
+.enhance-forge__layout--tri .forge-equip-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .enhance-forge--fit .forge-equip-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.35rem;
   align-content: start;
+}
+
+.enhance-forge--fit .enhance-forge__layout--tri .forge-equip-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .enhance-forge--fit .forge-equip-cell {
   overflow: hidden;
   min-width: 0;
   min-height: 0;
-}
-
-.enhance-forge--fit .forge-equip-cell__icon {
-  width: 100%;
-  height: 100%;
-  max-width: 2.1rem;
-  max-height: 2.1rem;
 }
 
 .enhance-forge--fit .forge-material-cell__icon,
@@ -3211,6 +3223,82 @@ body:has(.game-frame) {
   color: var(--game-text);
 }
 
+.login-welcome {
+  position: relative;
+  margin: 1.5rem auto;
+  max-width: 28rem;
+  padding: 1.5rem 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(212, 168, 83, 0.28);
+  background: rgba(0, 0, 0, 0.35);
+  text-align: center;
+  overflow: hidden;
+}
+
+.login-welcome__glow {
+  position: absolute;
+  inset: -40% -20% auto;
+  height: 70%;
+  background: radial-gradient(ellipse at center, rgba(212, 168, 83, 0.14), transparent 70%);
+  pointer-events: none;
+}
+
+.login-welcome__eyebrow {
+  position: relative;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--game-gold-bright);
+}
+
+.login-welcome__title {
+  position: relative;
+  margin: 0.45rem 0 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--game-text);
+}
+
+.login-welcome__lead {
+  position: relative;
+  margin: 0.65rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--game-muted);
+}
+
+.login-welcome__btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1rem;
+  min-height: 2.5rem;
+  padding: 0 1.1rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(212, 168, 83, 0.45);
+  background: linear-gradient(180deg, rgba(212, 168, 83, 0.22), rgba(212, 168, 83, 0.08));
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--game-gold-bright);
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.12s;
+}
+
+.login-welcome__btn:hover {
+  border-color: rgba(212, 168, 83, 0.7);
+  transform: translateY(-1px);
+}
+
+.login-welcome__hint {
+  position: relative;
+  margin: 0.85rem 0 0;
+  font-size: 0.72rem;
+  color: var(--game-muted);
+}
+
 /* 지휘관 프로필 — 상단 가로 바 */
 .profile-bar {
   padding: 0.65rem 1rem;
@@ -4169,8 +4257,10 @@ body:has(.game-frame) {
   margin: 0;
   padding: 0.35rem 1rem 0.75rem;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--game-muted);
+  min-height: 1.35rem;
 }
 
 .dungeon-arena-feed-extra {
@@ -4409,8 +4499,116 @@ body:has(.game-frame) {
 
 .combat-encounter__foot {
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
   margin-top: 0.35rem;
+}
+
+.combat-speed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.combat-speed--toolbar {
+  margin-top: 0.35rem;
+  margin-bottom: 0.35rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.combat-speed__label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--game-muted-dim);
+  margin-right: 0.15rem;
+}
+
+.combat-speed__btn {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.35rem;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0.2rem 0.45rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--game-muted);
+  cursor: pointer;
+}
+
+.combat-speed__btn:hover {
+  color: var(--game-text);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.combat-speed__btn--active {
+  color: var(--game-gold-bright);
+  border-color: rgba(250, 204, 21, 0.35);
+  background: rgba(250, 204, 21, 0.08);
+}
+
+.combat-speed__btn--skip {
+  color: #fca5a5;
+}
+
+.combat-log {
+  margin-top: 0.45rem;
+  max-height: 9.5rem;
+  overflow-y: auto;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.28);
+  padding: 0.35rem 0.55rem;
+  scrollbar-width: thin;
+}
+
+.combat-log__line {
+  margin: 0;
+  padding: 0.12rem 0;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--game-muted);
+  animation: dungeon-log-in 0.25s ease-out both;
+}
+
+.combat-log__line--crit {
+  color: #fde047;
+  font-weight: 700;
+}
+
+.combat-log__line--extra {
+  color: #fdba74;
+  font-weight: 600;
+}
+
+.combat-log__line--heal {
+  color: #86efac;
+  font-weight: 600;
+}
+
+.combat-log__line--block {
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.combat-log__line--skill {
+  color: #c4b5fd;
+  font-weight: 600;
+}
+
+.combat-log__divider {
+  margin: 0;
+  padding: 0.28rem 0 0.12rem;
+  text-align: center;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--game-muted-dim);
+  opacity: 0.85;
 }
 
 .combat-encounter__actions {
@@ -5021,6 +5219,67 @@ body:has(.game-frame) {
   max-height: min(88dvh, 36rem);
   overflow: hidden;
   animation: minion-recruit-fade-in 0.2s ease-out;
+}
+
+.minion-skills-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow: hidden;
+  background: rgba(4, 6, 12, 0.58);
+  backdrop-filter: blur(6px);
+  animation: minion-recruit-fade-in 0.2s ease-out;
+}
+
+.minion-skills-modal-panel {
+  display: flex;
+  width: 100%;
+  max-width: min(28rem, 100%);
+  max-height: min(88dvh, 34rem);
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  animation: minion-recruit-fade-in 0.2s ease-out;
+}
+
+.minion-skills-modal__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem 0.65rem;
+  border-bottom: 1px solid var(--game-border);
+}
+
+.minion-skills-modal__close {
+  flex-shrink: 0;
+  min-height: 1.75rem !important;
+  padding: 0.2rem 0.55rem !important;
+  font-size: 0.68rem !important;
+}
+
+.minion-skills-modal__body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.65rem 0.85rem 0.85rem;
+}
+
+.minion-skills-modal__body .minion-skills {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.minion-skills-modal__body .minion-skills__title {
+  display: none;
 }
 
 .dungeon-party-pick-panel .dungeon-party-pick-grid {
@@ -6391,6 +6650,14 @@ body:has(.game-frame) {
   margin-bottom: 0.55rem;
 }
 
+.minion-stat-allocate__head-actions,
+.minion-skills__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
 .minion-stat-allocate__title {
   font-size: 0.78rem;
   font-weight: 700;
@@ -6713,6 +6980,19 @@ body:has(.game-frame) {
   margin: 0.15rem 0 0;
   font-size: 0.62rem;
   color: rgba(250, 204, 21, 0.9);
+}
+
+.minion-skills__preview {
+  margin: 0.35rem 0 0;
+  padding: 0.35rem 0 0 0.9rem;
+  list-style: disc;
+  font-size: 0.62rem;
+  line-height: 1.45;
+  color: rgba(250, 204, 21, 0.88);
+}
+
+.minion-skills__preview li + li {
+  margin-top: 0.12rem;
 }
 
 .minion-skills__card-actions {
@@ -7772,6 +8052,40 @@ body:has(.game-frame) {
   color: var(--game-gold-bright);
 }
 
+.inventory-badge-lock {
+  border-radius: 0.375rem;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(71, 85, 105, 0.35);
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.inventory-lock-meta {
+  margin-left: 0.25rem;
+  color: var(--game-muted);
+  font-size: 0.8125rem;
+}
+
+.inventory-item-card--locked {
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.inventory-item-cell--locked .inventory-item-cell__lock {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 0.625rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.65));
+  pointer-events: none;
+}
+
+.inventory-item-cell__action--lock {
+  font-size: 0.625rem;
+}
+
 /* 메이플 스타일 아이템 툴팁 (인벤 무기 등) */
 .item-tooltip-trigger {
   cursor: default;
@@ -7794,6 +8108,16 @@ body:has(.game-frame) {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.item-tooltip--details-only {
+  min-width: 180px;
+  max-width: 260px;
+  padding: 0.55rem 0.65rem;
+}
+
+.item-tooltip--details-only .item-tooltip__desc:first-child {
+  margin-top: 0;
 }
 
 .item-tooltip {
@@ -8146,6 +8470,64 @@ body:has(.game-frame) {
 .item-tooltip__option-row--abyss .item-tooltip__option-realm-inline {
   background: rgba(167, 139, 250, 0.18);
   color: #c4b5fd;
+}
+
+.item-tooltip__option-row--void {
+  color: #a5f3fc;
+}
+
+.item-tooltip__option-row--void .item-tooltip__option-tier,
+.item-tooltip__option-row--void .item-tooltip__option-val {
+  color: #67e8f9;
+}
+
+.item-tooltip__option-row--void .item-tooltip__option-label,
+.item-tooltip__option-row--void .item-tooltip__option-affix {
+  color: #cffafe;
+}
+
+.item-tooltip__option-row--void .item-tooltip__option-realm-inline {
+  background: rgba(34, 211, 238, 0.16);
+  color: #67e8f9;
+}
+
+.forge-salvage-selection__icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.forge-equip-cell .item-tooltip-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-shrink: 1 !important;
+  overflow: hidden;
+}
+
+.forge-transfer-pick {
+  margin-top: 0.65rem;
+}
+
+.forge-transfer-pick .forge-equip-rail {
+  margin-top: 0.35rem;
+}
+
+.forge-transfer-pick .forge-equip-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-height: 8rem;
+  overflow-y: auto;
+}
+
+.forge-transfer-pick .forge-equip-grid--armor {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .item-tooltip__option-affix {
@@ -9667,9 +10049,86 @@ body:has(.game-frame) {
   max-height: min(36rem, calc(100dvh - 15rem));
   overflow-y: auto;
   padding: 0.55rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16.5rem), 1fr));
+  gap: 0.45rem;
+  align-content: start;
+}
+
+.forge-lobby__list--armor,
+.forge-lobby__list--list {
   display: flex;
   flex-direction: column;
+  grid-template-columns: unset;
+}
+
+.forge-lobby__list--icons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3.25rem, 1fr));
   gap: 0.45rem;
+  align-content: start;
+}
+
+.forge-lobby__view-toggle {
+  flex-shrink: 0;
+}
+
+.forge-lobby__view-toggle .inventory-view-btn {
+  flex: 0 0 auto;
+  min-width: 3rem;
+  height: 2rem;
+  padding: 0 0.55rem;
+  font-size: 0.7rem;
+}
+
+.forge-lobby__icon-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  min-height: 3.25rem;
+  padding: 0;
+  border-radius: 0.65rem;
+  border: 1px solid transparent;
+  background: rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.12s;
+}
+
+.forge-lobby__icon-cell:hover {
+  border-color: rgba(212, 168, 83, 0.45);
+  background: rgba(212, 168, 83, 0.08);
+  transform: translateY(-1px);
+}
+
+.forge-lobby__icon-cell-badge {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  min-width: 1.1rem;
+  padding: 0 0.25rem;
+  border-radius: 0.35rem;
+  background: rgba(8, 10, 16, 0.88);
+  border: 1px solid rgba(212, 168, 83, 0.35);
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  color: var(--game-gold-bright);
+  pointer-events: none;
+}
+
+.forge-lobby__icon-cell-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #f472b6;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 
 .game-immersive .forge-lobby__list {
@@ -9681,6 +10140,10 @@ body:has(.game-frame) {
   font-size: 0.85rem;
   color: var(--game-muted);
   text-align: center;
+}
+
+.forge-lobby__list--icons .forge-lobby__empty {
+  grid-column: 1 / -1;
 }
 
 .forge-lobby__card {
@@ -9709,9 +10172,37 @@ body:has(.game-frame) {
 .forge-lobby__card-icon-wrap {
   position: relative;
   flex-shrink: 0;
+  width: 3.25rem;
+  height: 3.25rem;
+}
+
+.forge-lobby__card-icon-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.forge-lobby__card-icon-slot .item-tooltip-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-shrink: 1;
 }
 
 .forge-lobby__card-icon {
+  width: 3.25rem !important;
+  height: 3.25rem !important;
+  max-width: 100%;
+  max-height: 100%;
   filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
 }
 
@@ -10431,7 +10922,9 @@ body:has(.game-frame) {
 
 .forge-rail__toolbar {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.35rem;
   padding: 0.45rem 0.5rem;
   border-bottom: 1px solid var(--game-border);
@@ -10473,6 +10966,10 @@ body:has(.game-frame) {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.forge-equip-grid--armor {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .forge-material-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -10486,22 +10983,46 @@ body:has(.game-frame) {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-shrink: 1 !important;
+  overflow: hidden;
 }
 
 .forge-equip-cell {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   aspect-ratio: 1;
-  padding: 0.25rem;
+  padding: 0.2rem;
   border-radius: 0.55rem;
   border: 1px solid transparent;
   background: rgba(0, 0, 0, 0.25);
   cursor: pointer;
   overflow: hidden;
   min-width: 0;
+  isolation: isolate;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.forge-equip-cell__icon-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.forge-equip-cell__icon-slot .item-tooltip-trigger {
+  pointer-events: auto;
 }
 
 .forge-equip-cell:hover {
@@ -10595,11 +11116,21 @@ body:has(.game-frame) {
 }
 
 .forge-equip-cell__icon {
-  width: 2.75rem;
-  height: 2.75rem;
-  max-width: 100%;
-  max-height: 100%;
-  flex-shrink: 0;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 2.15rem;
+  max-height: 2.15rem;
+  flex-shrink: 1;
+}
+
+.forge-equip-cell__icon img {
+  padding: 2px;
+  object-fit: contain;
+}
+
+.enhance-forge--fit .forge-equip-cell__icon {
+  max-width: 1.85rem;
+  max-height: 1.85rem;
 }
 
 .forge-equip-cell__badge {
@@ -10741,11 +11272,14 @@ button.forge-material-cell--active {
 
 .forge-hub__kind-toggle {
   display: flex;
+  flex-wrap: nowrap;
   gap: 0.35rem;
+  width: 100%;
 }
 
 .forge-hub__kind {
   flex: 1;
+  min-width: 3rem;
   padding: 0.35rem 0.5rem;
   border-radius: 0.45rem;
   border: 1px solid var(--game-border);
@@ -10754,6 +11288,8 @@ button.forge-material-cell--active {
   font-weight: 600;
   color: var(--game-muted);
   cursor: pointer;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
 }
 
 .forge-hub__kind--active {
@@ -10812,7 +11348,20 @@ button.forge-material-cell--active {
 }
 
 .forge-tool-card--empty {
-  opacity: 0.45;
+  opacity: 0.55;
+}
+
+.forge-tool-card--empty:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.forge-tool-card--empty.forge-tool-card--active {
+  opacity: 1;
+}
+
+.forge-tool-card-wrap,
+.forge-material-cell-wrap {
+  display: contents;
 }
 
 .forge-tool-card__glyph {
@@ -10859,6 +11408,14 @@ button.forge-material-cell--active {
 }
 
 .forge-tool-picker__detail-desc,
+.forge-tool-picker__detail-warn {
+  margin: 0.2rem 0 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(251, 191, 36, 0.92);
+}
+
 .forge-tool-picker__detail-hint,
 .forge-tool-picker__hint,
 .forge-tool-picker__target {
@@ -10909,6 +11466,12 @@ button.forge-material-cell--active {
 .forge-option-chip__val {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+.forge-option-chip--more {
+  opacity: 0.9;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.18);
 }
 
 .forge-link-banner {
@@ -11060,6 +11623,102 @@ button.forge-material-cell--active {
   grid-template-columns: minmax(10.5rem, 13.5rem) minmax(0, 1fr) minmax(6.5rem, 9.5rem);
 }
 
+.enhance-forge__layout--salvage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: auto;
+  flex: 1;
+}
+
+.enhance-forge__layout--salvage .forge-equip-rail--salvage {
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.enhance-forge__layout--salvage .forge-rail__toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.4rem 0.5rem;
+}
+
+.enhance-forge__layout--salvage .forge-rail__toolbar .forge-hub__kind-toggle {
+  grid-column: 1;
+}
+
+.enhance-forge__layout--salvage .forge-rail__toolbar .market-input--search {
+  grid-column: 2;
+  min-width: 0;
+  width: 100%;
+}
+
+.enhance-forge__layout--salvage .forge-rail__toolbar .forge-salvage-toolbar {
+  grid-column: 1 / -1;
+}
+
+.forge-equip-grid--salvage {
+  grid-template-columns: repeat(auto-fill, minmax(3.15rem, 1fr));
+  gap: 0.45rem;
+  max-height: min(15rem, 38vh);
+  padding: 0.5rem;
+}
+
+.forge-equip-grid--salvage.forge-equip-grid--armor {
+  grid-template-columns: repeat(auto-fill, minmax(3.25rem, 1fr));
+}
+
+.forge-equip-grid--salvage .forge-equip-cell {
+  min-width: 3rem;
+  min-height: 3rem;
+  aspect-ratio: 1;
+}
+
+.forge-equip-grid--salvage .forge-equip-cell__icon {
+  max-width: 2.35rem;
+  max-height: 2.35rem;
+}
+
+.enhance-forge--fit .forge-equip-grid--salvage .forge-equip-cell__icon {
+  max-width: 2.1rem;
+  max-height: 2.1rem;
+}
+
+.enhance-forge__salvage-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(9rem, 12rem);
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.enhance-forge__salvage-body .enhance-forge__stage {
+  min-width: 0;
+}
+
+.enhance-forge__salvage-body .forge-salvage-rail {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .enhance-forge__salvage-body {
+    grid-template-columns: 1fr;
+  }
+
+  .enhance-forge__layout--salvage .forge-rail__toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .enhance-forge__layout--salvage .forge-rail__toolbar .market-input--search {
+    grid-column: 1;
+  }
+
+  .forge-equip-grid--salvage {
+    max-height: min(13rem, 32vh);
+  }
+}
+
 .enhance-forge__stage {
   min-width: 0;
 }
@@ -11103,14 +11762,198 @@ button.forge-material-cell--active {
 
   .enhance-forge__layout--tri .forge-equip-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    max-height: 9rem;
+    max-height: 12rem;
+  }
+
+  .enhance-forge__layout--tri .forge-equip-grid--armor {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 768px) {
-  .enhance-forge__layout {
+/* ── Mobile: game shell & 대장간 ── */
+@media (max-width: 640px) {
+  .game-frame__content {
+    padding: 0.3rem;
+    padding-bottom: calc(2.85rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .game-frame__nav {
+    gap: 0.2rem;
+    padding-bottom: 0.1rem;
+    mask-image: linear-gradient(90deg, transparent, #000 0.5rem, #000 calc(100% - 0.5rem), transparent);
+  }
+
+  .game-frame__nav-label {
+    display: none;
+  }
+
+  .game-frame__nav-btn {
+    min-width: 2.4rem;
+    height: 2.35rem;
+    padding: 0 0.45rem;
+  }
+
+  .game-frame__nav-glyph {
+    font-size: 1rem;
+  }
+
+  .game-frame__hud-row {
+    gap: 0.35rem;
+  }
+
+  .game-frame__status-chip {
+    font-size: 0.54rem;
+    padding: 0.18rem 0.4rem;
+  }
+
+  .forge-hub__header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .forge-hub__modes {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 0.15rem;
+  }
+
+  .forge-hub__modes::-webkit-scrollbar {
+    display: none;
+  }
+
+  .forge-hub__mode {
+    flex: 0 0 auto;
+    min-height: 2.5rem;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .forge-hub__subtitle {
+    display: none;
+  }
+
+  .forge-lobby__banner {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .forge-lobby__title {
+    font-size: 1.05rem;
+  }
+
+  .forge-lobby__lead {
+    font-size: 0.75rem;
+  }
+
+  .forge-lobby__list {
     grid-template-columns: 1fr;
-    min-height: auto;
+    max-height: none;
+  }
+
+  .forge-lobby__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .forge-lobby__toolbar .market-input--search,
+  .forge-lobby__toolbar .market-input--select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .forge-rail__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .forge-rail__toolbar .market-input--search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .enhance-forge__layout--tri .forge-equip-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    max-height: 13rem;
+  }
+
+  .enhance-forge__layout--tri .forge-equip-grid--armor {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .forge-equip-cell {
+    min-height: 2.85rem;
+  }
+
+  .forge-material-grid,
+  .forge-tool-grid--rail {
+    grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
+  }
+
+  .enhance-forge__layout--bench .forge-material-rail,
+  .enhance-forge__layout--tri .forge-material-rail,
+  .enhance-forge__layout--tri .forge-tool-picker--rail {
+    max-height: none;
+  }
+
+  .forge-tool-picker--rail {
+    padding: 0.55rem;
+  }
+
+  .forge-tool-picker__actions .game-btn,
+  .enhance-forge__action {
+    width: 100%;
+    min-height: 2.75rem;
+  }
+
+  .enhance-bench__focus {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .enhance-bench__body {
+    align-items: center;
+    text-align: center;
+  }
+
+  .forge-salvage-selection__list {
+    max-height: 7rem;
+  }
+
+  .forge-transfer-pick .forge-equip-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    max-height: 10rem;
+  }
+
+  .forge-protect-toggle {
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-frame__content {
+    padding: 0.25rem;
+    padding-bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .enhance-forge__layout--tri .forge-equip-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .enhance-forge__layout--tri .forge-equip-grid--armor {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .forge-lobby__card-icon-wrap {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .forge-lobby__card-icon {
+    width: 2.75rem !important;
+    height: 2.75rem !important;
   }
 }
 
@@ -13340,5 +14183,510 @@ button.black-trade__btn--sell:disabled {
 
 .dungeon-settlement__section--forfeit .dungeon-settlement__loot-qty {
   color: #f87171;
+}
+
+/* —— ATB 실시간 전투 (레이드) —— */
+.atb-arena {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.85), rgba(2, 6, 23, 0.92));
+  overflow: visible;
+}
+
+.atb-arena--idle {
+  min-height: 5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.atb-arena__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--game-muted);
+}
+
+.atb-arena__banner {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--game-gold-bright);
+  letter-spacing: 0.02em;
+}
+
+.atb-arena__party {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.atb-arena__vs {
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--game-muted);
+  opacity: 0.7;
+}
+
+.atb-arena__enemy {
+  display: flex;
+  justify-content: center;
+}
+
+.atb-fighter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 0.375rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  overflow: visible;
+}
+
+.atb-fighter--dead {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+
+.atb-fighter--enemy {
+  max-width: 16rem;
+  margin: 0 auto;
+  border-color: rgba(248, 113, 113, 0.25);
+  background: rgba(127, 29, 29, 0.12);
+}
+
+.atb-fighter--ready {
+  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.35);
+}
+
+.atb-fighter--acting {
+  animation: atb-fighter-act 0.38s ease-out;
+}
+
+@keyframes atb-fighter-act {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  35% {
+    transform: scale(1.03);
+    filter: brightness(1.25);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.atb-fighter__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.atb-fighter__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.atb-fighter__name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--game-text);
+}
+
+.atb-fighter__row {
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+
+.atb-fighter__hp-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  overflow: visible;
+  z-index: 1;
+}
+
+.atb-fighter__hp-wrap--enemy {
+  min-height: 2.5rem;
+}
+
+.atb-float-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 4;
+}
+
+.atb-fighter__aps {
+  font-size: 0.5625rem;
+  color: var(--game-muted);
+  margin-left: 0.25rem;
+}
+
+.atb-fighter__hp-track {
+  flex: 1;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.atb-fighter__hp-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #15803d, #4ade80);
+  transition: width 0.15s linear;
+}
+
+.atb-fighter--enemy .atb-fighter__hp-fill {
+  background: linear-gradient(90deg, #b91c1c, #f87171);
+}
+
+.atb-fighter__hp-text {
+  font-size: 0.625rem;
+  color: var(--game-muted);
+  white-space: nowrap;
+}
+
+.atb-lane {
+  display: none;
+}
+
+.atb-lane__track {
+  position: relative;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: visible;
+}
+
+.atb-lane__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1d4ed8, #60a5fa);
+  will-change: width;
+}
+
+.atb-lane__fill--ready {
+  background: linear-gradient(90deg, #ca8a04, #fde047);
+  box-shadow: 0 0 8px rgba(250, 204, 21, 0.45);
+}
+
+.atb-lane__marker {
+  position: absolute;
+  top: 50%;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-left: -0.225rem;
+  margin-top: -0.225rem;
+  border-radius: 999px;
+  background: #f8fafc;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.65);
+  pointer-events: none;
+  will-change: left;
+}
+
+.atb-float {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 0.875rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  pointer-events: none;
+  animation: atb-float-rise 0.58s ease-out forwards;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  z-index: 5;
+  white-space: nowrap;
+}
+
+.atb-float--damage {
+  color: #ef4444;
+  font-size: 0.9375rem;
+}
+
+.atb-float--crit {
+  color: #fde047;
+  font-size: 1.0625rem;
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.55), 0 1px 4px rgba(0, 0, 0, 0.9);
+}
+
+.atb-float--heal {
+  color: #86efac;
+  font-size: 0.8125rem;
+}
+
+.atb-float--lifesteal {
+  color: #c084fc;
+  font-size: 0.8125rem;
+  font-weight: 800;
+}
+
+/* 전투 플로팅 데미지 */
+@keyframes atb-float-rise {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-1.35rem) scale(0.92);
+  }
+}
+
+.atb-arena__result {
+  text-align: center;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  padding: 0.35rem;
+  border-radius: 0.375rem;
+}
+
+.atb-arena__result--win {
+  color: #86efac;
+  background: rgba(22, 101, 52, 0.25);
+}
+
+.atb-arena__result--loss {
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.25);
+}
+
+.atb-arena--compact .atb-fighter {
+  padding: 0.35rem;
+}
+
+.atb-arena__boss-phase {
+  color: #fde047;
+}
+
+.combat-encounter {
+  position: relative;
+  overflow: visible;
+}
+
+.dungeon-body-fit > *:last-child,
+.dungeon-body-fit .combat-encounter,
+.panel-fit .combat-encounter {
+  overflow: visible;
+}
+
+.atb-combat__enemy {
+  overflow: visible;
+}
+
+.atb-combat__floater {
+  position: absolute;
+  right: 0.35rem;
+  top: -0.35rem;
+  font-weight: 800;
+  font-size: 0.9375rem;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 20;
+  white-space: nowrap;
+  animation: atb-damage-float 0.78s ease-out forwards;
+}
+
+.atb-combat__floater--heal {
+  left: 0.35rem;
+  right: auto;
+  top: 0.35rem;
+  font-size: 0.8125rem;
+  color: #6ee7b7;
+  text-shadow: 0 0 8px rgba(52, 211, 153, 0.55);
+  animation: atb-heal-float 0.82s ease-out forwards;
+}
+
+.atb-combat__damage {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.atb-combat__damage--party {
+  color: #fda4af;
+}
+
+.atb-combat__damage--enemy {
+  color: #f87171;
+  text-shadow: 0 0 10px rgba(248, 113, 113, 0.55);
+}
+
+.atb-combat__damage--crit {
+  font-size: 1rem;
+  color: #fde047;
+  text-shadow: 0 0 12px rgba(250, 204, 21, 0.7);
+}
+
+.atb-combat__damage--extra {
+  font-size: 0.8125rem;
+  color: #67e8f9;
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.5);
+}
+
+.atb-combat__lifesteal {
+  color: #c084fc !important;
+  text-shadow: 0 0 8px rgba(192, 132, 252, 0.55);
+}
+
+@keyframes atb-damage-float {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1.05);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.95);
+  }
+}
+
+@keyframes atb-heal-float {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1.05);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.95);
+  }
+}
+
+/* —— 전투 리포트 —— */
+.combat-report {
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.combat-report__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  margin-bottom: 0.5rem;
+}
+
+.combat-report__title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--game-text);
+}
+
+.combat-report__outcome {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+}
+
+.combat-report__outcome--win {
+  color: #86efac;
+  background: rgba(22, 101, 52, 0.35);
+}
+
+.combat-report__outcome--loss {
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.35);
+}
+
+.combat-report__duration {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  color: var(--game-muted);
+}
+
+.combat-report__section {
+  margin-top: 0.45rem;
+}
+
+.combat-report__label {
+  margin: 0 0 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--game-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.combat-report__row {
+  display: grid;
+  grid-template-columns: minmax(4rem, 28%) 1fr auto;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+}
+
+.combat-report__row--plain {
+  grid-template-columns: 1fr auto;
+}
+
+.combat-report__name {
+  font-size: 0.6875rem;
+  color: var(--game-text);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.combat-report__bar-track {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.combat-report__bar-fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.combat-report__bar-fill--dealt {
+  background: linear-gradient(90deg, #b91c1c, #f87171);
+}
+
+.combat-report__bar-fill--dealt.combat-report__bar-fill--enemy {
+  background: linear-gradient(90deg, #7c2d12, #fb923c);
+}
+
+.combat-report__bar-fill--taken {
+  background: linear-gradient(90deg, #1d4ed8, #93c5fd);
+}
+
+.combat-report__value {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--game-muted);
+}
+
+.combat-report__value--heal {
+  color: #86efac;
+}
+
+.combat-report--compact .combat-report__row {
+  grid-template-columns: minmax(3rem, 32%) 1fr auto;
 }
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
+import { stackAvailableQty, takeAvailableFromStack } from "@/server/inventoryStackOps";
 import { weaponUpgradeCostForNextLevel } from "@/server/weaponUpgradeRules";
 
 export const runtime = "nodejs";
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
         const st = await tx.inventoryStack.findUnique({
           where: { userId_itemId: { userId: auth.userId, itemId: m.itemId } },
         });
-        const q = st?.quantity ?? 0;
+        const q = st ? stackAvailableQty(st) : 0;
         if (q < m.quantity) throw new Error(`INSUFFICIENT_MATERIAL:${m.itemId}`);
       }
 
@@ -55,10 +56,7 @@ export async function POST(req: Request) {
         data: { goldAvailable: { decrement: cost.gold } },
       });
       for (const m of cost.materials) {
-        await tx.inventoryStack.update({
-          where: { userId_itemId: { userId: auth.userId, itemId: m.itemId } },
-          data: { quantity: { decrement: m.quantity } },
-        });
+        await takeAvailableFromStack(tx, auth.userId, m.itemId, m.quantity);
       }
 
       const updated = await tx.userItemEnhancement.upsert({

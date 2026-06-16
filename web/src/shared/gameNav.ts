@@ -5,14 +5,12 @@ export type GameTabKey =
   | "market"
   | "inventory"
   | "enhance"
-  | "royal"
   | "dungeon"
   | "raid"
   | "tower"
   | "pvp"
   | "ranking"
-  | "minions"
-  | "blackmarket";
+  | "minions";
 
 export type MinionPanelTab = "dungeon";
 
@@ -38,9 +36,7 @@ export const GAME_TABS: GameTabDef[] = [
   { key: "market", label: "거래소", shortLabel: "거래", glyph: "¤", group: "trade" },
   { key: "inventory", label: "인벤토리", shortLabel: "인벤", glyph: "◆", group: "other" },
   { key: "minions", label: "미니언", shortLabel: "미니언", glyph: "●", group: "other" },
-  { key: "enhance", label: "강화소", shortLabel: "강화", glyph: "＋", group: "other" },
-  { key: "royal", label: "황실", shortLabel: "황실", glyph: "♛", group: "trade" },
-  { key: "blackmarket", label: "암시장", shortLabel: "암시장", glyph: "☾", group: "trade" },
+  { key: "enhance", label: "대장간", shortLabel: "대장간", glyph: "⚒", group: "other" },
 ];
 
 const TAB_KEYS = new Set<GameTabKey>(GAME_TABS.map((t) => t.key));
@@ -50,8 +46,8 @@ const LEGACY_PANEL_MAP: Record<string, GameTabKey> = {
   gather: "dungeon",
   specialist: "dungeon",
   minions: "minions",
-  royal: "royal",
-  blackmarket: "blackmarket",
+  royal: "market",
+  blackmarket: "market",
   market: "market",
   dungeons: "dungeon",
   dungeon: "dungeon",
@@ -73,6 +69,7 @@ export function readStoredGameTab(): GameTabKey | null {
   try {
     const raw = sessionStorage.getItem(GAME_TAB_STORAGE_KEY);
     if (raw === "gather" || raw === "specialist") return "dungeon";
+    if (raw === "royal" || raw === "blackmarket") return "market";
     return isGameTabKey(raw) ? raw : null;
   } catch {
     return null;
@@ -100,6 +97,7 @@ export function resolveGameTab(pathname: string, searchParams: URLSearchParams):
 
   const tab = searchParams.get("tab");
   if (tab === "gather" || tab === "specialist") return "dungeon";
+  if (tab === "royal" || tab === "blackmarket") return "market";
   if (isGameTabKey(tab)) return tab;
 
   const panel = searchParams.get("panel");
@@ -135,8 +133,8 @@ export function gameTabLabel(tab: GameTabKey): string {
   return GAME_TABS.find((t) => t.key === tab)?.label ?? tab;
 }
 
-/** 인벤·거래소처럼 리스트가 길어 전체 패널 스크롤이 필요한 탭 */
-export const SCROLLABLE_GAME_TABS = new Set<GameTabKey>(["inventory", "market"]);
+/** 인벤·거래소·대장간처럼 리스트가 길어 전체 패널 스크롤이 필요한 탭 */
+export const SCROLLABLE_GAME_TABS = new Set<GameTabKey>(["inventory", "market", "enhance"]);
 
 export function isScrollableGameTab(tab: GameTabKey): boolean {
   return SCROLLABLE_GAME_TABS.has(tab);

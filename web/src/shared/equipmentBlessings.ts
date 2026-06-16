@@ -1,5 +1,5 @@
-/** 천계(접두) · 마계(접미) — 전투 루트 드랍 전용 */
-export type OptionRealm = "celestial" | "abyss";
+/** 천계(접두) · 마계(접미) · 공허(특수) */
+export type OptionRealm = "celestial" | "abyss" | "void";
 
 export type BlessedOptionFields = {
   realm?: OptionRealm;
@@ -74,7 +74,9 @@ const ABYSS_AFFIXES = [
 ] as const;
 
 export function realmLabelKo(realm: OptionRealm): string {
-  return realm === "celestial" ? "천계" : "마계";
+  if (realm === "celestial") return "천계";
+  if (realm === "abyss") return "마계";
+  return "공허";
 }
 
 export function defaultAffixForRealm(realm: OptionRealm): string {
@@ -107,7 +109,7 @@ export function blessedSlotRealms(totalSlots: number): OptionRealm[] {
 }
 
 export function isBlessedOption(opt: BlessedOptionFields): boolean {
-  return opt.realm === "celestial" || opt.realm === "abyss";
+  return opt.realm === "celestial" || opt.realm === "abyss" || opt.realm === "void";
 }
 
 export function itemHasBlessedOptions(options: BlessedOptionFields[] | undefined | null): boolean {

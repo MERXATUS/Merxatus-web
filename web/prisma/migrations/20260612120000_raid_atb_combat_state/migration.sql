@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "RaidRun" ADD COLUMN IF NOT EXISTS "combatStateJson" TEXT NOT NULL DEFAULT '';

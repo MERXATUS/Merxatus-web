@@ -92,6 +92,7 @@ export async function POST(req: Request) {
         promotionTier: promotion.promotionTier,
         canPromoteFirst: promotionInfo.canPromoteFirst,
         canPromoteSecond: promotionInfo.canPromoteSecond,
+        canPromoteThird: promotionInfo.canPromoteThird,
         skills: skillViewsForMinion({
           combatClass,
           skillLevelsJson: serializeMinionSkillLevels(allocated.skillLevels),
@@ -108,8 +109,7 @@ export async function POST(req: Request) {
       message === "MINION_NOT_FOUND" ||
       message.startsWith("UNKNOWN_SKILL:") ||
       message.startsWith("SKILL_NOT_AVAILABLE:") ||
-      message.startsWith("SKILL_LOCKED:") ||
-      message.startsWith("SKILL_CAP_EXCEEDED:")
+      message.startsWith("SKILL_LOCKED:")
         ? 400
         : message === "FORBIDDEN"
           ? 403

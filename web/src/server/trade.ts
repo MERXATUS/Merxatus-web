@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma, PRISMA_TX_OPTS } from "@/server/db";
 import { assertCanGrantEquipment } from "@/server/equipmentCapacity";
+import { takeAvailableFromStack } from "@/server/inventoryStackOps";
 
 export type TradeSide = "A" | "B";
 
@@ -136,20 +137,7 @@ async function escrowStacksForSide(
     const qty = Math.max(0, Math.floor(s.quantity ?? 0));
     if (!itemId || qty <= 0) continue;
 
-    const stack = await tx.inventoryStack.findUnique({
-      where: { userId_itemId: { userId: input.userId, itemId } },
-    });
-    if (!stack || stack.quantity < qty) throw new Error("INSUFFICIENT_ITEM");
-
-    // decrement first, then record escrow
-    if (stack.quantity === qty) {
-      await tx.inventoryStack.delete({ where: { userId_itemId: { userId: input.userId, itemId } } });
-    } else {
-      await tx.inventoryStack.update({
-        where: { userId_itemId: { userId: input.userId, itemId } },
-        data: { quantity: { decrement: qty } },
-      });
-    }
+    await takeAvailableFromStack(tx, input.userId, itemId, qty);
 
     await tx.tradeEscrowStack.upsert({
       where: { tradeId_userId_itemId: { tradeId: input.tradeId, userId: input.userId, itemId } },
@@ -177,17 +165,25 @@ async function lockInstancesForSide(
     if (it.kind === "WEAPON_INSTANCE") {
       const id = it.weaponInstanceId;
       if (!id) continue;
-      const w = await tx.weaponInstance.findUnique({ where: { id }, select: { id: true, userId: true, status: true } });
+      const w = await tx.weaponInstance.findUnique({
+        where: { id },
+        select: { id: true, userId: true, status: true, userLocked: true },
+      });
       if (!w || w.userId !== input.userId) throw new Error("WEAPON_INSTANCE_NOT_FOUND");
       if (w.status !== "OWNED") throw new Error("WEAPON_NOT_OWNED");
+      if (w.userLocked) throw new Error("ITEM_USER_LOCKED");
       continue;
     }
     if (it.kind === "ARMOR_INSTANCE") {
       const id = it.armorInstanceId;
       if (!id) continue;
-      const a = await tx.armorInstance.findUnique({ where: { id }, select: { id: true, userId: true, status: true } });
+      const a = await tx.armorInstance.findUnique({
+        where: { id },
+        select: { id: true, userId: true, status: true, userLocked: true },
+      });
       if (!a || a.userId !== input.userId) throw new Error("ARMOR_INSTANCE_NOT_FOUND");
       if (a.status !== "OWNED") throw new Error("ARMOR_INSTANCE_NOT_AVAILABLE");
+      if (a.userLocked) throw new Error("ITEM_USER_LOCKED");
     }
   }
 }

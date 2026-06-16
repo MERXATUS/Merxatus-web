@@ -25,7 +25,7 @@
   },
   {
     "id": "item_enhance_scroll_protect",
-    "name": "강화 보호석",
+    "name": "강화 보호 주문서",
     "category": "재료",
     "tradable": true,
     "grade": 4,
@@ -101,6 +101,70 @@
     "category": "재료",
     "tradable": true,
     "grade": 5,
+    "icon": "Icon_Greater_Mana_Stone"
+  },
+  {
+    "id": "item_tome_celestial",
+    "name": "천계의 서",
+    "category": "재료",
+    "tradable": true,
+    "grade": 6,
+    "icon": "Icon_Appraisal_Scroll"
+  },
+  {
+    "id": "item_tome_abyss",
+    "name": "마계의 서",
+    "category": "재료",
+    "tradable": true,
+    "grade": 6,
+    "icon": "Icon_Appraisal_Scroll"
+  },
+  {
+    "id": "item_gem_ascension",
+    "name": "승천의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 6,
+    "icon": "Icon_Greater_Mana_Stone"
+  },
+  {
+    "id": "item_gem_primordial",
+    "name": "태초의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 6,
+    "icon": "Icon_Greater_Mana_Stone"
+  },
+  {
+    "id": "item_gem_void",
+    "name": "공허의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 7,
+    "icon": "Icon_Greater_Mana_Stone"
+  },
+  {
+    "id": "item_gem_transfer",
+    "name": "전이의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 7,
+    "icon": "Icon_Greater_Mana_Stone"
+  },
+  {
+    "id": "item_gem_expansion",
+    "name": "확장의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Mana_Stone"
+  },
+  {
+    "id": "item_gem_blessing",
+    "name": "축복의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 7,
     "icon": "Icon_Greater_Mana_Stone"
   },
   {

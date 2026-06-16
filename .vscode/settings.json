@@ -65,5 +65,11 @@
     "search.exclude": {
         "**/web/node_modules": true,
         "**/web/.next": true
-    }
+    },
+    "files.watcherExclude": {
+        "**/web/.next/**": true,
+        "**/.cursor/**": true,
+        "**/agent-transcripts/**": true
+    },
+    "typescript.tsserver.experimental.enableProjectDiagnostics": false
 }

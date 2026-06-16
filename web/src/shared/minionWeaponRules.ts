@@ -72,6 +72,10 @@ export function allowedArchetypesForCombatClass(combatClass: MinionCombatClass):
     case "WIND_BLADE":
     case "MAGIC_BLADE":
     case "SHIELD_BLADE":
+    case "BERSERKER":
+    case "SWORD_MASTER":
+    case "ARCANE_BLADE":
+    case "CRUSADER":
       return ["SWORD"];
     default:
       return [];

@@ -5,86 +5,382 @@
   },
   "skills": [
     {
-      "id": "adventure_strike",
-      "name": "모험가 타격",
-      "description": "기본 타격 숙련. 레벨당 전투력이 소폭 오릅니다.",
+      "id": "basic_strike",
+      "name": "기본 공격",
+      "description": "평타 숙련. 레벨당 피해가 소폭 증가합니다.",
+      "kind": "active",
       "tier": 1,
-      "maxLevel": 10,
-      "powerPerLevel": 2,
-      "damagePctPerLevel": 0.3,
-      "activeHitDamagePctPerLevel": 0.5
-    },
-    {
-      "id": "sword_slash",
-      "name": "베기",
-      "description": "검술의 기본. 레벨당 전투력·피해가 오릅니다.",
-      "tier": 2,
-      "maxLevel": 15,
-      "powerPerLevel": 4,
-      "damagePctPerLevel": 0.5,
-      "activeHitDamagePctPerLevel": 1
-    },
-    {
-      "id": "sword_guard",
-      "name": "검막",
-      "description": "방어 자세. 레벨당 방어력·체력이 오릅니다.",
-      "tier": 2,
-      "maxLevel": 10,
-      "powerPerLevel": 2,
-      "defPerLevel": 2,
-      "hpPerLevel": 3,
-      "damagePctPerLevel": 0.15,
-      "activeHitDamagePctPerLevel": 0.3
-    },
-    {
-      "id": "warrior_cleave",
-      "name": "강타",
-      "description": "강력한 일격. 레벨당 전투력·피해가 크게 오릅니다.",
-      "tier": 3,
-      "maxLevel": 15,
-      "powerPerLevel": 6,
-      "damagePctPerLevel": 1,
-      "activeHitDamagePctPerLevel": 1.5
-    },
-    {
-      "id": "wind_blade_rush",
-      "name": "질풍 베기",
-      "description": "연속 베기. 레벨당 전투력·피해가 오릅니다.",
-      "tier": 3,
-      "maxLevel": 15,
-      "powerPerLevel": 5,
-      "damagePctPerLevel": 0.85,
-      "activeHitDamagePctPerLevel": 1.2
-    },
-    {
-      "id": "magic_blade_arc",
-      "name": "마력 베기",
-      "description": "마력 검기. 레벨당 전투력·피해가 오릅니다.",
-      "tier": 3,
-      "maxLevel": 15,
-      "powerPerLevel": 5,
-      "damagePctPerLevel": 0.75,
-      "activeHitDamagePctPerLevel": 1
-    },
-    {
-      "id": "shield_blade_counter",
-      "name": "반격",
-      "description": "방어와 반격. 레벨당 방어·체력이 오릅니다.",
-      "tier": 3,
-      "maxLevel": 15,
-      "powerPerLevel": 4,
-      "defPerLevel": 3,
-      "hpPerLevel": 4,
       "damagePctPerLevel": 0.4,
-      "activeHitDamagePctPerLevel": 0.6
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "always_skill_hit",
+            "damageMult": 1,
+            "damageMultPerLevel": 0.008
+          }
+        ]
+      }
+    },
+    {
+      "id": "parry",
+      "name": "패링",
+      "description": "피격 시 일정 확률로 피해를 막고 반격합니다.",
+      "kind": "passive",
+      "tier": 2,
+      "combatTriggers": {
+        "onDamaged": [
+          {
+            "trigger": "parry",
+            "baseChancePct": 14,
+            "chancePctPerLevel": 0.8,
+            "counterDamagePct": 85,
+            "counterDamagePctPerLevel": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "batto",
+      "name": "발도",
+      "description": "공격 시 일정 확률로 검을 뽑아 강한 일격을 가합니다.",
+      "kind": "active",
+      "tier": 2,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "proc_skill_hit",
+            "baseChancePct": 24,
+            "chancePctPerLevel": 1,
+            "damageMult": 1.5,
+            "damageMultPerLevel": 0.01
+          }
+        ]
+      }
+    },
+    {
+      "id": "overflowing_strength",
+      "name": "넘쳐오르는 힘",
+      "description": "공격을 이어갈수록 공격력이 누적됩니다.",
+      "kind": "passive",
+      "tier": 3,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "stack_atk",
+            "maxStacks": 6,
+            "stackBonusPct": 4,
+            "stackBonusPctPerLevel": 0.15
+          }
+        ]
+      }
+    },
+    {
+      "id": "heavy_strike",
+      "name": "강타",
+      "description": "공격 시 일정 확률로 공격력 200%의 일격을 가합니다.",
+      "kind": "active",
+      "tier": 3,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "proc_skill_hit",
+            "baseChancePct": 22,
+            "chancePctPerLevel": 0.9,
+            "damageMult": 2,
+            "damageMultPerLevel": 0.012
+          }
+        ]
+      }
+    },
+    {
+      "id": "wind_stance",
+      "name": "바람의 자세",
+      "description": "피격 시 일정 확률로 공격을 회피합니다.",
+      "kind": "passive",
+      "tier": 3,
+      "combatTriggers": {
+        "onDamaged": [
+          {
+            "trigger": "evade",
+            "baseChancePct": 16,
+            "chancePctPerLevel": 0.9
+          }
+        ]
+      }
+    },
+    {
+      "id": "swift_blade",
+      "name": "쾌검",
+      "description": "공격 시 일정 확률로 추가 1회 공격합니다.",
+      "kind": "active",
+      "tier": 3,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "proc_extra_hit",
+            "baseChancePct": 26,
+            "chancePctPerLevel": 1.1,
+            "extraHitDamagePct": 75,
+            "extraHitDamagePctPerLevel": 1.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "mana_sense",
+      "name": "마력 감응",
+      "description": "전투 중 주고받는 피해로 치명타 확률이 누적됩니다.",
+      "kind": "passive",
+      "tier": 3,
+      "combatTriggers": {
+        "passiveMods": {
+          "critChancePctPerLevel": 0.6
+        },
+        "onAttack": [{ "trigger": "stack_crit", "maxStacks": 10, "stackBonusPct": 2 }],
+        "onDamaged": [{ "trigger": "stack_crit", "maxStacks": 10, "stackBonusPct": 2 }]
+      }
+    },
+    {
+      "id": "elemental_blade",
+      "name": "속성검",
+      "description": "공격 시 화상·감전·빙결 중 하나를 적용합니다.",
+      "kind": "active",
+      "tier": 3,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "proc_skill_hit",
+            "baseChancePct": 28,
+            "chancePctPerLevel": 1,
+            "damageMult": 1.15
+          }
+        ],
+        "onActiveHit": [
+          { "status": "burn", "chancePct": 34, "turns": 3, "potency": 5, "maxStacks": 3 },
+          { "status": "shock", "chancePct": 34, "turns": 2, "potency": 5, "maxStacks": 2 },
+          { "status": "freeze", "chancePct": 32, "turns": 1, "potency": 100, "maxStacks": 1 }
+        ]
+      }
+    },
+    {
+      "id": "toughness",
+      "name": "강인함",
+      "description": "받는 피해가 감소합니다.",
+      "kind": "passive",
+      "tier": 3,
+      "combatTriggers": {
+        "passiveMods": {
+          "dmgReducePct": 20,
+          "dmgReducePctPerLevel": 0.4
+        }
+      }
+    },
+    {
+      "id": "sanctuary",
+      "name": "성역",
+      "description": "공격 시 일정 확률로 체력을 회복하고 회복량에 비례해 피해를 줍니다.",
+      "kind": "active",
+      "tier": 3,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "heal_and_damage",
+            "baseChancePct": 18,
+            "chancePctPerLevel": 0.8,
+            "healMaxHpPct": 8,
+            "healMaxHpPctPerLevel": 0.25,
+            "damageFromHealMult": 1.6
+          }
+        ]
+      }
+    },
+    {
+      "id": "blood_eye",
+      "name": "피의 눈동자",
+      "description": "체력이 낮을수록 공격력이 오르고 피해를 흡혈합니다.",
+      "kind": "passive",
+      "tier": 4,
+      "combatTriggers": {
+        "passiveMods": {
+          "lifeStealPct": 8,
+          "lifeStealPctPerLevel": 0.35,
+          "lowHpAtkMaxBonusPct": 55,
+          "lowHpAtkMaxBonusPctPerLevel": 1.2
+        }
+      }
+    },
+    {
+      "id": "last_blow",
+      "name": "최후의 일격",
+      "description": "공격 시 현재 체력이 낮을수록 강한 피해를 줍니다.",
+      "kind": "active",
+      "tier": 4,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "inverse_hp_damage",
+            "baseChancePct": 22,
+            "chancePctPerLevel": 0.9,
+            "maxDamageMult": 2.8,
+            "maxDamageMultPerLevel": 0.015
+          }
+        ]
+      }
+    },
+    {
+      "id": "phantom_blade",
+      "name": "무형검",
+      "description": "공격 시 높은 확률로 추가 타격을 가합니다.",
+      "kind": "passive",
+      "tier": 4,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "proc_extra_hit",
+            "baseChancePct": 32,
+            "chancePctPerLevel": 1,
+            "extraHitDamagePct": 80,
+            "extraHitDamagePctPerLevel": 1.2
+          }
+        ]
+      }
+    },
+    {
+      "id": "fatal_thrust",
+      "name": "급소 일섬",
+      "description": "공격 시 일정 확률로 방어력을 무시하는 급소를 찌릅니다.",
+      "kind": "active",
+      "tier": 4,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "armor_pen_strike",
+            "baseChancePct": 14,
+            "chancePctPerLevel": 0.7,
+            "armorPenPct": 100,
+            "damageMult": 1.85,
+            "damageMultPerLevel": 0.012
+          }
+        ]
+      }
+    },
+    {
+      "id": "sword_summon",
+      "name": "검소환",
+      "description": "공격 시 검을 소환합니다. 소환된 검마다 댄싱 스워드 위력이 증가합니다.",
+      "kind": "passive",
+      "tier": 4,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "summon_sword",
+            "baseChancePct": 42,
+            "chancePctPerLevel": 1.2,
+            "maxSwords": 4,
+            "maxSwordsPerLevel": 0.02
+          }
+        ]
+      }
+    },
+    {
+      "id": "dancing_sword",
+      "name": "댄싱 스워드",
+      "description": "소환된 검을 모두 소비해 연속 공격합니다.",
+      "kind": "active",
+      "tier": 4,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "dancing_sword",
+            "baseChancePct": 18,
+            "chancePctPerLevel": 0.8,
+            "hitDamagePctPerSword": 70,
+            "hitDamagePctPerSwordPerLevel": 1.5,
+            "minSwords": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "divine_aegis",
+      "name": "신의 가호",
+      "description": "피격 시 일정 확률로 피해를 무효화합니다.",
+      "kind": "passive",
+      "tier": 4,
+      "combatTriggers": {
+        "onDamaged": [
+          {
+            "trigger": "nullify",
+            "baseChancePct": 12,
+            "chancePctPerLevel": 0.7,
+            "icdTurns": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "knights_rebirth",
+      "name": "기사회생",
+      "description": "체력이 낮을 때 공격 시 잃은 체력을 회복하고 적에게 피해를 줍니다.",
+      "kind": "active",
+      "tier": 4,
+      "combatTriggers": {
+        "onAttack": [
+          {
+            "trigger": "low_hp_rebirth",
+            "baseChancePct": 24,
+            "chancePctPerLevel": 0.9,
+            "hpThresholdPct": 45,
+            "healMissingHpPct": 38,
+            "healMissingHpPctPerLevel": 0.8,
+            "damageFromHealMult": 1.4
+          }
+        ]
+      }
     }
   ],
   "classPools": {
-    "ADVENTURER": ["adventure_strike"],
-    "SWORDSMAN": ["adventure_strike", "sword_slash", "sword_guard"],
-    "WARRIOR": ["adventure_strike", "sword_slash", "sword_guard", "warrior_cleave"],
-    "WIND_BLADE": ["adventure_strike", "sword_slash", "sword_guard", "wind_blade_rush"],
-    "MAGIC_BLADE": ["adventure_strike", "sword_slash", "sword_guard", "magic_blade_arc"],
-    "SHIELD_BLADE": ["adventure_strike", "sword_slash", "sword_guard", "shield_blade_counter"]
+    "ADVENTURER": ["basic_strike"],
+    "SWORDSMAN": ["basic_strike", "parry", "batto"],
+    "WARRIOR": ["basic_strike", "parry", "batto", "overflowing_strength", "heavy_strike"],
+    "WIND_BLADE": ["basic_strike", "parry", "batto", "wind_stance", "swift_blade"],
+    "MAGIC_BLADE": ["basic_strike", "parry", "batto", "mana_sense", "elemental_blade"],
+    "SHIELD_BLADE": ["basic_strike", "parry", "batto", "toughness", "sanctuary"],
+    "BERSERKER": [
+      "basic_strike",
+      "parry",
+      "batto",
+      "overflowing_strength",
+      "heavy_strike",
+      "blood_eye",
+      "last_blow"
+    ],
+    "SWORD_MASTER": [
+      "basic_strike",
+      "parry",
+      "batto",
+      "wind_stance",
+      "swift_blade",
+      "phantom_blade",
+      "fatal_thrust"
+    ],
+    "ARCANE_BLADE": [
+      "basic_strike",
+      "parry",
+      "batto",
+      "mana_sense",
+      "elemental_blade",
+      "sword_summon",
+      "dancing_sword"
+    ],
+    "CRUSADER": [
+      "basic_strike",
+      "parry",
+      "batto",
+      "toughness",
+      "sanctuary",
+      "divine_aegis",
+      "knights_rebirth"
+    ]
   }
 }

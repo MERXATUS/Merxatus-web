@@ -73,4 +73,5 @@ export const API_CACHE_TTL = {
   leaderboard: 60_000,
   leaderboardBoards: 120_000,
   minionPartyPick: 45_000,
+  runState: 4_000,
 } as const;

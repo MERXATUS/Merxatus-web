@@ -1,5 +1,11 @@
 import { prisma, assertRowsUpdated } from "@/server/db";
-import { buildPartyCombatants, buildFullPartyHp, estimateFloorWinChance, simulateFloorCombat, type FloorEnemy } from "@/server/dungeonBattler";
+import {
+  buildPartyCombatants,
+  buildFullPartyHp,
+  partyMemberToCombatantInput,
+  type FloorEnemy,
+} from "@/server/dungeonBattler";
+import { resolveFloorCombat } from "@/server/resolveFloorCombat";
 import { buildCombatReplay } from "@/server/combatReplay";
 import { loadPartyCombatRows, type PartyCombatDb } from "@/server/minionCombatBuild";
 import { knightOrderPartyDamageMult } from "@/shared/knightOrder";
@@ -22,7 +28,6 @@ import { grantMinionsExperience } from "@/server/minionLevelUp";
 import { contentTierForRaidId } from "@/shared/craftingItemDrops";
 import { raidClearGoldReward } from "@/shared/raidFaction";
 import type { CombatLogLine } from "@/shared/dungeonCombatLog";
-import { inferEnemyCombatTags } from "@/shared/equipmentCombatModifiers";
 import { incrementLeaderboardScore } from "@/server/leaderboard";
 import { RAID_TOTAL_BOARD_KEY } from "@/server/leaderboardBoards";
 
@@ -64,20 +69,7 @@ function mergeLoot(a: LootEntry[], b: LootEntry[]) {
 
 async function loadRaidPartyCombat(db: PartyCombatDb, userId: string, run: { party: Array<{ minionId: string; minion: { level: number; jobType: string; equippedWeaponInstanceId: string | null } }> }) {
   const { memberInputs, knightOrder } = await loadPartyCombatRows(db, userId, run.party);
-  const combatants = buildPartyCombatants(
-    memberInputs.map((x) => ({
-      minionId: x.minionId,
-      combatClassLabel: x.combatClassLabel,
-      power: x.power,
-      bonusHp: x.bonusHp,
-      bonusDef: x.bonusDef,
-      skillDamageMult: x.skillDamageMult,
-      activeSkillName: x.activeSkillName,
-      activeSkillId: x.activeSkillId,
-      activeSkillLevel: x.activeSkillLevel,
-      combatMods: x.combatMods,
-    })),
-  );
+  const combatants = buildPartyCombatants(memberInputs.map(partyMemberToCombatantInput));
   return { combatants, memberInputs, knightOrder };
 }
 
@@ -178,11 +170,6 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
   const isBoss = String(enc.category).toUpperCase() === "BOSS";
   const enemyStatMult = raidEnemyStatMult(isBoss);
   const partyDamageMult = knightOrderPartyDamageMult(knightOrder, isBoss);
-  const enemyTags = inferEnemyCombatTags({
-    category: enc.category,
-    monsterId: enc.monsterId,
-    monsterName: monster.name,
-  });
 
   const combatReplay = buildCombatReplay(
     phase,
@@ -193,27 +180,15 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
     memberInputs,
     enemyStatMult,
   );
-  const clearChance = estimateFloorWinChance({
+  const battle = resolveFloorCombat({
     floor: phase,
-    maxFloors: raid.maxPhases,
-    party: combatants,
-    enemy,
-    partyHp: partyHpStart,
-    samples: 32,
-    partyDamageMult,
-    enemyTags,
-    enemyStatMult,
-  });
-
-  const battle = simulateFloorCombat({
-    floor: phase,
-    maxFloors: raid.maxPhases,
+    maxFloors: raid.maxPhases ?? phase,
     party: combatants,
     enemy,
     partyHp: partyHpStart,
     partyDamageMult,
-    enemyTags,
     enemyStatMult,
+    enemyTags: { isBoss, isAngel: false, isDemon: false },
   });
 
   const combatLog: CombatLogLine[] = battle.log;
@@ -242,7 +217,6 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
       ok: true as const,
       result: "LOSS" as const,
       phase,
-      clearChance,
       combatLog,
       combatReplay,
       isBoss: enc.category === "Boss",
@@ -292,7 +266,6 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
       ok: true as const,
       result: "CLEARED" as const,
       phase,
-      clearChance,
       combatLog,
       combatReplay,
       isBoss: enc.category === "Boss",
@@ -322,7 +295,6 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
     ok: true as const,
     result: "WIN" as const,
     phase,
-    clearChance,
     combatLog,
     combatReplay,
     isBoss: enc.category === "Boss",
@@ -331,56 +303,6 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
     lootMultiplier: lootMult,
     partySize,
   };
-}
-
-type RaidRunWithParty = NonNullable<
-  Awaited<
-    ReturnType<
-      typeof prisma.raidRun.findFirst<{
-        include: { party: { include: { minion: true } } };
-      }>
-    >
-  >
->;
-
-export async function getRaidCombatPreview(userId: string, existingRun?: RaidRunWithParty) {
-  const run =
-    existingRun ??
-    (await prisma.raidRun.findFirst({
-      where: { userId, status: "RUNNING" },
-      include: { party: { include: { minion: true } } },
-      orderBy: { startedAt: "desc" },
-    }));
-  if (!run) return null;
-  const { raids } = await loadRaids();
-  const raid = raids.find((r) => r.id === run.raidId);
-  if (!raid) return null;
-  const phase = Math.max(1, run.phase);
-  const enc = raidEncounterForPhase(raid, phase);
-  const monster = await getMonster(enc.monsterId);
-  const enemy: FloorEnemy = { name: monster.name, monster };
-  const { combatants, knightOrder } = await loadRaidPartyCombat(prisma, userId, run);
-  const entries = parsePartyHpJson(run.partyHpJson);
-  const partyHp = Object.fromEntries(entries.map((e) => [e.minionId, { hp: e.hp, maxHp: e.maxHp }]));
-  const isBoss = String(enc.category).toUpperCase() === "BOSS";
-  const enemyStatMult = raidEnemyStatMult(isBoss);
-  const enemyTags = inferEnemyCombatTags({
-    category: enc.category,
-    monsterId: enc.monsterId,
-    monsterName: monster.name,
-  });
-  const clearChance = estimateFloorWinChance({
-    floor: phase,
-    maxFloors: raid.maxPhases,
-    party: combatants,
-    enemy,
-    partyHp,
-    samples: 32,
-    partyDamageMult: knightOrderPartyDamageMult(knightOrder, isBoss),
-    enemyTags,
-    enemyStatMult,
-  });
-  return { clearChance, phase, isBoss };
 }
 
 export async function getRaidRunState(userId: string) {
@@ -398,6 +320,7 @@ export async function getRaidRunState(userId: string) {
   return {
     ok: true as const,
     active: true as const,
+    combatActive: false,
     combat: { isBoss },
     lootMultiplier: raidPartyLootMultiplier(run.party.length, raid?.maxPartySize ?? 3),
     partySize: run.party.length,
@@ -423,7 +346,7 @@ export async function stopRaidRun(userId: string) {
   const forfeited = await enrichLootEntries(prisma, pending);
   await prisma.raidRun.update({
     where: { id: run.id },
-    data: { status: "STOPPED", pendingLootJson: "[]" },
+    data: { status: "STOPPED", pendingLootJson: "[]", combatStateJson: "" },
   });
   return { ok: true as const, forfeitedLoot: forfeited };
 }

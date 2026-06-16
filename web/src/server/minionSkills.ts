@@ -9,6 +9,9 @@ import {
   serializeMinionSkillLevels,
   skillDefById,
   skillsForCombatClass,
+  baselineSkillLevelsForPromotion,
+  skillPointsSpentAboveBaseline,
+  totalEarnedSkillPoints,
   type MinionSkillLevels,
 } from "@/shared/minionSkills";
 import {
@@ -87,6 +90,7 @@ export async function applyPromotionSkillUnlock(
   const levels = mergeSkillLevelsOnPromotion(
     combatClass,
     parseMinionSkillLevels(row.skillLevelsJson),
+    promotionTier,
   );
   const bonus = MINION_SKILL_RULES.promotionBonusPoints;
   const unspentSkillPoints = Math.max(0, Math.floor(row.unspentSkillPoints ?? 0)) + bonus;
@@ -137,9 +141,7 @@ export async function allocateMinionSkills(
     if (!allowed) throw new Error(`SKILL_NOT_AVAILABLE:${skillId}`);
     const cur = nextLevels[skillId] ?? 0;
     if (cur <= 0 && add < 1) throw new Error(`SKILL_LOCKED:${skillId}`);
-    const next = cur + add;
-    if (next > def.maxLevel) throw new Error(`SKILL_CAP_EXCEEDED:${skillId}`);
-    nextLevels[skillId] = next;
+    nextLevels[skillId] = cur + add;
   }
 
   const normalized = normalizeSkillLevelsForClass(state.combatClass, nextLevels);
@@ -158,5 +160,40 @@ export async function allocateMinionSkills(
     skillLevels: normalized,
     unspentSkillPoints,
     combatClass: state.combatClass,
+  };
+}
+
+export async function resetMinionSkills(
+  db: Db,
+  userId: string,
+  minionId: string,
+): Promise<MinionSkillAllocateResult> {
+  const row = await db.minion.findUnique({ where: { id: minionId } });
+  if (!row) throw new Error("MINION_NOT_FOUND");
+  if (row.userId !== userId) throw new Error("FORBIDDEN");
+
+  const promotion = promotionStateFromRow(row);
+  const combatClass = resolveMinionCombatClass(promotion);
+  const promotionTier = promotion.promotionTier;
+  const current = parseMinionSkillLevels(row.skillLevelsJson);
+  const spent = skillPointsSpentAboveBaseline(combatClass, promotionTier, current);
+  if (spent <= 0) throw new Error("NOTHING_TO_RESET");
+
+  const skillLevels = baselineSkillLevelsForPromotion(combatClass, promotionTier);
+  const unspentSkillPoints = totalEarnedSkillPoints(row.level ?? 1, promotionTier);
+
+  await db.minion.update({
+    where: { id: minionId },
+    data: {
+      skillLevelsJson: serializeMinionSkillLevels(skillLevels),
+      unspentSkillPoints,
+    },
+  });
+
+  return {
+    minionId,
+    skillLevels,
+    unspentSkillPoints,
+    combatClass,
   };
 }

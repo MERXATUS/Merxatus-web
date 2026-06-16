@@ -21,25 +21,28 @@ export function EquipmentBlessingOptionRows(props: {
   const { options, identified } = props;
   if (!options.length) return null;
 
-  const hasBlessing = options.some((o) => o.realm === "celestial" || o.realm === "abyss");
+  const hasBlessing = options.some((o) => o.realm === "celestial" || o.realm === "abyss" || o.realm === "void");
 
   return (
     <>
       <div className="item-tooltip__divider" />
       <div className="item-tooltip__section-label">
-        {hasBlessing ? "천·마 축복" : "추가 옵션"}
+        {hasBlessing ? "특수 옵션" : "추가 옵션"}
       </div>
       {options.map((op, i) => {
         const rowClass = [
           "item-tooltip__option-row",
           op.realm === "celestial" ? "item-tooltip__option-row--celestial" : "",
           op.realm === "abyss" ? "item-tooltip__option-row--abyss" : "",
+          op.realm === "void" ? "item-tooltip__option-row--void" : "",
         ]
           .filter(Boolean)
           .join(" ");
 
         if (!identified) {
-          const affix = op.affix ?? (op.realm === "celestial" ? "천계의" : op.realm === "abyss" ? "마계의" : "");
+          const affix =
+            op.affix ??
+            (op.realm === "celestial" ? "천계의" : op.realm === "abyss" ? "마계의" : op.realm === "void" ? "공허의" : "");
           return (
             <div key={`${op.kind}-${i}`} className={rowClass}>
               {op.realmLabel ? (

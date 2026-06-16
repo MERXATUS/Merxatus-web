@@ -5,10 +5,14 @@ import { CombatPortrait } from "@/app/_components/CombatPortrait";
 import type { CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatLog";
 import {
   applyCombatLogLine,
+  combatLogLineText,
+  combatLogLineTone,
   initBattleArena,
+  combatPlaybackLeadInMs,
   lineDelay,
   type BattleArenaFrame,
   type BattleFloatDamage,
+  type CombatPlaybackSpeed,
 } from "@/shared/dungeonCombatReplay";
 import { playCombatSfx } from "@/shared/gameCombatSfx";
 
@@ -25,6 +29,12 @@ type Props = {
   idleHint?: string;
   isBoss?: boolean;
   hideEnemyPortrait?: boolean;
+  /** 전투마다 고유 — 재생 루프 재시작 트리거 */
+  playbackKey?: string;
+  playbackSpeedRef: React.MutableRefObject<CombatPlaybackSpeed>;
+  onLogLine?: (text: string, tone: BattleArenaFrame["lastLogTone"]) => void;
+  /** 증가할 때마다 남은 재생을 즉시 건너뜀 */
+  skipRequest?: number;
 };
 
 function hpPct(hp: number, maxHp: number) {
@@ -82,15 +92,58 @@ export function DungeonCombatArena(props: Props) {
     idleHint,
     isBoss,
     hideEnemyPortrait,
+    playbackKey = "",
+    playbackSpeedRef,
+    onLogLine,
+    skipRequest = 0,
   } = props;
   const [frame, setFrame] = useState<BattleArenaFrame | null>(null);
   const [shaking, setShaking] = useState(false);
   const timerRef = useRef<number | null>(null);
   const seqRef = useRef(0);
+  const linesRef = useRef(lines);
+  const replayRef = useRef(replay);
+  const playProgressRef = useRef<{
+    i: number;
+    current: BattleArenaFrame;
+    floaterSeq: number;
+    seq: number;
+  } | null>(null);
   const onCompleteRef = useRef(onComplete);
   const onFrameRef = useRef(onFrame);
+  const onLogLineRef = useRef(onLogLine);
   onCompleteRef.current = onComplete;
   onFrameRef.current = onFrame;
+  onLogLineRef.current = onLogLine;
+  linesRef.current = lines;
+  replayRef.current = replay;
+
+  const resolveSpeed = (): CombatPlaybackSpeed => playbackSpeedRef.current;
+
+  const flushRemaining = (seq: number) => {
+    const prog = playProgressRef.current;
+    if (!prog || prog.seq !== seq) return;
+    const playbackLines = linesRef.current;
+    let { i, current, floaterSeq } = prog;
+    while (i < playbackLines.length) {
+      const line = playbackLines[i]!;
+      floaterSeq += 1;
+      current = applyCombatLogLine(current, line, floaterSeq);
+      const logText = current.lastLog ?? combatLogLineText(line);
+      if (logText) {
+        onLogLineRef.current?.(logText, current.lastLog ? current.lastLogTone : combatLogLineTone(line));
+      }
+      i += 1;
+    }
+    playProgressRef.current = { i, current, floaterSeq, seq };
+    setFrame({ ...current, floaters: [...current.floaters] });
+    onFrameRef.current?.(current);
+    if (timerRef.current != null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    onCompleteRef.current?.();
+  };
 
   useEffect(() => {
     if (timerRef.current != null) {
@@ -98,7 +151,10 @@ export function DungeonCombatArena(props: Props) {
       timerRef.current = null;
     }
 
-    if (!playing || !replay || lines.length === 0) {
+    const replay = replayRef.current;
+    const playbackLines = linesRef.current;
+
+    if (!playing || !replay || playbackLines.length === 0) {
       if (!playing) {
         setFrame(null);
         onFrameRef.current?.(null);
@@ -113,36 +169,66 @@ export function DungeonCombatArena(props: Props) {
     let current = initBattleArena(replay);
     setFrame(current);
     onFrameRef.current?.(current);
+    playProgressRef.current = { i: 0, current, floaterSeq: 0, seq };
+
+    const speedAtStart = resolveSpeed();
+    if (speedAtStart === "skip") {
+      flushRemaining(seq);
+      return () => {
+        if (timerRef.current != null) window.clearTimeout(timerRef.current);
+      };
+    }
 
     const step = () => {
       if (seq !== seqRef.current) return;
-      if (i >= lines.length) {
+
+      const speed = resolveSpeed();
+      if (speed === "skip") {
+        flushRemaining(seq);
+        return;
+      }
+
+      if (i >= playbackLines.length) {
         onFrameRef.current?.(current);
         onCompleteRef.current?.();
         return;
       }
-      const line = lines[i]!;
+      const line = playbackLines[i]!;
       floaterSeq += 1;
       current = applyCombatLogLine(current, line, floaterSeq);
+      playProgressRef.current = { i: i + 1, current, floaterSeq, seq };
       setFrame({ ...current, floaters: [...current.floaters] });
       onFrameRef.current?.(current);
+      const logText = current.lastLog ?? combatLogLineText(line);
+      if (logText) {
+        onLogLineRef.current?.(logText, current.lastLog ? current.lastLogTone : combatLogLineTone(line));
+      }
       if (shakeOnHit && line.t === "hit" && (line.kind === "crit" || line.kind === "extra" || !line.kind)) {
         setShaking(true);
-        window.setTimeout(() => setShaking(false), line.kind === "crit" ? 360 : 280);
+        window.setTimeout(() => setShaking(false), line.kind === "crit" ? 480 : 380);
       }
       if (line.t === "skill") {
         playCombatSfx("start");
       }
       i += 1;
-      timerRef.current = window.setTimeout(step, lineDelay(line));
+      timerRef.current = window.setTimeout(step, lineDelay(line, resolveSpeed()));
     };
 
-    timerRef.current = window.setTimeout(step, 320);
+    timerRef.current = window.setTimeout(step, combatPlaybackLeadInMs(resolveSpeed()));
 
     return () => {
       if (timerRef.current != null) window.clearTimeout(timerRef.current);
     };
-  }, [playing, replay, lines, shakeOnHit]);
+  }, [playing, playbackKey, shakeOnHit]);
+
+  useEffect(() => {
+    if (!skipRequest || !playing || !replayRef.current || linesRef.current.length === 0) return;
+    if (timerRef.current != null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    flushRemaining(seqRef.current);
+  }, [skipRequest, playing, playbackKey]);
 
   const party = frame?.fighters.filter((f) => f.side === "party") ?? [];
   const enemy = frame?.fighters.find((f) => f.side === "enemy") ?? null;
@@ -223,7 +309,7 @@ export function DungeonCombatArena(props: Props) {
                   <div className="dungeon-hp-track">
                     <div
                       className={`dungeon-hp-fill${hpPct(f.hp, f.maxHp) <= 30 && !f.dead ? " dungeon-hp-fill--low" : ""}`.trim()}
-                      style={{ width: `${hpPct(f.hp, f.maxHp)}%`, transition: "width 0.22s ease-out" }}
+                      style={{ width: `${hpPct(f.hp, f.maxHp)}%`, transition: "width 0.42s ease-out" }}
                     />
                   </div>
                     </div>
@@ -267,7 +353,7 @@ export function DungeonCombatArena(props: Props) {
                 <div className="dungeon-hp-track dungeon-arena__enemy-hp">
                   <div
                     className="dungeon-hp-fill dungeon-hp-fill--enemy"
-                    style={{ width: `${hpPct(enemy.hp, enemy.maxHp)}%`, transition: "width 0.22s ease-out" }}
+                    style={{ width: `${hpPct(enemy.hp, enemy.maxHp)}%`, transition: "width 0.42s ease-out" }}
                   />
                 </div>
                 <div className="dungeon-arena__enemy-hp-text tabular-nums">

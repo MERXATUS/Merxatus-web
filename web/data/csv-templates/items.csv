@@ -2,7 +2,7 @@ Id,Name,Category,Tradable,Grade,Icon
 Item_Lesser_Mana_Stone,하급 마석,Material,TRUE,1,Icon_Lesser_Mana_Stone
 Item_Mana_Stone,중급 마석,Material,TRUE,3,Icon_Mana_Stone
 Item_Greater_Mana_Stone,상급 마석,Material,TRUE,5,Icon_Greater_Mana_Stone
-Item_Enhance_Scroll_Protect,강화 보호석,Material,TRUE,4,Icon_Appraisal_Scroll
+Item_Enhance_Scroll_Protect,강화 보호 주문서,Material,TRUE,4,Icon_Appraisal_Scroll
 Item_Lesser_Recovery_Potion,체력 회복 물약,Potion,TRUE,1,Icon_Lesser_Recovery_Potion
 Item_Recovery_Potion,체력 회복 포션,Potion,TRUE,3,Icon_Recovery_Potion
 Item_Greater_Recovery_Flask,체력 회복의 비약,Potion,TRUE,5,Icon_Greater_Recovery_Flask
@@ -12,3 +12,5 @@ Item_Appraisal_Scroll,감정 주문서,Material,TRUE,2,Icon_Appraisal_Scroll
 Item_Gem_Destruction,소멸의 보석,Material,TRUE,4,Icon_Mana_Stone
 Item_Gem_Chaos,혼돈의 보석,Material,TRUE,5,Icon_Greater_Mana_Stone
 Item_Gem_Seal,봉인의 보석,Material,TRUE,5,Icon_Greater_Mana_Stone
+Item_Tome_Celestial,천계의 서,Material,TRUE,6,Icon_Appraisal_Scroll
+Item_Tome_Abyss,마계의 서,Material,TRUE,6,Icon_Appraisal_Scroll

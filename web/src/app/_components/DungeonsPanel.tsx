@@ -13,6 +13,7 @@ import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_componen
 import { minionPortraitView, monsterIdFromDisplayName, monsterPortraitView } from "@/shared/combatPortrait";
 import type { CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatLog";
 import { partyHpFromArena, type BattleArenaFrame } from "@/shared/dungeonCombatReplay";
+import type { CombatReport } from "@/shared/combatReport";
 import { CombatEncounterBlock } from "@/app/_components/CombatEncounterBlock";
 import { DungeonCashoutConfirmModal } from "@/app/_components/DungeonCashoutConfirmModal";
 import { DungeonPartyPickModal } from "@/app/_components/DungeonPartyPickModal";
@@ -23,7 +24,6 @@ import {
   type RecoveryPotion,
 } from "@/app/_components/DungeonPartyHpList";
 import { DungeonPotionModal } from "@/app/_components/DungeonPotionModal";
-import { PendingLootSummaryModal } from "@/app/_components/PendingLootSummaryModal";
 import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
 import type {
   DungeonLootRow,
@@ -40,7 +40,6 @@ import {
 import { checkDungeonPartyEligibility } from "@/shared/dungeonDifficulty";
 import { pushLuckFloorGoldReward, pushLuckLootMultiplier } from "@/shared/dungeonPushLuck";
 import { assertDungeonStage } from "@/shared/dungeonStageProgression";
-import { pickBestRecoveryPotion, pickLowestHpMemberId } from "@/shared/potionEffects";
 import { normalizeItemIdLower } from "@/shared/itemId";
 import { fetchCombatRoster } from "@/shared/combatRosterClient";
 
@@ -67,6 +66,7 @@ type DungeonDef = {
 type RunState = {
   ok: boolean;
   active: boolean;
+  combatActive?: boolean;
   run?: {
     id: string;
     dungeonId: string;
@@ -74,7 +74,7 @@ type RunState = {
     losses: number;
     floor?: number;
   };
-  combat?: { partyPower: number; clearChance: number };
+  combat?: { partyPower: number };
   dungeon?: DungeonDef;
   party?: Array<{ minionId: string; hp?: number; maxHp?: number; label?: string }>;
   pendingLoot?: string;
@@ -97,8 +97,8 @@ type AdvanceResult = {
   pendingGold?: number;
   lootMultiplier?: number;
   isBoss?: boolean;
-  clearChance?: number;
   floor?: number;
+  combatReport?: CombatReport;
 };
 
 type CashoutResult = {
@@ -201,6 +201,8 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const [minions, setMinions] = useState<DungeonMinionRow[]>([]);
   const [partyIds, setPartyIds] = useState<Set<string>>(new Set());
   const [logLines, setLogLines] = useState<DisplayLogLine[]>([]);
+  const [combatActive, setCombatActive] = useState(false);
+  const [combatReport, setCombatReport] = useState<CombatReport | null>(null);
   const [playingLog, setPlayingLog] = useState(false);
   const [battleReplay, setBattleReplay] = useState<DungeonCombatReplay | null>(null);
   const [battleLines, setBattleLines] = useState<CombatLogLine[]>([]);
@@ -216,15 +218,15 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [battlePreparing, setBattlePreparing] = useState(false);
   const [cashoutConfirmOpen, setCashoutConfirmOpen] = useState(false);
-  const [pendingLootSummaryOpen, setPendingLootSummaryOpen] = useState(false);
   const [partyOpen, setPartyOpen] = useState(false);
   const [partyBusy, setPartyBusy] = useState(false);
   const [potionModalOpen, setPotionModalOpen] = useState(false);
   /** 탐험 세션 — run.active 갱신 전·후 UI 깜빡임(스테이지 선택) 방지 */
   const [runSession, setRunSession] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const logId = useRef(0);
 
-  const exploring = runSession || !!run?.active || playingLog;
+  const exploring = runSession || !!run?.active || combatActive;
 
   function setAutoAdvanceOn(on: boolean) {
     autoAdvanceRef.current = on;
@@ -248,7 +250,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const floor = Math.max(1, Math.floor(run?.run?.floor ?? 1));
   const maxFloors = dungeon?.maxFloors ?? 20;
   const maxParty = Math.max(1, dungeon?.maxPartySize ?? 1);
-  const atBossGate = exploring && floor >= maxFloors && !playingLog && !battlePreparing;
+  const atBossGate = exploring && floor >= maxFloors && !combatActive && !battlePreparing;
   const floorPct = atBossGate
     ? Math.min(99, Math.round(((maxFloors - 1) / maxFloors) * 100))
     : Math.min(99, Math.round(((Math.min(floor, maxFloors) - 1) / maxFloors) * 100));
@@ -257,9 +259,9 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     : exploring
       ? `${Math.min(floor, maxFloors)} / ${maxFloors}층`
       : `최대 ${maxFloors}층`;
-  const advanceActionLabel = playingLog
+  const advanceActionLabel = combatActive
     ? "전투 중…"
-    : busy === "advance" || busy === "start" || battlePreparing
+    : busy === "combat" || busy === "start" || battlePreparing
       ? floor >= maxFloors
         ? "보스 입장 중…"
         : "전투 준비…"
@@ -439,22 +441,6 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     }
   }
 
-  function healLowestHp() {
-    if (!partyRoster?.length || !recoveryPotions.length) return;
-    const targetId = pickLowestHpMemberId(partyRoster);
-    if (!targetId) return;
-    const target = partyRoster.find((m) => m.id === targetId);
-    if (!target) return;
-    const missing = Math.max(0, target.maxHp - target.hp);
-    const itemId = pickBestRecoveryPotion(missing, target.maxHp, recoveryPotions);
-    if (itemId) void usePotion(itemId, targetId);
-  }
-
-  const canHealParty =
-    exploring &&
-    recoveryPotions.some((p) => p.quantity > 0) &&
-    (partyRoster?.some((m) => !m.dead && m.hp < m.maxHp) ?? false);
-
   const dungeonMinions = useMemo(
     () => minions.filter((m) => isDungeonPool(m.pool)),
     [minions],
@@ -498,7 +484,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     if (state.ok) {
       setRun(state);
       if (state.active) setRunSession(true);
-      else if (!playingLog) endRunSession();
+      else if (!combatActive) endRunSession();
       if (state.active && state.dungeon) setDungeon(state.dungeon);
       if (state.active && state.party?.length) {
         setPartyIds(new Set(state.party.map((p) => p.minionId)));
@@ -520,7 +506,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       },
       dungeon: dungeon ?? undefined,
       party: [...partyIds].map((minionId) => ({ minionId })),
-      combat: { partyPower: 0, clearChance: 0 },
+      combat: { partyPower: 0 },
       pendingLootItems: [],
     });
   }
@@ -635,8 +621,18 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   async function refreshRunState() {
     if (!user) return;
     try {
-      const state = await getJson<RunState>("/api/dungeons/run/state");
+      const state = await apiGetJsonCached<RunState>("/api/dungeons/run/state?lite=1", {
+        ttlMs: API_CACHE_TTL.runState,
+        force: true,
+      });
       applyRunStateFromApi(state);
+      if (state.active && state.combatActive && state.run?.dungeonId && !combatActive) {
+        try {
+          // ATB 전투 상태가 남아 있어도 UI는 로그 전투로 통일한다.
+        } catch {
+          /* stale */
+        }
+      }
     } catch (e) {
       if (!isUnauthorizedError(e)) setError(e);
     }
@@ -648,12 +644,13 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       await refreshRunState();
       return;
     }
+    setDataLoading(true);
     try {
       const [list, state, roster] = await Promise.all([
         apiGetJsonCached<{ ok: boolean; dungeons: DungeonDef[] }>("/api/dungeons/list?lite=1", {
           ttlMs: API_CACHE_TTL.dungeonsList,
         }),
-        getJson<RunState>("/api/dungeons/run/state"),
+        apiGetJsonCached<RunState>("/api/dungeons/run/state?lite=1", { ttlMs: API_CACHE_TTL.runState }),
         fetchCombatRoster(user.id),
       ]);
       if (roster.length) setMinions(roster as DungeonMinionRow[]);
@@ -676,6 +673,8 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       }
     } catch (e) {
       if (!isUnauthorizedError(e)) setError(e);
+    } finally {
+      setDataLoading(false);
     }
   }
 
@@ -687,6 +686,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       patchRunAfterAdvance(adv);
     }
 
+    setCombatActive(false);
     setPlayingLog(false);
     setBattlePreparing(false);
     setBattleFrame(null);
@@ -730,7 +730,8 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         queueAutoAdvance();
       }
     }
-    void refresh({ runStateOnly: true });
+    // advance 응답으로 floor/HP/loot 등이 이미 반영되므로 즉시 state 재조회는 생략
+    // (리플레이 종료 직후 중복 호출로 DB 부하/대기만 증가)
   }
 
   function fallbackCombatReplay(lines: CombatLogLine[]): DungeonCombatReplay | null {
@@ -767,6 +768,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       return;
     }
     setCombatIsBoss(!!boss);
+    setCombatActive(true);
     setBattleReplay(replay);
     setBattleLines(lines);
     setPlayingLog(true);
@@ -792,13 +794,13 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }, [embedded]);
 
   useEffect(() => {
-    if (sessionLoading || !user || playingLog || !exploring) return;
+    if (sessionLoading || !user || combatActive || playingLog || !exploring) return;
     const t = setInterval(() => {
       void refresh({ runStateOnly: true });
     }, 5000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, playingLog, exploring]);
+  }, [user, combatActive, playingLog, exploring]);
 
   useEffect(() => {
     if (exploring) return;
@@ -812,7 +814,6 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
 
   useEscapeClose(partyOpen, () => setPartyOpen(false));
   useEscapeClose(!!settlement, dismissSettlement);
-  useEscapeClose(pendingLootSummaryOpen, () => setPendingLootSummaryOpen(false));
   useEscapeClose(potionModalOpen, () => setPotionModalOpen(false));
 
   async function openParty() {
@@ -849,18 +850,18 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }
 
   async function runAdvanceFloor(opts?: { dungeonId?: string; minionIds?: string[] }) {
-    setRunSession(true);
-    const body =
-      opts?.dungeonId && opts.minionIds?.length
-        ? { dungeonId: opts.dungeonId, minionIds: opts.minionIds }
-        : {};
-    const r = await postJson<AdvanceResult>("/api/dungeons/run/advance", body);
-    pendingPartyHpRef.current = r.partyHp ?? null;
+    const r = await postJson<AdvanceResult>("/api/dungeons/run/advance", {
+      dungeonId: opts?.dungeonId,
+      minionIds: opts?.minionIds,
+    });
+
     pendingAdvanceResultRef.current = r;
+    pendingPartyHpRef.current = r.partyHp ?? null;
     mergeSessionXp(r.minionXpGrants);
-    const replay = r.combatReplay ?? fallbackCombatReplay(r.combatLog ?? []);
-    startBattlePlayback(r.combatLog ?? [], replay, r.isBoss);
-    return r;
+
+    const lines = r.combatLog ?? [];
+    const replay = r.combatReplay ?? fallbackCombatReplay(lines);
+    startBattlePlayback(lines, replay, r.isBoss);
   }
 
   async function startRun(enableAuto = false) {
@@ -874,20 +875,16 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     optimisticRunAfterStart();
     try {
       resetSessionXp();
-      await postJson<{ ok: boolean; runId?: string }>("/api/dungeons/run/start", {
-        dungeonId: dungeon.id,
-        minionIds: [...partyIds],
-      });
-      setBusy("advance");
-      await runAdvanceFloor();
+      setRunSession(true);
+      await runAdvanceFloor({ dungeonId: dungeon.id, minionIds: [...partyIds] });
     } catch (e) {
-      setBattlePreparing(false);
       setPlayingLog(false);
       setAutoAdvanceOn(false);
       endRunSession();
       setRun((prev) => (prev?.active ? { ...prev, active: false } : prev));
       setError(e);
     } finally {
+      setBattlePreparing(false);
       setBusy(null);
     }
   }
@@ -903,14 +900,21 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     try {
       await runAdvanceFloor();
     } catch (e) {
-      setBattlePreparing(false);
       setPlayingLog(false);
       if (enteringBoss) setCombatIsBoss(false);
       setError(e);
     } finally {
+      setBattlePreparing(false);
       setBusy(null);
     }
   }
+
+  useEffect(() => {
+    if (!combatActive) return;
+    const t = window.setTimeout(() => finishBattlePlayback(), 120_000);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combatActive]);
 
   return (
     <div className={`dungeon-shell ${embedded ? "dungeon-shell--fit panel-fit" : ""}`}>
@@ -921,7 +925,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
               <p className="game-label">던전</p>
               <h2 className="game-title mt-1 text-lg">{dungeon?.name ?? "마계 · 오염의 웅덩이"}</h2>
               <p className="mt-1 text-xs text-[var(--game-muted)]">
-                층마다 실시간 전투 · 패배 시 보상 소멸
+                층마다 전투 진행 · 패배 시 보상 소멸
                 {autoAdvance && exploring ? " · 다음 층 자동 진행 중" : ""}
               </p>
               {dungeon?.stage ? (
@@ -1055,6 +1059,8 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
 
       {error ? <GamePanelError error={error} /> : null}
 
+      {dataLoading && !dungeon ? <GamePanelLoading label="던전 불러오는 중…" /> : null}
+
       {!embedded && sessionLoading ? (
         <GamePanelLoading label="세션 확인 중…" />
       ) : !embedded && !user ? (
@@ -1098,13 +1104,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                     : null}
                 </div>
                 {exploring && partyRoster && partyRoster.length > 0 ? (
-                  <DungeonPartyHpList
-                    roster={partyRoster}
-                    potions={recoveryPotions}
-                    onUsePotion={(itemId, minionId) => void usePotion(itemId, minionId)}
-                    busy={!!busy || playingLog}
-                    compact
-                  />
+                  <DungeonPartyHpList roster={partyRoster} compact />
                 ) : null}
                 <GameBtn
                   variant="ghost"
@@ -1129,12 +1129,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
               </span>
             </div>
             {exploring && partyRoster && partyRoster.length > 0 ? (
-              <DungeonPartyHpList
-                roster={partyRoster}
-                potions={recoveryPotions}
-                onUsePotion={(itemId, minionId) => void usePotion(itemId, minionId)}
-                busy={!!busy || playingLog}
-              />
+              <DungeonPartyHpList roster={partyRoster} />
             ) : (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {partyChips.length === 0 ? (
@@ -1166,7 +1161,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
               <GameBtn
                 variant={autoAdvance ? "gold" : "ghost"}
                 className={`dungeon-action-span ${embedded ? "h-8 text-xs" : "h-9 text-xs"}`}
-                disabled={!!busy || playingLog}
+                disabled={!!busy || combatActive}
                 onClick={() => setAutoAdvanceOn(!autoAdvance)}
               >
                 {autoAdvance ? "자동 진행 중 · 중지" : "다음 층 자동"}
@@ -1174,118 +1169,98 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
               <GameBtn
                 variant="ghost"
                 className={embedded ? "h-8 text-xs" : "h-10 text-sm"}
-                disabled={!!busy || playingLog}
+                disabled={!!busy || combatActive}
                 onClick={() => setCashoutConfirmOpen(true)}
               >
                 정산
               </GameBtn>
               {recoveryPotions.length > 0 ? (
-                <>
-                  <GameBtn
-                    variant="ghost"
-                    className={embedded ? "h-8 text-xs" : "h-10 text-sm"}
-                    disabled={!!busy || playingLog || !canHealParty}
-                    onClick={() => void healLowestHp()}
-                  >
-                    최저 HP 회복
-                  </GameBtn>
-                  <GameBtn
-                    variant="ghost"
-                    className={embedded ? "h-8 text-xs" : "h-10 text-sm"}
-                    disabled={!!busy || playingLog}
-                    onClick={() => setPotionModalOpen(true)}
-                  >
-                    물약
-                  </GameBtn>
-                </>
+                <GameBtn
+                  variant="ghost"
+                  className={embedded ? "h-8 text-xs" : "h-10 text-sm"}
+                  disabled={!!busy || combatActive}
+                  onClick={() => setPotionModalOpen(true)}
+                >
+                  물약
+                </GameBtn>
               ) : null}
-              <GameBtn
-                variant="ghost"
-                className={`dungeon-action-span ${embedded ? "h-8 text-xs" : "h-9 text-xs"}`}
-                disabled={!!busy}
-                onClick={() => setPendingLootSummaryOpen(true)}
-              >
-                정산 시 수령
-                {cashoutLoot.length > 0 || (run?.pendingGold ?? 0) > 0
-                  ? [
-                      cashoutLoot.length > 0 ? `${cashoutLoot.length}종` : null,
-                      (run?.pendingGold ?? 0) > 0 ? `${(run?.pendingGold ?? 0).toLocaleString()}G` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")
-                  : ""}
-              </GameBtn>
             </div>
           </GamePanel>
           ) : null}
         </div>
 
-        <CombatEncounterBlock
-          embedded={embedded}
-          playing={playingLog || battlePreparing}
-          replay={battleReplay}
-          lines={battleLines}
-          isBoss={combatIsBoss || atBossGate}
-          bossGateIdle={atBossGate}
-          encounterLabel={combatIsBoss || atBossGate ? "보스전" : undefined}
-          floorLabel={atBossGate ? `보스 · ${maxFloors}층` : `${battleReplay?.floor ?? floor}층`}
-          idleHint={
-            atBossGate
-              ? autoAdvance
-                ? "보스 방 도착 · 곧 보스 전투가 자동으로 시작됩니다."
-                : "보스 방에 도달했습니다. 「보스 입장」으로 최종 전투를 시작하세요."
-              : exploring
+        <div className="combat-encounter mt-3">
+          <CombatEncounterBlock
+            embedded={embedded}
+            playing={playingLog}
+            replay={battleReplay}
+            lines={battleLines}
+            onComplete={finishBattlePlayback}
+            isBoss={combatIsBoss}
+            bossGateIdle={atBossGate && !battlePreparing}
+            preparingLabel={battlePreparing ? (floor >= maxFloors ? "보스 입장 중…" : "전투 준비 중…") : undefined}
+            idleHint={!exploring ? "전투를 시작하면 여기서 재생됩니다." : undefined}
+          />
+
+          <p className="combat-encounter__hint mt-2 text-xs text-[var(--game-muted)]">
+            {battlePreparing
+              ? floor >= maxFloors
+                ? "보스 입장 중…"
+                : "전투 준비 중…"
+              : atBossGate
                 ? autoAdvance
-                  ? "층 클리어 후 다음 층이 자동으로 진행됩니다."
-                  : floor >= maxFloors
-                    ? "「보스 입장」으로 최종 전투를 시작하세요."
-                    : "아래 버튼으로 다음 층 전투를 시작하세요."
-                : "스테이지·파티를 고른 뒤 탐험을 시작하세요. 자동 탐험은 다음 층을 연속 진행합니다."
-          }
-          preparingLabel={battlePreparing ? (floor >= maxFloors ? "보스 입장 중…" : "전투 준비 중…") : undefined}
-          actions={
-            exploring ? (
+                  ? "보스 방 도착 · 곧 보스 전투가 자동으로 시작됩니다."
+                  : "보스 방에 도달했습니다. 「보스 입장」으로 최종 전투를 시작하세요."
+                : exploring
+                  ? autoAdvance
+                    ? "층 클리어 후 다음 층이 자동으로 진행됩니다."
+                    : floor >= maxFloors
+                      ? "「보스 입장」으로 최종 전투를 시작하세요."
+                      : "아래 버튼으로 다음 층 전투를 시작하세요."
+                  : "스테이지·파티를 고른 뒤 탐험을 시작하세요."}
+          </p>
+
+          {exploring ? (
+            <div className="mt-2">
               <GameBtn
                 variant="gold"
                 className={`combat-encounter__action-btn ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
-                disabled={!!busy || playingLog || battlePreparing}
+                disabled={!!busy || combatActive || battlePreparing}
                 onClick={() => void advance()}
               >
                 {advanceActionLabel}
               </GameBtn>
-            ) : (
-              <div className="flex w-full flex-col gap-2">
-                {partyEligibility && !partyEligibility.ok ? (
-                  <p className="text-center text-xs text-amber-300/90">
-                    평균 레벨 부족 (현재 Lv{partyEligibility.partyLevel} / 필요 Lv
-                    {partyEligibility.minLevel})
-                  </p>
-                ) : null}
-                <div className="flex w-full flex-col gap-2 sm:flex-row">
-                  <GameBtn
-                    variant="primary"
-                    className={`combat-encounter__action-btn flex-1 ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
-                    disabled={!!busy || !canStartDungeon}
-                    onClick={() => void startRun(false)}
-                  >
-                    {busy === "start" ? "전투 준비…" : "탐험 시작"}
-                  </GameBtn>
-                  <GameBtn
-                    variant="gold"
-                    className={`combat-encounter__action-btn flex-1 ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
-                    disabled={!!busy || !canStartDungeon}
-                    onClick={() => void startRun(true)}
-                  >
-                    {busy === "start" ? "전투 준비…" : "자동 탐험"}
-                  </GameBtn>
-                </div>
+            </div>
+          ) : (
+            <div className="mt-2 flex w-full flex-col gap-2">
+              {partyEligibility && !partyEligibility.ok ? (
+                <p className="text-center text-xs text-amber-300/90">
+                  평균 레벨 부족 (현재 Lv{partyEligibility.partyLevel} / 필요 Lv
+                  {partyEligibility.minLevel})
+                </p>
+              ) : null}
+              <div className="flex w-full flex-col gap-2 sm:flex-row">
+                <GameBtn
+                  variant="primary"
+                  className={`combat-encounter__action-btn flex-1 ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
+                  disabled={!!busy || !canStartDungeon || combatActive}
+                  onClick={() => void startRun(false)}
+                >
+                  {busy === "start" ? "전투 준비…" : "탐험 시작"}
+                </GameBtn>
+                <GameBtn
+                  variant="gold"
+                  className={`combat-encounter__action-btn flex-1 ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
+                  disabled={!!busy || !canStartDungeon || combatActive}
+                  onClick={() => void startRun(true)}
+                >
+                  {busy === "start" ? "전투 준비…" : "자동 탐험"}
+                </GameBtn>
               </div>
-            )
-          }
-          onFrame={setBattleFrame}
-          onComplete={finishBattlePlayback}
-        />
-        {logLines.length > 0 && !playingLog ? (
+            </div>
+          )}
+        </div>
+        {logLines.length > 0 && !combatActive ? (
           <div className="dungeon-arena-feed-extra">
             {logLines.map((line) => (
               <p key={line.id} className="dungeon-arena__feed">
@@ -1313,16 +1288,9 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         open={potionModalOpen}
         roster={partyRoster ?? []}
         potions={recoveryPotions}
-        busy={!!busy || playingLog}
+        busy={!!busy || combatActive}
         onClose={() => setPotionModalOpen(false)}
         onUsePotion={(itemId, minionId) => void usePotion(itemId, minionId)}
-      />
-
-      <PendingLootSummaryModal
-        open={pendingLootSummaryOpen}
-        loot={cashoutLoot}
-        pendingGold={run?.pendingGold}
-        onClose={() => setPendingLootSummaryOpen(false)}
       />
 
       <DungeonCashoutConfirmModal

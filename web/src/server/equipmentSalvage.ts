@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { resolveDisplayItemGrade } from "@/server/itemGrade";
+import { assertEquipmentNotUserLocked } from "@/server/inventoryEquipmentLock";
 import { grantLootToUser } from "@/server/grantLootToUser";
 import { MAX_SALVAGE_BATCH, mergeSalvageRows, previewSalvageLoot } from "@/shared/equipmentSalvage";
 
@@ -32,6 +33,7 @@ async function assertSalvageAllowed(tx: SalvageTx, userId: string, kind: EquipKi
     if (!w) throw new Error("NOT_FOUND");
     if (w.userId !== userId) throw new Error("FORBIDDEN");
     if (w.status !== "OWNED" || w.listing) throw new Error("EQUIPMENT_LOCKED");
+    assertEquipmentNotUserLocked(w);
     const equipped = await tx.minion.findFirst({
       where: { userId, equippedWeaponInstanceId: instanceId },
       select: { id: true },
@@ -52,6 +54,7 @@ async function assertSalvageAllowed(tx: SalvageTx, userId: string, kind: EquipKi
   if (!a) throw new Error("NOT_FOUND");
   if (a.userId !== userId) throw new Error("FORBIDDEN");
   if (a.status !== "OWNED") throw new Error("EQUIPMENT_LOCKED");
+  assertEquipmentNotUserLocked(a);
   const equipped = await tx.minion.findFirst({
     where: {
       userId,

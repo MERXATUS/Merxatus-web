@@ -13,51 +13,60 @@ export async function ensureBotUsers(count: number) {
   const botUsernames = botUsernamesForCount(n);
   const rules = GAME_RULES.bots;
 
-  const botIds = await prisma.$transaction(async (tx) => {
-    const ids: string[] = [];
-    for (const username of botUsernames) {
-      const bot = await tx.user.upsert({
-        where: { username },
-        create: { username },
-        update: {},
-      });
-      ids.push(bot.id);
+  // 봇 수×스택 upsert를 한 트랜잭션에 넣으면 P2028(트랜잭션 만료)이 날 수 있음
+  const botIds: string[] = [];
+  for (const username of botUsernames) {
+    const bot = await prisma.user.upsert({
+      where: { username },
+      create: { username },
+      update: {},
+    });
+    botIds.push(bot.id);
 
-      await tx.minionInventory.upsert({
-        where: { userId: bot.id },
-        create: { userId: bot.id, owned: 0, dungeonOwned: 0 },
-        update: {},
-      });
+    await prisma.minionInventory.upsert({
+      where: { userId: bot.id },
+      create: { userId: bot.id, owned: 0, dungeonOwned: 0 },
+      update: {},
+    });
 
-      await tx.wallet.upsert({
-        where: { userId: bot.id },
-        create: { userId: bot.id, goldAvailable: rules.seedWalletGold, goldLocked: 0 },
-        update: { goldAvailable: rules.seedWalletGold, goldLocked: 0 },
-      });
+    await prisma.wallet.upsert({
+      where: { userId: bot.id },
+      create: { userId: bot.id, goldAvailable: rules.seedWalletGold, goldLocked: 0 },
+      update: { goldAvailable: rules.seedWalletGold, goldLocked: 0 },
+    });
 
-      await tx.botBudget.upsert({
-        where: { userId: bot.id },
+    await prisma.botBudget.upsert({
+      where: { userId: bot.id },
+      create: {
+        userId: bot.id,
+        dayKey,
+        remainingBuyBudget: rules.dailyBuyBudgetGold,
+      },
+      update: {
+        dayKey,
+        remainingBuyBudget: rules.dailyBuyBudgetGold,
+      },
+    });
+
+    for (const st of rules.seedStacks) {
+      await prisma.item.upsert({
+        where: { id: st.itemId },
         create: {
-          userId: bot.id,
-          dayKey,
-          remainingBuyBudget: rules.dailyBuyBudgetGold,
+          id: st.itemId,
+          name: st.itemId,
+          category: "재료",
+          tradable: true,
+          grade: 1,
         },
-        update: {
-          dayKey,
-          remainingBuyBudget: rules.dailyBuyBudgetGold,
-        },
+        update: {},
       });
-
-      for (const st of rules.seedStacks) {
-        await tx.inventoryStack.upsert({
-          where: { userId_itemId: { userId: bot.id, itemId: st.itemId } },
-          create: { userId: bot.id, itemId: st.itemId, quantity: st.quantity },
-          update: { quantity: st.quantity },
-        });
-      }
+      await prisma.inventoryStack.upsert({
+        where: { userId_itemId: { userId: bot.id, itemId: st.itemId } },
+        create: { userId: bot.id, itemId: st.itemId, quantity: st.quantity },
+        update: { quantity: st.quantity },
+      });
     }
-    return ids;
-  });
+  }
 
   const botsFound = await prisma.user.findMany({
     where: { username: { in: botUsernames } },

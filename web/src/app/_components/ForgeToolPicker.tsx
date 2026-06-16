@@ -1,8 +1,11 @@
 "use client";
 
 import { ItemIcon } from "@/app/_components/ItemIcon";
+import { StackItemTooltipHover } from "@/app/_components/StackItemTooltip";
 import { GameBtn } from "@/app/_components/gameUi";
+import { CRAFTING_ITEM_GRADE } from "@/shared/craftingItemDrops";
 import type { ForgeToolDef } from "@/shared/forgeWorkbench";
+import { shouldShowStackItemTooltip, type StackItemTooltipData } from "@/shared/stackItemTooltip";
 
 export type ForgeEquipTarget = { kind: "weapon" | "armor"; id: string };
 
@@ -13,6 +16,8 @@ export function ForgeToolPicker(props: {
   onSelectTool: (itemId: string | null) => void;
   selectedEquip: ForgeEquipTarget | null;
   targetLabel: string | null;
+  transferTargetLabel?: string | null;
+  needsTransferTarget?: boolean;
   onApply: () => void;
   onAppraiseAll?: () => void;
   unidentifiedCount?: number;
@@ -37,12 +42,18 @@ export function ForgeToolPicker(props: {
           const qty = qtyById.get(tool.itemId) ?? 0;
           const active = props.selectedToolId === tool.itemId;
           const name = props.inventory.find((x) => x.itemId === tool.itemId)?.name ?? tool.label;
-          return (
+          const tooltipItem: StackItemTooltipData = {
+            itemId: tool.itemId,
+            name,
+            category: "재료",
+            grade: CRAFTING_ITEM_GRADE[tool.itemId],
+            quantity: qty,
+          };
+          const button = (
             <button
-              key={tool.itemId}
               type="button"
-              disabled={qty < 1 || props.busy}
-              title={name}
+              disabled={props.busy}
+              aria-label={name}
               className={`forge-tool-card ${isRail ? "forge-material-cell forge-tool-cell--rail" : ""} ${active ? "forge-tool-card--active forge-material-cell--active" : ""} ${qty < 1 ? "forge-tool-card--empty" : ""}`}
               onClick={() => props.onSelectTool(active ? null : tool.itemId)}
             >
@@ -62,12 +73,24 @@ export function ForgeToolPicker(props: {
               ) : null}
             </button>
           );
+          return shouldShowStackItemTooltip(tooltipItem) ? (
+            <StackItemTooltipHover key={tool.itemId} item={tooltipItem} detailsOnly>
+              {button}
+            </StackItemTooltipHover>
+          ) : (
+            <span key={tool.itemId} className="forge-tool-card-wrap">
+              {button}
+            </span>
+          );
         })}
       </div>
 
       {activeTool ? (
         <div className="forge-tool-picker__detail">
           <p className="forge-tool-picker__detail-name">{activeTool.label}</p>
+          {(qtyById.get(activeTool.itemId) ?? 0) < 1 ? (
+            <p className="forge-tool-picker__detail-warn">보유하지 않음 — 설명만 확인할 수 있어요.</p>
+          ) : null}
           <p className="forge-tool-picker__detail-desc">{activeTool.description}</p>
           <p className="forge-tool-picker__detail-hint">{activeTool.hint}</p>
         </div>
@@ -77,11 +100,18 @@ export function ForgeToolPicker(props: {
 
       <p className="forge-tool-picker__target">
         {props.selectedEquip
-          ? `대상: ${props.targetLabel ?? props.selectedEquip.id}`
+          ? `원본: ${props.targetLabel ?? props.selectedEquip.id}`
           : isRail
             ? "오른쪽에서 가공 도구를 선택하세요."
             : "목록에서 무기·방어구를 먼저 선택하세요."}
       </p>
+      {props.needsTransferTarget ? (
+        <p className="forge-tool-picker__target">
+          {props.transferTargetLabel
+            ? `전이 대상: ${props.transferTargetLabel}`
+            : "같은 등급·부위의 전이 받을 장비를 선택하세요."}
+        </p>
+      ) : null}
 
       <div className={`forge-tool-picker__actions ${isRail ? "forge-material-rail__footer" : ""}`}>
         {props.onAppraiseAll != null ? (
@@ -95,7 +125,8 @@ export function ForgeToolPicker(props: {
             props.busy ||
             !props.selectedEquip ||
             !props.selectedToolId ||
-            (qtyById.get(props.selectedToolId) ?? 0) < 1
+            (qtyById.get(props.selectedToolId) ?? 0) < 1 ||
+            (props.needsTransferTarget && !props.transferTargetLabel)
           }
           onClick={() => props.onApply()}
         >
@@ -126,14 +157,25 @@ export function renderForgeOptionChips(
     locked?: boolean;
   }>,
   tone: "weapon" | "armor",
+  opts?: { maxVisible?: number },
 ) {
   if (options.length === 0) {
     return <p className="forge-equip-options__empty text-xs text-[var(--game-muted)]">옵션 없음</p>;
   }
   const cls = tone === "weapon" ? "forge-option-chip--weapon" : "forge-option-chip--armor";
+  const maxVisible = Math.max(0, Math.floor(opts?.maxVisible ?? 0));
+  const visible = maxVisible > 0 ? options.slice(0, maxVisible) : options;
+  const hiddenCount = Math.max(0, options.length - visible.length);
+  const moreTitle =
+    hiddenCount > 0
+      ? options
+          .slice(visible.length)
+          .map((op) => (op.hidden ? "미감정" : `${op.label} ${op.displayValue >= 0 ? "+" : ""}${op.displayValue} (${op.tierLabel})${op.locked ? " · 봉인" : ""}`))
+          .join("\n")
+      : "";
   return (
     <div className="forge-equip-options">
-      {options.map((op, i) => (
+      {visible.map((op, i) => (
         <span
           key={`${op.kind}-${i}`}
           className={`forge-option-chip ${cls}`}
@@ -150,6 +192,12 @@ export function renderForgeOptionChips(
           {op.locked ? <span className="forge-option-chip__lock" aria-hidden>🔒</span> : null}
         </span>
       ))}
+      {hiddenCount > 0 ? (
+        <span className={`forge-option-chip ${cls} forge-option-chip--more`} title={moreTitle}>
+          <span className="forge-option-chip__tier">+</span>
+          <span className="forge-option-chip__label">{hiddenCount}개 더</span>
+        </span>
+      ) : null}
     </div>
   );
 }

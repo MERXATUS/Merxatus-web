@@ -6,7 +6,10 @@ export function googleAuthErrorMessage(code: string): string {
     return "로그인 세션이 만료됐거나 쿠키가 차단됐어요. 시크릿 창 말고 일반 창에서 다시 로그인해 보세요.";
   }
   if (code === "access_denied") {
-    return "Google 로그인이 취소됐거나, OAuth 테스트 사용자에 계정이 등록되지 않았어요.";
+    return "Google 로그인이 취소됐거나, OAuth 앱이 아직 테스트 모드일 수 있어요. Google Cloud Console → OAuth 동의 화면에서 「앱 게시」를 눌러 주세요.";
+  }
+  if (code === "SIGNUP_NOT_ALLOWED" || code === "SIGNUP_CLOSED") {
+    return "지금은 신규 가입이 제한되어 있어요. 운영자에게 문의해 주세요.";
   }
   if (code.startsWith("wrong_origin:")) {
     return decodeURIComponent(code.slice("wrong_origin:".length));

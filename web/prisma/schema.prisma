@@ -446,6 +446,8 @@ model WeaponInstance {
   baseItemId String
   enhanceLevel Int @default(0)
   status WeaponInstanceStatus @default(OWNED)
+  /** 사용자가 실수 방지용으로 잠근 장비 */
+  userLocked Boolean @default(false)
   /** JSON 배열: `{ kind, tier }[]` 제작 시 부여 옵션 (`itemOptions.ts`) */
   optionsJson String @default("[]")
 
@@ -467,6 +469,8 @@ model ArmorInstance {
   baseItemId String
   enhanceLevel Int @default(0)
   status ArmorInstanceStatus @default(OWNED)
+  /** 사용자가 실수 방지용으로 잠근 장비 */
+  userLocked Boolean @default(false)
   /** JSON 배열: `{ optionId, tier }[]` 제작 시 부여 옵션 */
   optionsJson String @default("[]")
 
@@ -531,7 +535,9 @@ model InventoryStack {
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
   item   Item @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
-  quantity Int @default(0)
+  quantity       Int @default(0)
+  /** 사용·판매·소비에서 제외되는 잠금 수량 */
+  lockedQuantity Int @default(0)
 
   @@id([userId, itemId])
 }
@@ -561,6 +567,8 @@ model DungeonRun {
   pendingGold Int @default(0)
   /** PUSH_LUCK: 파티원 층간 유지 HP. 예: [{"minionId":"…","hp":80,"maxHp":120,"label":"전사 1"}] */
   partyHpJson String @default("[]")
+  /** ATB 전투 진행 상태 (JSON) */
+  combatStateJson String @default("")
   /** true면 AUTO_WAVES 틱(배속·일일 한도) — 던전 mode와 무관 */
   autoExplore Boolean @default(false)
 
@@ -621,6 +629,8 @@ model RaidRun {
   losses          Int           @default(0)
   pendingLootJson String        @default("[]")
   partyHpJson     String        @default("[]")
+  /** 진행 중 ATB 전투 상태 (JSON). 비어 있으면 비전투 */
+  combatStateJson String        @default("")
   startedAt       DateTime      @default(now())
   lastTickAt      DateTime      @default(now())
 

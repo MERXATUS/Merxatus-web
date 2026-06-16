@@ -2,7 +2,9 @@ import { prisma } from "@/server/db";
 import { getTutorialState } from "@/server/tutorialProgress";
 import { tutorialProgressPercent } from "@/shared/tutorial";
 import { itemGradeViewForItem } from "@/server/itemGrade";
-import { isCatalogItemId, loadCatalogItemIdSet } from "@/server/catalogItems";
+import { isCatalogItemId, loadCatalogItemIdSet, loadCatalogItemNameMap } from "@/server/catalogItems";
+import { normalizeItemIdLower } from "@/shared/itemId";
+import { inventoryAvailableQty } from "@/shared/inventoryLock";
 import { attachIcons, getItemIconMap, itemIconFieldsFromMap } from "@/server/itemCatalog";
 import { formatEquipmentOptionDisplay, parseEquipmentOptionsPayload } from "@/server/equipmentOptions";
 import { GAME_RULES } from "@/server/gameRules";
@@ -16,6 +18,7 @@ function mapWeaponRows(
     id: string;
     baseItemId: string;
     enhanceLevel: number;
+    userLocked: boolean;
     createdAt: Date;
     optionsJson: string;
     baseItem: { name: string; grade: number };
@@ -31,6 +34,7 @@ function mapWeaponRows(
         baseItemId: w.baseItemId,
         name: w.baseItem.name,
         enhanceLevel: w.enhanceLevel,
+        userLocked: w.userLocked,
         createdAt: w.createdAt,
         ...itemGradeViewForItem(w.baseItemId, w.baseItem.grade),
         identified: parseEquipmentOptionsPayload(w.optionsJson).identified,
@@ -46,6 +50,7 @@ function mapArmorRows(
     id: string;
     baseItemId: string;
     enhanceLevel: number;
+    userLocked: boolean;
     createdAt: Date;
     optionsJson: string;
     baseItem: { name: string; grade: number };
@@ -61,6 +66,7 @@ function mapArmorRows(
         baseItemId: a.baseItemId,
         name: a.baseItem.name,
         enhanceLevel: a.enhanceLevel,
+        userLocked: a.userLocked,
         createdAt: a.createdAt,
         ...itemGradeViewForItem(a.baseItemId, a.baseItem.grade),
         identified: parseEquipmentOptionsPayload(a.optionsJson).identified,
@@ -72,7 +78,7 @@ function mapArmorRows(
 }
 
 async function buildInventoryScope(userId: string, catalogIds: Set<string>) {
-  const [userAccount, tutorial, wallet, stacks, equipmentOwnedCount, iconMap] = await Promise.all([
+  const [userAccount, tutorial, wallet, stacks, equipmentOwnedCount, iconMap, catalogNames] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
     getTutorialState(prisma, userId),
     prisma.wallet.findUnique({ where: { userId } }),
@@ -83,6 +89,7 @@ async function buildInventoryScope(userId: string, catalogIds: Set<string>) {
     }),
     countOwnedEquipment(prisma, userId),
     getItemIconMap(),
+    loadCatalogItemNameMap(),
   ]);
 
   const inventory = attachIcons(
@@ -90,9 +97,11 @@ async function buildInventoryScope(userId: string, catalogIds: Set<string>) {
       .filter((s) => isCatalogItemId(s.itemId, catalogIds))
       .map((s) => ({
         itemId: s.itemId,
-        name: s.item.name,
+        name: catalogNames.get(normalizeItemIdLower(s.itemId)) ?? s.item.name,
         category: s.item.category,
         quantity: s.quantity,
+        lockedQuantity: s.lockedQuantity,
+        availableQuantity: inventoryAvailableQty(s),
         ...itemGradeViewForItem(s.itemId, s.item.grade),
       })),
     iconMap,

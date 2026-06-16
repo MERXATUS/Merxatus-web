@@ -2,8 +2,10 @@ import { prisma } from "@/server/db";
 import { incrementLeaderboardScore } from "@/server/leaderboard";
 import { buildPartyCombatants } from "@/server/dungeonBattler";
 import { loadPartyCombatRows, type PartyCombatDb } from "@/server/minionCombatBuild";
-import { simulatePvpDuel } from "@/server/pvpCombat";
+import { resolvePvpAtbCombat } from "@/server/pvpAtbCombat";
 import { buildPvpCombatReplay } from "@/server/pvpReplay";
+import type { CombatReport } from "@/shared/combatReport";
+import type { AtbCombatSnapshot } from "@/shared/atbCombat";
 import type { CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatLog";
 
 export const PVP_BOARD_KEY = "pvp";
@@ -73,6 +75,9 @@ export async function loadRepresentativeCombat(db: PartyCombatDb, userId: string
       activeSkillName: member.activeSkillName,
       activeSkillId: member.activeSkillId,
       activeSkillLevel: member.activeSkillLevel,
+      passiveSkillId: (member as any).passiveSkillId ?? null,
+      passiveSkillLevel: (member as any).passiveSkillLevel ?? 0,
+      passiveLowHpAtkMaxBonusPct: (member as any).passiveLowHpAtkMaxBonusPct ?? 0,
       combatMods: member.combatMods,
     },
   ]);
@@ -155,6 +160,8 @@ export type PvpAttackResult = {
   won: boolean;
   combatLog: CombatLogLine[];
   combatReplay: DungeonCombatReplay;
+  atbSnapshots: AtbCombatSnapshot[];
+  combatReport: CombatReport;
   attackerLabel: string;
   defenderLabel: string;
   remainingAttacksToday: number;
@@ -176,9 +183,11 @@ export async function runPvpAttack(attackerId: string, defenderUserId: string): 
   const defender = await loadRepresentativeCombat(prisma, defenderUserId);
   if (!defender) throw new Error("DEFENDER_NOT_READY");
 
-  const battle = simulatePvpDuel({
+  const battle = resolvePvpAtbCombat({
     attacker: attacker.combatant,
     defender: defender.combatant,
+    attackerAgility: attacker.member.agility ?? 0,
+    defenderAgility: defender.member.agility ?? 0,
   });
 
   const combatReplay = buildPvpCombatReplay({
@@ -219,6 +228,8 @@ export async function runPvpAttack(attackerId: string, defenderUserId: string): 
     won: battle.outcome === "ATTACKER_WIN",
     combatLog: battle.log,
     combatReplay,
+    atbSnapshots: battle.snapshots,
+    combatReport: battle.combatReport,
     attackerLabel: attacker.combatant.label,
     defenderLabel: defender.combatant.label,
     remainingAttacksToday: Math.max(0, PVP_DAILY_ATTACK_LIMIT - attacksToday - 1),

@@ -97,6 +97,43 @@ export function stackItemTooltipBodyLines(it: StackItemTooltipData): string[] {
     lines.push("봉인된 옵션은 소멸·혼돈의 영향을 받지 않습니다.");
     return lines;
   }
+  if (it.itemId === "item_tome_celestial") {
+    lines.push("감정된 무기·방어구의 모든 옵션을 천계 옵션으로 바꿉니다.");
+    lines.push("옵션 티어(T)는 유지되고, 종류·천계 접두는 다시 정해집니다.");
+    lines.push("대장간 → 장비 가공에서 대상 장비를 고른 뒤 사용하세요.");
+    return lines;
+  }
+  if (it.itemId === "item_tome_abyss") {
+    lines.push("감정된 무기·방어구의 모든 옵션을 마계 옵션으로 바꿉니다.");
+    lines.push("옵션 티어(T)는 유지되고, 종류·마계 접미는 다시 정해집니다.");
+    lines.push("대장간 → 장비 가공에서 대상 장비를 고른 뒤 사용하세요.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_ascension") {
+    lines.push("감정된 장비의 옵션 중 1개 티어(T)를 1단계 올립니다.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_primordial") {
+    lines.push("장비의 모든 옵션과 봉인을 제거합니다.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_void") {
+    lines.push("옵션 1개를 공허 특수 옵션으로 바꿉니다. (스킬 피해 등)");
+    return lines;
+  }
+  if (it.itemId === "item_gem_transfer") {
+    lines.push("원본 장비의 옵션·봉인을 같은 등급·부위의 다른 장비로 옮깁니다.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_expansion") {
+    lines.push("빈 옵션 슬롯 1개를 등급별 최대치까지 무작위로 채웁니다.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_blessing") {
+    lines.push("제련 성공 시 +2 상승. 대신 성공 확률이 크게 감소합니다.");
+    lines.push("대장간 → 제련 탭에서 체크 후 제련하세요.");
+    return lines;
+  }
 
   return lines;
 }

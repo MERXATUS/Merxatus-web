@@ -29,6 +29,7 @@ function XpSection(props: {
   compact?: boolean;
   canPromoteFirst?: boolean;
   canPromoteSecond?: boolean;
+  canPromoteThird?: boolean;
   nextPromotionLabel?: string | null;
   promoteBusy?: boolean;
   onPromote?: () => void | Promise<void>;
@@ -42,11 +43,12 @@ function XpSection(props: {
     compact,
     canPromoteFirst,
     canPromoteSecond,
+    canPromoteThird,
     nextPromotionLabel,
     promoteBusy,
     onPromote,
   } = props;
-  const showPromote = !!(canPromoteFirst || canPromoteSecond);
+  const showPromote = !!(canPromoteFirst || canPromoteSecond || canPromoteThird);
 
   return (
     <div className="minion-stat-allocate__xp-block">
@@ -60,7 +62,7 @@ function XpSection(props: {
               disabled={!!promoteBusy}
               onClick={() => void onPromote?.()}
             >
-              {canPromoteSecond ? "2차 전직" : "전직"}
+              {nextPromotionLabel ?? (canPromoteThird ? "3차 전직" : canPromoteSecond ? "2차 전직" : "전직")}
             </GameBtn>
           ) : null}
         </div>
@@ -227,11 +229,13 @@ export function MinionStatAllocatePanel(props: {
   isMaxLevel: boolean;
   canPromoteFirst?: boolean;
   canPromoteSecond?: boolean;
+  canPromoteThird?: boolean;
   nextPromotionLabel?: string | null;
   busy?: boolean;
   promoteBusy?: boolean;
   compact?: boolean;
   onApply: (stats: Partial<Record<MinionStatKey, number>>) => void | Promise<void>;
+  onReset?: () => void | Promise<void>;
   onPromote?: () => void | Promise<void>;
 }) {
   const {
@@ -244,16 +248,19 @@ export function MinionStatAllocatePanel(props: {
     isMaxLevel,
     canPromoteFirst,
     canPromoteSecond,
+    canPromoteThird,
     nextPromotionLabel,
     busy,
     promoteBusy,
     compact,
     onApply,
+    onReset,
     onPromote,
   } = props;
 
   const [draft, setDraft] = useState<DraftStats>(emptyDraft);
   const canAllocate = unspentStatPoints > 0;
+  const hasAllocatedStats = MINION_STAT_KEYS.some((k) => baseStats[k] > 0);
 
   useEffect(() => {
     setDraft(emptyDraft());
@@ -286,18 +293,33 @@ export function MinionStatAllocatePanel(props: {
         onPromote={onPromote}
       />
 
-      {canAllocate ? (
+      {canAllocate || hasAllocatedStats ? (
         <div className="minion-stat-allocate__allocate-head">
           <div>
             <div className="minion-stat-allocate__title">스탯 배분</div>
-            <div className="minion-stat-allocate__points">
-              <span className="minion-stat-allocate__points-badge">{remaining}</span>
-              <span className="minion-stat-allocate__points-label">포인트 남음</span>
-            </div>
+            {canAllocate ? (
+              <div className="minion-stat-allocate__points">
+                <span className="minion-stat-allocate__points-badge">{remaining}</span>
+                <span className="minion-stat-allocate__points-label">포인트 남음</span>
+              </div>
+            ) : (
+              <div className="minion-stat-allocate__points">
+                <span className="minion-stat-allocate__points-label">배분된 포인트 없음</span>
+              </div>
+            )}
           </div>
-          <GameBtn variant="primary" disabled={!!busy || spent <= 0} onClick={() => void onApply(draft)}>
-            적용
-          </GameBtn>
+          <div className="minion-stat-allocate__head-actions">
+            {hasAllocatedStats && onReset ? (
+              <GameBtn variant="ghost" disabled={!!busy} onClick={() => void onReset()}>
+                초기화
+              </GameBtn>
+            ) : null}
+            {canAllocate ? (
+              <GameBtn variant="primary" disabled={!!busy || spent <= 0} onClick={() => void onApply(draft)}>
+                적용
+              </GameBtn>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

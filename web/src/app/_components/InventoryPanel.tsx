@@ -34,6 +34,7 @@ import { weaponBaseStatLine } from "@/shared/weaponStatsData";
 import { armorDisplayName } from "@/shared/armorTooltip";
 import { weaponDisplayName } from "@/shared/weaponTooltip";
 import { equipmentCapacityLabel } from "@/shared/equipmentCapacity";
+import { inventoryAvailableQty } from "@/shared/inventoryLock";
 
 type MeState = {
   ok: true;
@@ -44,6 +45,8 @@ type MeState = {
     name: string;
     category: string;
     quantity: number;
+    lockedQuantity?: number;
+    availableQuantity?: number;
     grade?: number;
     gradeLabel?: string;
     icon?: string | null;
@@ -54,6 +57,7 @@ type MeState = {
     baseItemId: string;
     name: string;
     enhanceLevel: number;
+    userLocked?: boolean;
     createdAt: string;
     grade?: number;
     gradeLabel?: string;
@@ -75,6 +79,7 @@ type MeState = {
     baseItemId: string;
     name: string;
     enhanceLevel: number;
+    userLocked?: boolean;
     createdAt: string;
     grade?: number;
     gradeLabel?: string;
@@ -113,6 +118,7 @@ type WeaponInstanceRow = {
   name: string;
   enhanceLevel: number;
   createdAt: string;
+  userLocked?: boolean;
   grade?: number;
   gradeLabel?: string;
   icon?: string | null;
@@ -135,6 +141,7 @@ type ArmorInstanceRow = {
   name: string;
   enhanceLevel: number;
   createdAt: string;
+  userLocked?: boolean;
   grade?: number;
   gradeLabel?: string;
   icon?: string | null;
@@ -234,13 +241,17 @@ function friendlyInventoryApiError(e: unknown, itemNameById: Map<string, string>
   const err = o?.error;
   if (typeof err !== "string") return "";
   if (err === "INSUFFICIENT_GOLD") return "골드가 부족해.";
-  if (err === "MAX_WEAPON_LEVEL") return "이 등급 무기의 최대 강화 단계에 도달했어.";
+  if (err === "MAX_WEAPON_LEVEL") return "이 등급 무기의 최대 제련 단계에 도달했어.";
   if (err === "WEAPON_INSTANCE_NOT_FOUND") return "무기를 찾을 수 없어.";
-  if (err === "NOT_A_WEAPON") return "무기만 강화할 수 있어.";
-  if (err === "WEAPON_LOCKED") return "이 무기는 등록 중이라 강화할 수 없어.";
+  if (err === "NOT_A_WEAPON") return "무기만 제련할 수 있어.";
+  if (err === "WEAPON_LOCKED") return "이 무기는 등록 중이라 제련할 수 없어.";
   if (err === "WALLET_NOT_FOUND") return "지갑 정보를 찾을 수 없어.";
   if (err === "NO_RECRUIT_TICKET") return "미니언 고용권이 부족해. 던전·거래소에서 구해 와.";
   if (err === "NO_BOX") return "상자가 부족해.";
+  if (err === "ITEM_LOCKED") return "잠긴 아이템은 사용·판매할 수 없어. 잠금을 해제한 뒤 다시 시도해.";
+  if (err === "ITEM_USER_LOCKED") return "잠긴 장비야. 인벤에서 잠금을 해제한 뒤 다시 시도해.";
+  if (err === "INSUFFICIENT_AVAILABLE") return "잠글 수 있는 가용 수량이 부족해.";
+  if (err === "NOTHING_LOCKED") return "잠긴 수량이 없어.";
   if (err === "NOT_A_LOOT_BOX") return "개봉할 수 없는 아이템이야.";
   if (err === "BOX_TABLE_EMPTY") return "상자 보상 테이블을 찾을 수 없어. data:sync 후 다시 시도해.";
   if (err === "NOT_OPTION_CONSUMABLE") return "장비 옵션 소모품만 사용할 수 있어.";
@@ -663,6 +674,48 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
     }
   }
 
+  async function toggleStackLock(it: MeState["inventory"][number], lock: boolean) {
+    const locked = Math.max(0, it.lockedQuantity ?? 0);
+    const available = it.availableQuantity ?? inventoryAvailableQty(it);
+    const qty = lock ? available : locked;
+    if (qty <= 0) return;
+
+    setBusy(lock ? "lock" : "unlock");
+    setError(null);
+    try {
+      const r = await postJson<{ ok: true }>(lock ? "/api/inventory/stack/lock" : "/api/inventory/stack/unlock", {
+        itemId: it.itemId,
+        quantity: qty,
+      });
+      if (!r?.ok) throw r;
+      await refresh(true);
+      window.dispatchEvent(new Event(GAME_FRAME_REFRESH_EVENT));
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function toggleEquipLock(kind: "weapon" | "armor", instanceId: string, locked: boolean) {
+    setBusy("equip-lock");
+    setError(null);
+    try {
+      const r = await postJson<{ ok: true }>("/api/inventory/equipment-lock", {
+        kind,
+        instanceId,
+        locked,
+      });
+      if (!r?.ok) throw r;
+      await refresh(true);
+      window.dispatchEvent(new Event(GAME_FRAME_REFRESH_EVENT));
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function openLootBox(it: MeState["inventory"][number], quantity = 1) {
     setBusy("open-box");
     setError(null);
@@ -862,8 +915,8 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                       <option value="oldest">획득 순 · 오래됨</option>
                       <option value="name_az">이름 가나다</option>
                       <option value="name_za">이름 역순</option>
-                      <option value="enh_high">강화 높은 순</option>
-                      <option value="enh_low">강화 낮은 순</option>
+                      <option value="enh_high">제련 높은 순</option>
+                      <option value="enh_low">제련 낮은 순</option>
                       <option value="grade_high">등급 높은 순</option>
                       <option value="grade_low">등급 낮은 순</option>
                     </>
@@ -920,12 +973,12 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
             <div>
               <div className="inventory-section-title">보유 무기</div>
               <div className="inventory-section-hint">
-                무기·방어구 강화·감정·보석 가공은 <strong>강화소</strong>에서 할 수 있어요.
+                무기·방어구 제련·감정·보석 가공은 <strong>대장간</strong>에서 할 수 있어요.
               </div>
             </div>
 
             <div className="forge-link-banner">
-              감정 주문서·소멸/혼돈/봉인 보석 → 상단 메뉴 <strong>강화소</strong> → 「장비 가공」
+              감정 주문서·소멸/혼돈/봉인 보석 → 상단 메뉴 <strong>대장간</strong> → 「장비 가공」
             </div>
 
             {filteredWeapons.length === 0 ? (
@@ -971,6 +1024,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                           {w.identified === false ? (
                             <span className="inventory-badge-cat">미감정</span>
                           ) : null}
+                          {w.userLocked ? <span className="inventory-badge-lock">잠금</span> : null}
                         </div>
                         {viewMode === "list" ? (
                           <>
@@ -987,15 +1041,24 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                             <GameBtn
                               variant="ghost"
                               className="inventory-btn-enhance"
+                              disabled={!!w.userLocked}
                               onClick={() => openForgeForEquip("weapon", w.id, "enhance")}
                             >
-                              강화소
+                              대장간
                             </GameBtn>
                             <GameBtn
                               variant="ghost"
+                              disabled={!!w.userLocked}
                               onClick={() => openForgeForEquip("weapon", w.id, "craft")}
                             >
                               가공
+                            </GameBtn>
+                            <GameBtn
+                              variant="ghost"
+                              disabled={!!busy}
+                              onClick={() => void toggleEquipLock("weapon", w.id, !w.userLocked)}
+                            >
+                              {w.userLocked ? "잠금 해제" : "잠금"}
                             </GameBtn>
                           </div>
                         ) : null}
@@ -1013,12 +1076,12 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
             <div>
               <div className="inventory-section-title">보유 방어구</div>
               <div className="inventory-section-hint">
-                방어구 옵션 가공은 <strong>강화소</strong> → 「장비 가공」. 착용은 미니언 관리 → 「장비 착용」.
+                방어구 옵션 가공은 <strong>대장간</strong> → 「장비 가공」. 착용은 미니언 관리 → 「장비 착용」.
               </div>
             </div>
 
             <div className="forge-link-banner">
-              감정·보석 작업 → <strong>강화소</strong> → 「장비 가공」에서 무기·방어구를 선택하세요.
+              감정·보석 작업 → <strong>대장간</strong> → 「장비 가공」에서 무기·방어구를 선택하세요.
             </div>
 
             {filteredArmorInstances.length === 0 ? (
@@ -1066,6 +1129,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                           {a.identified === false ? (
                             <span className="inventory-badge-cat">미감정</span>
                           ) : null}
+                          {a.userLocked ? <span className="inventory-badge-lock">잠금</span> : null}
                         </div>
                         {viewMode === "list" ? (
                           <>
@@ -1084,15 +1148,24 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                             <GameBtn
                               variant="ghost"
                               className="inventory-btn-enhance"
+                              disabled={!!a.userLocked}
                               onClick={() => openForgeForEquip("armor", a.id, "enhance")}
                             >
-                              강화소
+                              대장간
                             </GameBtn>
                             <GameBtn
                               variant="ghost"
+                              disabled={!!a.userLocked}
                               onClick={() => openForgeForEquip("armor", a.id, "craft")}
                             >
                               가공
+                            </GameBtn>
+                            <GameBtn
+                              variant="ghost"
+                              disabled={!!busy}
+                              onClick={() => void toggleEquipLock("armor", a.id, !a.userLocked)}
+                            >
+                              {a.userLocked ? "잠금 해제" : "잠금"}
                             </GameBtn>
                           </div>
                         ) : null}
@@ -1115,6 +1188,8 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
               filteredMaterials.map((it) => {
                 const canRecruit = false;
                 const canOpenBox = isLootBoxItemId(it.itemId);
+                const lockedQty = Math.max(0, it.lockedQuantity ?? 0);
+                const availableQty = it.availableQuantity ?? inventoryAvailableQty(it);
                 const icon = (
                   <ItemIcon
                     itemId={it.itemId}
@@ -1132,8 +1207,16 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
 
                 if (viewMode === "icons") {
                   return (
-                    <div key={it.itemId} className="inventory-item-cell inventory-item-cell--stack">
+                    <div
+                      key={it.itemId}
+                      className={`inventory-item-cell inventory-item-cell--stack ${lockedQty > 0 ? "inventory-item-cell--locked" : ""}`}
+                    >
                       {iconWithTooltip}
+                      {lockedQty > 0 ? (
+                        <span className="inventory-item-cell__lock" title={`잠금 ${lockedQty}개`} aria-hidden>
+                          🔒
+                        </span>
+                      ) : null}
                       {it.quantity > 1 ? (
                         <span className="inventory-item-cell__badge">{fmtInt(it.quantity)}</span>
                       ) : null}
@@ -1146,7 +1229,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                         >
                           고용
                         </button>
-                      ) : canOpenBox ? (
+                      ) : canOpenBox && availableQty > 0 ? (
                         <button
                           type="button"
                           className="inventory-item-cell__action"
@@ -1156,6 +1239,15 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                           개봉
                         </button>
                       ) : null}
+                      <button
+                        type="button"
+                        className="inventory-item-cell__action inventory-item-cell__action--lock"
+                        disabled={!!busy || (lockedQty <= 0 && availableQty <= 0)}
+                        title={lockedQty > 0 ? "잠금 해제" : "전체 잠금"}
+                        onClick={() => void toggleStackLock(it, lockedQty <= 0)}
+                      >
+                        {lockedQty > 0 ? "해제" : "잠금"}
+                      </button>
                     </div>
                   );
                 }
@@ -1163,7 +1255,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                 return (
                 <div
                   key={it.itemId}
-                  className="inventory-item-card"
+                  className={`inventory-item-card ${lockedQty > 0 ? "inventory-item-card--locked" : ""}`}
                 >
                   {iconWithTooltip}
                   <div className="inventory-item-card__body min-w-0">
@@ -1174,6 +1266,11 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                     </div>
                     <div className="inventory-item-card__meta">
                       수량 <span className="font-semibold text-[var(--game-text)]">{fmtInt(it.quantity)}</span>
+                      {lockedQty > 0 ? (
+                        <span className="inventory-lock-meta">
+                          · 사용 가능 {fmtInt(availableQty)} · 잠금 {fmtInt(lockedQty)}
+                        </span>
+                      ) : null}
                     </div>
                     {viewMode === "list" ? <div className="inventory-item-card__id">{it.itemId}</div> : null}
                   </div>
@@ -1188,7 +1285,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                         미니언 고용
                       </button>
                     ) : null}
-                    {canOpenBox ? (
+                    {canOpenBox && availableQty > 0 ? (
                       <>
                         <button
                           type="button"
@@ -1198,18 +1295,26 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                         >
                           개봉
                         </button>
-                        {it.quantity > 1 ? (
+                        {availableQty > 1 ? (
                           <button
                             type="button"
                             className="inventory-btn h-10 px-3 text-sm disabled:opacity-50"
                             disabled={!!busy}
-                            onClick={() => void openLootBox(it, Math.min(it.quantity, 10))}
+                            onClick={() => void openLootBox(it, Math.min(availableQty, 10))}
                           >
-                            {Math.min(it.quantity, 10)}개
+                            {Math.min(availableQty, 10)}개
                           </button>
                         ) : null}
                       </>
                     ) : null}
+                    <button
+                      type="button"
+                      className="inventory-btn h-10 px-3 text-sm disabled:opacity-50"
+                      disabled={!!busy || (lockedQty <= 0 && availableQty <= 0)}
+                      onClick={() => void toggleStackLock(it, lockedQty <= 0)}
+                    >
+                      {lockedQty > 0 ? "잠금 해제" : "잠금"}
+                    </button>
                   </div>
                 </div>
               );

@@ -38,7 +38,7 @@ import {
   MINION_ALT_CREATE_LEVEL,
   type MinionCreateEligibility,
 } from "@/shared/minionCreate";
-import { MinionSkillsPanel } from "@/app/_components/MinionSkillsPanel";
+import { MinionSkillsModal } from "@/app/_components/MinionSkillsModal";
 import type { KnightOrderView } from "@/shared/meDashboard";
 import type { MinionBaseStats, MinionStatKey } from "@/shared/minionBaseStats";
 import type { MinionCombatClass } from "@/shared/minionDerivedClass";
@@ -80,6 +80,7 @@ type MinionRow = {
   promotionTier?: number;
   canPromoteFirst?: boolean;
   canPromoteSecond?: boolean;
+  canPromoteThird?: boolean;
   nextPromotionLabel?: string | null;
   skills?: MinionSkillView[];
   equippedWeaponInstanceId: string | null;
@@ -252,6 +253,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
   const [initialLoading, setInitialLoading] = useState(true);
   const [knightOrder, setKnightOrder] = useState<KnightOrderView | null>(null);
   const [representativeMinionId, setRepresentativeMinionId] = useState<string | null>(null);
+  const [skillsModalMinionId, setSkillsModalMinionId] = useState<string | null>(null);
   const [minionCreate, setMinionCreate] = useState<MinionCreateEligibility>({
     canCreate: false,
     minionCount: 0,
@@ -405,6 +407,11 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
     [equipMinion, selected, equipMode],
   );
 
+  const skillsModalMinion = useMemo(
+    () => (skillsModalMinionId ? (minions.find((m) => m.id === skillsModalMinionId) ?? null) : null),
+    [minions, skillsModalMinionId],
+  );
+
   async function equipArmorForMinion(
     minionId: string,
     slotId: MinionEquipSlotId,
@@ -533,11 +540,63 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
     }
   }
 
+  async function resetStatsForMinion(minionId: string) {
+    setBusy("reset-stats");
+    setError(null);
+    try {
+      const r = await postJson<{ ok: boolean }>("/api/minions/stats/reset", { minionId });
+      if (r?.ok) {
+        await refresh();
+        setNotice("스탯 배분을 초기화했어요.");
+      }
+    } catch (err) {
+      const code =
+        err && typeof err === "object" && "error" in err
+          ? String((err as { error?: string }).error)
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      setError(new Error(code === "NOTHING_TO_RESET" ? "초기화할 스탯이 없습니다." : code));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function resetSkillsForMinion(minionId: string) {
+    setBusy("reset-skills");
+    setError(null);
+    try {
+      const r = await postJson<{ ok: boolean }>("/api/minions/skills/reset", { minionId });
+      if (r?.ok) {
+        await refresh();
+        setNotice("스킬 배분을 초기화했어요.");
+      }
+    } catch (err) {
+      const code =
+        err && typeof err === "object" && "error" in err
+          ? String((err as { error?: string }).error)
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      setError(new Error(code === "NOTHING_TO_RESET" ? "초기화할 스킬 포인트가 없습니다." : code));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function openEquipMode(minionId: string) {
+    setSkillsModalMinionId(null);
     setEquipModeMinionId(minionId);
     setSelectedId(minionId);
     setActiveSlot("weapon");
     setBagCategory("weapon");
+    setNotice(null);
+  }
+
+  function openSkillsMode(minionId: string) {
+    setEquipModeMinionId(null);
+    setSkillsModalMinionId(minionId);
+    setSelectedId(minionId);
     setNotice(null);
   }
 
@@ -809,6 +868,16 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
                     <GameBtn className="minion-detail-head__equip-btn" onClick={() => openEquipMode(selected!.id)} disabled={!!busy}>
                       장비
                     </GameBtn>
+                    {selected!.skills && selected!.skills.length > 0 ? (
+                      <GameBtn
+                        className="minion-detail-head__equip-btn"
+                        variant={(selected!.unspentSkillPoints ?? 0) > 0 ? "primary" : "ghost"}
+                        onClick={() => openSkillsMode(selected!.id)}
+                        disabled={!!busy}
+                      >
+                        스킬{(selected!.unspentSkillPoints ?? 0) > 0 ? ` ${selected!.unspentSkillPoints}P` : ""}
+                      </GameBtn>
+                    ) : null}
                     <GameBtn
                       variant="ghost"
                       className="minion-detail-head__equip-btn text-[10px]"
@@ -832,27 +901,14 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
                     isMaxLevel={selected!.isMaxLevel ?? false}
                     canPromoteFirst={selected!.canPromoteFirst}
                     canPromoteSecond={selected!.canPromoteSecond}
+                    canPromoteThird={selected!.canPromoteThird}
                     nextPromotionLabel={selected!.nextPromotionLabel}
-                    busy={busy === "allocate-stats"}
+                    busy={busy === "allocate-stats" || busy === "reset-stats"}
                     promoteBusy={busy === "promote"}
                     compact
                     onApply={(stats) => allocateStatsForMinion(selected!.id, stats)}
+                    onReset={() => resetStatsForMinion(selected!.id)}
                     onPromote={() => promoteMinion(selected!.id)}
-                  />
-                ) : null}
-
-                {selected!.skills && selected!.skills.length > 0 ? (
-                  <MinionSkillsPanel
-                    minionId={selected!.id}
-                    skills={selected!.skills}
-                    unspentSkillPoints={selected!.unspentSkillPoints ?? 0}
-                    compact={(selected!.unspentSkillPoints ?? 0) <= 0}
-                    busy={busy === "allocate-skills"}
-                    onApply={
-                      (selected!.unspentSkillPoints ?? 0) > 0
-                        ? (skills) => allocateSkillsForMinion(selected!.id, skills)
-                        : undefined
-                    }
                   />
                 ) : null}
               </div>
@@ -888,26 +944,13 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
                     isMaxLevel={selected!.isMaxLevel ?? false}
                     canPromoteFirst={selected!.canPromoteFirst}
                     canPromoteSecond={selected!.canPromoteSecond}
+                    canPromoteThird={selected!.canPromoteThird}
                     nextPromotionLabel={selected!.nextPromotionLabel}
-                    busy={busy === "allocate-stats"}
+                    busy={busy === "allocate-stats" || busy === "reset-stats"}
                     promoteBusy={busy === "promote"}
                     onApply={(stats) => allocateStatsForMinion(selected!.id, stats)}
+                    onReset={() => resetStatsForMinion(selected!.id)}
                     onPromote={() => promoteMinion(selected!.id)}
-                  />
-                ) : null}
-
-                {selected!.skills && selected!.skills.length > 0 ? (
-                  <MinionSkillsPanel
-                    minionId={selected!.id}
-                    skills={selected!.skills}
-                    unspentSkillPoints={selected!.unspentSkillPoints ?? 0}
-                    compact={embedded && (selected!.unspentSkillPoints ?? 0) <= 0}
-                    busy={busy === "allocate-skills"}
-                    onApply={
-                      (selected!.unspentSkillPoints ?? 0) > 0
-                        ? (skills) => allocateSkillsForMinion(selected!.id, skills)
-                        : undefined
-                    }
                   />
                 ) : null}
 
@@ -935,6 +978,15 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
                   <GameBtn onClick={() => openEquipMode(selected!.id)} disabled={!!busy}>
                     장비 착용
                   </GameBtn>
+                  {selected!.skills && selected!.skills.length > 0 ? (
+                    <GameBtn
+                      variant={(selected!.unspentSkillPoints ?? 0) > 0 ? "primary" : "ghost"}
+                      onClick={() => openSkillsMode(selected!.id)}
+                      disabled={!!busy}
+                    >
+                      스킬{(selected!.unspentSkillPoints ?? 0) > 0 ? ` ${selected!.unspentSkillPoints}P` : ""}
+                    </GameBtn>
+                  ) : null}
                   <GameBtn
                     variant="ghost"
                     disabled={!!busy || representativeMinionId === selected!.id}
@@ -957,6 +1009,24 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
       </div>
         </>
       )}
+      {skillsModalMinion?.skills && skillsModalMinion.skills.length > 0 ? (
+        <MinionSkillsModal
+          open
+          minionId={skillsModalMinion.id}
+          combatClassLabel={skillsModalMinion.combatClassLabel}
+          level={skillsModalMinion.level}
+          skills={skillsModalMinion.skills}
+          unspentSkillPoints={skillsModalMinion.unspentSkillPoints ?? 0}
+          busy={busy === "allocate-skills" || busy === "reset-skills"}
+          onClose={() => setSkillsModalMinionId(null)}
+          onApply={
+            (skillsModalMinion.unspentSkillPoints ?? 0) > 0
+              ? (skills) => allocateSkillsForMinion(skillsModalMinion.id, skills)
+              : undefined
+          }
+          onReset={() => resetSkillsForMinion(skillsModalMinion.id)}
+        />
+      ) : null}
     </GamePanel>
   );
 }

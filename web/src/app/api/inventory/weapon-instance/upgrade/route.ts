@@ -10,6 +10,7 @@ const BodySchema = z.object({
   userId: z.string().min(1).optional(),
   weaponInstanceId: z.string().min(1),
   useProtectionScroll: z.boolean().optional(),
+  useBlessingGem: z.boolean().optional(),
   manaStoneItemId: z.enum(ENHANCE_MANA_STONE_ITEM_IDS).optional(),
 });
 
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
         userId: auth.userId,
         weaponInstanceId: parsed.data.weaponInstanceId,
         useProtectionScroll: parsed.data.useProtectionScroll,
+        useBlessingGem: parsed.data.useBlessingGem,
         manaStoneItemId: parsed.data.manaStoneItemId,
       }),
     );

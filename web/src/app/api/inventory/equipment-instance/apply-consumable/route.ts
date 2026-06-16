@@ -10,6 +10,7 @@ const BodySchema = z.object({
   consumableItemId: z.string().min(1),
   targetKind: z.enum(["weapon", "armor"]),
   targetInstanceId: z.string().min(1),
+  transferTargetInstanceId: z.string().min(1).optional(),
 });
 
 const ERROR_STATUS: Record<string, number> = {
@@ -23,6 +24,13 @@ const ERROR_STATUS: Record<string, number> = {
   NO_OPTIONS: 400,
   NO_REMOVABLE_OPTION: 400,
   SEAL_LIMIT_OR_NO_SLOT: 400,
+  NO_EMPTY_SLOT: 400,
+  NO_VOID_OPTION_POOL: 400,
+  TRANSFER_NEEDS_SECOND_TARGET: 400,
+  TRANSFER_SAME_INSTANCE: 400,
+  TRANSFER_KIND_MISMATCH: 400,
+  TRANSFER_GRADE_MISMATCH: 400,
+  TRANSFER_ARMOR_SLOT_MISMATCH: 400,
   BAD_REQUEST: 400,
 };
 
@@ -40,6 +48,7 @@ export async function POST(req: Request) {
       consumableItemId: parsed.data.consumableItemId,
       targetKind: parsed.data.targetKind,
       targetInstanceId: parsed.data.targetInstanceId,
+      transferTargetInstanceId: parsed.data.transferTargetInstanceId,
     });
     return Response.json(out);
   } catch (e) {

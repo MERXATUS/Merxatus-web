@@ -1,6 +1,11 @@
 import armorOptionTiers from "../../data/armor_option_tiers.json";
 import weaponOptionTiers from "../../data/weapon_option_tiers.json";
 import { isMechanizedWeaponOptionId } from "@/shared/equipmentCombatModifiers";
+import {
+  isVoidOptionId,
+  voidOptionDisplayName,
+  voidOptionTierValue,
+} from "@/shared/equipmentVoidOptions";
 
 export type OptionTierRow = {
   name: string;
@@ -62,6 +67,7 @@ export function optionTierValue(
 
 export function optionDisplayName(optionId: string, pool: "weapon" | "armor"): string {
   const id = normalizeOptionId(optionId);
+  if (isVoidOptionId(id)) return voidOptionDisplayName(id);
   const catalog = optionCatalogForPool(pool);
   return catalog[id]?.name ?? LEGACY_OPTION_LABEL_KO[optionId] ?? LEGACY_OPTION_LABEL_KO[id] ?? id;
 }
@@ -77,9 +83,11 @@ function legacyTierDisplayValue(kind: string, tier: number): number {
 }
 
 export function formatOptionValueForDisplay(optionId: string, tier: number, pool: "weapon" | "armor"): number {
+  const id = normalizeOptionId(optionId);
+  if (isVoidOptionId(id)) return voidOptionTierValue(id, tier);
   const catalog = optionCatalogForPool(pool);
   const v = optionTierValue(catalog, optionId, tier);
-  if (v !== 0 || catalog[normalizeOptionId(optionId)]) return v;
+  if (v !== 0 || catalog[id]) return v;
   return legacyTierDisplayValue(optionId, tier);
 }
 

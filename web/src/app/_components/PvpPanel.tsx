@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CombatEncounterBlock } from "@/app/_components/CombatEncounterBlock";
+import { CombatReportPanel } from "@/app/_components/CombatReportPanel";
 import { GameBtn, GamePanel } from "@/app/_components/gameUi";
 import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
-import type { CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatLog";
+import type { CombatReport } from "@/shared/combatReport";
 import { formatPanelError } from "@/shared/formatPanelError";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import { apiGetJson, apiPostJson } from "@/shared/sessionClient";
+import type { CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatLog";
 
 type Opponent = {
   userId: string;
@@ -43,6 +45,7 @@ type AttackResult = {
   outcome: string;
   combatLog: CombatLogLine[];
   combatReplay: DungeonCombatReplay;
+  combatReport: CombatReport;
   attackerLabel: string;
   defenderLabel: string;
   remainingAttacksToday: number;
@@ -67,9 +70,10 @@ export function PvpPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [lastMsg, setLastMsg] = useState<string | null>(null);
-  const [playingLog, setPlayingLog] = useState(false);
+  const [pvpPlaying, setPvpPlaying] = useState(false);
   const [battleReplay, setBattleReplay] = useState<DungeonCombatReplay | null>(null);
   const [battleLines, setBattleLines] = useState<CombatLogLine[]>([]);
+  const [pvpReport, setPvpReport] = useState<CombatReport | null>(null);
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -99,17 +103,11 @@ export function PvpPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }, [embedded, user, refresh]);
 
   const startBattlePlayback = (r: AttackResult) => {
-    setBattleReplay(r.combatReplay);
+    setBattleReplay(r.combatReplay ?? null);
     setBattleLines(r.combatLog ?? []);
-    setPlayingLog(true);
+    setPvpReport(r.combatReport ?? null);
+    setPvpPlaying(true);
     setLastMsg(r.won ? "결투 승리!" : "결투 패배…");
-  };
-
-  const finishBattlePlayback = () => {
-    setPlayingLog(false);
-    setBattleReplay(null);
-    setBattleLines([]);
-    void refresh();
   };
 
   const attack = async (defenderUserId: string) => {
@@ -155,7 +153,7 @@ export function PvpPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       </header>
 
       {error ? <GamePanelError className="mt-3" error={error} /> : null}
-      {lastMsg && !playingLog ? (
+      {lastMsg && !pvpPlaying ? (
         <p className="mt-2 text-sm text-[var(--game-gold-bright)]">{lastMsg}</p>
       ) : null}
 
@@ -192,16 +190,23 @@ export function PvpPanel({ embedded = false }: EmbeddedPanelProps = {}) {
             </div>
           </div>
 
-          {playingLog ? (
-            <CombatEncounterBlock
-              embedded={embedded}
-              playing={playingLog}
-              replay={battleReplay}
-              lines={battleLines}
-              encounterLabel="결투"
-              floorLabel="1:1"
-              onComplete={finishBattlePlayback}
-            />
+          {pvpPlaying || pvpReport ? (
+            <div className="space-y-2">
+              <CombatEncounterBlock
+                embedded={embedded}
+                playing={pvpPlaying}
+                replay={battleReplay}
+                lines={battleLines}
+                onComplete={() => {
+                  setPvpPlaying(false);
+                  setBattleReplay(null);
+                  setBattleLines([]);
+                  void refresh();
+                }}
+                hideEnemyPortrait
+              />
+              {!pvpPlaying && pvpReport ? <CombatReportPanel report={pvpReport} compact={embedded} /> : null}
+            </div>
           ) : (
             <>
               <div>
@@ -221,7 +226,7 @@ export function PvpPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                         <GameBtn
                           variant="gold"
                           className="h-8 shrink-0 px-3 text-xs"
-                          disabled={!!busy || state.remainingAttacks <= 0}
+                          disabled={!!busy || state.remainingAttacks <= 0 || pvpPlaying}
                           onClick={() => void attack(o.userId)}
                         >
                           {busy === o.userId ? "…" : "도전"}

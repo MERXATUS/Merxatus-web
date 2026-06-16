@@ -15,7 +15,7 @@ export type DungeonRunState = {
   ok: true;
   active: boolean;
   dungeon?: { name: string };
-  combat?: { partyPower: number; clearChance: number };
+  combat?: { partyPower: number };
 };
 
 export type MeBootstrap = {

@@ -4,7 +4,7 @@ import { GamePanelLoading } from "@/app/_components/panelFeedback";
 
 export default function EnhancePage() {
   return (
-    <Suspense fallback={<GamePanelLoading label="강화소 불러오는 중…" className="m-6" />}>
+    <Suspense fallback={<GamePanelLoading label="대장간 불러오는 중…" className="m-6" />}>
       <GameFrame />
     </Suspense>
   );

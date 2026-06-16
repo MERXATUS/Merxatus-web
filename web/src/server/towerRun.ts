@@ -1,5 +1,11 @@
 import { prisma, assertRowsUpdated } from "@/server/db";
-import { buildPartyCombatants, buildFullPartyHp, estimateFloorWinChance, simulateFloorCombat, type FloorEnemy } from "@/server/dungeonBattler";
+import {
+  buildPartyCombatants,
+  buildFullPartyHp,
+  partyMemberToCombatantInput,
+  type FloorEnemy,
+} from "@/server/dungeonBattler";
+import { resolveFloorCombat } from "@/server/resolveFloorCombat";
 import { buildCombatReplay } from "@/server/combatReplay";
 import { loadPartyCombatRows, type PartyCombatDb } from "@/server/minionCombatBuild";
 import { knightOrderPartyDamageMult } from "@/shared/knightOrder";
@@ -12,7 +18,6 @@ import { grantMinionsExperience } from "@/server/minionLevelUp";
 import { grantLootToUser } from "@/server/grantLootToUser";
 import { getUserLeaderboardRank, listLeaderboard, upsertLeaderboardScore } from "@/server/leaderboard";
 import type { CombatLogLine } from "@/shared/dungeonCombatLog";
-import { inferEnemyCombatTags } from "@/shared/equipmentCombatModifiers";
 
 type LootEntry = { itemId: string; qty: number };
 
@@ -60,72 +65,8 @@ async function loadTowerPartyCombat(db: PartyCombatDb, userId: string, run: { pa
   return {
     memberInputs,
     knightOrder,
-    combatants: buildPartyCombatants(
-      memberInputs.map((x) => ({
-        minionId: x.minionId,
-        combatClassLabel: x.combatClassLabel,
-        power: x.power,
-        bonusHp: x.bonusHp,
-        bonusDef: x.bonusDef,
-        skillDamageMult: x.skillDamageMult,
-        activeSkillName: x.activeSkillName,
-        activeSkillId: x.activeSkillId,
-        activeSkillLevel: x.activeSkillLevel,
-        combatMods: x.combatMods,
-      })),
-    ),
+    combatants: buildPartyCombatants(memberInputs.map(partyMemberToCombatantInput)),
   };
-}
-
-type TowerRunWithParty = NonNullable<
-  Awaited<
-    ReturnType<
-      typeof prisma.towerRun.findFirst<{
-        include: { party: { include: { minion: true } } };
-      }>
-    >
-  >
->;
-
-export async function getTowerCombatPreview(
-  userId: string,
-  existingRun?: TowerRunWithParty,
-  opts?: { samples?: number },
-) {
-  const config = await loadTowerConfig();
-  const run =
-    existingRun ??
-    (await prisma.towerRun.findFirst({
-      where: { userId, status: "RUNNING", seasonKey: config.seasonKey },
-      include: { party: { include: { minion: true } } },
-      orderBy: { startedAt: "desc" },
-    }));
-  if (!run) return null;
-
-  const floor = Math.max(1, run.floor);
-  const enc = towerMonsterForFloor(config, floor);
-  const monster = await getMonster(enc.monsterId);
-  const enemy: FloorEnemy = { name: monster.name, monster };
-  const { combatants, knightOrder } = await loadTowerPartyCombat(prisma, userId, run);
-  const entries = parsePartyHpJson(run.partyHpJson);
-  const partyHp = Object.fromEntries(entries.map((e) => [e.minionId, { hp: e.hp, maxHp: e.maxHp }]));
-  const isBoss = enc.category === "Boss";
-  const enemyTags = inferEnemyCombatTags({
-    category: enc.category,
-    monsterId: enc.monsterId,
-    monsterName: monster.name,
-  });
-  const clearChance = estimateFloorWinChance({
-    floor,
-    maxFloors: 9999,
-    party: combatants,
-    enemy,
-    partyHp,
-    samples: opts?.samples ?? 32,
-    partyDamageMult: knightOrderPartyDamageMult(knightOrder, isBoss),
-    enemyTags,
-  });
-  return { clearChance, floor, isBoss };
 }
 
 async function recordTowerBest(userId: string, config: TowerDef, reachedFloor: number) {
@@ -192,12 +133,6 @@ export async function advanceTowerFloor(input: { userId: string }) {
   const partyHpStart = Object.fromEntries(entries.map((e) => [e.minionId, { hp: e.hp, maxHp: e.maxHp }]));
   const isBoss = enc.category === "Boss";
   const partyDamageMult = knightOrderPartyDamageMult(knightOrder, isBoss);
-  const enemyTags = inferEnemyCombatTags({
-    category: enc.category,
-    monsterId: enc.monsterId,
-    monsterName: monster.name,
-  });
-
   const combatReplay = buildCombatReplay(
     floor,
     enemy,
@@ -206,25 +141,15 @@ export async function advanceTowerFloor(input: { userId: string }) {
     combatants,
     memberInputs,
   );
-  const clearChance = estimateFloorWinChance({
-    floor,
-    maxFloors: 9999,
-    party: combatants,
-    enemy,
-    partyHp: partyHpStart,
-    samples: 32,
-    partyDamageMult,
-    enemyTags,
-  });
 
-  const battle = simulateFloorCombat({
+  const battle = resolveFloorCombat({
     floor,
-    maxFloors: 9999,
+    maxFloors: Math.max(floor + 1, config.encounterCycleFloors ?? config.bossEveryFloors ?? 999),
     party: combatants,
     enemy,
     partyHp: partyHpStart,
     partyDamageMult,
-    enemyTags,
+    enemyTags: { isBoss, isAngel: false, isDemon: false },
   });
 
   const combatLog: CombatLogLine[] = battle.log;
@@ -254,7 +179,6 @@ export async function advanceTowerFloor(input: { userId: string }) {
       ok: true as const,
       result: "LOSS" as const,
       floor,
-      clearChance,
       combatLog,
       combatReplay,
       isBoss: enc.category === "Boss",
@@ -289,7 +213,6 @@ export async function advanceTowerFloor(input: { userId: string }) {
     ok: true as const,
     result: "WIN" as const,
     floor,
-    clearChance,
     combatLog,
     combatReplay,
     isBoss: enc.category === "Boss",
@@ -354,7 +277,8 @@ export async function getTowerRunState(userId: string, opts?: { includeLeaderboa
     return { ok: true as const, active: false as const, config, rank, leaderboard };
   }
 
-  const combatPreview = await getTowerCombatPreview(userId, run, { samples: 8 });
+  const floor = Math.max(1, run.floor);
+  const enc = towerMonsterForFloor(config, floor);
 
   return {
     ok: true as const,
@@ -362,9 +286,7 @@ export async function getTowerRunState(userId: string, opts?: { includeLeaderboa
     config,
     rank,
     leaderboard,
-    combat: combatPreview
-      ? { clearChance: combatPreview.clearChance, isBoss: combatPreview.isBoss }
-      : undefined,
+    combat: { isBoss: enc.category === "Boss" },
     run: {
       id: run.id,
       floor: run.floor,

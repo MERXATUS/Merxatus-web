@@ -11,11 +11,13 @@ import { minionLevelProgress } from "@/shared/minionLevel";
 import {
   canAttemptFirstPromotion,
   canAttemptSecondPromotion,
+  canAttemptThirdPromotion,
   minionPromotionAvailability,
   promotionStateFromRow,
   resolveMinionCombatClass,
   validateFirstPromotion,
   validateSecondPromotion,
+  validateThirdPromotion,
 } from "@/shared/minionPromotion";
 import { applyPromotionSkillUnlock, skillStateFromMinionRow } from "@/server/minionSkills";
 import { serializeMinionSkillLevels, skillViewsForMinion } from "@/shared/minionSkills";
@@ -64,6 +66,11 @@ export async function POST(req: Request) {
         const check = validateSecondPromotion(baseStats);
         if (!check.ok) throw new Error(check.error);
         nextTier = 2;
+        nextClass = check.promotionClass;
+      } else if (canAttemptThirdPromotion(level, promotion.promotionTier)) {
+        const check = validateThirdPromotion(promotion.promotionClass);
+        if (!check.ok) throw new Error(check.error);
+        nextTier = 3;
         nextClass = check.promotionClass;
       } else {
         throw new Error("PROMOTION_NOT_AVAILABLE");
@@ -147,6 +154,7 @@ export async function POST(req: Request) {
       message === "MINION_NOT_FOUND" ||
       message === "NO_SWORD_EQUIPPED" ||
       message === "NO_STATS_FOR_PROMOTION" ||
+      message === "NO_MASTER_CLASS" ||
       message === "PROMOTION_NOT_AVAILABLE" ||
       message === "GATHER_MINION_NO_PROMOTION"
         ? 400

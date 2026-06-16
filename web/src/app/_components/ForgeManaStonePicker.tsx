@@ -52,7 +52,7 @@ export function ForgeManaStonePicker(props: Props) {
           </p>
         ) : null}
       </div>
-      <div className="forge-mana-picker__grid" role="radiogroup" aria-label="강화 마석 선택">
+      <div className="forge-mana-picker__grid" role="radiogroup" aria-label="제련 마석 선택">
         {ENHANCE_MANA_STONE_ITEM_IDS.map((itemId) => {
           const canUse = eligible.includes(itemId);
           const active = props.selectedId === itemId;

@@ -21,6 +21,7 @@ export async function attemptWeaponInstanceUpgrade(
     userId: string;
     weaponInstanceId: string;
     useProtectionScroll?: boolean;
+    useBlessingGem?: boolean;
     manaStoneItemId?: string | null;
   },
 ): Promise<WeaponUpgradeAttemptResult> {
@@ -29,6 +30,7 @@ export async function attemptWeaponInstanceUpgrade(
     kind: "weapon",
     instanceId: input.weaponInstanceId,
     useProtectionScroll: input.useProtectionScroll,
+    useBlessingGem: input.useBlessingGem,
     manaStoneItemId: input.manaStoneItemId,
   });
   return {

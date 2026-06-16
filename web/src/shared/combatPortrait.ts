@@ -20,6 +20,10 @@ const CLASS_DEFAULT_WEAPON: Record<MinionCombatClass, string> = {
   WIND_BLADE: "weapon_red_gold_sword",
   MAGIC_BLADE: "weapon_steel_sword",
   SHIELD_BLADE: "weapon_stone_sword",
+  BERSERKER: "weapon_gold_sword",
+  SWORD_MASTER: "weapon_red_gold_sword",
+  ARCANE_BLADE: "weapon_steel_sword",
+  CRUSADER: "weapon_stone_sword",
 };
 
 const CLASS_TINT: Record<MinionCombatClass, string> = {
@@ -29,6 +33,10 @@ const CLASS_TINT: Record<MinionCombatClass, string> = {
   WIND_BLADE: "#34d399",
   MAGIC_BLADE: "#a78bfa",
   SHIELD_BLADE: "#fbbf24",
+  BERSERKER: "#dc2626",
+  SWORD_MASTER: "#2dd4bf",
+  ARCANE_BLADE: "#8b5cf6",
+  CRUSADER: "#fde047",
 };
 
 const MONSTER_NAME_TO_ID: Record<string, string> = {

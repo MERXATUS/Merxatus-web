@@ -2,6 +2,7 @@ import { prisma } from "@/server/db";
 import { honorTitleForPoints } from "@/server/honorTitles";
 import { GAME_RULES } from "@/server/gameRules";
 import { itemIconFieldsForItemId } from "@/server/itemCatalog";
+import { takeAvailableFromStack } from "@/server/inventoryStackOps";
 import { isRoyalMaterialRow, loadRoyalMaterialItemIds, resolveRoyalPrice } from "@/server/royalPricing";
 
 function honorDeltaForTrade(grossGold: number) {
@@ -149,13 +150,18 @@ export async function royalSell(input: { userId: string; itemId: string; quantit
     if (!pricing?.enabled) return { ok: false as const, error: "ITEM_NOT_AVAILABLE" as const };
     const catalog = await loadRoyalMaterialItemIds();
     if (!isRoyalMaterialRow(item, catalog)) return { ok: false as const, error: "ITEM_NOT_ALLOWED" as const };
-    if (!stack || stack.quantity < qty) return { ok: false as const, error: "INSUFFICIENT_ITEMS" as const };
+    const available = stack ? stack.quantity - Math.max(0, stack.lockedQuantity) : 0;
+    if (!stack || available < qty) {
+      return {
+        ok: false as const,
+        error: (stack && stack.quantity >= qty ? "ITEM_LOCKED" : "INSUFFICIENT_ITEMS") as
+          | "ITEM_LOCKED"
+          | "INSUFFICIENT_ITEMS",
+      };
+    }
 
     const grossGold = Math.max(0, Number(pricing.sellPricePerUnit) * qty);
-    await tx.inventoryStack.update({
-      where: { userId_itemId: { userId: input.userId, itemId: input.itemId } },
-      data: { quantity: { decrement: qty } },
-    });
+    await takeAvailableFromStack(tx, input.userId, input.itemId, qty);
     await tx.wallet.update({ where: { userId: input.userId }, data: { goldAvailable: { increment: grossGold } } });
 
     const honorDelta = honorDeltaForTrade(grossGold);

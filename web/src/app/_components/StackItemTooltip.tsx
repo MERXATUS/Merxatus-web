@@ -15,11 +15,30 @@ function fmtQty(n: number) {
   return Number.isFinite(n) ? Math.floor(n).toLocaleString("ko-KR") : "0";
 }
 
-export function StackItemTooltipContent({ item }: { item: StackItemTooltipData }) {
+export function StackItemTooltipContent({
+  item,
+  detailsOnly,
+}: {
+  item: StackItemTooltipData;
+  /** 이름·등급 헤더 없이 설명만 (강화소 재료 칸 등) */
+  detailsOnly?: boolean;
+}) {
   const grade = stackItemGradeIndex(item);
   const bodyLines = stackItemTooltipBodyLines(item);
   const equipLevel =
     isArmorInventoryItem(item) ? minEquipLevelForItem(item.itemId, item.grade) : 1;
+
+  if (detailsOnly) {
+    return (
+      <div className={`item-tooltip item-tooltip--grade-${grade} item-tooltip--details-only`}>
+        {bodyLines.map((line, i) => (
+          <div key={i} className="item-tooltip__desc">
+            {line}
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className={`item-tooltip item-tooltip--grade-${grade}`}>
@@ -59,10 +78,14 @@ export function StackItemTooltipHover(props: {
   item: StackItemTooltipData;
   children: ReactNode;
   delayMs?: number;
+  detailsOnly?: boolean;
 }) {
-  const { item, children, delayMs } = props;
+  const { item, children, delayMs, detailsOnly } = props;
   return (
-    <ItemTooltipHover content={<StackItemTooltipContent item={item} />} delayMs={delayMs}>
+    <ItemTooltipHover
+      content={<StackItemTooltipContent item={item} detailsOnly={detailsOnly} />}
+      delayMs={delayMs}
+    >
       {children}
     </ItemTooltipHover>
   );

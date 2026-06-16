@@ -18,6 +18,7 @@ const T2 = rarityReferenceGoldForGrade(2); // 18
 const T3 = rarityReferenceGoldForGrade(3); // 31
 const T4 = rarityReferenceGoldForGrade(4); // 54
 const T5 = rarityReferenceGoldForGrade(5); // 94
+const T6 = rarityReferenceGoldForGrade(6);
 
 /** items.json 전체 + 폴백에 쓰는 기준가 */
 const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
@@ -69,6 +70,14 @@ const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
   item_gem_destruction: T4,
   item_gem_chaos: T5,
   item_gem_seal: T5,
+  item_tome_celestial: T6,
+  item_tome_abyss: T6,
+  item_gem_expansion: T5,
+  item_gem_ascension: T6,
+  item_gem_primordial: T6,
+  item_gem_void: T6,
+  item_gem_transfer: T6,
+  item_gem_blessing: T6,
   item_raid_shard: T4,
   item_minion_ticket: T5,
 

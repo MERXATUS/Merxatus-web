@@ -2,6 +2,9 @@
 
 import type { ReactNode } from "react";
 import { ItemIcon } from "@/app/_components/ItemIcon";
+import { StackItemTooltipHover } from "@/app/_components/StackItemTooltip";
+import { CRAFTING_ITEM_GRADE } from "@/shared/craftingItemDrops";
+import { shouldShowStackItemTooltip } from "@/shared/stackItemTooltip";
 
 export type ForgeMaterialCell = {
   key: string;
@@ -31,11 +34,21 @@ export function ForgeMaterialGrid(props: {
           props.cells.map((cell) => {
             const short =
               cell.required != null && cell.quantity < cell.required;
-            return (
+            const showTooltip = Boolean(
+              cell.itemId &&
+                shouldShowStackItemTooltip({
+                  itemId: cell.itemId,
+                  name: cell.label,
+                  category: "재료",
+                  grade: CRAFTING_ITEM_GRADE[cell.itemId],
+                  quantity: cell.quantity,
+                }),
+            );
+            const cellBody = (
               <div
-                key={cell.key}
                 className={`forge-material-cell ${cell.isGold ? "forge-material-cell--gold" : ""} ${short ? "forge-material-cell--short" : ""}`}
-                title={cell.hint ?? cell.label}
+                title={showTooltip ? undefined : (cell.hint ?? cell.label)}
+                aria-label={cell.label}
               >
                 {cell.isGold ? (
                   <span className="forge-material-cell__gold-icon" aria-hidden>
@@ -59,6 +72,27 @@ export function ForgeMaterialGrid(props: {
                   )}
                 </span>
               </div>
+            );
+            if (cell.itemId) {
+              const tooltipItem = {
+                itemId: cell.itemId,
+                name: cell.label,
+                category: "재료",
+                grade: CRAFTING_ITEM_GRADE[cell.itemId],
+                quantity: cell.quantity,
+              };
+              if (shouldShowStackItemTooltip(tooltipItem)) {
+                return (
+                  <StackItemTooltipHover key={cell.key} item={tooltipItem} detailsOnly>
+                    {cellBody}
+                  </StackItemTooltipHover>
+                );
+              }
+            }
+            return (
+              <span key={cell.key} className="forge-material-cell-wrap">
+                {cellBody}
+              </span>
             );
           })
         )}

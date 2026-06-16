@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppProviders } from "@/app/_components/AppProviders";
 import "./globals.css";
@@ -13,9 +13,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: "Merxatus",
-  description: "경제 시뮬레이션 — 던전·무탑·레이드, 거래, 황실과 암시장",
+  description: "경제 시뮬레이션 — 던전·무탑·레이드, 거래, 대장간",
 };
 
 export default function RootLayout({

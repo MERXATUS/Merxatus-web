@@ -48,9 +48,6 @@ function lootOptionsJson(category: "weapon" | "armor", grade: number) {
 
 /** items.json 정의를 DB Item 행으로 보장 (시드 없이 JSON만 추가된 경우) */
 export async function ensureItemInDb(db: Pick<PrismaClient, "item">, itemId: string) {
-  const existing = await db.item.findUnique({ where: { id: itemId }, select: { id: true } });
-  if (existing) return;
-
   const def = (await loadItemDefMap()).get(itemId);
   if (!def) throw new Error(`UNKNOWN_ITEM:${itemId}`);
 

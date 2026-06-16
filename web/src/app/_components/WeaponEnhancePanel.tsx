@@ -29,8 +29,13 @@ import { formatPanelError } from "@/shared/formatPanelError";
 import { apiGetJsonCached, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
-import { ITEM_ENHANCE_SCROLL_PROTECT } from "@/shared/enhanceConsumables";
-import { ITEM_APPRAISAL_SCROLL } from "@/shared/optionConsumables";
+import {
+  ITEM_ENHANCE_SCROLL_PROTECT,
+  ITEM_GEM_BLESSING,
+  forgeEnhanceMaterialLabel,
+} from "@/shared/enhanceConsumables";
+import { optionConsumableKind, ITEM_APPRAISAL_SCROLL } from "@/shared/optionConsumables";
+import { getArmorStats } from "@/shared/armorStatsData";
 import {
   guaranteedSalvageLootBatch,
   MAX_SALVAGE_BATCH,
@@ -56,7 +61,13 @@ type EquipOptionRow = {
 type MeState = {
   ok: true;
   wallet: { goldAvailable: number; goldLocked: number };
-  inventory: Array<{ itemId: string; name: string; quantity: number }>;
+  inventory: Array<{
+    itemId: string;
+    name: string;
+    quantity: number;
+    lockedQuantity?: number;
+    availableQuantity?: number;
+  }>;
   weaponInstances?: WeaponRow[];
   armorInstances?: ArmorRow[];
 };
@@ -222,10 +233,12 @@ function friendlyForgeError(e: unknown, itemNameById: Map<string, string>): stri
   }
   const err = typeof e === "object" && e !== null && "error" in e ? String((e as { error: unknown }).error) : "";
   if (err === "INSUFFICIENT_GOLD") return "골드가 부족해.";
-  if (err === "MAX_WEAPON_LEVEL") return "이 등급 장비의 최대 강화 단계에 도달했어.";
+  if (err === "MAX_WEAPON_LEVEL") return "이 등급 장비의 최대 제련 단계에 도달했어.";
   if (err === "ARMOR_INSTANCE_NOT_FOUND" || err === "WEAPON_INSTANCE_NOT_FOUND")
     return "장비를 찾을 수 없어.";
   if (err === "WEAPON_LOCKED" || err === "EQUIPMENT_LOCKED") return "거래소 등록 중인 장비는 작업할 수 없어.";
+  if (err === "ITEM_USER_LOCKED") return "잠긴 장비는 작업할 수 없어. 인벤에서 잠금을 해제해.";
+  if (err === "ITEM_LOCKED") return "잠긴 재료는 사용할 수 없어. 인벤에서 잠금을 해제해.";
   if (err === "EQUIPMENT_EQUIPPED") return "미니언이 착용 중인 장비는 분해할 수 없어. 먼저 해제하세요.";
   if (err === "MAX_EQUIPMENT_OWNED") {
     return "무기·방어구 보유 한도(100개)에 도달했어요. 분해하거나 판매한 뒤 다시 시도해 주세요.";
@@ -239,12 +252,13 @@ function friendlyForgeError(e: unknown, itemNameById: Map<string, string>): stri
   if (err === "ALREADY_IDENTIFIED") return "이미 감정된 장비예요.";
   if (err === "NEEDS_APPRAISAL") return "감정 주문서로 먼저 감정해야 해요.";
   if (err === "NO_OPTIONS") return "적용할 옵션이 없어요.";
+  if (err === "NO_REALM_OPTION_POOL") return "이 등급 장비에는 적용할 수 있는 계열 옵션이 없어요.";
   if (err === "NO_REMOVABLE_OPTION") return "제거할 수 있는 옵션이 없어요. (봉인 슬롯만 있거나 옵션이 없음)";
   if (err === "SEAL_LIMIT_OR_NO_SLOT") return "봉인할 옵션 슬롯이 없거나 이미 봉인이 있어요.";
   if (err === "NOTHING_TO_APPRAISE") return "감정할 미감정 장비가 없어요.";
   if (err === "INSUFFICIENT_SCROLLS") return "감정 주문서가 부족해요. 미감정 장비 수만큼 필요합니다.";
   if (err === "MANA_STONE_NOT_SELECTED") return "사용할 마석을 선택해 주세요.";
-  if (err === "INVALID_MANA_STONE_CHOICE") return "선택한 마석으로는 강화할 수 없어요.";
+  if (err === "INVALID_MANA_STONE_CHOICE") return "선택한 마석으로는 제련할 수 없어요.";
   if (err.startsWith("INSUFFICIENT_MATERIAL:")) {
     const id = err.slice("INSUFFICIENT_MATERIAL:".length);
     return `재료 부족: ${itemNameById.get(id) ?? id}`;
@@ -261,9 +275,9 @@ function nextUpgradeInfo(enhanceLevel: number, grade: number, itemNameById: Map<
   if (cur >= max) return { atMax: true as const, cost: null, label: `최대 +${max} 달성` };
   try {
     const cost = weaponUpgradeCostForNextLevel(cur);
-    return { atMax: false as const, cost, label: `+${cur + 1} 강화` };
+    return { atMax: false as const, cost, label: `+${cur + 1} 제련` };
   } catch {
-    return { atMax: false as const, cost: null, label: `+${cur + 1} 강화` };
+    return { atMax: false as const, cost: null, label: `+${cur + 1} 제련` };
   }
 }
 
@@ -298,13 +312,13 @@ function validateEnhanceAfford(input: {
 }): string | null {
   const cur = Math.max(0, Math.floor(input.enhanceLevel));
   const max = weaponEnhanceMaxLevelForGrade(input.grade);
-  if (cur >= max) return "이 등급 장비의 최대 강화 단계에 도달했어.";
+  if (cur >= max) return "이 등급 장비의 최대 제련 단계에 도달했어.";
 
   let cost;
   try {
     cost = weaponUpgradeCostForNextLevel(cur);
   } catch {
-    return "이 등급 무기의 최대 강화 단계에 도달했어.";
+    return "이 등급 무기의 최대 제련 단계에 도달했어.";
   }
 
   if (input.goldAvailable < cost.gold) return "골드가 부족해.";
@@ -356,7 +370,9 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
   const [armorSort, setArmorSort] = useState<ArmorSortId>("newest");
   const [armorSortEnhance, setArmorSortEnhance] = useState<ArmorSortId>("enh_high");
   const [craftTarget, setCraftTarget] = useState<ForgeEquipTarget | null>(null);
+  const [craftTransferTarget, setCraftTransferTarget] = useState<ForgeEquipTarget | null>(null);
   const [useProtectionScroll, setUseProtectionScroll] = useState(false);
+  const [useBlessingGem, setUseBlessingGem] = useState(false);
   const [selectedManaStoneId, setSelectedManaStoneId] = useState<EnhanceManaStoneItemId | null>(null);
   const [salvageKind, setSalvageKind] = useState<EquipKind>("weapon");
   const [salvageSelectedIds, setSalvageSelectedIds] = useState<Set<string>>(() => new Set());
@@ -396,15 +412,22 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
 
   useEffect(() => {
     setSelectedToolId(null);
+    setCraftTransferTarget(null);
   }, [forgeMode, craftKind, enhanceKind, salvageKind]);
+
+  useEffect(() => {
+    setCraftTransferTarget(null);
+  }, [selectedToolId, craftTarget?.id]);
 
   const resetBenchState = useCallback(() => {
     setBenchOpen(false);
     setEnhanceTargetId(null);
     setCraftTarget(null);
+    setCraftTransferTarget(null);
     setEnhanceOutcome(null);
     setEnhanceMotion(null);
     setUseProtectionScroll(false);
+    setUseBlessingGem(false);
     setSelectedManaStoneId(null);
   }, []);
 
@@ -534,7 +557,11 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
   const nameById = useMemo(() => new Map((me?.inventory ?? []).map((x) => [x.itemId, x.name])), [me]);
 
   const stackQty = useCallback(
-    (itemId: string) => me?.inventory?.find((x) => x.itemId === itemId)?.quantity ?? 0,
+    (itemId: string) => {
+      const row = me?.inventory?.find((x) => x.itemId === itemId);
+      if (!row) return 0;
+      return row.availableQuantity ?? row.quantity - (row.lockedQuantity ?? 0);
+    },
     [me],
   );
 
@@ -702,6 +729,39 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
   }, [craftTarget, craftSelectedWeapon, craftSelectedArmor]);
 
   const forgeTools = useMemo(() => forgeToolsForMode(forgeMode), [forgeMode]);
+  const activeCraftTool = useMemo(
+    () => forgeTools.find((t) => t.itemId === selectedToolId) ?? null,
+    [forgeTools, selectedToolId],
+  );
+  const needsTransferTarget = !!activeCraftTool?.needsTransferTarget;
+
+  const craftTransferCandidates = useMemo(() => {
+    if (!craftTarget) return [];
+    const hero = craftKind === "weapon" ? craftSelectedWeapon : craftSelectedArmor;
+    if (!hero) return [];
+    const list = craftKind === "weapon" ? craftWeapons : armors;
+    const grade = hero.grade ?? 1;
+    return list.filter((it) => {
+      if (it.id === craftTarget.id) return false;
+      if ((it.grade ?? 1) !== grade) return false;
+      if (craftKind === "armor") {
+        const a = getArmorStats(hero.baseItemId);
+        const b = getArmorStats(it.baseItemId);
+        if (!a || !b || a.slot !== b.slot) return false;
+      }
+      return true;
+    });
+  }, [craftTarget, craftKind, craftSelectedWeapon, craftSelectedArmor, craftWeapons, armors]);
+
+  const craftTransferTargetLabel = useMemo(() => {
+    if (!craftTransferTarget) return null;
+    if (craftTransferTarget.kind === "weapon") {
+      const w = craftWeapons.find((x) => x.id === craftTransferTarget.id);
+      return w?.name ?? craftTransferTarget.id;
+    }
+    const a = armors.find((x) => x.id === craftTransferTarget.id);
+    return a?.name ?? craftTransferTarget.id;
+  }, [craftTransferTarget, craftWeapons, armors]);
 
   const unidentifiedEquipCount = useMemo(() => {
     const w = (me?.weaponInstances ?? []).filter((x) => x.identified === false).length;
@@ -749,11 +809,13 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
             ? {
                 weaponInstanceId: equip.id,
                 useProtectionScroll: useProtectionScroll || undefined,
+                useBlessingGem: useBlessingGem || undefined,
                 manaStoneItemId: selectedManaStoneId ?? undefined,
               }
             : {
                 armorInstanceId: equip.id,
                 useProtectionScroll: useProtectionScroll || undefined,
+                useBlessingGem: useBlessingGem || undefined,
                 manaStoneItemId: selectedManaStoneId ?? undefined,
               },
         );
@@ -785,7 +847,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
         setBusy(false);
       }
     },
-    [enhanceMotion, load, me?.wallet?.goldAvailable, nameById, selectedManaStoneId, stackQty, useProtectionScroll],
+    [enhanceMotion, load, me?.wallet?.goldAvailable, nameById, selectedManaStoneId, stackQty, useProtectionScroll, useBlessingGem],
   );
 
   const runSalvage = useCallback(async () => {
@@ -823,6 +885,8 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
 
   const applyCraftTool = useCallback(async () => {
     if (!craftTarget || !selectedToolId) return;
+    const kind = optionConsumableKind(selectedToolId);
+    if (kind === "transfer" && !craftTransferTarget) return;
     setBusy(true);
     setError(null);
     try {
@@ -832,16 +896,18 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
           consumableItemId: selectedToolId,
           targetKind: craftTarget.kind,
           targetInstanceId: craftTarget.id,
+          transferTargetInstanceId: kind === "transfer" ? craftTransferTarget?.id : undefined,
         },
       );
       if (!r?.ok) throw new Error(typeof r === "object" && r && "error" in r ? String((r as { error: unknown }).error) : "CRAFT_FAILED");
+      setCraftTransferTarget(null);
       await load();
     } catch (e) {
       setError(friendlyForgeError(e, nameById));
     } finally {
       setBusy(false);
     }
-  }, [craftTarget, selectedToolId, load, nameById]);
+  }, [craftTarget, craftTransferTarget, selectedToolId, load, nameById]);
 
   const runAppraiseAll = useCallback(async () => {
     if (unidentifiedEquipCount === 0) return;
@@ -902,6 +968,19 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
     });
   }, [manaStoneReq, eligibleManaStones, selectedEnhance?.id, selectedEnhance?.enhanceLevel]);
 
+  const forgeMaterialName = useCallback(
+    (itemId: string) => {
+      const known = forgeEnhanceMaterialLabel(itemId);
+      if (known !== itemId) return known;
+      const mana = enhanceManaStoneLabel(itemId);
+      if (mana !== itemId) return mana;
+      return nameById.get(itemId) ?? itemId;
+    },
+    [nameById],
+  );
+
+  const manaStoneName = forgeMaterialName;
+
   const enhanceMaterialCells = useMemo((): ForgeMaterialCell[] => {
     const cells: ForgeMaterialCell[] = [];
     for (const itemId of FORGE_ENHANCE_MATERIAL_IDS) {
@@ -909,19 +988,19 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
       cells.push({
         key: itemId,
         itemId,
-        label: nameById.get(itemId) ?? itemId,
+        label: forgeMaterialName(itemId),
         quantity: stackQty(itemId),
         required: need,
         hint:
           need != null && itemId === selectedManaStoneId
-            ? `이번 강화에 선택됨`
+            ? `이번 제련에 선택됨`
             : need != null
-              ? `다음 강화 기준 재료`
+              ? `다음 제련 기준 재료`
               : undefined,
       });
     }
     return cells;
-  }, [upgrade, nameById, stackQty, selectedManaStoneId]);
+  }, [upgrade, forgeMaterialName, stackQty, selectedManaStoneId]);
 
   const motionBusy = !!enhanceMotion;
   const canAfford =
@@ -947,11 +1026,6 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
   const craftHero = craftKind === "weapon" ? craftSelectedWeapon : craftSelectedArmor;
   const craftHeroTone: "weapon" | "armor" = craftKind;
 
-  const manaStoneName = useCallback(
-    (itemId: string) => nameById.get(itemId) ?? enhanceManaStoneLabel(itemId),
-    [nameById],
-  );
-
   const selectedEnhanceDisplayName = selectedEnhance
     ? enhanceKind === "weapon"
       ? weaponDisplayName({
@@ -971,7 +1045,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
       <GamePanel className={`enhance-forge forge-hub ${embedded ? "enhance-forge--fit panel-fit" : ""}`}>
         <header className="forge-hub__header">
           <div className="forge-hub__header-row">
-          <div className="forge-hub__modes" role="tablist" aria-label="강화소 작업">
+          <div className="forge-hub__modes" role="tablist" aria-label="대장간 작업">
             <button
               type="button"
               role="tab"
@@ -979,7 +1053,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
               className={`forge-hub__mode ${forgeMode === "enhance" ? "forge-hub__mode--active" : ""}`}
               onClick={() => switchForgeMode("enhance")}
             >
-              장비 강화
+              제련
             </button>
             <button
               type="button"
@@ -1010,8 +1084,8 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
             <p className="forge-hub__subtitle">
               {forgeMode === "enhance"
                 ? benchOpen
-                  ? "강화 작업대 — 보호석을 켜면 실패 시 골드·마석이 반환됩니다."
-                  : "강화할 무기·방어구를 고르면 작업대가 열립니다."
+                  ? "제련 작업대 — 강화 보호 주문서를 켜면 실패 시 골드·마석이 반환됩니다."
+                  : "제련할 무기·방어구를 고르면 작업대가 열립니다."
                 : forgeMode === "salvage"
                   ? "착용·거래 중이 아닌 장비를 분해해 마석·재료를 추출합니다. 장비는 삭제됩니다."
                   : benchOpen
@@ -1058,8 +1132,8 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                     >
                       <option value="grade_high">등급↑</option>
                       <option value="grade_low">등급↓</option>
-                      <option value="enh_high">강화↑</option>
-                      <option value="enh_low">강화↓</option>
+                      <option value="enh_high">제련↑</option>
+                      <option value="enh_low">제련↓</option>
                       <option value="newest">최신</option>
                       <option value="oldest">오래된</option>
                       <option value="name_az">이름</option>
@@ -1076,7 +1150,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                     <p className="market-empty">장비를 찾을 수 없어요.</p>
                   ) : (
                     <>
-                      <ForgeBenchTopbar variant="minimal" title="장비 강화" onBack={closeBench} />
+                      <ForgeBenchTopbar variant="minimal" title="제련" onBack={closeBench} />
 
                       <div
                         className={`enhance-bench__focus ${itemGradeFrameClassName(selectedEnhance.grade ?? 1)}${enhanceOutcome?.variant === "success" ? " enhance-bench__focus--success" : ""}${enhanceOutcome?.variant === "fail" ? " enhance-bench__focus--fail" : ""}${enhanceMotion?.instanceId === selectedEnhance.id ? " enhance-bench__focus--enhancing" : ""}`.trim()}
@@ -1135,11 +1209,11 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                               role={enhanceOutcome ? "status" : undefined}
                             >
                               {enhanceOutcome?.variant === "success"
-                                ? "강화 성공!"
+                                ? "제련 성공!"
                                 : enhanceOutcome?.variant === "fail"
                                   ? enhanceOutcome.protectedOnFail
-                                    ? "강화 실패… 보호석으로 골드·마석은 돌려받았어요."
-                                    : "강화 실패… 재료는 소모됐어요."
+                                    ? "제련 실패… 강화 보호 주문서로 골드·마석은 돌려받았어요."
+                                    : "제련 실패… 재료는 소모됐어요."
                                   : ""}
                             </p>
                           </div>
@@ -1162,7 +1236,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                       ) : null}
 
                       {upgrade?.atMax ? (
-                        <p className="enhance-bench__max-hint">이 장비는 더 이상 강화할 수 없어요.</p>
+                        <p className="enhance-bench__max-hint">이 장비는 더 이상 제련할 수 없어요.</p>
                       ) : upgrade?.cost ? (
                         <div className="enhance-bench__sheet">
                           <p className="enhance-bench__sheet-title">{upgrade.label}</p>
@@ -1203,8 +1277,22 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                                 disabled={busy || motionBusy}
                               />
                               <span>
-                                {nameById.get(ITEM_ENHANCE_SCROLL_PROTECT) ?? "강화 보호석"} (×
+                                {forgeMaterialName(ITEM_ENHANCE_SCROLL_PROTECT)} (×
                                 {stackQty(ITEM_ENHANCE_SCROLL_PROTECT)})
+                              </span>
+                            </label>
+                          ) : null}
+                          {stackQty(ITEM_GEM_BLESSING) > 0 ? (
+                            <label className="forge-protect-toggle forge-protect-toggle--inline">
+                              <input
+                                type="checkbox"
+                                checked={useBlessingGem}
+                                onChange={(e) => setUseBlessingGem(e.target.checked)}
+                                disabled={busy || motionBusy}
+                              />
+                              <span>
+                                {forgeMaterialName(ITEM_GEM_BLESSING)} (×
+                                {stackQty(ITEM_GEM_BLESSING)}) · 성공 +2 · 확률↓
                               </span>
                             </label>
                           ) : null}
@@ -1219,13 +1307,14 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                           motionBusy ||
                           upgrade?.atMax ||
                           !canAfford ||
-                          (useProtectionScroll && stackQty(ITEM_ENHANCE_SCROLL_PROTECT) < 1)
+                          (useProtectionScroll && stackQty(ITEM_ENHANCE_SCROLL_PROTECT) < 1) ||
+                          (useBlessingGem && stackQty(ITEM_GEM_BLESSING) < 1)
                         }
                         onClick={() =>
                           selectedEnhance && void runEnhance(selectedEnhance, enhanceKind)
                         }
                       >
-                        {busy ? "확인 중…" : motionBusy ? "연출 중…" : upgrade?.atMax ? "최대 강화" : "강화하기"}
+                        {busy ? "확인 중…" : motionBusy ? "연출 중…" : upgrade?.atMax ? "최대 제련" : "제련하기"}
                       </button>
                     </>
                   )}
@@ -1235,9 +1324,10 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
               </div>
             ) : forgeMode === "salvage" ? (
               <div
-                className={`enhance-forge__layout enhance-forge__layout--tri ${embedded ? "enhance-forge__layout--fit" : ""}`}
+                className={`enhance-forge__layout enhance-forge__layout--salvage ${embedded ? "enhance-forge__layout--fit" : ""}`}
               >
                 <ForgeEquipGrid
+                  layout="salvage"
                   title={salvageKind === "weapon" ? "분해할 무기" : "분해할 방어구"}
                   equipKind={salvageKind}
                   items={salvageList}
@@ -1304,9 +1394,10 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                   }
                 />
 
+                <div className="enhance-forge__salvage-body">
                 <main className="enhance-forge__detail enhance-forge__stage">
                   {salvageSelectedItems.length === 0 ? (
-                    <p className="market-empty">왼쪽에서 분해할 장비를 선택하세요. (여러 개 가능)</p>
+                    <p className="market-empty">위에서 분해할 장비를 선택하세요. (여러 개 가능)</p>
                   ) : (
                     <>
                       <div className="forge-salvage-selection">
@@ -1378,6 +1469,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                     개까지. 착용 해제 후 이용하세요.
                   </p>
                 </aside>
+                </div>
               </div>
             ) : !benchOpen ? (
               <ForgeEquipPicker
@@ -1464,6 +1556,26 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                       </div>
 
                       {renderForgeOptionChips(craftHero.options ?? [], craftHeroTone)}
+
+                      {needsTransferTarget ? (
+                        <div className="forge-transfer-pick">
+                          <p className="game-label">전이 받을 장비 (같은 등급·부위)</p>
+                          {craftTransferCandidates.length === 0 ? (
+                            <p className="forge-tool-picker__hint">조건에 맞는 다른 장비가 없어요.</p>
+                          ) : (
+                            <ForgeEquipGrid
+                              title=""
+                              equipKind={craftKind}
+                              items={craftTransferCandidates}
+                              selectedId={craftTransferTarget?.id ?? null}
+                              onSelect={(id) =>
+                                setCraftTransferTarget({ kind: craftKind, id })
+                              }
+                              emptyMessage="없음"
+                            />
+                          )}
+                        </div>
+                      ) : null}
                     </>
                   )}
                 </main>
@@ -1476,6 +1588,8 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                   onSelectTool={setSelectedToolId}
                   selectedEquip={craftTarget}
                   targetLabel={craftTargetLabel}
+                  transferTargetLabel={craftTransferTargetLabel}
+                  needsTransferTarget={needsTransferTarget}
                   onApply={() => void applyCraftTool()}
                   onAppraiseAll={
                     unidentifiedEquipCount > 0 && appraisalScrollQty >= unidentifiedEquipCount

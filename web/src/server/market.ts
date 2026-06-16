@@ -1,5 +1,7 @@
 import { prisma, PRISMA_TX_OPTS } from "@/server/db";
 import { assertCanGrantEquipment } from "@/server/equipmentCapacity";
+import { assertEquipmentNotUserLocked } from "@/server/inventoryEquipmentLock";
+import { stackAvailableQty, takeAvailableFromStack } from "@/server/inventoryStackOps";
 import { GAME_RULES } from "@/server/gameRules";
 
 type MarketDb = Pick<typeof prisma, "user">;
@@ -466,6 +468,7 @@ export async function createListing(input: {
       if (!inst) throw new Error("WEAPON_INSTANCE_NOT_FOUND");
       if (inst.userId !== input.sellerId) throw new Error("INSUFFICIENT_ITEM");
       if (inst.status !== "OWNED") throw new Error("WEAPON_NOT_OWNED");
+      assertEquipmentNotUserLocked(inst);
       if (inst.baseItem.category !== "무기") throw new Error("NOT_A_WEAPON");
       const equipped = await tx.minion.findFirst({
         where: { userId: input.sellerId, equippedWeaponInstanceId: inst.id },
@@ -478,7 +481,9 @@ export async function createListing(input: {
       const stack = await tx.inventoryStack.findUnique({
         where: { userId_itemId: { userId: input.sellerId, itemId } },
       });
-      if (!stack || stack.quantity < input.quantity) throw new Error("INSUFFICIENT_ITEM");
+      if (!stack || stackAvailableQty(stack) < input.quantity) {
+        throw new Error(stack && stack.quantity >= input.quantity ? "ITEM_LOCKED" : "INSUFFICIENT_ITEM");
+      }
     }
 
     const item = await tx.item.findUnique({ where: { id: itemId } });
@@ -497,10 +502,7 @@ export async function createListing(input: {
     if (isWeapon) {
       await tx.weaponInstance.update({ where: { id: input.weaponInstanceId! }, data: { status: "LISTED" } });
     } else {
-      await tx.inventoryStack.update({
-        where: { userId_itemId: { userId: input.sellerId, itemId: itemId! } },
-        data: { quantity: { decrement: input.quantity } },
-      });
+      await takeAvailableFromStack(tx, input.sellerId, itemId!, input.quantity);
     }
 
     const createdAt = new Date();

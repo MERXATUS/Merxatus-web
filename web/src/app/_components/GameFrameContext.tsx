@@ -11,6 +11,7 @@ export type GameFrameContextValue = {
   minionPanelTab: MinionPanelTab;
   summary: MeSummary | null;
   summaryLoading: boolean;
+  dashboardLoading: boolean;
   dashboardLight: MeDashboardLight | null;
   runState: DungeonRunState | null;
   refreshSummary: (opts?: { force?: boolean }) => Promise<void>;

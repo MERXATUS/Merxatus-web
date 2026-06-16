@@ -21,6 +21,7 @@ export async function attemptArmorInstanceUpgrade(
     userId: string;
     armorInstanceId: string;
     useProtectionScroll?: boolean;
+    useBlessingGem?: boolean;
     manaStoneItemId?: string | null;
   },
 ): Promise<ArmorUpgradeAttemptResult> {
@@ -29,6 +30,7 @@ export async function attemptArmorInstanceUpgrade(
     kind: "armor",
     instanceId: input.armorInstanceId,
     useProtectionScroll: input.useProtectionScroll,
+    useBlessingGem: input.useBlessingGem,
     manaStoneItemId: input.manaStoneItemId,
   });
   return {

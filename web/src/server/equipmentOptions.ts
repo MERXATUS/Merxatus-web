@@ -4,8 +4,20 @@ import {
   blessingOptionIdsForRealm,
   defaultAffixForRealm,
   realmLabelKo,
+  rollBlessingAffix,
+  type OptionRealm,
 } from "@/shared/equipmentBlessings";
-import { clampOptionTierToGrade, filterOptionIdsForGrade } from "@/shared/optionTierBalance";
+import {
+  rollVoidAffix,
+  voidOptionIdsForGrade,
+} from "@/shared/equipmentVoidOptions";
+import { lootOptionSlotCountForGrade } from "@/shared/lootOptionBalance";
+import {
+  clampOptionTierToGrade,
+  filterOptionIdsForGrade,
+  maxOptionTierForGrade,
+  rollOptionTierForGrade,
+} from "@/shared/optionTierBalance";
 
 export type EquipmentOptionsPayload = {
   identified: boolean;
@@ -118,6 +130,37 @@ export function combatOptionsFromJson(json: string | null | undefined): RolledOp
   return parseEquipmentOptionsPayload(json).options;
 }
 
+/** 천계의 서·마계의 서 — 모든 옵션 슬롯을 해당 계열로 변환 (티어 유지, 봉인 슬롯 포함) */
+export function convertAllOptionsToRealmInPayload(
+  payload: EquipmentOptionsPayload,
+  category: "weapon" | "armor",
+  itemGrade: number,
+  realm: OptionRealm,
+  rnd = Math.random,
+): EquipmentOptionsPayload {
+  const pool = filterOptionIdsForGrade(
+    blessingOptionIdsForRealm(category, realm),
+    itemGrade,
+    category,
+  );
+  if (pool.length === 0) {
+    throw new Error("NO_REALM_OPTION_POOL");
+  }
+
+  const rolled = payload.options.map((o) => {
+    const picked = pool[Math.floor(rnd() * pool.length)] ?? pool[0]!;
+    const baseTier =
+      o.tier > 0 ? o.tier : rollOptionTierForGrade(itemGrade, "loot", rnd);
+    return {
+      optionId: picked,
+      tier: clampOptionTierToGrade(baseTier, itemGrade, "loot"),
+      realm,
+      affix: rollBlessingAffix(realm, rnd),
+    };
+  });
+  return { ...payload, options: rolled };
+}
+
 export function rerollOptionIdsKeepingTiersInPayload(
   payload: EquipmentOptionsPayload,
   category: "weapon" | "armor",
@@ -183,4 +226,91 @@ export function sealRandomUnlockedSlot(
 export function appraisePayload(payload: EquipmentOptionsPayload): EquipmentOptionsPayload | null {
   if (payload.identified) return null;
   return { ...payload, identified: true };
+}
+
+/** 승천의 보석 — 옵션 1개 티어 +1 (등급 상한까지) */
+export function ascendRandomOptionTierInPayload(
+  payload: EquipmentOptionsPayload,
+  itemGrade: number,
+  rnd = Math.random,
+): EquipmentOptionsPayload {
+  if (payload.options.length === 0) throw new Error("NO_OPTIONS");
+  const pick = Math.floor(rnd() * payload.options.length);
+  const cap = maxOptionTierForGrade(itemGrade, "craft");
+  const options = payload.options.map((o, i) => {
+    if (i !== pick) return o;
+    return { ...o, tier: Math.min(cap, Math.max(1, o.tier + 1)) };
+  });
+  return { ...payload, options };
+}
+
+/** 태초의 보석 — 모든 옵션·봉인 제거 */
+export function clearAllOptionsInPayload(payload: EquipmentOptionsPayload): EquipmentOptionsPayload {
+  return { identified: true, lockedIndices: [], options: [] };
+}
+
+/** 공허의 보석 — 옵션 1개를 공허 옵션으로 재지정 */
+export function rerollRandomOptionToVoidInPayload(
+  payload: EquipmentOptionsPayload,
+  category: "weapon" | "armor",
+  itemGrade: number,
+  rnd = Math.random,
+): EquipmentOptionsPayload {
+  if (payload.options.length === 0) throw new Error("NO_OPTIONS");
+  const pool = voidOptionIdsForGrade(category, itemGrade);
+  if (pool.length === 0) throw new Error("NO_VOID_OPTION_POOL");
+  const pick = Math.floor(rnd() * payload.options.length);
+  const voidId = pool[Math.floor(rnd() * pool.length)] ?? pool[0]!;
+  const options = payload.options.map((o, i) => {
+    if (i !== pick) return o;
+    return {
+      optionId: voidId,
+      tier: clampOptionTierToGrade(o.tier, itemGrade, "craft"),
+      realm: "void" as OptionRealm,
+      affix: rollVoidAffix(rnd),
+    };
+  });
+  return { ...payload, options };
+}
+
+/** 확장의 보석 — 빈 슬롯 1개 랜덤 채움 (등급별 최대 슬롯까지) */
+export function expandRandomOptionSlotInPayload(
+  payload: EquipmentOptionsPayload,
+  category: "weapon" | "armor",
+  itemGrade: number,
+  rnd = Math.random,
+): EquipmentOptionsPayload {
+  const maxSlots = lootOptionSlotCountForGrade(itemGrade);
+  if (payload.options.length >= maxSlots) throw new Error("NO_EMPTY_SLOT");
+  const pool = filterOptionIdsForGrade(
+    category === "weapon" ? weaponOptionIds() : armorOptionIds(),
+    itemGrade,
+    category,
+  );
+  if (pool.length === 0) throw new Error("NO_OPTION_POOL");
+  const optionId = pool[Math.floor(rnd() * pool.length)] ?? pool[0]!;
+  const tier = rollOptionTierForGrade(itemGrade, "craft", rnd);
+  return {
+    ...payload,
+    options: [
+      ...payload.options,
+      { optionId, tier: clampOptionTierToGrade(tier, itemGrade, "craft") },
+    ],
+  };
+}
+
+/** 전이의 보석 — source 옵션을 target으로 이전, source는 비움 */
+export function transferOptionsBetweenPayloads(
+  source: EquipmentOptionsPayload,
+  target: EquipmentOptionsPayload,
+): { source: EquipmentOptionsPayload; target: EquipmentOptionsPayload } {
+  if (source.options.length === 0) throw new Error("NO_OPTIONS");
+  return {
+    source: { identified: true, lockedIndices: [], options: [] },
+    target: {
+      identified: true,
+      options: source.options.map((o) => ({ ...o })),
+      lockedIndices: [...source.lockedIndices],
+    },
+  };
 }

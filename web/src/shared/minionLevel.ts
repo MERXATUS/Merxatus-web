@@ -90,3 +90,9 @@ export function cumulativeXpToLevel(targetLevel: number): number {
 export function totalStatPointsByMaxLevel(maxLevel = MINION_LEVEL_RULES.maxLevel): number {
   return Math.max(0, maxLevel - 1) * MINION_LEVEL_RULES.statPointsPerLevel;
 }
+
+/** 레벨로 획득한 총 스탯 포인트 (미배분 + 배분 합) */
+export function totalEarnedStatPoints(level: number): number {
+  const lv = Math.max(1, Math.floor(level));
+  return Math.max(0, lv - 1) * MINION_LEVEL_RULES.statPointsPerLevel;
+}

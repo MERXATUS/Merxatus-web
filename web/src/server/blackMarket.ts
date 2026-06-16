@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { prisma } from "@/server/db";
+import { takeAvailableFromStack } from "@/server/inventoryStackOps";
 import { referenceGoldPerUnit } from "@/server/itemReferenceGold";
 import { GAME_RULES } from "@/server/gameRules";
 import { itemIconFieldsForItemId } from "@/server/itemCatalog";
@@ -399,7 +400,15 @@ export async function blackMarketSell(input: { userId: string; itemId: string; q
     if (!wallet) return { ok: false as const, error: "WALLET_NOT_FOUND" as const };
     if (!item) return { ok: false as const, error: "ITEM_NOT_FOUND" as const };
     if (!isMaterial(item)) return { ok: false as const, error: "ITEM_NOT_ALLOWED" as const };
-    if (!stack || stack.quantity < qty) return { ok: false as const, error: "INSUFFICIENT_ITEMS" as const };
+    const available = stack ? stack.quantity - Math.max(0, stack.lockedQuantity) : 0;
+    if (!stack || available < qty) {
+      return {
+        ok: false as const,
+        error: (stack && stack.quantity >= qty ? "ITEM_LOCKED" : "INSUFFICIENT_ITEMS") as
+          | "ITEM_LOCKED"
+          | "INSUFFICIENT_ITEMS",
+      };
+    }
 
     const maxGrade = maxTradableGradeByInfamy(u0.infamyPoints ?? 0);
     if ((item.grade ?? 1) > maxGrade) return { ok: false as const, error: "INFAMY_TOO_LOW" as const };
@@ -407,10 +416,7 @@ export async function blackMarketSell(input: { userId: string; itemId: string; q
     const { pricePerUnit, eventId } = await blackMarketPriceForItem({ itemId: input.itemId, tx });
     const grossGold = Math.max(0, pricePerUnit * qty);
 
-    await tx.inventoryStack.update({
-      where: { userId_itemId: { userId: input.userId, itemId: input.itemId } },
-      data: { quantity: { decrement: qty } },
-    });
+    await takeAvailableFromStack(tx, input.userId, input.itemId, qty);
     await tx.wallet.update({ where: { userId: input.userId }, data: { goldAvailable: { increment: grossGold } } });
 
     const infamyDelta = infamyDeltaForTrade(grossGold);

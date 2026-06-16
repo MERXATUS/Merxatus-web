@@ -1,8 +1,8 @@
-id,name,description,tier,maxLevel,powerPerLevel,hpPerLevel,defPerLevel,damagePctPerLevel,activeHitDamagePctPerLevel,classPools
-adventure_strike,모험가 타격,기본 타격 숙련. 레벨당 전투력이 소폭 오릅니다.,1,10,2,,,0.3,0.5,ADVENTURER|SWORDSMAN|WARRIOR|WIND_BLADE|MAGIC_BLADE|SHIELD_BLADE
-sword_slash,베기,검술의 기본. 레벨당 전투력·피해가 오릅니다.,2,15,4,,,0.5,1,SWORDSMAN|WARRIOR|WIND_BLADE|MAGIC_BLADE|SHIELD_BLADE
-sword_guard,검막,방어 자세. 레벨당 방어력·체력이 오릅니다.,2,10,2,3,2,0.15,0.3,SWORDSMAN|WARRIOR|WIND_BLADE|MAGIC_BLADE|SHIELD_BLADE
-warrior_cleave,강타,강력한 일격. 레벨당 전투력·피해가 크게 오릅니다.,3,15,6,,,1,1.5,WARRIOR
-wind_blade_rush,질풍 베기,연속 베기. 레벨당 전투력·피해가 오릅니다.,3,15,5,,,0.85,1.2,WIND_BLADE
-magic_blade_arc,마력 베기,마력 검기. 레벨당 전투력·피해가 오릅니다.,3,15,5,,,0.75,1,MAGIC_BLADE
-shield_blade_counter,반격,방어와 반격. 레벨당 방어·체력이 오릅니다.,3,15,4,4,3,0.4,0.6,SHIELD_BLADE
+id,name,description,tier,powerPerLevel,hpPerLevel,defPerLevel,damagePctPerLevel,activeHitDamagePctPerLevel,classPools
+adventure_strike,모험가 타격,기본 타격 숙련. 레벨당 전투력이 소폭 오릅니다.,1,2,,,0.3,0.5,ADVENTURER|SWORDSMAN|WARRIOR|WIND_BLADE|MAGIC_BLADE|SHIELD_BLADE
+sword_slash,베기,검술의 기본. 레벨당 전투력·피해가 오릅니다.,2,4,,,0.5,1,SWORDSMAN|WARRIOR|WIND_BLADE|MAGIC_BLADE|SHIELD_BLADE
+sword_guard,검막,방어 자세. 레벨당 방어력·체력이 오릅니다.,2,2,3,2,0.15,0.3,SWORDSMAN|WARRIOR|WIND_BLADE|MAGIC_BLADE|SHIELD_BLADE
+warrior_cleave,강타,강력한 일격. 레벨당 전투력·피해가 크게 오릅니다.,3,6,,,1,1.5,WARRIOR
+wind_blade_rush,질풍 베기,연속 베기. 레벨당 전투력·피해가 오릅니다.,3,5,,,0.85,1.2,WIND_BLADE
+magic_blade_arc,마력 베기,마력 검기. 레벨당 전투력·피해가 오릅니다.,3,5,,,0.75,1,MAGIC_BLADE
+shield_blade_counter,반격,방어와 반격. 레벨당 방어·체력이 오릅니다.,3,4,4,3,0.4,0.6,SHIELD_BLADE

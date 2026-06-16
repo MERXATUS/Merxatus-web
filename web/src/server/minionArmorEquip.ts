@@ -8,6 +8,8 @@ import {
 } from "@/server/minionArmorDb";
 import { assertMinionCanEquipBaseItem } from "@/server/minionEquipLevelCheck";
 import { getArmorStats } from "@/shared/armorStatsData";
+import { assertEquipmentNotUserLocked } from "@/server/inventoryEquipmentLock";
+import { takeAvailableFromStack } from "@/server/inventoryStackOps";
 import {
   armorSlotToDbField,
   armorStackMatchesSlot,
@@ -26,18 +28,7 @@ async function returnStack(tx: Tx, userId: string, itemId: string) {
 }
 
 async function takeStack(tx: Tx, userId: string, itemId: string) {
-  const stack = await tx.inventoryStack.findUnique({
-    where: { userId_itemId: { userId, itemId } },
-  });
-  if (!stack || stack.quantity < 1) throw new Error("INSUFFICIENT_ITEM");
-  if (stack.quantity === 1) {
-    await tx.inventoryStack.delete({ where: { userId_itemId: { userId, itemId } } });
-  } else {
-    await tx.inventoryStack.update({
-      where: { userId_itemId: { userId, itemId } },
-      data: { quantity: { decrement: 1 } },
-    });
-  }
+  await takeAvailableFromStack(tx, userId, itemId, 1);
 }
 
 async function clearSlot(tx: Tx, userId: string, minionId: string, field: ReturnType<typeof armorSlotToDbField>, row: Awaited<ReturnType<typeof loadMinionArmorIds>>) {
@@ -92,6 +83,7 @@ export async function equipMinionArmor(input: {
     const inst = await tx.armorInstance.findUnique({ where: { id: armorInstanceId } });
     if (!inst || inst.userId !== userId) throw new Error("ARMOR_INSTANCE_NOT_FOUND");
     if (inst.status !== "OWNED") throw new Error("ARMOR_INSTANCE_NOT_AVAILABLE");
+    assertEquipmentNotUserLocked(inst);
     if (!armorStackMatchesSlot(slotId, inst.baseItemId)) throw new Error("ARMOR_SLOT_MISMATCH");
     if (!getArmorStats(inst.baseItemId)) throw new Error("ARMOR_STATS_NOT_FOUND");
     assertMinionCanEquipBaseItem({ minionLevel: m.level, baseItemId: inst.baseItemId });

@@ -3,6 +3,7 @@ import { prisma } from "@/server/db";
 import { getSessionSecret } from "@/server/secrets";
 import { readEnv } from "@/server/envUtil";
 import { ensureUserBootstrap } from "@/server/ensureUserBootstrap";
+import { checkNewSignupAllowed } from "@/server/signupPolicy";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -208,6 +209,11 @@ export async function findOrCreateGoogleUser(info: GoogleUserInfo) {
         data: { googleId, email: byEmail.email ?? email },
       });
     }
+  }
+
+  const signup = checkNewSignupAllowed(email);
+  if (!signup.ok) {
+    throw new Error(signup.error);
   }
 
   const username = await allocateUsername(

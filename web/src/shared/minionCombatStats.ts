@@ -16,6 +16,13 @@ import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
 import type { MinionEquipSlotId } from "@/shared/minionEquipSlots";
 import { armorEnhanceHpDefBonus, armorEnhancePowerBonus } from "@/shared/armorTooltip";
 import { weaponBasePower, weaponEnhancePowerBonus } from "@/shared/weaponTooltip";
+import {
+  emptyVoidSkillBonuses,
+  mergeVoidSkillBonuses,
+  voidSkillBonusesFromOptionRows,
+  voidSkillDamageMultForSkill,
+} from "@/shared/equipmentVoidOptions";
+import { primaryCombatSkillForMinion } from "@/shared/minionSkills";
 
 export type MinionArmorPiece = { itemId: string; optionsJson?: string | null; enhanceLevel?: number };
 export type MinionArmorLoadout = Partial<
@@ -118,15 +125,30 @@ function skillBonusesForInput(input: MinionCombatInput) {
   return aggregateSkillCombatBonuses(input.combatClass, levels);
 }
 
+function voidBonusesFromInput(input: MinionCombatInput) {
+  let out = emptyVoidSkillBonuses();
+  if (input.weapon?.optionsJson) {
+    out = mergeVoidSkillBonuses(out, voidSkillBonusesFromOptionRows(parseOptionsJson(input.weapon.optionsJson)));
+  }
+  for (const slot of ["helmet", "armor", "pants", "shoes"] as const) {
+    const piece = input.armor?.[slot];
+    if (!piece?.optionsJson) continue;
+    out = mergeVoidSkillBonuses(out, voidSkillBonusesFromOptionRows(parseOptionsJson(piece.optionsJson)));
+  }
+  return out;
+}
+
 function memberWithWeapon(input: MinionCombatInput) {
   const stats = minionBaseStatsFromRow(input.baseStats);
   const statBonus = equipmentStatBonus(input);
   const skill = skillBonusesForInput(input);
+  const voidBonuses = voidBonusesFromInput(input);
+  const voidPowerPct = voidBonuses.skillPowerPct;
   return {
     weaponBaseItemId: input.weapon?.baseItemId ?? null,
     weaponEnhanceLevel: input.weapon?.enhanceLevel ?? 0,
     weaponOptionBonus: input.weapon?.optionBonus ?? 0,
-    skillPowerBonus: skill.powerBonus,
+    skillPowerBonus: skill.powerBonus + voidPowerPct,
     level: input.level,
     fighterRank: input.fighterRank ?? 0,
     armorPowerBonus: sumArmorPower(input.armor),
@@ -278,10 +300,16 @@ export function armorSlotsFromMinionRow(m: {
 export function combatMemberFromMinion(input: MinionCombatInput) {
   const armor = sumArmorStats(input.armor);
   const skill = skillBonusesForInput(input);
+  const voidBonuses = voidBonusesFromInput(input);
+  const primarySkillId = input.combatClass
+    ? primaryCombatSkillForMinion(input.combatClass, input.skillLevelsJson)?.id ?? null
+    : null;
+  const voidMult = voidSkillDamageMultForSkill(voidBonuses, primarySkillId);
+  const activeHitMult = 1 + voidBonuses.activeSkillHitPct / 100;
   return {
     member: memberWithWeapon(input),
     bonusHp: armor.hp + skill.bonusHp,
     bonusDef: armor.def + skill.bonusDef,
-    skillDamageMult: skill.damageMult,
+    skillDamageMult: skill.damageMult * voidMult * activeHitMult,
   };
 }

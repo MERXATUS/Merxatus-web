@@ -59,6 +59,18 @@ Google Cloud Console → OAuth 동의 화면:
 - **서비스 약관 URL:** `https://도메인/terms`
 - 승인된 리디렉션 URI에 prod callback 추가
 
+### 공개 로그인 (누구나 가입)
+
+앱 코드는 **이메일 제한 없이** Google 계정만 있으면 자동 가입합니다.  
+다만 OAuth 동의 화면이 **「테스트」** 상태면 **테스트 사용자 목록에 등록된 계정만** 로그인할 수 있습니다.
+
+1. Google Cloud Console → **API 및 서비스** → **OAuth 동의 화면**
+2. **앱 게시** (또는 Production으로 전환) 클릭
+3. `openid email profile` 권한만 쓰는 경우 보통 **Google 심사 없이** 게시 가능
+4. 처음 방문자에게 「확인되지 않은 앱」 경고가 뜨면 **고급 → (앱 이름)으로 이동**으로 진행
+
+선택: 베타 중 신규 가입만 제한하려면 Vercel에 `MERXATUS_SIGNUP_ALLOWLIST` (쉼표 구분 이메일) 설정. **비우거나 설정하지 않으면 누구나 가입.**
+
 ## 5. 베타 보안 체크 (적용됨)
 
 - [x] `/api/dev/*` prod 차단

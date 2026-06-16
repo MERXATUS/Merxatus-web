@@ -19,6 +19,21 @@ import {
 import type { CombatantInput } from "@/server/dungeonBattler";
 import { statsFromPower } from "@/server/dungeonBattler";
 import { primarySkillActiveDamageMult } from "@/shared/minionSkills";
+import { skillCombatTriggers } from "@/shared/skillCombatTriggers";
+import {
+  applyActiveSkillExtras,
+  applyCounterFromParry,
+  applyPassiveOnAttack,
+  applyPassiveOnDamagedStacks,
+  atkStackDamageMult,
+  emptySkillBattleState,
+  logPassiveNegate,
+  lowHpAtkBonusPct,
+  resolveDamagedPassive,
+  rollActiveSkillProc,
+  tickSkillStateRoundEnd,
+  type SkillBattleState,
+} from "@/shared/skillCombatRuntime";
 
 type Fighter = {
   id: string;
@@ -33,6 +48,10 @@ type Fighter = {
   activeSkillName: string | null;
   activeSkillId: string | null;
   activeSkillLevel: number;
+  passiveSkillId: string | null;
+  passiveSkillLevel: number;
+  passiveLowHpAtkMaxBonusPct: number;
+  skillState: SkillBattleState;
   combatMods: EquipmentCombatModifiers;
 };
 
@@ -59,6 +78,10 @@ function combatantToFighter(c: CombatantInput, logSide: Fighter["logSide"]): Fig
     activeSkillName: c.activeSkillName?.trim() || null,
     activeSkillId: c.activeSkillId?.trim() || null,
     activeSkillLevel: Math.max(0, Math.floor(c.activeSkillLevel ?? 0)),
+    passiveSkillId: (c as any).passiveSkillId?.trim?.() ? (c as any).passiveSkillId.trim() : (c as any).passiveSkillId ?? null,
+    passiveSkillLevel: Math.max(0, Math.floor((c as any).passiveSkillLevel ?? 0)),
+    passiveLowHpAtkMaxBonusPct: Math.max(0, Math.floor((c as any).passiveLowHpAtkMaxBonusPct ?? 0)),
+    skillState: emptySkillBattleState(),
     combatMods: c.combatMods ?? emptyCombatModifiers(),
   };
 }
@@ -74,6 +97,11 @@ function resolvePvpHit(input: {
   rnd: () => number;
   hitKind?: "normal" | "extra";
   activeSkillHit?: boolean;
+  activeSkillDamageMult?: number;
+  armorPenBonusPct?: number;
+  lowHpAtkBonusPct?: number;
+  critStackBonusPct?: number;
+  damageScalePct?: number;
 }): { damage: number; kind: "normal" | "crit" | "extra"; blocked: boolean; evaded?: boolean } {
   const { attacker, target, rnd } = input;
   const hitKind = input.hitKind ?? "normal";
@@ -88,23 +116,29 @@ function resolvePvpHit(input: {
     return { damage: 0, kind: "normal", blocked: true };
   }
 
-  let def = effectiveDef(target.def, effectiveArmorPenPct(attacker.combatMods.armorPenPct));
+  let def = effectiveDef(
+    target.def,
+    effectiveArmorPenPct(attacker.combatMods.armorPenPct + (input.armorPenBonusPct ?? 0)),
+  );
   let dmg = applyDefense(randInt(attacker.atkMin, attacker.atkMax, rnd), def);
 
   const mult = attacker.skillDamageMult;
   if (mult > 1) dmg = Math.max(1, Math.floor(dmg * mult));
 
   if (input.activeSkillHit && attacker.activeSkillId && attacker.activeSkillLevel > 0) {
-    const skillHitMult = primarySkillActiveDamageMult(attacker.activeSkillId, attacker.activeSkillLevel);
+    const skillHitMult =
+      input.activeSkillDamageMult ?? primarySkillActiveDamageMult(attacker.activeSkillId, attacker.activeSkillLevel);
     if (skillHitMult > 1) dmg = Math.max(1, Math.floor(dmg * skillHitMult));
   }
+  const lowHpBonus = input.lowHpAtkBonusPct ?? 0;
+  if (lowHpBonus > 0) dmg = Math.max(1, Math.floor(dmg * (1 + lowHpBonus / 100)));
 
   if (attacker.combatMods.finalDmgPct > 0) {
     const finalPct = effectiveFinalDmgPct(attacker.combatMods.finalDmgPct);
     dmg = Math.max(1, Math.floor(dmg * (1 + finalPct / 100)));
   }
 
-  const critChance = effectiveCritChancePct(attacker.combatMods.critChancePct);
+  const critChance = effectiveCritChancePct(attacker.combatMods.critChancePct + (input.critStackBonusPct ?? 0));
   if (critChance > 0 && rnd() * 100 < critChance) {
     const critMult = 1 + Math.max(0, attacker.combatMods.critDmgPct) / 100;
     dmg = Math.max(1, Math.floor(dmg * critMult));
@@ -120,6 +154,10 @@ function resolvePvpHit(input: {
     dmg = Math.max(1, Math.floor(dmg * (1 - reduce / 100)));
   }
 
+  if (input.damageScalePct != null && input.damageScalePct > 0 && input.damageScalePct !== 100) {
+    dmg = Math.max(1, Math.floor((dmg * input.damageScalePct) / 100));
+  }
+
   return { damage: Math.max(0, dmg), kind: hitKind === "extra" ? "extra" : "normal", blocked: false };
 }
 
@@ -130,6 +168,11 @@ function performPvpAttack(input: {
   log: CombatLogLine[];
   hitKind?: "normal" | "extra";
   activeSkillHit?: boolean;
+  activeSkillDamageMult?: number;
+  armorPenBonusPct?: number;
+  lowHpAtkBonusPct?: number;
+  critStackBonusPct?: number;
+  damageScalePct?: number;
 }) {
   const hit = resolvePvpHit({
     attacker: input.attacker,
@@ -137,6 +180,11 @@ function performPvpAttack(input: {
     rnd: input.rnd,
     hitKind: input.hitKind,
     activeSkillHit: input.activeSkillHit,
+    activeSkillDamageMult: input.activeSkillDamageMult,
+    armorPenBonusPct: input.armorPenBonusPct,
+    lowHpAtkBonusPct: input.lowHpAtkBonusPct,
+    critStackBonusPct: input.critStackBonusPct,
+    damageScalePct: input.damageScalePct,
   });
 
   if (hit.evaded) {
@@ -157,6 +205,113 @@ function performPvpAttack(input: {
       attacker: input.attacker.label,
     });
     return;
+  }
+
+  if (hit.damage > 0) {
+    const passive = resolveDamagedPassive(
+      {
+        label: input.target.label,
+        side: input.target.logSide,
+        id: input.target.id,
+        hp: input.target.hp,
+        maxHp: input.target.maxHp,
+        atkMin: input.target.atkMin,
+        atkMax: input.target.atkMax,
+        def: input.target.def,
+        passiveSkillId: input.target.passiveSkillId,
+        passiveSkillLevel: input.target.passiveSkillLevel,
+        activeSkillId: input.target.activeSkillId,
+        activeSkillLevel: input.target.activeSkillLevel,
+        skillState: input.target.skillState,
+        statuses: [],
+        combatMods: input.target.combatMods,
+      },
+      { label: input.attacker.label, side: input.attacker.logSide, hp: input.attacker.hp },
+      hit.damage,
+      input.rnd,
+    );
+    applyPassiveOnDamagedStacks({
+      label: input.target.label,
+      side: input.target.logSide,
+      id: input.target.id,
+      hp: input.target.hp,
+      maxHp: input.target.maxHp,
+      atkMin: input.target.atkMin,
+      atkMax: input.target.atkMax,
+      def: input.target.def,
+      passiveSkillId: input.target.passiveSkillId,
+      passiveSkillLevel: input.target.passiveSkillLevel,
+      activeSkillId: input.target.activeSkillId,
+      activeSkillLevel: input.target.activeSkillLevel,
+      skillState: input.target.skillState,
+      statuses: [],
+      combatMods: input.target.combatMods,
+    });
+    if (passive.handled) {
+      logPassiveNegate(
+        input.log,
+        {
+          label: input.target.label,
+          side: input.target.logSide,
+          id: input.target.id,
+          hp: input.target.hp,
+          maxHp: input.target.maxHp,
+          atkMin: input.target.atkMin,
+          atkMax: input.target.atkMax,
+          def: input.target.def,
+          passiveSkillId: input.target.passiveSkillId,
+          passiveSkillLevel: input.target.passiveSkillLevel,
+          activeSkillId: input.target.activeSkillId,
+          activeSkillLevel: input.target.activeSkillLevel,
+          skillState: input.target.skillState,
+          statuses: [],
+          combatMods: input.target.combatMods,
+        },
+        input.attacker.label,
+        passive,
+      );
+      if (passive.counterDamage) {
+        applyCounterFromParry(
+          {
+            label: input.target.label,
+            side: input.target.logSide,
+            id: input.target.id,
+            hp: input.target.hp,
+            maxHp: input.target.maxHp,
+            atkMin: input.target.atkMin,
+            atkMax: input.target.atkMax,
+            def: input.target.def,
+            passiveSkillId: input.target.passiveSkillId,
+            passiveSkillLevel: input.target.passiveSkillLevel,
+            activeSkillId: input.target.activeSkillId,
+            activeSkillLevel: input.target.activeSkillLevel,
+            skillState: input.target.skillState,
+            statuses: [],
+            combatMods: input.target.combatMods,
+          },
+          {
+            label: input.attacker.label,
+            side: input.attacker.logSide,
+            id: input.attacker.id,
+            hp: input.attacker.hp,
+            maxHp: input.attacker.maxHp,
+            atkMin: input.attacker.atkMin,
+            atkMax: input.attacker.atkMax,
+            def: input.attacker.def,
+            passiveSkillId: input.attacker.passiveSkillId,
+            passiveSkillLevel: input.attacker.passiveSkillLevel,
+            activeSkillId: input.attacker.activeSkillId,
+            activeSkillLevel: input.attacker.activeSkillLevel,
+            skillState: input.attacker.skillState,
+            statuses: [],
+            combatMods: input.attacker.combatMods,
+          },
+          passive.counterDamage,
+          input.log,
+        );
+      }
+      return;
+    }
   }
 
   input.target.hp = Math.max(0, input.target.hp - hit.damage);
@@ -252,15 +407,61 @@ export function simulatePvpDuel(input: {
       }
     }
 
-    if (attacker.activeSkillName) {
-      log.push({
-        t: "skill",
-        side: "party",
-        actor: attacker.label,
-        skillName: attacker.activeSkillName,
+    const attackerProc = rollActiveSkillProc(attacker.activeSkillId, attacker.activeSkillLevel, rnd);
+    const attackerPassive = applyPassiveOnAttack(attacker as any, rnd, log);
+    let atkStackMult = 1;
+    if (attacker.passiveSkillId && attacker.passiveSkillLevel > 0) {
+      const stackSpec = (skillCombatTriggers(attacker.passiveSkillId)?.onAttack ?? []).find((s) => s.trigger === "stack_atk");
+      if (stackSpec && attacker.skillState.atkStacks > 0) {
+        const bonusPer =
+          (stackSpec.stackBonusPct ?? 4) +
+          (stackSpec.stackBonusPctPerLevel ?? 0) * Math.max(0, attacker.passiveSkillLevel - 1);
+        atkStackMult = atkStackDamageMult(attacker.skillState.atkStacks, bonusPer);
+      }
+    }
+    const attackerLowHp = lowHpAtkBonusPct({ hp: attacker.hp, maxHp: attacker.maxHp }, attacker.passiveLowHpAtkMaxBonusPct);
+    const attackerCritStack = attacker.skillState.critStacks * 2;
+
+    if (attackerProc.proc && attacker.activeSkillName) {
+      log.push({ t: "skill", side: "party", actor: attacker.label, skillName: attacker.activeSkillName });
+    }
+    const saved = attacker.skillDamageMult;
+    attacker.skillDamageMult *= atkStackMult;
+    performPvpAttack({
+      attacker,
+      target: defender,
+      rnd,
+      log,
+      activeSkillHit: attackerProc.proc,
+      activeSkillDamageMult: attackerProc.proc ? attackerProc.damageMult : undefined,
+      armorPenBonusPct: attackerProc.armorPenPct,
+      lowHpAtkBonusPct: attackerLowHp,
+      critStackBonusPct: attackerCritStack,
+    });
+    attacker.skillDamageMult = saved;
+    if (attackerProc.proc && defender.hp > 0) {
+      applyActiveSkillExtras({
+        attacker: attacker as any,
+        target: defender as any,
+        activeSkillId: attacker.activeSkillId,
+        activeSkillLevel: attacker.activeSkillLevel,
+        proc: true,
+        log,
+        rnd,
       });
     }
-    performPvpAttack({ attacker, target: defender, rnd, log, activeSkillHit: !!attacker.activeSkillName });
+    if (attackerPassive.extraHit && defender.hp > 0) {
+      performPvpAttack({
+        attacker,
+        target: defender,
+        rnd,
+        log,
+        hitKind: "extra",
+        damageScalePct: attackerPassive.extraHitDamagePct,
+        lowHpAtkBonusPct: attackerLowHp,
+        critStackBonusPct: attackerCritStack,
+      });
+    }
 
     const extraChance = effectiveAtkSpdProcPct(attacker.combatMods.atkSpdPct);
     if (extraChance > 0 && defender.hp > 0 && rnd() * 100 < extraChance) {
@@ -269,7 +470,22 @@ export function simulatePvpDuel(input: {
 
     if (defender.hp <= 0) break;
 
-    if (defender.activeSkillName) {
+    const defenderProc = rollActiveSkillProc(defender.activeSkillId, defender.activeSkillLevel, rnd);
+    const defenderPassive = applyPassiveOnAttack(defender as any, rnd, log);
+    let defAtkStackMult = 1;
+    if (defender.passiveSkillId && defender.passiveSkillLevel > 0) {
+      const stackSpec = (skillCombatTriggers(defender.passiveSkillId)?.onAttack ?? []).find((s) => s.trigger === "stack_atk");
+      if (stackSpec && defender.skillState.atkStacks > 0) {
+        const bonusPer =
+          (stackSpec.stackBonusPct ?? 4) +
+          (stackSpec.stackBonusPctPerLevel ?? 0) * Math.max(0, defender.passiveSkillLevel - 1);
+        defAtkStackMult = atkStackDamageMult(defender.skillState.atkStacks, bonusPer);
+      }
+    }
+    const defenderLowHp = lowHpAtkBonusPct({ hp: defender.hp, maxHp: defender.maxHp }, defender.passiveLowHpAtkMaxBonusPct);
+    const defenderCritStack = defender.skillState.critStacks * 2;
+
+    if (defenderProc.proc && defender.activeSkillName) {
       log.push({
         t: "skill",
         side: "enemy",
@@ -277,18 +493,51 @@ export function simulatePvpDuel(input: {
         skillName: defender.activeSkillName,
       });
     }
+    const savedDef = defender.skillDamageMult;
+    defender.skillDamageMult *= defAtkStackMult;
     performPvpAttack({
       attacker: defender,
       target: attacker,
       rnd,
       log,
-      activeSkillHit: !!defender.activeSkillName,
+      activeSkillHit: defenderProc.proc,
+      activeSkillDamageMult: defenderProc.proc ? defenderProc.damageMult : undefined,
+      armorPenBonusPct: defenderProc.armorPenPct,
+      lowHpAtkBonusPct: defenderLowHp,
+      critStackBonusPct: defenderCritStack,
     });
+    defender.skillDamageMult = savedDef;
+    if (defenderProc.proc && attacker.hp > 0) {
+      applyActiveSkillExtras({
+        attacker: defender as any,
+        target: attacker as any,
+        activeSkillId: defender.activeSkillId,
+        activeSkillLevel: defender.activeSkillLevel,
+        proc: true,
+        log,
+        rnd,
+      });
+    }
+    if (defenderPassive.extraHit && attacker.hp > 0) {
+      performPvpAttack({
+        attacker: defender,
+        target: attacker,
+        rnd,
+        log,
+        hitKind: "extra",
+        damageScalePct: defenderPassive.extraHitDamagePct,
+        lowHpAtkBonusPct: defenderLowHp,
+        critStackBonusPct: defenderCritStack,
+      });
+    }
 
     const defExtra = effectiveAtkSpdProcPct(defender.combatMods.atkSpdPct);
     if (defExtra > 0 && attacker.hp > 0 && rnd() * 100 < defExtra) {
       performPvpAttack({ attacker: defender, target: attacker, rnd, log, hitKind: "extra" });
     }
+
+    tickSkillStateRoundEnd(attacker.skillState);
+    tickSkillStateRoundEnd(defender.skillState);
   }
 
   const attackerWins = defender.hp <= 0 && attacker.hp > 0;

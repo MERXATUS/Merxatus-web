@@ -20,7 +20,14 @@ import {
 import { minionBaseStatsFromRow, type MinionBaseStats } from "@/shared/minionBaseStats";
 import { minionCombatClassLabel, type MinionCombatClass } from "@/shared/minionDerivedClass";
 import { promotionStateFromRow, resolveMinionCombatClass } from "@/shared/minionPromotion";
-import { primaryCombatSkillForMinion } from "@/shared/minionSkills";
+import { aggregateSkillCombatEffects } from "@/shared/combatSkillEffects";
+import { equipmentStatusEffectsFromGear } from "@/shared/equipmentStatusEffects";
+import {
+  primaryActiveSkillForMinion,
+  primaryPassiveSkillForMinion,
+} from "@/shared/minionSkills";
+import { passiveModsForSkill } from "@/shared/skillCombatRuntime";
+import type { StatusApplySpec } from "@/shared/combatStatus";
 import { loadKnightOrderBonuses, scalePartyPowerWithKnightOrder } from "@/server/knightOrder";
 import type { KnightOrderBonuses } from "@/shared/knightOrder";
 
@@ -107,8 +114,26 @@ export function buildMinionPartyCombatRow(
   const combatInput = toCombatInput({ ...input, combatClass });
   const built = combatMemberFromMinion(combatInput);
   const combatClassLabel = input.combatClassLabel ?? minionCombatClassLabel(combatClass);
-  const primarySkill = primaryCombatSkillForMinion(combatClass, input.skillLevelsJson);
-  const combatMods = combatModsFromEquip(input);
+  const primarySkill = primaryActiveSkillForMinion(combatClass, input.skillLevelsJson);
+  const passiveSkill = primaryPassiveSkillForMinion(combatClass, input.skillLevelsJson);
+  let combatMods = combatModsFromEquip(input);
+  const passiveMods = passiveModsForSkill(passiveSkill?.id ?? null, passiveSkill?.level ?? 0);
+  if (passiveMods.dmgReducePct) combatMods.dmgReducePct += passiveMods.dmgReducePct;
+  if (passiveMods.critChancePct) combatMods.critChancePct += passiveMods.critChancePct;
+  if (passiveMods.lifeStealPct) combatMods.lifeStealPct += passiveMods.lifeStealPct;
+  const armor = normalizeArmor(input.armor);
+  const gearFx = equipmentStatusEffectsFromGear({
+    weaponOptionsJson: input.weapon?.optionsJson,
+    armorOptionsJsonList: (["helmet", "armor", "pants", "shoes"] as const).map(
+      (slot) => armor[slot]?.optionsJson,
+    ),
+  });
+  const skillFx = aggregateSkillCombatEffects(combatClass, input.skillLevelsJson);
+  const onHitStatuses: StatusApplySpec[] = [...gearFx.onHit];
+  const onFightStartSelfStatuses: StatusApplySpec[] = [
+    ...gearFx.onFightStartSelf,
+    ...skillFx.onFightStartSelf,
+  ];
   return {
     minionId: input.minionId,
     combatClass,
@@ -117,11 +142,19 @@ export function buildMinionPartyCombatRow(
     power: computeMemberPower(built.member),
     bonusHp: built.bonusHp,
     bonusDef: built.bonusDef,
+    agility: built.member.agility,
+    endurance: built.member.endurance,
     skillDamageMult: built.skillDamageMult,
     activeSkillName: primarySkill?.name ?? null,
     activeSkillId: primarySkill?.id ?? null,
     activeSkillLevel: primarySkill?.level ?? 0,
+    passiveSkillName: passiveSkill?.name ?? null,
+    passiveSkillId: passiveSkill?.id ?? null,
+    passiveSkillLevel: passiveSkill?.level ?? 0,
+    passiveLowHpAtkMaxBonusPct: passiveMods.lowHpAtkMaxBonusPct ?? 0,
     combatMods,
+    onHitStatuses,
+    onFightStartSelfStatuses,
     row: built.member,
   };
 }

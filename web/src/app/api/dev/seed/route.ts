@@ -113,6 +113,17 @@ async function runSeed() {
 
   // Ensure the user has some items to sell (this seed treats listings as escrowed: inventory is reduced accordingly)
   const oreId = "item_dark_iron";
+  await prisma.item.upsert({
+    where: { id: oreId },
+    create: {
+      id: oreId,
+      name: "흑철",
+      category: "재료",
+      tradable: true,
+      grade: clampItemGrade(defaultItemGradeForItemId(oreId)),
+    },
+    update: {},
+  });
   await prisma.inventoryStack.upsert({
     where: { userId_itemId: { userId: seller.id, itemId: oreId } },
     create: { userId: seller.id, itemId: oreId, quantity: 50 },

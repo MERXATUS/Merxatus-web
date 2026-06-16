@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { grantLootToUser } from "@/server/grantLootToUser";
 import { boxOpenDropsForItem } from "@/server/boxOpenData";
+import { takeAvailableFromStack } from "@/server/inventoryStackOps";
 import { isLootBoxItemId, lootBoxRollCount } from "@/shared/boxOpen";
 
 type OpenTx = Pick<PrismaClient, "inventoryStack" | "item" | "weaponInstance" | "armorInstance">;
@@ -58,8 +59,8 @@ export async function openLootBoxInTx(
   const stack = await tx.inventoryStack.findUnique({
     where: { userId_itemId: { userId: input.userId, itemId: boxItemId } },
   });
-  const have = stack?.quantity ?? 0;
-  if (have < qty) throw new Error("NO_BOX");
+  const have = stack ? stack.quantity - Math.max(0, stack.lockedQuantity) : 0;
+  if (have < qty) throw new Error(stack && stack.quantity >= qty ? "ITEM_LOCKED" : "NO_BOX");
 
   const drops = await boxOpenDropsForItem(boxItemId);
   if (drops.length === 0) throw new Error("BOX_TABLE_EMPTY");
@@ -72,10 +73,7 @@ export async function openLootBoxInTx(
     }
   }
 
-  await tx.inventoryStack.update({
-    where: { userId_itemId: { userId: input.userId, itemId: boxItemId } },
-    data: { quantity: { decrement: qty } },
-  });
+  await takeAvailableFromStack(tx, input.userId, boxItemId, qty);
 
   const loot = Array.from(merged.entries()).map(([itemId, q]) => ({ itemId, qty: q }));
   await grantLootToUser(tx, input.userId, loot);

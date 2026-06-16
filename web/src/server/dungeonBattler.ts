@@ -24,6 +24,32 @@ import {
 } from "@/shared/equipmentCombatModifiers";
 
 import { primarySkillActiveDamageMult } from "@/shared/minionSkills";
+import { skillCombatTriggers } from "@/shared/skillCombatTriggers";
+import {
+  applyActiveSkillExtras,
+  applyCounterFromParry,
+  applyPassiveOnAttack,
+  applyPassiveOnDamagedStacks,
+  atkStackDamageMult,
+  emptySkillBattleState,
+  logPassiveNegate,
+  lowHpAtkBonusPct,
+  resolveDamagedPassive,
+  rollActiveSkillProc,
+  tickSkillStateRoundEnd,
+  type SkillBattleState,
+} from "@/shared/skillCombatRuntime";
+import type { StatusApplySpec } from "@/shared/combatStatus";
+import {
+  applyStatusInstance,
+  processBeforeAction,
+  processCounterOnDamaged,
+  processStatusRoundEnd,
+  processStatusRoundStart,
+  rollStatusApplications,
+  statusSkipLog,
+  type CombatStatusInstance,
+} from "@/shared/combatStatus";
 
 import {
   effectiveArmorPenPct,
@@ -69,7 +95,19 @@ export type CombatantInput = {
 
   activeSkillLevel?: number;
 
+  passiveSkillId?: string | null;
+
+  passiveSkillLevel?: number;
+
+  passiveLowHpAtkMaxBonusPct?: number;
+
   combatMods?: EquipmentCombatModifiers;
+
+  /** 장비 옵션 — 타격 시 상태 부여 */
+  onHitStatuses?: StatusApplySpec[];
+
+  /** 스킬·장비 — 전투 시작 시 자신에게 */
+  onFightStartSelfStatuses?: StatusApplySpec[];
 
 };
 
@@ -111,7 +149,19 @@ type Fighter = {
 
   activeSkillLevel: number;
 
+  passiveSkillId: string | null;
+
+  passiveSkillLevel: number;
+
+  passiveLowHpAtkMaxBonusPct: number;
+
+  skillState: SkillBattleState;
+
   combatMods: EquipmentCombatModifiers;
+
+  statuses: CombatStatusInstance[];
+
+  onHitStatuses: StatusApplySpec[];
 
 };
 
@@ -157,7 +207,17 @@ export function buildPartyCombatants(
 
     activeSkillLevel?: number;
 
+    passiveSkillId?: string | null;
+
+    passiveSkillLevel?: number;
+
+    passiveLowHpAtkMaxBonusPct?: number;
+
     combatMods?: EquipmentCombatModifiers;
+
+    onHitStatuses?: StatusApplySpec[];
+
+    onFightStartSelfStatuses?: StatusApplySpec[];
 
   }>,
 
@@ -191,12 +251,60 @@ export function buildPartyCombatants(
 
       activeSkillLevel: m.activeSkillLevel,
 
+      passiveSkillId: m.passiveSkillId,
+
+      passiveSkillLevel: m.passiveSkillLevel,
+
+      passiveLowHpAtkMaxBonusPct: m.passiveLowHpAtkMaxBonusPct,
+
       combatMods: m.combatMods,
+
+      onHitStatuses: m.onHitStatuses,
+
+      onFightStartSelfStatuses: m.onFightStartSelfStatuses,
 
     };
 
   });
 
+}
+
+export function partyMemberToCombatantInput(
+  x: {
+    minionId: string;
+    combatClassLabel: string;
+    power: number;
+    bonusHp?: number;
+    bonusDef?: number;
+    skillDamageMult?: number;
+    activeSkillName?: string | null;
+    activeSkillId?: string | null;
+    activeSkillLevel?: number;
+    passiveSkillId?: string | null;
+    passiveSkillLevel?: number;
+    passiveLowHpAtkMaxBonusPct?: number;
+    combatMods?: EquipmentCombatModifiers;
+    onHitStatuses?: StatusApplySpec[];
+    onFightStartSelfStatuses?: StatusApplySpec[];
+  },
+) {
+  return {
+    minionId: x.minionId,
+    combatClassLabel: x.combatClassLabel,
+    power: x.power,
+    bonusHp: x.bonusHp,
+    bonusDef: x.bonusDef,
+    skillDamageMult: x.skillDamageMult,
+    activeSkillName: x.activeSkillName,
+    activeSkillId: x.activeSkillId,
+    activeSkillLevel: x.activeSkillLevel,
+    passiveSkillId: x.passiveSkillId,
+    passiveSkillLevel: x.passiveSkillLevel,
+    passiveLowHpAtkMaxBonusPct: x.passiveLowHpAtkMaxBonusPct,
+    combatMods: x.combatMods,
+    onHitStatuses: x.onHitStatuses,
+    onFightStartSelfStatuses: x.onFightStartSelfStatuses,
+  };
 }
 
 
@@ -263,6 +371,16 @@ function resolveHitDamage(input: {
 
   activeSkillHit?: boolean;
 
+  activeSkillDamageMult?: number;
+
+  armorPenBonusPct?: number;
+
+  lowHpAtkBonusPct?: number;
+
+  critStackBonusPct?: number;
+
+  damageScalePct?: number;
+
 }): { damage: number; kind: HitKind; blocked: boolean; evaded?: boolean } {
 
   const { attacker, target, rnd } = input;
@@ -293,7 +411,7 @@ function resolveHitDamage(input: {
 
   if (attacker.side === "party") {
 
-    def = effectiveDef(def, effectiveArmorPenPct(attacker.combatMods.armorPenPct));
+    def = effectiveDef(def, effectiveArmorPenPct(attacker.combatMods.armorPenPct + (input.armorPenBonusPct ?? 0)));
 
   }
 
@@ -310,9 +428,14 @@ function resolveHitDamage(input: {
     if (mult > 1) dmg = Math.max(1, Math.floor(dmg * mult));
 
     if (input.activeSkillHit && attacker.activeSkillId && attacker.activeSkillLevel > 0) {
-      const skillHitMult = primarySkillActiveDamageMult(attacker.activeSkillId, attacker.activeSkillLevel);
+      const skillHitMult =
+        input.activeSkillDamageMult ??
+        primarySkillActiveDamageMult(attacker.activeSkillId, attacker.activeSkillLevel);
       if (skillHitMult > 1) dmg = Math.max(1, Math.floor(dmg * skillHitMult));
     }
+
+    const lowHpBonus = input.lowHpAtkBonusPct ?? 0;
+    if (lowHpBonus > 0) dmg = Math.max(1, Math.floor(dmg * (1 + lowHpBonus / 100)));
 
 
 
@@ -332,7 +455,9 @@ function resolveHitDamage(input: {
 
 
 
-    const critChance = effectiveCritChancePct(attacker.combatMods.critChancePct);
+    const critChance = effectiveCritChancePct(
+      attacker.combatMods.critChancePct + (input.critStackBonusPct ?? 0),
+    );
 
     if (critChance > 0 && rnd() * 100 < critChance) {
       const critMult = 1 + Math.max(0, attacker.combatMods.critDmgPct) / 100;
@@ -358,6 +483,10 @@ function resolveHitDamage(input: {
 
 
 
+  if (input.damageScalePct != null && input.damageScalePct > 0 && input.damageScalePct !== 100) {
+    dmg = Math.max(1, Math.floor((dmg * input.damageScalePct) / 100));
+  }
+
   return { damage: Math.max(0, dmg), kind: "normal", blocked: false };
 
 }
@@ -380,7 +509,7 @@ function applyLifeSteal(attacker: Fighter, damage: number, log: CombatLogLine[])
 
   if (actual > 0) {
 
-    log.push({ t: "heal", side: "party", actor: attacker.label, amount: actual });
+    log.push({ t: "heal", side: "party", actor: attacker.label, amount: actual, source: "lifesteal" });
 
   }
 
@@ -388,7 +517,7 @@ function applyLifeSteal(attacker: Fighter, damage: number, log: CombatLogLine[])
 
 
 
-function performAttack(input: {
+export function performAttack(input: {
 
   attacker: Fighter;
 
@@ -405,6 +534,16 @@ function performAttack(input: {
   hitKind?: HitKind;
 
   activeSkillHit?: boolean;
+
+  activeSkillDamageMult?: number;
+
+  armorPenBonusPct?: number;
+
+  lowHpAtkBonusPct?: number;
+
+  critStackBonusPct?: number;
+
+  damageScalePct?: number;
 
 }) {
 
@@ -427,6 +566,16 @@ function performAttack(input: {
     enemyTags,
 
     activeSkillHit: input.activeSkillHit,
+
+    activeSkillDamageMult: input.activeSkillDamageMult,
+
+    armorPenBonusPct: input.armorPenBonusPct,
+
+    lowHpAtkBonusPct: input.lowHpAtkBonusPct,
+
+    critStackBonusPct: input.critStackBonusPct,
+
+    damageScalePct: input.damageScalePct,
 
   });
 
@@ -452,6 +601,109 @@ function performAttack(input: {
     return;
   }
 
+  if (target.side === "party" && hit.damage > 0) {
+    const passive = resolveDamagedPassive(
+      {
+        label: target.label,
+        side: target.side,
+        id: target.id,
+        hp: target.hp,
+        maxHp: target.maxHp,
+        atkMin: target.atkMin,
+        atkMax: target.atkMax,
+        def: target.def,
+        passiveSkillId: target.passiveSkillId,
+        passiveSkillLevel: target.passiveSkillLevel,
+        activeSkillId: target.activeSkillId,
+        activeSkillLevel: target.activeSkillLevel,
+        skillState: target.skillState,
+        combatMods: target.combatMods,
+      },
+      attacker,
+      hit.damage,
+      rnd,
+    );
+    applyPassiveOnDamagedStacks({
+      label: target.label,
+      side: target.side,
+      id: target.id,
+      hp: target.hp,
+      maxHp: target.maxHp,
+      atkMin: target.atkMin,
+      atkMax: target.atkMax,
+      def: target.def,
+      passiveSkillId: target.passiveSkillId,
+      passiveSkillLevel: target.passiveSkillLevel,
+      activeSkillId: target.activeSkillId,
+      activeSkillLevel: target.activeSkillLevel,
+      skillState: target.skillState,
+      combatMods: target.combatMods,
+    });
+    if (passive.handled) {
+      logPassiveNegate(
+        log,
+        {
+          label: target.label,
+          side: target.side,
+          id: target.id,
+          hp: target.hp,
+          maxHp: target.maxHp,
+          atkMin: target.atkMin,
+          atkMax: target.atkMax,
+          def: target.def,
+          passiveSkillId: target.passiveSkillId,
+          passiveSkillLevel: target.passiveSkillLevel,
+          activeSkillId: target.activeSkillId,
+          activeSkillLevel: target.activeSkillLevel,
+          skillState: target.skillState,
+          statuses: target.statuses,
+          combatMods: target.combatMods,
+        },
+        attacker.label,
+        passive,
+      );
+      if (passive.counterDamage) {
+        applyCounterFromParry(
+          {
+            label: target.label,
+            side: target.side,
+            id: target.id,
+            hp: target.hp,
+            maxHp: target.maxHp,
+            atkMin: target.atkMin,
+            atkMax: target.atkMax,
+            def: target.def,
+            passiveSkillId: target.passiveSkillId,
+            passiveSkillLevel: target.passiveSkillLevel,
+            activeSkillId: target.activeSkillId,
+            activeSkillLevel: target.activeSkillLevel,
+            skillState: target.skillState,
+            combatMods: target.combatMods,
+          },
+          {
+            label: attacker.label,
+            side: attacker.side,
+            id: attacker.id,
+            hp: attacker.hp,
+            maxHp: attacker.maxHp,
+            atkMin: attacker.atkMin,
+            atkMax: attacker.atkMax,
+            def: attacker.def,
+            passiveSkillId: attacker.passiveSkillId,
+            passiveSkillLevel: attacker.passiveSkillLevel,
+            activeSkillId: attacker.activeSkillId,
+            activeSkillLevel: attacker.activeSkillLevel,
+            skillState: attacker.skillState,
+            combatMods: attacker.combatMods,
+          },
+          passive.counterDamage,
+          log,
+        );
+      }
+      return;
+    }
+  }
+
   target.hp = Math.max(0, target.hp - hit.damage);
 
   const kind = hitKind === "extra" ? "extra" : hit.kind;
@@ -466,6 +718,10 @@ function performAttack(input: {
 
     target: target.label,
 
+    actorId: attacker.id,
+
+    targetId: target.id,
+
     damage: hit.damage,
 
     kind,
@@ -473,6 +729,13 @@ function performAttack(input: {
   });
 
   applyLifeSteal(attacker, hit.damage, log);
+
+  if (hit.damage > 0) {
+    processCounterOnDamaged(target, attacker, hit.damage, log);
+    if (attacker.onHitStatuses.length > 0 && target.hp > 0) {
+      rollStatusApplications(attacker.onHitStatuses, attacker, target, log, rnd, true);
+    }
+  }
 
   if (
     attacker.side === "enemy" &&
@@ -491,6 +754,8 @@ function performAttack(input: {
       side: "party",
       actor: target.label,
       target: attacker.label,
+      actorId: target.id,
+      targetId: attacker.id,
       damage: thornDmg,
       kind: "extra",
     });
@@ -509,7 +774,7 @@ function performAttack(input: {
 
 
 
-/** 현재 층 전투 시뮬을 여러 번 돌려 클리어 확률 추정 (표시용) */
+/** @deprecated 즉시 판정(`instantFloorCombat`) 사용 — 다회 시뮬은 제거됨 */
 
 export type PartyHpSnapshot = { minionId: string; hp: number; maxHp: number; label: string };
 
@@ -682,11 +947,32 @@ export function simulateFloorCombat(input: {
 
       activeSkillLevel: Math.max(0, Math.floor(p.activeSkillLevel ?? 0)),
 
+      passiveSkillId: p.passiveSkillId?.trim() || null,
+
+      passiveSkillLevel: Math.max(0, Math.floor(p.passiveSkillLevel ?? 0)),
+
+      passiveLowHpAtkMaxBonusPct: Math.max(0, Math.floor(p.passiveLowHpAtkMaxBonusPct ?? 0)),
+
+      skillState: emptySkillBattleState(),
+
       combatMods: p.combatMods ?? emptyCombatModifiers(),
+
+      statuses: [],
+
+      onHitStatuses: [...(p.onHitStatuses ?? [])],
 
     };
 
   });
+
+
+
+  for (let pi = 0; pi < partyFighters.length; pi++) {
+    const specs = input.party[pi]?.onFightStartSelfStatuses ?? [];
+    for (const spec of specs) {
+      applyStatusInstance(partyFighters[pi]!, spec, log, rnd);
+    }
+  }
 
 
 
@@ -718,7 +1004,19 @@ export function simulateFloorCombat(input: {
 
       activeSkillLevel: 0,
 
+      passiveSkillId: null,
+
+      passiveSkillLevel: 0,
+
+      passiveLowHpAtkMaxBonusPct: 0,
+
+      skillState: emptySkillBattleState(),
+
       combatMods: emptyCombatModifiers(),
+
+      statuses: [],
+
+      onHitStatuses: [],
 
     },
 
@@ -735,6 +1033,10 @@ export function simulateFloorCombat(input: {
   while (round < maxRounds) {
 
     round += 1;
+
+    for (const f of [...partyFighters, ...enemies]) {
+      if (f.hp > 0) processStatusRoundStart(f, log);
+    }
 
     const aliveParty = pickAlive(partyFighters, "party");
     for (const fighter of aliveParty) {
@@ -762,43 +1064,139 @@ export function simulateFloorCombat(input: {
 
       if (targets.length === 0) break;
 
-      const target = targets[Math.floor(rnd() * targets.length)]!;
-
-      if (attacker.activeSkillName) {
-
-        log.push({
-
-          t: "skill",
-
-          side: "party",
-
-          actor: attacker.label,
-
-          skillName: attacker.activeSkillName,
-
-        });
-
+      if (processBeforeAction(attacker)) {
+        log.push(statusSkipLog("party", attacker.label, "freeze"));
+        continue;
       }
 
-      performAttack({
+      const target = targets[Math.floor(rnd() * targets.length)]!;
 
-        attacker,
-
-        target,
-
+      const activeProc = rollActiveSkillProc(attacker.activeSkillId, attacker.activeSkillLevel, rnd);
+      const passiveOnAttack = applyPassiveOnAttack(
+        {
+          label: attacker.label,
+          side: attacker.side,
+          id: attacker.id,
+          hp: attacker.hp,
+          maxHp: attacker.maxHp,
+          atkMin: attacker.atkMin,
+          atkMax: attacker.atkMax,
+          def: attacker.def,
+          passiveSkillId: attacker.passiveSkillId,
+          passiveSkillLevel: attacker.passiveSkillLevel,
+          activeSkillId: attacker.activeSkillId,
+          activeSkillLevel: attacker.activeSkillLevel,
+          skillState: attacker.skillState,
+          statuses: attacker.statuses,
+          combatMods: attacker.combatMods,
+        },
         rnd,
-
         log,
+      );
 
+      let atkStackMult = 1;
+      if (attacker.passiveSkillId && attacker.passiveSkillLevel > 0) {
+        const stackSpec = (skillCombatTriggers(attacker.passiveSkillId)?.onAttack ?? []).find(
+          (s) => s.trigger === "stack_atk",
+        );
+        if (stackSpec && attacker.skillState.atkStacks > 0) {
+          const bonusPer =
+            (stackSpec.stackBonusPct ?? 4) +
+            (stackSpec.stackBonusPctPerLevel ?? 0) * Math.max(0, attacker.passiveSkillLevel - 1);
+          atkStackMult = atkStackDamageMult(attacker.skillState.atkStacks, bonusPer);
+        }
+      }
+
+      const lowHpBonus = lowHpAtkBonusPct(
+        { hp: attacker.hp, maxHp: attacker.maxHp },
+        attacker.passiveLowHpAtkMaxBonusPct,
+      );
+      const critStackBonus = attacker.skillState.critStacks * 2;
+
+      if (activeProc.proc && attacker.activeSkillName) {
+        log.push({
+          t: "skill",
+          side: "party",
+          actor: attacker.label,
+          skillName: attacker.activeSkillName,
+        });
+      }
+
+      const savedSkillMult = attacker.skillDamageMult;
+      attacker.skillDamageMult *= atkStackMult;
+
+      performAttack({
+        attacker,
+        target,
+        rnd,
+        log,
         partyDamageMult,
-
         enemyTags,
-
-        activeSkillHit: !!attacker.activeSkillName,
-
+        activeSkillHit: activeProc.proc,
+        activeSkillDamageMult: activeProc.proc ? activeProc.damageMult : undefined,
+        armorPenBonusPct: activeProc.armorPenPct,
+        lowHpAtkBonusPct: lowHpBonus,
+        critStackBonusPct: critStackBonus,
       });
 
+      attacker.skillDamageMult = savedSkillMult;
 
+      if (activeProc.proc && target.hp > 0) {
+        applyActiveSkillExtras({
+          attacker: {
+            label: attacker.label,
+            side: attacker.side,
+            id: attacker.id,
+            hp: attacker.hp,
+            maxHp: attacker.maxHp,
+            atkMin: attacker.atkMin,
+            atkMax: attacker.atkMax,
+            def: attacker.def,
+            passiveSkillId: attacker.passiveSkillId,
+            passiveSkillLevel: attacker.passiveSkillLevel,
+            activeSkillId: attacker.activeSkillId,
+            activeSkillLevel: attacker.activeSkillLevel,
+            skillState: attacker.skillState,
+            combatMods: attacker.combatMods,
+          },
+          target: {
+            label: target.label,
+            side: target.side,
+            id: target.id,
+            hp: target.hp,
+            maxHp: target.maxHp,
+            atkMin: target.atkMin,
+            atkMax: target.atkMax,
+            def: target.def,
+            passiveSkillId: target.passiveSkillId,
+            passiveSkillLevel: target.passiveSkillLevel,
+            activeSkillId: target.activeSkillId,
+            activeSkillLevel: target.activeSkillLevel,
+            skillState: target.skillState,
+            combatMods: target.combatMods,
+          },
+          activeSkillId: attacker.activeSkillId,
+          activeSkillLevel: attacker.activeSkillLevel,
+          proc: true,
+          log,
+          rnd,
+        });
+      }
+
+      if (passiveOnAttack.extraHit && target.hp > 0) {
+        performAttack({
+          attacker,
+          target,
+          rnd,
+          log,
+          partyDamageMult,
+          enemyTags,
+          hitKind: "extra",
+          damageScalePct: passiveOnAttack.extraHitDamagePct,
+          lowHpAtkBonusPct: lowHpBonus,
+          critStackBonusPct: critStackBonus,
+        });
+      }
 
       const extraChance = effectiveAtkSpdProcPct(attacker.combatMods.atkSpdPct);
 
@@ -842,6 +1240,9 @@ export function simulateFloorCombat(input: {
 
     const victim = partyTargets[Math.floor(rnd() * partyTargets.length)]!;
 
+    if (processBeforeAction(enemy)) {
+      log.push(statusSkipLog("enemy", enemy.label, "freeze"));
+    } else {
     performAttack({
 
       attacker: enemy,
@@ -857,6 +1258,14 @@ export function simulateFloorCombat(input: {
       enemyTags,
 
     });
+    }
+
+    for (const f of [...partyFighters, ...enemies]) {
+      if (f.hp > 0) {
+        processStatusRoundEnd(f);
+        if (f.side === "party") tickSkillStateRoundEnd(f.skillState);
+      }
+    }
 
   }
 

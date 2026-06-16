@@ -168,6 +168,7 @@ export function mapMinionToListRow(
     promotionClass: promotion.promotionClass,
     canPromoteFirst: promotionInfo.canPromoteFirst,
     canPromoteSecond: promotionInfo.canPromoteSecond,
+    canPromoteThird: promotionInfo.canPromoteThird,
     nextPromotionLabel: promotionInfo.nextPromotionLabel,
     skills,
     combatClassLabel: minionRoleLabel({ combatClass }),

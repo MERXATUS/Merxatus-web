@@ -2,6 +2,7 @@ import type { MinionBaseStats } from "@/shared/minionBaseStats";
 import { totalMinionBaseStats } from "@/shared/minionBaseStats";
 import {
   advancedClassFromStats,
+  masterClassFromSecondClass,
   type MinionCombatClass,
   normalizeMinionCombatClass,
 } from "@/shared/minionDerivedClass";
@@ -9,10 +10,12 @@ import { weaponArchetypeFromBaseItemId } from "@/shared/minionWeaponRules";
 
 /** 1차 전직(모험가 → 검사) */
 export const MINION_FIRST_PROMOTION_LEVEL = 30;
-/** 2차 전직(검사 → 특화) — Lv1→70 전체 약 30~60분 목표 */
+/** 2차 전직(검사 → 특화) */
 export const MINION_SECOND_PROMOTION_LEVEL = 70;
+/** 3차 전직(특화 → 마스터) */
+export const MINION_THIRD_PROMOTION_LEVEL = 140;
 
-export type MinionPromotionTier = 0 | 1 | 2;
+export type MinionPromotionTier = 0 | 1 | 2 | 3;
 
 export type MinionPromotionState = {
   promotionTier: MinionPromotionTier;
@@ -37,9 +40,14 @@ export function canAttemptSecondPromotion(level: number, promotionTier: number):
   return Math.floor(level) >= MINION_SECOND_PROMOTION_LEVEL && promotionTier === 1;
 }
 
+export function canAttemptThirdPromotion(level: number, promotionTier: number): boolean {
+  return Math.floor(level) >= MINION_THIRD_PROMOTION_LEVEL && promotionTier === 2;
+}
+
 export type PromotionAvailability = {
   canPromoteFirst: boolean;
   canPromoteSecond: boolean;
+  canPromoteThird: boolean;
   nextPromotionLabel: string | null;
 };
 
@@ -49,10 +57,12 @@ export function minionPromotionAvailability(input: {
 }): PromotionAvailability {
   const canPromoteFirst = canAttemptFirstPromotion(input.level, input.promotionTier);
   const canPromoteSecond = canAttemptSecondPromotion(input.level, input.promotionTier);
+  const canPromoteThird = canAttemptThirdPromotion(input.level, input.promotionTier);
   let nextPromotionLabel: string | null = null;
   if (canPromoteFirst) nextPromotionLabel = "1차 전직 (검사)";
   else if (canPromoteSecond) nextPromotionLabel = "2차 전직";
-  return { canPromoteFirst, canPromoteSecond, nextPromotionLabel };
+  else if (canPromoteThird) nextPromotionLabel = "3차 전직";
+  return { canPromoteFirst, canPromoteSecond, canPromoteThird, nextPromotionLabel };
 }
 
 export type FirstPromotionError = "NO_SWORD_EQUIPPED";
@@ -74,9 +84,19 @@ export function validateSecondPromotion(baseStats: MinionBaseStats):
   return { ok: true, promotionClass: advancedClassFromStats(baseStats) };
 }
 
+export type ThirdPromotionError = "NO_MASTER_CLASS";
+
+export function validateThirdPromotion(promotionClass: MinionCombatClass):
+  | { ok: true; promotionClass: MinionCombatClass }
+  | { ok: false; error: ThirdPromotionError } {
+  const next = masterClassFromSecondClass(promotionClass);
+  if (!next) return { ok: false, error: "NO_MASTER_CLASS" };
+  return { ok: true, promotionClass: next };
+}
+
 export function promotionStateFromRow(row: unknown): MinionPromotionState {
   const r = row as { promotionTier?: number | null; promotionClass?: string | null };
-  const tier = Math.max(0, Math.min(2, Math.floor(r.promotionTier ?? 0))) as MinionPromotionTier;
+  const tier = Math.max(0, Math.min(3, Math.floor(r.promotionTier ?? 0))) as MinionPromotionTier;
   const promotionClass =
     tier === 0 ? "ADVENTURER" : normalizeMinionCombatClass(r.promotionClass ?? "ADVENTURER");
   return { promotionTier: tier, promotionClass };

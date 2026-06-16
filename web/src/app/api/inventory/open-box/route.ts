@@ -32,7 +32,12 @@ export async function POST(req: Request) {
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";
     const status =
-      message === "NOT_A_LOOT_BOX" || message === "NO_BOX" || message === "BOX_TABLE_EMPTY" ? 400 : 500;
+      message === "NOT_A_LOOT_BOX" ||
+      message === "NO_BOX" ||
+      message === "BOX_TABLE_EMPTY" ||
+      message === "ITEM_LOCKED"
+        ? 400
+        : 500;
     return Response.json({ ok: false, error: message }, { status });
   }
 }

@@ -28,7 +28,7 @@ type LeaderRow = { rank: number; username: string; score: number };
 type TowerState = {
   ok: boolean;
   active: boolean;
-  combat?: { clearChance: number; isBoss?: boolean };
+  combat?: { isBoss?: boolean };
   config?: { name: string; seasonKey: string };
   rank?: { rank: number; score: number } | null;
   leaderboard?: LeaderRow[];
@@ -38,7 +38,6 @@ type TowerState = {
 type AdvanceResult = {
   result: string;
   floor?: number;
-  clearChance?: number;
   combatLog?: CombatLogLine[];
   combatReplay?: DungeonCombatReplay;
   isBoss?: boolean;
@@ -63,13 +62,15 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const pendingResultRef = useRef<AdvanceResult | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     if (!user) return;
     setError(null);
+    setDataLoading(true);
     try {
       const [towerR, roster] = await Promise.all([
-        apiGetJson<TowerState>("/api/tower/run/state"),
+        apiGetJsonCached<TowerState>("/api/tower/run/state", { ttlMs: API_CACHE_TTL.runState }),
         fetchCombatRoster(user.id),
       ]);
       setState(towerR);
@@ -79,6 +80,8 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
       }
     } catch (e) {
       setError(e);
+    } finally {
+      setDataLoading(false);
     }
   }, [user]);
 
@@ -250,6 +253,7 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
       ) : null}
 
       {error ? <GamePanelError className="mt-3" error={error} /> : null}
+      {dataLoading && !state ? <GamePanelLoading label="무한의 탑 불러오는 중…" /> : null}
       {lastMsg && !playingLog ? <p className="mt-2 text-sm text-[var(--game-gold-bright)]">{lastMsg}</p> : null}
 
       {active && state?.run ? (
@@ -264,6 +268,7 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
             playing={playingLog}
             replay={battleReplay}
             lines={battleLines}
+            combatLogSessionKey={state?.active ? "tower" : null}
             isBoss={combatIsBoss || !!state.combat?.isBoss}
             encounterLabel={combatIsBoss ? `${state.run.floor}층 보스` : `${state.run.floor}층`}
             floorLabel={`${state.run.floor}층`}

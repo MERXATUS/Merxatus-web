@@ -104,6 +104,7 @@ export async function POST(req: Request) {
         promotionTier: promotion.promotionTier,
         canPromoteFirst: promotionInfo.canPromoteFirst,
         canPromoteSecond: promotionInfo.canPromoteSecond,
+        canPromoteThird: promotionInfo.canPromoteThird,
         skills: skillViewsForMinion({ combatClass, skillLevelsJson: m.skillLevelsJson }),
         unspentSkillPoints: m.unspentSkillPoints ?? 0,
         combatStats,

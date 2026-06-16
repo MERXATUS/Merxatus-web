@@ -10,7 +10,8 @@ export function requireUserId(req: Request, fallbackUserId?: string | null) {
     return { ok: true as const, userId: sessionUserId };
   }
   if (process.env.NODE_ENV !== "production") {
-    const userId = fallbackUserId ?? null;
+    const raw = (fallbackUserId ?? "").trim();
+    const userId = raw && raw !== "undefined" && raw !== "null" ? raw : null;
     if (userId) return { ok: true as const, userId };
   }
   return { ok: false as const, error: "UNAUTHORIZED" as const };

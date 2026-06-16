@@ -45,6 +45,7 @@ export async function POST(req: Request) {
         throw new Error("NOT_A_WEAPON");
       }
       if (inst.status !== "OWNED") throw new Error("WEAPON_LOCKED");
+      if (inst.userLocked) throw new Error("ITEM_USER_LOCKED");
       const combatClass = resolveMinionCombatClass(promotionStateFromRow(m));
       if (!canMinionEquipWeaponForClass(combatClass, inst.baseItemId)) throw new Error("WEAPON_JOB_MISMATCH");
       assertMinionCanEquipBaseItem({ minionLevel: m.level, baseItemId: inst.baseItemId });

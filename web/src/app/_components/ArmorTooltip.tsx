@@ -57,7 +57,7 @@ export function ArmorTooltipContent({ armor }: { armor: ArmorTooltipData }) {
           </div>
           {enhanceLv > 0 ? (
             <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
-              <span>강화 (+{enhanceLv})</span>
+              <span>제련 (+{enhanceLv})</span>
               <span>
                 HP+{enhanceHpDef.hp} DEF+{enhanceHpDef.def}
               </span>
@@ -83,7 +83,7 @@ export function ArmorTooltipContent({ armor }: { armor: ArmorTooltipData }) {
       ) : null}
       {enhancePower > 0 ? (
         <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
-          <span>강화 전투력</span>
+          <span>제련 전투력</span>
           <span>+{enhancePower}</span>
         </div>
       ) : null}

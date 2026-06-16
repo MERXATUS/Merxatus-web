@@ -4,6 +4,8 @@ import {
   ITEM_GEM_CHAOS,
   ITEM_GEM_DESTRUCTION,
   ITEM_GEM_SEAL,
+  ITEM_TOME_ABYSS,
+  ITEM_TOME_CELESTIAL,
   OPTION_CONSUMABLE_ITEM_IDS,
 } from "@/shared/optionConsumables";
 import { stageOrderForDungeonId } from "@/shared/dungeonStageProgression";
@@ -29,6 +31,14 @@ export const CRAFTING_ITEM_GRADE: Record<string, number> = {
   item_greater_mana_stone: 5,
   item_gem_chaos: 5,
   item_gem_seal: 5,
+  item_gem_expansion: 5,
+  item_tome_celestial: 6,
+  item_tome_abyss: 6,
+  item_gem_ascension: 6,
+  item_gem_primordial: 6,
+  item_gem_void: 7,
+  item_gem_transfer: 7,
+  item_gem_blessing: 7,
 };
 
 export type LootDropRow = {
@@ -61,7 +71,7 @@ export function maxCraftingGradeForTier(tier: number): number {
   if (t <= 2) return 2;
   if (t <= 4) return 4;
   if (t <= 6) return 5;
-  return 5;
+  return 6;
 }
 
 function floorGateForGrade(
@@ -95,6 +105,14 @@ function weightTableForTier(tier: number): WeightRow[] {
   push("item_greater_mana_stone", 5, t <= 4 ? 0 : t <= 6 ? 2100 : 3200, 1, 2);
   push("item_gem_chaos", 5, t <= 5 ? 0 : t <= 6 ? 520 : 1150, 1, 1);
   push("item_gem_seal", 5, t <= 5 ? 0 : t <= 6 ? 220 : 480, 1, 1);
+  push(ITEM_TOME_CELESTIAL, 6, t <= 6 ? 0 : t <= 7 ? 180 : 320, 1, 1);
+  push(ITEM_TOME_ABYSS, 6, t <= 6 ? 0 : t <= 7 ? 180 : 320, 1, 1);
+  push("item_gem_expansion", 5, t <= 5 ? 0 : t <= 6 ? 380 : 720, 1, 1);
+  push("item_gem_ascension", 6, t <= 6 ? 0 : t <= 7 ? 140 : 260, 1, 1);
+  push("item_gem_primordial", 6, t <= 6 ? 0 : t <= 7 ? 120 : 220, 1, 1);
+  push("item_gem_void", 7, t <= 7 ? 0 : 160, 1, 1);
+  push("item_gem_transfer", 7, t <= 7 ? 0 : 140, 1, 1);
+  push("item_gem_blessing", 7, t <= 7 ? 0 : 180, 1, 1);
 
   return rows;
 }

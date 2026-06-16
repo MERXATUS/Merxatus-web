@@ -281,7 +281,7 @@ function parseOptionsArray(v: unknown): RolledOption[] {
       const realmRaw = (row as { realm?: unknown }).realm;
       const affixRaw = (row as { affix?: unknown }).affix;
       const realm =
-        realmRaw === "celestial" || realmRaw === "abyss" ? realmRaw : undefined;
+        realmRaw === "celestial" || realmRaw === "abyss" || realmRaw === "void" ? realmRaw : undefined;
       const affix = typeof affixRaw === "string" && affixRaw.trim() ? affixRaw.trim() : undefined;
       return {
         optionId: normalizeOptionId(rawId),

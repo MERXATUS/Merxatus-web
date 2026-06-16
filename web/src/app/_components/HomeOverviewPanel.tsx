@@ -207,11 +207,12 @@ export function HomeOverviewPanel(props: { embedded?: boolean; onNavigate: (tab:
     return <GamePanelInfo>로그인하면 대시보드를 볼 수 있어요.</GamePanelInfo>;
   }
 
-  if (frame.summaryLoading && !data) {
+  if ((frame.summaryLoading || frame.dashboardLoading) && !data) {
     return <GamePanelLoading label="대시보드 불러오는 중…" />;
   }
 
   const bootstrapFailed = frame.summaryError ?? (error && !data ? error : null);
+  const summaryReady = !!frame.summary?.ok;
 
   if (!data) {
     if (bootstrapFailed) {
@@ -223,6 +224,9 @@ export function HomeOverviewPanel(props: { embedded?: boolean; onNavigate: (tab:
           </GameBtn>
         </div>
       );
+    }
+    if (summaryReady && frame.dashboardLoading) {
+      return <GamePanelLoading label="자산·미니언 정보 불러오는 중…" />;
     }
     return <GamePanelLoading label="대시보드 준비 중…" />;
   }
