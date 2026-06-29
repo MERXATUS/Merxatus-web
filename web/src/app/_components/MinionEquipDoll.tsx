@@ -12,8 +12,21 @@ import {
   type MinionEquippedItemView,
 } from "@/shared/minionEquipSlots";
 
-/** UI 표시 순: 투구 → 갑옷 → 하의 → 신발 → 무기 */
-const EQUIP_DISPLAY_ORDER: MinionEquipSlotId[] = ["helmet", "armor", "pants", "shoes", "weapon"];
+/** UI 표시 순: 방어구 + 무기 + 악세서리(착용 모드) */
+const EQUIP_DISPLAY_ORDER: MinionEquipSlotId[] = [
+  "helmet",
+  "armor",
+  "pants",
+  "shoes",
+  "weapon",
+  "ring1",
+  "ring2",
+  "necklace",
+  "necklace2",
+  "relic",
+  "relic2",
+  "relic3",
+];
 
 export function MinionEquipDoll(props: {
   equipment?: MinionEquipmentView;

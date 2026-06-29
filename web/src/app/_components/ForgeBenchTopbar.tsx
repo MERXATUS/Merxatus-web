@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { GameBtn } from "@/app/_components/gameUi";
 import { itemGradeNameClassName } from "@/server/itemGrade";
+import type { EquippedByMinionView } from "@/shared/equipmentEquippedBy";
+import { ForgeEquippedByTag } from "@/app/_components/ForgeEquippedByTag";
 
 type Props = {
   onBack: () => void;
@@ -17,6 +19,7 @@ type Props = {
       name: string;
       grade?: number;
       enhanceLevel?: number;
+      equippedByMinion?: EquippedByMinionView | null;
     }
   | {
       variant: "minimal";
@@ -46,6 +49,7 @@ export function ForgeBenchTopbar(props: Props) {
               {props.name}
               {(props.enhanceLevel ?? 0) > 0 ? ` +${props.enhanceLevel}` : ""}
             </p>
+            <ForgeEquippedByTag equippedByMinion={props.equippedByMinion} />
           </div>
         </div>
       )}

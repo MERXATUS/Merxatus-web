@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CombatEncounterBlock } from "@/app/_components/CombatEncounterBlock";
+import { DungeonDropTable } from "@/app/_components/DungeonDropTable";
 import {
   DungeonPartyPickModal,
   partyPickChips,
@@ -18,13 +19,24 @@ import { readSavedPartyIds, resolveSavedPartyIds, writeSavedPartyIds } from "@/s
 import { useEscapeClose } from "@/shared/useEscapeClose";
 import { fetchCombatRoster } from "@/shared/combatRosterClient";
 import { API_CACHE_TTL } from "@/shared/apiCache";
-import { apiGetJson, apiGetJsonCached, apiPostJson } from "@/shared/sessionClient";
+import { apiGetJsonCached, apiGetJsonCachedSwr, apiPostJson } from "@/shared/sessionClient";
+import { towerDropTable } from "@/shared/towerDropTableData";
+import { TOWER_CONFIG_LITE } from "@/shared/towerConfigData";
 
 const TOWER_PARTY_KEY = "tower_party_minion_ids_v1";
 const MAX_PARTY = 3;
 
 type MinionRow = PartyPickMinionRow & { pool?: string };
 type LeaderRow = { rank: number; username: string; score: number };
+type TowerPensionState = {
+  ok: boolean;
+  weekKey?: string;
+  pensionFloor?: number;
+  dailyGold?: number;
+  canClaimToday?: boolean;
+  alreadyClaimedToday?: boolean;
+};
+
 type TowerState = {
   ok: boolean;
   active: boolean;
@@ -47,6 +59,7 @@ type AdvanceResult = {
 export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
   const { user, loading: sessionLoading } = useSessionUser();
   const [state, setState] = useState<TowerState | null>(null);
+  const [pension, setPension] = useState<TowerPensionState | null>(null);
   const [minions, setMinions] = useState<MinionRow[]>([]);
   const [partyIds, setPartyIds] = useState<Set<string>>(new Set());
   const [partyOpen, setPartyOpen] = useState(false);
@@ -69,11 +82,16 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
     setError(null);
     setDataLoading(true);
     try {
-      const [towerR, roster] = await Promise.all([
-        apiGetJsonCached<TowerState>("/api/tower/run/state", { ttlMs: API_CACHE_TTL.runState }),
+      const [towerR, roster, pensionR] = await Promise.all([
+        apiGetJsonCachedSwr<TowerState>("/api/tower/run/state?lite=1", { ttlMs: API_CACHE_TTL.runState }),
         fetchCombatRoster(user.id),
+        apiGetJsonCachedSwr<TowerPensionState>("/api/tower/pension/state", { ttlMs: API_CACHE_TTL.runState }),
       ]);
-      setState(towerR);
+      setState({
+        ...towerR,
+        config: towerR.config ?? TOWER_CONFIG_LITE,
+      });
+      setPension(pensionR);
       setMinions(roster);
       if (!towerR.active) {
         setPartyIds(resolveSavedPartyIds(readSavedPartyIds(TOWER_PARTY_KEY), roster, MAX_PARTY));
@@ -210,6 +228,20 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
     setPlayingLog(true);
   }
 
+  async function claimPension() {
+    setBusy("pension");
+    setError(null);
+    try {
+      const r = await apiPostJson<{ ok: boolean; goldGained?: number }>("/api/tower/pension/claim", {});
+      setLastMsg(`일일 연금 +${(r.goldGained ?? 0).toLocaleString()} G`);
+      await refresh();
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function executeCashout() {
     setCashoutConfirmOpen(false);
     setBusy("cashout");
@@ -238,8 +270,8 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="game-label">삼계의 탑</p>
-          <h2 className="game-title text-lg">{state?.config?.name ?? "삼계의 탑"}</h2>
-          <p className="mt-1 text-xs text-[var(--game-muted)]">Push Luck · 층↑ 배수↑ · 랭킹은 최고 층 기준</p>
+          <h2 className="game-title text-lg">{state?.config?.name ?? TOWER_CONFIG_LITE.name}</h2>
+          <p className="mt-1 text-xs text-[var(--game-muted)]">Push Luck · 층↑ 배수↑ · 주간 최고층으로 일일 연금</p>
         </div>
         <span className={`dungeon-status-pill ${active ? "dungeon-status-pill--live" : ""}`.trim()}>
           {active ? "● 도전 중" : "○ 대기"}
@@ -250,6 +282,33 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
         <p className="mt-2 text-xs text-[var(--game-muted)]">
           내 최고 기록: {state.rank.score}층 · 순위 #{state.rank.rank}
         </p>
+      ) : null}
+
+      {pension?.ok ? (
+        <div className="mt-3 rounded-lg border border-[var(--game-border)] bg-black/25 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold text-[var(--game-gold-bright)]">주간 연금</p>
+              <p className="mt-0.5 text-[11px] text-[var(--game-muted)]">
+                이번 주 최고 {pension.pensionFloor ?? 0}층 · 일일 {(pension.dailyGold ?? 0).toLocaleString()} G
+              </p>
+            </div>
+            <GameBtn
+              variant="gold"
+              className="h-8 px-3 text-xs"
+              disabled={!!busy || !pension.canClaimToday}
+              onClick={() => void claimPension()}
+            >
+              {pension.alreadyClaimedToday
+                ? "오늘 수령 완료"
+                : busy === "pension"
+                  ? "수령 중…"
+                  : pension.canClaimToday
+                    ? "연금 수령"
+                    : "기록 필요"}
+            </GameBtn>
+          </div>
+        </div>
       ) : null}
 
       {error ? <GamePanelError className="mt-3" error={error} /> : null}
@@ -353,6 +412,11 @@ export function TowerPanel({ embedded = false }: { embedded?: boolean }) {
           >
             도전 시작
           </GameBtn>
+          <DungeonDropTable
+            table={towerDropTable()}
+            compact={embedded}
+            ariaLabel="무탑 드랍표"
+          />
         </div>
       )}
 

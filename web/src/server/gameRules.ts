@@ -10,6 +10,7 @@ import { LOOT_OPTION_MAX_SLOTS, LOOT_OPTION_SLOTS_BY_GRADE } from "@/shared/loot
 import { ARMOR_LEVEL_STAT_PCT_PER_LEVEL } from "@/shared/armorEnhanceRules";
 import {
   WEAPON_BASE_POWER_BY_ITEM_ID,
+  WEAPON_ENHANCE_POWER_RATIO,
   WEAPON_LEVEL_POWER_PER_LEVEL,
 } from "@/shared/weaponPowerRules";
 
@@ -25,8 +26,9 @@ export const GAME_RULES = {
     dungeonMinPartyLevelRatio: DUNGEON_MIN_PARTY_LEVEL_RATIO,
     /** 무기 전투력(미니언 개별 장착) */
     weaponPowerByItemId: WEAPON_BASE_POWER_BY_ITEM_ID,
-    /** 장착 무기 강화 1단계당 추가 전투력(베이스 무기 파워에 가산) */
+    /** 장착 무기 강화 1단계당 추가 전투력 — 베이스 CP × `WEAPON_ENHANCE_POWER_RATIO` (최소 1) */
     weaponLevelPowerPerLevel: WEAPON_LEVEL_POWER_PER_LEVEL,
+    weaponEnhancePowerRatio: WEAPON_ENHANCE_POWER_RATIO,
     /** 방어구 강화 1단계당 베이스 HP·DEF 추가 비율 */
     armorLevelStatPctPerLevel: ARMOR_LEVEL_STAT_PCT_PER_LEVEL,
     /** 미니언 기본 전투력(아직 레벨/스탯이 없어서 고정값으로 시작) */

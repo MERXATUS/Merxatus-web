@@ -1,0 +1,1530 @@
+[
+  {
+    "id": "special_slime_forest",
+    "name": "마계 · 오염의 웅덩이",
+    "mode": "PUSH_LUCK",
+    "baseWaveSeconds": 8,
+    "maxFloors": 10,
+    "maxPartySize": 1,
+    "encounters": [
+      {
+        "monsterId": "slime",
+        "category": "Monster",
+        "fromFloor": 1,
+        "toFloor": 9
+      },
+      {
+        "monsterId": "slime_king",
+        "category": "Boss",
+        "fromFloor": 10,
+        "toFloor": 10
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_lesser_mana_stone",
+        "weight": 8500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_lesser_recovery_potion",
+        "weight": 1500,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "weapon_wood_sword",
+        "weight": 520,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "weapon_stone_sword",
+        "weight": 520,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_leather_helmet",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_leather_armor",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_leather_pants",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_leather_boots",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "weapon_red_gold_sword",
+        "weight": 70,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 7,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_crimson_helmet",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 7,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_crimson_armor",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 7,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_crimson_pants",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 7,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_crimson_boots",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 7,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_chain_helmet",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_chain_armor",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_chain_pants",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_chain_boots",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      }
+    ],
+    "bossDrops": [
+      {
+        "itemId": "item_lesser_mana_stone",
+        "weight": 8000,
+        "minQty": 2,
+        "maxQty": 4
+      },
+      {
+        "itemId": "item_lesser_recovery_potion",
+        "weight": 2000,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "weapon_wood_sword",
+        "weight": 950,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "weapon_stone_sword",
+        "weight": 950,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_leather_helmet",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_leather_armor",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_leather_pants",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_leather_boots",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "weapon_red_gold_sword",
+        "weight": 70,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_crimson_helmet",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_crimson_armor",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_crimson_pants",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_crimson_boots",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_chain_helmet",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_chain_armor",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_chain_pants",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_chain_boots",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      }
+    ],
+    "linkedStageOrder": 1,
+    "ticketItemId": "item_special_dungeon_ticket",
+    "ticketCost": 1
+  },
+  {
+    "id": "special_goblin_den",
+    "name": "마계 · 군번의 심굴",
+    "mode": "PUSH_LUCK",
+    "baseWaveSeconds": 8,
+    "maxFloors": 14,
+    "maxPartySize": 1,
+    "encounters": [
+      {
+        "monsterId": "goblin",
+        "category": "Monster",
+        "fromFloor": 1,
+        "toFloor": 13
+      },
+      {
+        "monsterId": "goblin_chieftain",
+        "category": "Boss",
+        "fromFloor": 14,
+        "toFloor": 14
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_lesser_mana_stone",
+        "weight": 7000,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_mana_stone",
+        "weight": 1500,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_lesser_recovery_potion",
+        "weight": 1500,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "weapon_red_gold_sword",
+        "weight": 480,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 13
+      },
+      {
+        "itemId": "armor_crimson_helmet",
+        "weight": 340,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 13
+      },
+      {
+        "itemId": "armor_crimson_armor",
+        "weight": 340,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 13
+      },
+      {
+        "itemId": "armor_crimson_pants",
+        "weight": 340,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 13
+      },
+      {
+        "itemId": "armor_crimson_boots",
+        "weight": 340,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 13
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 70,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 11,
+        "maxFloor": 13
+      },
+      {
+        "itemId": "armor_iron_helmet",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 11,
+        "maxFloor": 13
+      },
+      {
+        "itemId": "armor_iron_armor",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 11,
+        "maxFloor": 13
+      },
+      {
+        "itemId": "armor_iron_pants",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 11,
+        "maxFloor": 13
+      },
+      {
+        "itemId": "armor_iron_boots",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 11,
+        "maxFloor": 13
+      }
+    ],
+    "bossDrops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 5500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_lesser_mana_stone",
+        "weight": 3000,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_lesser_recovery_potion",
+        "weight": 1500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "weapon_red_gold_sword",
+        "weight": 950,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "weapon_steel_sword",
+        "weight": 950,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "armor_crimson_helmet",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "armor_crimson_armor",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "armor_crimson_pants",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "armor_crimson_boots",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "weapon_steel_sword",
+        "weight": 70,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 70,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "armor_iron_helmet",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "armor_iron_armor",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "armor_iron_pants",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "armor_iron_boots",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      }
+    ],
+    "linkedStageOrder": 2,
+    "ticketItemId": "item_special_dungeon_ticket",
+    "ticketCost": 1
+  },
+  {
+    "id": "special_wolf_ravine",
+    "name": "마계 · 피의 사구",
+    "mode": "PUSH_LUCK",
+    "baseWaveSeconds": 8,
+    "maxFloors": 16,
+    "maxPartySize": 1,
+    "encounters": [
+      {
+        "monsterId": "wolf",
+        "category": "Monster",
+        "fromFloor": 1,
+        "toFloor": 15
+      },
+      {
+        "monsterId": "wolf_alpha",
+        "category": "Boss",
+        "fromFloor": 16,
+        "toFloor": 16
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_lesser_mana_stone",
+        "weight": 4500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_mana_stone",
+        "weight": 3700,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_lesser_recovery_potion",
+        "weight": 1000,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_recovery_potion",
+        "weight": 800,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "weapon_steel_sword",
+        "weight": 420,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 15
+      },
+      {
+        "itemId": "armor_iron_helmet",
+        "weight": 300,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 15
+      },
+      {
+        "itemId": "armor_iron_armor",
+        "weight": 300,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 15
+      },
+      {
+        "itemId": "armor_iron_pants",
+        "weight": 300,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 15
+      },
+      {
+        "itemId": "armor_iron_boots",
+        "weight": 300,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 15
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 70,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 13,
+        "maxFloor": 15
+      },
+      {
+        "itemId": "armor_golden_helmet",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 13,
+        "maxFloor": 15
+      },
+      {
+        "itemId": "armor_golden_armor",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 13,
+        "maxFloor": 15
+      },
+      {
+        "itemId": "armor_golden_pants",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 13,
+        "maxFloor": 15
+      },
+      {
+        "itemId": "armor_golden_boots",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 13,
+        "maxFloor": 15
+      }
+    ],
+    "bossDrops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 8000,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "item_recovery_potion",
+        "weight": 2000,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "weapon_steel_sword",
+        "weight": 950,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 950,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      },
+      {
+        "itemId": "armor_iron_helmet",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      },
+      {
+        "itemId": "armor_iron_armor",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      },
+      {
+        "itemId": "armor_iron_pants",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      },
+      {
+        "itemId": "armor_iron_boots",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 70,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      },
+      {
+        "itemId": "armor_golden_helmet",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      },
+      {
+        "itemId": "armor_golden_armor",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      },
+      {
+        "itemId": "armor_golden_pants",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      },
+      {
+        "itemId": "armor_golden_boots",
+        "weight": 55,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      }
+    ],
+    "linkedStageOrder": 3,
+    "ticketItemId": "item_special_dungeon_ticket",
+    "ticketCost": 2
+  },
+  {
+    "id": "special_crypt_of_dead",
+    "name": "천계 · 낙천자의 묘",
+    "mode": "PUSH_LUCK",
+    "baseWaveSeconds": 8,
+    "maxFloors": 18,
+    "maxPartySize": 1,
+    "encounters": [
+      {
+        "monsterId": "skeleton",
+        "category": "Monster",
+        "fromFloor": 1,
+        "toFloor": 17
+      },
+      {
+        "monsterId": "skeleton_lord",
+        "category": "Boss",
+        "fromFloor": 18,
+        "toFloor": 18
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 6500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_lesser_mana_stone",
+        "weight": 1500,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_recovery_potion",
+        "weight": 1500,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_lesser_recovery_potion",
+        "weight": 500,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 360,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 17
+      },
+      {
+        "itemId": "armor_golden_helmet",
+        "weight": 260,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 17
+      },
+      {
+        "itemId": "armor_golden_armor",
+        "weight": 260,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 17
+      },
+      {
+        "itemId": "armor_golden_pants",
+        "weight": 260,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 17
+      },
+      {
+        "itemId": "armor_golden_boots",
+        "weight": 260,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 17
+      }
+    ],
+    "bossDrops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 8000,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "item_recovery_potion",
+        "weight": 2000,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 950,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 18,
+        "maxFloor": 18
+      },
+      {
+        "itemId": "armor_golden_helmet",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 18,
+        "maxFloor": 18
+      },
+      {
+        "itemId": "armor_golden_armor",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 18,
+        "maxFloor": 18
+      },
+      {
+        "itemId": "armor_golden_pants",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 18,
+        "maxFloor": 18
+      },
+      {
+        "itemId": "armor_golden_boots",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 18,
+        "maxFloor": 18
+      }
+    ],
+    "linkedStageOrder": 4,
+    "ticketItemId": "item_special_dungeon_ticket",
+    "ticketCost": 2
+  },
+  {
+    "id": "special_scorch_rift",
+    "name": "천계 · 심판의 화염",
+    "mode": "PUSH_LUCK",
+    "baseWaveSeconds": 8,
+    "maxFloors": 20,
+    "maxPartySize": 1,
+    "encounters": [
+      {
+        "monsterId": "fire_salamander",
+        "category": "Monster",
+        "fromFloor": 1,
+        "toFloor": 19
+      },
+      {
+        "monsterId": "flame_tyrant",
+        "category": "Boss",
+        "fromFloor": 20,
+        "toFloor": 20
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 6500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 2000,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_recovery_potion",
+        "weight": 1200,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_greater_recovery_flask",
+        "weight": 300,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "weapon_diamond_sword",
+        "weight": 340,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 19
+      },
+      {
+        "itemId": "armor_diamond_helmet",
+        "weight": 240,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 19
+      },
+      {
+        "itemId": "armor_diamond_armor",
+        "weight": 240,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 19
+      },
+      {
+        "itemId": "armor_diamond_pants",
+        "weight": 240,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 19
+      },
+      {
+        "itemId": "armor_diamond_boots",
+        "weight": 240,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 19
+      }
+    ],
+    "bossDrops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 8500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_greater_recovery_flask",
+        "weight": 1500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "weapon_diamond_sword",
+        "weight": 950,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 20,
+        "maxFloor": 20
+      },
+      {
+        "itemId": "armor_diamond_helmet",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 20,
+        "maxFloor": 20
+      },
+      {
+        "itemId": "armor_diamond_armor",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 20,
+        "maxFloor": 20
+      },
+      {
+        "itemId": "armor_diamond_pants",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 20,
+        "maxFloor": 20
+      },
+      {
+        "itemId": "armor_diamond_boots",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 20,
+        "maxFloor": 20
+      }
+    ],
+    "linkedStageOrder": 5,
+    "ticketItemId": "item_special_dungeon_ticket",
+    "ticketCost": 2
+  },
+  {
+    "id": "special_frost_citadel",
+    "name": "천계 · 서릿빛 성벽",
+    "mode": "PUSH_LUCK",
+    "baseWaveSeconds": 8,
+    "maxFloors": 22,
+    "maxPartySize": 1,
+    "encounters": [
+      {
+        "monsterId": "ice_wisp",
+        "category": "Monster",
+        "fromFloor": 1,
+        "toFloor": 21
+      },
+      {
+        "monsterId": "frost_titan",
+        "category": "Boss",
+        "fromFloor": 22,
+        "toFloor": 22
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_mana_stone",
+        "weight": 5500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 3000,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_recovery_potion",
+        "weight": 1000,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_greater_recovery_flask",
+        "weight": 500,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "weapon_diamond_sword",
+        "weight": 320,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 21
+      },
+      {
+        "itemId": "armor_diamond_helmet",
+        "weight": 220,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 21
+      },
+      {
+        "itemId": "armor_diamond_armor",
+        "weight": 220,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 21
+      },
+      {
+        "itemId": "armor_diamond_pants",
+        "weight": 220,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 21
+      },
+      {
+        "itemId": "armor_diamond_boots",
+        "weight": 220,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 21
+      }
+    ],
+    "bossDrops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 9000,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "item_greater_recovery_flask",
+        "weight": 1000,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "weapon_diamond_sword",
+        "weight": 950,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 22,
+        "maxFloor": 22
+      },
+      {
+        "itemId": "armor_diamond_helmet",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 22,
+        "maxFloor": 22
+      },
+      {
+        "itemId": "armor_diamond_armor",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 22,
+        "maxFloor": 22
+      },
+      {
+        "itemId": "armor_diamond_pants",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 22,
+        "maxFloor": 22
+      },
+      {
+        "itemId": "armor_diamond_boots",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 22,
+        "maxFloor": 22
+      }
+    ],
+    "linkedStageOrder": 6,
+    "ticketItemId": "item_special_dungeon_ticket",
+    "ticketCost": 3
+  },
+  {
+    "id": "special_dragon_roost",
+    "name": "이계 · 차원 용혈",
+    "mode": "PUSH_LUCK",
+    "baseWaveSeconds": 8,
+    "maxFloors": 24,
+    "maxPartySize": 1,
+    "encounters": [
+      {
+        "monsterId": "dragon_whelp",
+        "category": "Monster",
+        "fromFloor": 1,
+        "toFloor": 23
+      },
+      {
+        "monsterId": "elder_dragon",
+        "category": "Boss",
+        "fromFloor": 24,
+        "toFloor": 24
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 6500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_mana_stone",
+        "weight": 2000,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_greater_recovery_flask",
+        "weight": 800,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_recovery_potion",
+        "weight": 700,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 300,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 23
+      },
+      {
+        "itemId": "armor_golden_helmet",
+        "weight": 210,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 23
+      },
+      {
+        "itemId": "armor_golden_armor",
+        "weight": 210,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 23
+      },
+      {
+        "itemId": "armor_golden_pants",
+        "weight": 210,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 23
+      },
+      {
+        "itemId": "armor_golden_boots",
+        "weight": 210,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 23
+      }
+    ],
+    "bossDrops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 9000,
+        "minQty": 2,
+        "maxQty": 4
+      },
+      {
+        "itemId": "item_greater_recovery_flask",
+        "weight": 1000,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 950,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 24,
+        "maxFloor": 24
+      },
+      {
+        "itemId": "armor_golden_helmet",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 24,
+        "maxFloor": 24
+      },
+      {
+        "itemId": "armor_golden_armor",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 24,
+        "maxFloor": 24
+      },
+      {
+        "itemId": "armor_golden_pants",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 24,
+        "maxFloor": 24
+      },
+      {
+        "itemId": "armor_golden_boots",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 24,
+        "maxFloor": 24
+      }
+    ],
+    "linkedStageOrder": 7,
+    "ticketItemId": "item_special_dungeon_ticket",
+    "ticketCost": 3
+  },
+  {
+    "id": "special_void_rift",
+    "name": "이계 · 공허 균열",
+    "mode": "PUSH_LUCK",
+    "baseWaveSeconds": 8,
+    "maxFloors": 26,
+    "maxPartySize": 1,
+    "encounters": [
+      {
+        "monsterId": "void_spawn",
+        "category": "Monster",
+        "fromFloor": 1,
+        "toFloor": 25
+      },
+      {
+        "monsterId": "void_harbinger",
+        "category": "Boss",
+        "fromFloor": 26,
+        "toFloor": 26
+      }
+    ],
+    "drops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 5500,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_mana_stone",
+        "weight": 1500,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_raid_shard",
+        "weight": 1200,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_greater_recovery_flask",
+        "weight": 1000,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "item_recovery_potion",
+        "weight": 800,
+        "minQty": 1,
+        "maxQty": 1
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 280,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 25
+      },
+      {
+        "itemId": "armor_golden_helmet",
+        "weight": 200,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 25
+      },
+      {
+        "itemId": "armor_golden_armor",
+        "weight": 200,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 25
+      },
+      {
+        "itemId": "armor_golden_pants",
+        "weight": 200,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 25
+      },
+      {
+        "itemId": "armor_golden_boots",
+        "weight": 200,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 25
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 120,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 22,
+        "maxFloor": 25
+      },
+      {
+        "itemId": "armor_golden_helmet",
+        "weight": 90,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 22,
+        "maxFloor": 25
+      },
+      {
+        "itemId": "armor_golden_armor",
+        "weight": 90,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 22,
+        "maxFloor": 25
+      }
+    ],
+    "bossDrops": [
+      {
+        "itemId": "item_greater_mana_stone",
+        "weight": 5500,
+        "minQty": 2,
+        "maxQty": 4
+      },
+      {
+        "itemId": "item_raid_shard",
+        "weight": 3000,
+        "minQty": 1,
+        "maxQty": 2
+      },
+      {
+        "itemId": "item_greater_recovery_flask",
+        "weight": 1500,
+        "minQty": 2,
+        "maxQty": 3
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 950,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 26,
+        "maxFloor": 26
+      },
+      {
+        "itemId": "armor_golden_helmet",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 26,
+        "maxFloor": 26
+      },
+      {
+        "itemId": "armor_golden_armor",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 26,
+        "maxFloor": 26
+      },
+      {
+        "itemId": "armor_golden_pants",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 26,
+        "maxFloor": 26
+      },
+      {
+        "itemId": "armor_golden_boots",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 26,
+        "maxFloor": 26
+      }
+    ],
+    "linkedStageOrder": 8,
+    "ticketItemId": "item_special_dungeon_ticket",
+    "ticketCost": 3
+  }
+]

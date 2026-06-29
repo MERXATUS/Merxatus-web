@@ -2,8 +2,8 @@ StageOrder,StageName,DungeonId,MaxFloors,Grade,GradeLabel,SetId,EquipFromLv,Full
 1,오염의 웅덩이,dungeon_slime_forest,10,1,일반,leather,1,18~20,1,7~9,10,direct,dawn,가죽·사슬 + 나무/돌 검 · 후반 적빛 맛보기
 2,군번의 심굴,dungeon_goblin_den,14,2,레어,dawn,20,38~42,1,10~13,14,direct,oath,적빛 세트 + 적빛 검
 3,피의 사구,dungeon_wolf_ravine,16,3,유니크,oath,40,62~65,1,12~15,16,direct,royal,철 세트 + 철 검
-4,낙천자의 묘,dungeon_crypt_of_dead,18,4,영웅,royal,65,88~92,1,14~17,18,direct,throne,금 세트 + 금 검
-5,심판의 화염,dungeon_scorch_rift,20,5,전설,throne,90,125~135,1,16~19,20,direct,,다이아 세트 + 다이아 검
-6,서릿빛 성벽,dungeon_frost_citadel,22,5,전설,throne,90,125~135,1,18~21,22,direct,,다이아 세트 파밍
+4,낙천자의 묘,dungeon_crypt_of_dead,18,4,영웅,royal,65,88~92,1,14~17,18,direct,throne,심판 세트 + 심판 검
+5,심판의 화염,dungeon_scorch_rift,20,5,전설,throne,90,125~135,1,16~19,20,direct,,천광 세트 + 천광 검
+6,서릿빛 성벽,dungeon_frost_citadel,22,5,전설,throne,90,125~135,1,18~21,22,direct,,천광 세트 파밍
 7,차원 용혈,dungeon_dragon_roost,24,6,신화,throne,140,180~190,1,20~23,24,direct,,신화 구간
 8,공허 균열,dungeon_void_rift,26,6,신화,throne,140,180~190,1,22~25,26,direct,,레이드 파편은 재료 드랍표

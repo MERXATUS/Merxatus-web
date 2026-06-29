@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AuthTopBar } from "@/app/_components/AuthTopBar";
 import { LoginWelcomePanel } from "@/app/_components/LoginWelcomePanel";
 import { ChatPanel } from "@/app/_components/ChatPanel";
+import { GameFrameMobileDock } from "@/app/_components/GameFrameMobileDock";
 import { GameFrameProvider } from "@/app/_components/GameFrameContext";
 import { HomeOverviewPanel } from "@/app/_components/HomeOverviewPanel";
 import { HomeGoldHeader } from "@/app/_components/HomeGoldHeader";
@@ -31,20 +32,24 @@ import {
   type MinionPanelTab,
   visibleGameTabs,
 } from "@/shared/gameNav";
-import { isCombatGameTab, prefetchCombatPanelChunk } from "@/shared/combatTabPrefetch";
 import { prefetchCombatRoster } from "@/shared/combatRosterClient";
+import { prefetchGamePanel } from "@/shared/panelTabPrefetch";
 import { googleAuthErrorMessage } from "@/shared/googleAuthErrors";
 import { API_CACHE_TTL } from "@/shared/apiCache";
 import type { MeDashboardLight } from "@/shared/meDashboard";
-import type { DungeonRunState, MeSummary } from "@/shared/meSummary";
+import type { DungeonRunState, MeBootstrap, MeSummary } from "@/shared/meSummary";
 import { useEscapeClose } from "@/shared/useEscapeClose";
-import { apiGetJson, apiGetJsonCached, apiPostJson, notifySessionChanged } from "@/shared/sessionClient";
+import { apiGetJsonCachedSwr, apiPostJson, notifySessionChanged } from "@/shared/sessionClient";
 
 const panelLoading = (label: string) => <GamePanelLoading label={label} />;
 
 const MarketBoard = dynamic(
   () => import("@/app/_components/MarketBoard").then((m) => m.MarketBoard),
   { loading: () => panelLoading("거래소 불러오는 중…") },
+);
+const CodexPanel = dynamic(
+  () => import("@/app/_components/CodexPanel").then((m) => m.CodexPanel),
+  { loading: () => panelLoading("도감 불러오는 중…") },
 );
 const InventoryPanel = dynamic(
   () => import("@/app/_components/InventoryPanel").then((m) => m.InventoryPanel),
@@ -54,8 +59,8 @@ const WeaponEnhancePanel = dynamic(
   () => import("@/app/_components/WeaponEnhancePanel").then((m) => m.WeaponEnhancePanel),
   { loading: () => panelLoading("대장간 불러오는 중…") },
 );
-const DungeonsPanel = dynamic(
-  () => import("@/app/_components/DungeonsPanel").then((m) => m.DungeonsPanel),
+const DungeonHubPanel = dynamic(
+  () => import("@/app/_components/DungeonHubPanel").then((m) => m.DungeonHubPanel),
   { loading: () => panelLoading("던전 불러오는 중…") },
 );
 const RaidsPanel = dynamic(
@@ -89,10 +94,11 @@ function GameFrameNav(props: {
   activeTab: GameTabKey;
   onNavigate: (tab: GameTabKey) => void;
   userId: string | null;
+  className?: string;
 }) {
   const tabs = visibleGameTabs();
   return (
-    <nav className="game-frame__nav" aria-label="활동 메뉴">
+    <nav className={`game-frame__nav game-frame__nav--header ${props.className ?? ""}`.trim()} aria-label="활동 메뉴">
       {tabs.map((tab) => {
         const active = props.activeTab === tab.key;
         return (
@@ -102,18 +108,8 @@ function GameFrameNav(props: {
             className={`game-frame__nav-btn ${active ? "game-frame__nav-btn--active" : ""}`.trim()}
             aria-current={active ? "page" : undefined}
             onClick={() => props.onNavigate(tab.key)}
-            onMouseEnter={() => {
-              if (isCombatGameTab(tab.key)) {
-                prefetchCombatPanelChunk(tab.key);
-                prefetchCombatRoster(props.userId);
-              }
-            }}
-            onFocus={() => {
-              if (isCombatGameTab(tab.key)) {
-                prefetchCombatPanelChunk(tab.key);
-                prefetchCombatRoster(props.userId);
-              }
-            }}
+            onMouseEnter={() => prefetchGamePanel(tab.key, props.userId)}
+            onFocus={() => prefetchGamePanel(tab.key, props.userId)}
           >
             <span className="game-frame__nav-glyph" aria-hidden>
               {tab.glyph}
@@ -130,6 +126,7 @@ function GameFrameStatusBar(props: {
   summary: MeSummary | null;
   summaryLoading: boolean;
   runState: DungeonRunState | null;
+  className?: string;
 }) {
   const { summary, summaryLoading, runState } = props;
   const placeholder = summaryLoading ? "…" : "—";
@@ -151,7 +148,7 @@ function GameFrameStatusBar(props: {
     summary != null ? `매물 ${fmtInt(summary.market.activeListingCount)}건` : `거래 ${placeholder}`;
 
   return (
-    <footer className="game-frame__status" aria-label="진행 상태">
+    <footer className={`game-frame__status ${props.className ?? ""}`.trim()} aria-label="진행 상태">
       <span className="game-frame__status-chip">{merc}</span>
       <span className="game-frame__status-chip">{dungeon}</span>
       <span className="game-frame__status-chip">{market}</span>
@@ -174,10 +171,12 @@ function GameFrameContent(props: {
       return <MarketBoard embedded />;
     case "inventory":
       return <InventoryPanel embedded onOpenMinions={onOpenMinions} />;
+    case "codex":
+      return <CodexPanel />;
     case "enhance":
       return <WeaponEnhancePanel embedded />;
     case "dungeon":
-      return <DungeonsPanel embedded />;
+      return <DungeonHubPanel embedded />;
     case "raid":
       return <RaidsPanel embedded />;
     case "tower":
@@ -216,12 +215,14 @@ export function GameFrame() {
   const [runState, setRunState] = useState<DungeonRunState | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
   const [contentKey, setContentKey] = useState(0);
 
   const navigateTab = useCallback(
     (tab: GameTabKey, opts?: { minionTab?: MinionPanelTab }) => {
       if (opts?.minionTab) setMinionPanelTab(opts.minionTab);
+      setMobileMoreOpen(false);
       writeStoredGameTab(tab);
       router.push(routeForGameTab(tab));
     },
@@ -257,20 +258,32 @@ export function GameFrame() {
         setDashboardLoading(false);
         return;
       }
-      let summaryLoaded = false;
+      setSummaryLoading(true);
+      setDashboardLoading(true);
       try {
-        const nextSummary = await apiGetJsonCached<MeSummary>("/api/me/summary", {
-          ttlMs: API_CACHE_TTL.summary,
+        const bootstrap = await apiGetJsonCachedSwr<MeBootstrap>("/api/me/bootstrap", {
+          ttlMs: API_CACHE_TTL.bootstrap,
           force: opts?.force,
+          onRevalidate: (data) => {
+            if (!data?.ok) return;
+            setSummary(data.summary);
+            setDashboardLight(data.dashboard);
+            setSummaryError(null);
+          },
         });
-        if (!nextSummary?.ok) throw new Error("SUMMARY_INCOMPLETE");
-        setSummary(nextSummary);
-        summaryLoaded = true;
+        if (!bootstrap?.ok) throw new Error("BOOTSTRAP_INCOMPLETE");
+        setSummary(bootstrap.summary);
+        setDashboardLight(bootstrap.dashboard);
+        setSummaryError(null);
 
-        if (nextSummary.dungeon?.active && activeTab !== "dungeon") {
-          void apiGetJsonCached<DungeonRunState>("/api/dungeons/run/state", {
+        if (bootstrap.summary.dungeon?.active && activeTab !== "dungeon") {
+          void apiGetJsonCachedSwr<DungeonRunState>("/api/dungeons/run/state?lite=1", {
             ttlMs: API_CACHE_TTL.runState,
             force: opts?.force,
+            onRevalidate: (rs) => {
+              if (rs?.active) setRunState(rs);
+              else setRunState(null);
+            },
           })
             .then((rs) => {
               if (rs?.active) setRunState(rs);
@@ -283,29 +296,9 @@ export function GameFrame() {
       } catch (e) {
         setSummaryError(e);
         setError(e);
+        setDashboardLight(null);
       } finally {
         setSummaryLoading(false);
-      }
-
-      if (!summaryLoaded) {
-        setDashboardLight(null);
-        setDashboardLoading(false);
-        return;
-      }
-
-      setDashboardLoading(true);
-      try {
-        const nextDashboard = await apiGetJsonCached<MeDashboardLight>("/api/me/dashboard", {
-          ttlMs: API_CACHE_TTL.dashboardLight,
-          force: opts?.force,
-        });
-        if (!nextDashboard?.ok) throw new Error("DASHBOARD_INCOMPLETE");
-        setDashboardLight(nextDashboard);
-        setSummaryError(null);
-      } catch (e) {
-        setSummaryError(e);
-        console.error("[GameFrame] dashboard load failed", e);
-      } finally {
         setDashboardLoading(false);
       }
     },
@@ -317,8 +310,8 @@ export function GameFrame() {
   }, [sessionUser?.id]);
 
   useEffect(() => {
-    if (isCombatGameTab(activeTab)) prefetchCombatPanelChunk(activeTab);
-  }, [activeTab]);
+    if (sessionUser?.id) prefetchGamePanel(activeTab, sessionUser.id);
+  }, [activeTab, sessionUser?.id]);
 
   const handleGlobalRefresh = useCallback(async () => {
     setContentKey((k) => k + 1);
@@ -442,6 +435,13 @@ export function GameFrame() {
             </div>
 
             <GameFrameNav activeTab={activeTab} onNavigate={navigateTab} userId={sessionUser?.id ?? null} />
+
+            <GameFrameStatusBar
+              summary={summary}
+              summaryLoading={summaryLoading}
+              runState={runState}
+              className="game-frame__status--hud"
+            />
           </header>
 
           <TutorialPanel
@@ -477,10 +477,12 @@ export function GameFrame() {
             </div>
           </section>
 
-          <GameFrameStatusBar
-            summary={summary}
-            summaryLoading={summaryLoading}
-            runState={runState}
+          <GameFrameMobileDock
+            activeTab={activeTab}
+            onNavigate={navigateTab}
+            userId={sessionUser?.id ?? null}
+            moreOpen={mobileMoreOpen}
+            onMoreOpenChange={setMobileMoreOpen}
           />
         </main>
 

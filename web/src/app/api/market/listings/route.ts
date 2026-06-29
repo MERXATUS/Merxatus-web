@@ -3,6 +3,7 @@ import { prisma } from "@/server/db";
 import { itemIconFieldsForItemId } from "@/server/itemCatalog";
 import { itemGradeViewForItem } from "@/server/itemGrade";
 import { activeListingVisibilityWhere, expireStaleActiveListings } from "@/server/market";
+import { marketListingArmorView, marketListingWeaponView } from "@/server/marketListingView";
 
 export const runtime = "nodejs";
 
@@ -55,14 +56,18 @@ export async function GET(req: Request) {
 
   const listings = await prisma.listing.findMany({
     where,
-    include: { item: true, weaponInstance: { include: { baseItem: true } } },
+    include: {
+      item: true,
+      weaponInstance: { include: { baseItem: true } },
+      armorInstance: { include: { baseItem: true } },
+    },
     orderBy,
     take: take ?? 50,
   });
 
   const mapped = await Promise.all(
     listings.map(async (l) => {
-      const iconItemId = l.weaponInstance?.baseItemId ?? l.itemId;
+      const iconItemId = l.weaponInstance?.baseItemId ?? l.armorInstance?.baseItemId ?? l.itemId;
       const iconFields = await itemIconFieldsForItemId(iconItemId);
       return {
         id: l.id,
@@ -75,19 +80,8 @@ export async function GET(req: Request) {
         category: l.item.category,
         icon: iconFields.icon,
         iconSrc: iconFields.iconSrc,
-        weapon: l.weaponInstance
-          ? {
-              id: l.weaponInstance.id,
-              baseItemId: l.weaponInstance.baseItemId,
-              name: l.weaponInstance.baseItem.name,
-              enhanceLevel: l.weaponInstance.enhanceLevel,
-              status: l.weaponInstance.status,
-              ...itemGradeViewForItem(
-                l.weaponInstance.baseItemId,
-                l.weaponInstance.baseItem.grade,
-              ),
-            }
-          : null,
+        weapon: l.weaponInstance ? marketListingWeaponView(l.weaponInstance) : null,
+        armor: l.armorInstance ? marketListingArmorView(l.armorInstance) : null,
         quantity: l.quantity,
         fixedPricePerUnit: l.fixedPricePerUnit,
         fixedPriceTotal: l.fixedPriceTotal,
@@ -102,4 +96,3 @@ export async function GET(req: Request) {
 
   return Response.json({ ok: true, listings: mapped });
 }
-

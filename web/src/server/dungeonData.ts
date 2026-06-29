@@ -22,11 +22,11 @@ const DungeonEncounterSchema = z.object({
   toFloor: z.number().int().min(1),
 });
 
-const DungeonSchema = z.object({
+export const DungeonSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  /** AUTO_WAVES: 기존 틱 기반 자동 웨이브, PUSH_LUCK: 층을 직접 진행하며 누적보상/패배 소멸 */
-  mode: z.enum(["AUTO_WAVES", "PUSH_LUCK"]).optional().default("AUTO_WAVES"),
+  /** AUTO_WAVES: 틱 웨이브, IDLE: 방치 롤, PUSH_LUCK: 특수 던전 층 진행 */
+  mode: z.enum(["AUTO_WAVES", "PUSH_LUCK", "IDLE"]).optional().default("AUTO_WAVES"),
   baseWaveSeconds: z.number().int().positive(),
   /** PUSH_LUCK: 최대 층 수 (기본 20) */
   maxFloors: z.number().int().min(1).max(200).optional().default(20),

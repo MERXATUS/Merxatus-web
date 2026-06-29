@@ -88,13 +88,8 @@ function pickRandomFromPool(pool: string[], rnd: () => number): string | null {
   return pool[Math.floor(rnd() * pool.length)] ?? null;
 }
 
-function capLootTierForOption(optionId: string, tier: number, grade: number): number {
-  const id = normalizeOptionId(optionId);
-  let capped = Math.max(1, Math.min(maxOptionTierForGrade(grade, "loot"), Math.floor(tier)));
-  if (id === "ITEM_RARITY_PCT") {
-    capped = Math.min(capped, Math.max(1, maxOptionTierForGrade(grade, "loot") - 1), 5);
-  }
-  return capped;
+function capLootTierForOption(_optionId: string, tier: number, grade: number): number {
+  return Math.max(1, Math.min(maxOptionTierForGrade(grade, "loot"), Math.floor(tier)));
 }
 
 function rollBlessedOptionsForLoot(input: {

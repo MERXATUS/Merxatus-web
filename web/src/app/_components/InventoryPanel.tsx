@@ -11,7 +11,7 @@ import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_componen
 import { itemGradeFrameClassName, itemGradeNameClassName } from "@/server/itemGrade";
 import { MinionRecruitReveal } from "@/app/_components/MinionRecruitReveal";
 import { useSessionUser } from "@/app/_components/SessionProvider";
-import { API_CACHE_TTL } from "@/shared/apiCache";
+import { loadMeEquipmentState } from "@/shared/meEquipmentState";
 import { apiGetJsonCached, isUnauthorizedError } from "@/shared/sessionClient";
 import { GAME_FRAME_REFRESH_EVENT, routeForGameTab } from "@/shared/gameNav";
 import { notifyOpenForge } from "@/shared/forgeNav";
@@ -34,7 +34,6 @@ import { weaponBaseStatLine } from "@/shared/weaponStatsData";
 import { armorDisplayName } from "@/shared/armorTooltip";
 import { weaponDisplayName } from "@/shared/weaponTooltip";
 import { equipmentCapacityLabel } from "@/shared/equipmentCapacity";
-import { inventoryAvailableQty } from "@/shared/inventoryLock";
 
 type MeState = {
   ok: true;
@@ -543,22 +542,11 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
         setMe(null);
         return;
       }
-      const [inv, weapons, armor] = await Promise.all([
-        apiGetJsonCached<MeState>("/api/me/state?scope=inventory", {
-          ttlMs: API_CACHE_TTL.meStateInventory,
-          force,
-        }),
-        apiGetJsonCached<{ ok: true; weaponInstances?: MeState["weaponInstances"] }>(
-          "/api/me/state?scope=weapons",
-          { ttlMs: API_CACHE_TTL.meStateWeapons, force },
-        ),
-        apiGetJsonCached<{ ok: true; armorInstances?: MeState["armorInstances"] }>(
-          "/api/me/state?scope=armor",
-          { ttlMs: API_CACHE_TTL.meStateArmor, force },
-        ),
-      ]);
+      const bundle = await loadMeEquipmentState({ force, swr: !force });
+      const weapons = bundle.weapons as { ok: true; weaponInstances?: MeState["weaponInstances"] };
+      const armor = bundle.armor as { ok: true; armorInstances?: MeState["armorInstances"] };
       const r: MeState = {
-        ...inv,
+        ...(bundle.inventory as MeState),
         weaponInstances: weapons.weaponInstances,
         armorInstances: armor.armorInstances,
       };
@@ -875,7 +863,8 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                 </GameBtn>
               ) : null}
             </div>
-            <div className="inventory-filters flex flex-wrap items-end gap-3">
+              <div className="inventory-filters flex flex-wrap items-end gap-3">
+              <>
               <div className="min-w-[200px] flex-1 md:max-w-[420px]">
                 <label className="inventory-label">검색</label>
                 <input
@@ -954,6 +943,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                   </button>
                 </div>
               </div>
+              </>
             </div>
           </div>
 

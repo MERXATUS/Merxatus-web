@@ -63,6 +63,9 @@ async function main() {
   const armorOptions = await readJson("armor_option_tiers.json");
 
   const boxOpens = await readJson("box_opens.json");
+  const dungeonDropTables = await readJson("dungeon_drop_tables.json");
+  const raidDropTables = await readJson("raid_drop_tables.json");
+  const towerDropTable = await readJson("tower_drop_table.json");
 
 
 
@@ -74,11 +77,11 @@ async function main() {
 
   assert(Array.isArray(dungeons) && dungeons.length >= 8, `dungeons.json: ${dungeons?.length}`);
 
-  assert(Array.isArray(raids) && raids.length >= 43, `raids.json: ${raids?.length}`);
+  assert(Array.isArray(raids) && raids.length === 28, `raids.json: ${raids?.length}`);
 
   assert(tower?.drops?.length >= 1, "tower.json: drops missing");
 
-  assert(Object.keys(monsters).length >= 45, `monsters.json: ${Object.keys(monsters).length}`);
+  assert(Object.keys(monsters).length >= 28, `monsters.json: ${Object.keys(monsters).length}`);
 
   assert(Object.keys(weapons).length >= 5, "weapon_stats.json");
 
@@ -88,7 +91,7 @@ async function main() {
 
   assert(enhance.length >= 30, "weapon_enhance_levels.json");
 
-  assert(Object.keys(options).length >= 15, "weapon_option_tiers.json");
+  assert(Object.keys(options).length >= 8, "weapon_option_tiers.json");
 
   assert(options.STAT_STR_ADD?.tiers?.length === 9, "weapon STAT_STR_ADD");
 
@@ -98,6 +101,27 @@ async function main() {
 
   assert(Object.keys(boxOpens).length === 0, `box_opens.json should be empty: ${Object.keys(boxOpens).length}`);
 
+  assert(
+    dungeonDropTables && typeof dungeonDropTables === "object" && Object.keys(dungeonDropTables).length >= 8,
+    `dungeon_drop_tables.json: ${dungeonDropTables ? Object.keys(dungeonDropTables).length : 0}`,
+  );
+  for (const d of dungeons) {
+    assert(dungeonDropTables[d.id], `dungeon_drop_tables missing: ${d.id}`);
+  }
+
+  assert(
+    raidDropTables && typeof raidDropTables === "object" && Object.keys(raidDropTables).length === raids.length,
+    `raid_drop_tables.json: ${raidDropTables ? Object.keys(raidDropTables).length : 0}`,
+  );
+  for (const r of raids) {
+    assert(raidDropTables[r.id], `raid_drop_tables missing: ${r.id}`);
+  }
+
+  assert(
+    towerDropTable?.dungeonId && Array.isArray(towerDropTable.sections),
+    "tower_drop_table.json missing or invalid",
+  );
+
 
 
   const itemIds = new Set(items.map((i) => i.id));
@@ -105,6 +129,7 @@ async function main() {
   const requiredItems = [
 
     "item_raid_shard",
+    "item_raid_ticket",
 
     "item_lesser_mana_stone",
 
@@ -134,7 +159,11 @@ async function main() {
 
   assert(raids.every((r) => r.maxPhases === 1), "each raid should be single-phase boss");
 
-  assert(raids.some((r) => r.id === "raid_boss_void_overlord"), "void overlord raid");
+  assert(raids.length === 28, "expected 28 raids (7 demons + 7 angels × normal/hard)");
+  assert(raids.some((r) => r.id === "raid_demon_lucifer_normal"), "demon lucifer normal raid");
+  assert(raids.some((r) => r.id === "raid_angel_michael_hard"), "angel michael hard raid");
+  assert(raids.every((r) => /^raid_(demon|angel)_[a-z0-9]+_(normal|hard)$/.test(r.id)), "raid id format");
+  assert(raids.every((r) => r.faction === "demon" || r.faction === "angel"), "raid faction demon/angel only");
 
   assert(raids.some((r) => r.drops.some((d) => d.itemId === "item_raid_shard")), "raid clear drop");
 

@@ -1,3 +1,4 @@
+import { API_CACHE_TTL, withApiCache } from "@/shared/apiCache";
 import { apiGetJson } from "@/shared/sessionClient";
 
 export type CombatRosterMinion = {
@@ -5,6 +6,8 @@ export type CombatRosterMinion = {
   level: number;
   pool?: string;
   combatClassLabel: string;
+  displayName?: string;
+  nickname?: string | null;
   combatStats?: { combatPower: number };
   combatPower?: number;
   equippedWeapon?: {
@@ -22,13 +25,12 @@ type CacheEntry = {
   fetchedAt: number;
 };
 
-const ROSTER_TTL_MS = 45_000;
 let cache: CacheEntry | null = null;
-let inflight: Promise<CombatRosterMinion[]> | null = null;
+
+const ROSTER_TTL_MS = API_CACHE_TTL.minionPartyPick;
 
 export function invalidateCombatRosterCache() {
   cache = null;
-  inflight = null;
 }
 
 export async function fetchCombatRoster(userId: string, opts?: { force?: boolean }): Promise<CombatRosterMinion[]> {
@@ -36,19 +38,19 @@ export async function fetchCombatRoster(userId: string, opts?: { force?: boolean
   if (!opts?.force && cache && cache.userId === userId && now - cache.fetchedAt < ROSTER_TTL_MS) {
     return cache.minions;
   }
-  if (!opts?.force && inflight) return inflight;
 
-  inflight = apiGetJson<{ ok: boolean; minions: CombatRosterMinion[] }>("/api/minions/list?scope=partyPick")
-    .then((r) => {
-      const minions = r.ok ? (r.minions ?? []) : [];
-      cache = { userId, minions, fetchedAt: Date.now() };
-      return minions;
-    })
-    .finally(() => {
-      inflight = null;
-    });
+  const url = "/api/minions/list?scope=partyPick";
+  const minions = await withApiCache(
+    url,
+    () =>
+      apiGetJson<{ ok: boolean; minions: CombatRosterMinion[] }>(url).then((r) =>
+        r.ok ? (r.minions ?? []) : [],
+      ),
+    { ttlMs: ROSTER_TTL_MS, force: opts?.force },
+  );
 
-  return inflight;
+  cache = { userId, minions, fetchedAt: Date.now() };
+  return minions;
 }
 
 /** 네비 hover 등 — 로그인 후 백그라운드 워밍 */

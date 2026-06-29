@@ -29,7 +29,8 @@ export function buildCombatReplay(
           })
         : baseEnemyStats
       : scaleFighterStatsByChannel(baseEnemyStats, enemyCombatMults);
-  const memberById = new Map(memberInputs.map((m) => [m.minionId, m]));
+  const memberById = new Map((memberInputs ?? []).map((m) => [m.minionId, m]));
+  const party = combatants ?? [];
   return {
     floor,
     enemy: {
@@ -38,7 +39,7 @@ export function buildCombatReplay(
       monsterId,
       portrait: monsterPortraitView({ monsterId, icon: enemy.monster.icon }),
     },
-    partyBefore: combatants.map((c) => {
+    partyBefore: party.map((c) => {
       const saved = partyHpStart[c.id];
       const member = memberById.get(c.id);
       return {

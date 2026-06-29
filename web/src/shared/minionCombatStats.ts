@@ -22,9 +22,16 @@ import {
   voidSkillBonusesFromOptionRows,
   voidSkillDamageMultForSkill,
 } from "@/shared/equipmentVoidOptions";
-import { primaryCombatSkillForMinion } from "@/shared/minionSkills";
+import { equipmentInstanceStatMultiplier } from "@/shared/equipmentItemLevel";
+import { clampEquipmentQuality } from "@/shared/equipmentQuality";
 
-export type MinionArmorPiece = { itemId: string; optionsJson?: string | null; enhanceLevel?: number };
+export type MinionArmorPiece = {
+  itemId: string;
+  optionsJson?: string | null;
+  enhanceLevel?: number;
+  quality?: number;
+  itemLevel?: number;
+};
 export type MinionArmorLoadout = Partial<
   Record<"helmet" | "armor" | "pants" | "shoes", MinionArmorPiece | null>
 >;
@@ -43,6 +50,8 @@ export type MinionCombatInput = {
     enhanceLevel: number;
     optionBonus?: number;
     optionsJson?: string | null;
+    quality?: number;
+    itemLevel?: number;
   } | null;
   armor?: MinionArmorLoadout;
 };
@@ -138,6 +147,10 @@ function voidBonusesFromInput(input: MinionCombatInput) {
   return out;
 }
 
+function instanceScale(quality?: number, itemLevel?: number): number {
+  return equipmentInstanceStatMultiplier(clampEquipmentQuality(quality ?? 0), itemLevel ?? 10);
+}
+
 function memberWithWeapon(input: MinionCombatInput) {
   const stats = minionBaseStatsFromRow(input.baseStats);
   const statBonus = equipmentStatBonus(input);
@@ -157,6 +170,9 @@ function memberWithWeapon(input: MinionCombatInput) {
     intelligence: stats.intelligence + statBonus.intelligence,
     endurance: stats.endurance + statBonus.endurance,
     skillDamageMult: skill.damageMult,
+    weaponInstanceScale: input.weapon
+      ? instanceScale(input.weapon.quality, input.weapon.itemLevel)
+      : 1,
   };
 }
 
@@ -174,11 +190,12 @@ function sumArmorStats(armor?: MinionArmorLoadout) {
     const optRows = parseOptionsJson(piece.optionsJson);
     const optHpDef = armorHpDefBonusFromOptionRows(optRows, row.hp, row.def);
     const enhHpDef = armorEnhanceHpDefBonus(piece.enhanceLevel ?? 0, row.hp, row.def);
-    const pieceHp = row.hp + optHpDef.hp + enhHpDef.hp;
-    const pieceDef = row.def + optHpDef.def + enhHpDef.def;
+    const scale = instanceScale(piece.quality, piece.itemLevel);
+    const pieceHp = Math.floor((row.hp + optHpDef.hp + enhHpDef.hp) * scale);
+    const pieceDef = Math.floor((row.def + optHpDef.def + enhHpDef.def) * scale);
     hp += pieceHp;
     def += pieceDef;
-    const enhPower = armorEnhancePowerBonus(piece.enhanceLevel ?? 0);
+    const enhPower = armorEnhancePowerBonus(piece.itemId, piece.enhanceLevel ?? 0);
     const utilPower = armorUtilPowerBonusFromOptionRows(parseOptionsJson(piece.optionsJson ?? null));
     pieces.push({
       slot,
@@ -187,7 +204,7 @@ function sumArmorStats(armor?: MinionArmorLoadout) {
       name: row.name,
       hp: pieceHp,
       def: pieceDef,
-      power: armorItemCombatPower(piece.itemId) + enhPower + utilPower,
+      power: Math.floor((armorItemCombatPower(piece.itemId) + enhPower + utilPower) * scale),
     });
   }
   return { hp, def, pieces };
@@ -199,8 +216,12 @@ function sumArmorPower(armor?: MinionArmorLoadout) {
   for (const slot of ["helmet", "armor", "pants", "shoes"] as const) {
     const piece = armor[slot];
     if (piece?.itemId) {
-      p += armorItemCombatPower(piece.itemId) + armorEnhancePowerBonus(piece.enhanceLevel ?? 0);
-      p += armorUtilPowerBonusFromOptionRows(parseOptionsJson(piece.optionsJson ?? null));
+      const scale = instanceScale(piece.quality, piece.itemLevel);
+      const base =
+        armorItemCombatPower(piece.itemId) +
+        armorEnhancePowerBonus(piece.itemId, piece.enhanceLevel ?? 0) +
+        armorUtilPowerBonusFromOptionRows(parseOptionsJson(piece.optionsJson ?? null));
+      p += Math.floor(base * scale);
     }
   }
   return p;
@@ -213,10 +234,14 @@ export function computeMinionCombatPower(input: MinionCombatInput): number {
 export function computeMinionCombatBreakdown(input: MinionCombatInput): MinionCombatBreakdown {
   const attributes = minionBaseStatsFromRow(input.baseStats);
   const basePower = computePartyPower({ members: [minionBaseMember(input)] });
+  const weaponScale = input.weapon ? instanceScale(input.weapon.quality, input.weapon.itemLevel) : 1;
   const weaponPower = input.weapon
-    ? weaponBasePower(input.weapon.baseItemId) +
-      weaponEnhancePowerBonus(input.weapon.enhanceLevel) +
-      (input.weapon.optionBonus ?? 0)
+    ? Math.floor(
+        (weaponBasePower(input.weapon.baseItemId) +
+          weaponEnhancePowerBonus(input.weapon.baseItemId, input.weapon.enhanceLevel) +
+          (input.weapon.optionBonus ?? 0)) *
+          weaponScale,
+      )
     : 0;
   const { hp: armorHp, def: armorDef, pieces } = sumArmorStats(input.armor);
   const armorPower = sumArmorPower(input.armor);

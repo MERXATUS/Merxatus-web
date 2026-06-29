@@ -8,5 +8,20 @@ export const WEAPON_BASE_POWER_BY_ITEM_ID: Record<string, number> = {
   weapon_diamond_sword: 7,
 };
 
-/** 강화 1단계당 추가 전투력 */
+/** 강화 1단계당 베이스 전투력 비율 — `weaponEnhancePowerPerLevel` */
+export const WEAPON_ENHANCE_POWER_RATIO = 0.25;
+
+/** @deprecated 고정 +1 — 신규 공식은 `weaponEnhancePowerPerLevel` */
 export const WEAPON_LEVEL_POWER_PER_LEVEL = 1;
+
+/** 무기 베이스 전투력 → 강화 1단계당 추가 CP */
+export function weaponEnhancePowerPerLevel(basePower: number): number {
+  const p = Math.max(0, Math.floor(basePower));
+  return Math.max(1, Math.ceil(p * WEAPON_ENHANCE_POWER_RATIO));
+}
+
+export function weaponEnhancePowerBonusFromBase(basePower: number, enhanceLevel: number): number {
+  const lv = Math.max(0, Math.floor(enhanceLevel));
+  if (lv <= 0) return 0;
+  return lv * weaponEnhancePowerPerLevel(basePower);
+}

@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { GameBtn } from "@/app/_components/gameUi";
+import { API_CACHE_TTL } from "@/shared/apiCache";
 import { formatPanelError } from "@/shared/formatPanelError";
-import { apiGetJson, apiPostJson } from "@/shared/sessionClient";
+import { apiGetJsonCachedSwr, apiPostJson } from "@/shared/sessionClient";
 
 type FriendRow = { id: string; userId: string; username: string; since: string };
 type IncomingRow = { id: string; createdAt: string; from: { id: string; username: string } };
@@ -35,7 +36,9 @@ export function FriendsPanel(props: FriendsPanelProps) {
     setLoading(true);
     setError(null);
     try {
-      const r = await apiGetJson<FriendsListResponse>("/api/friends/list");
+      const r = await apiGetJsonCachedSwr<FriendsListResponse>("/api/friends/list", {
+        ttlMs: API_CACHE_TTL.friendsList,
+      });
       if (r?.ok) {
         setIncoming(r.incoming);
         setOutgoing(r.outgoing);

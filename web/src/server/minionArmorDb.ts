@@ -159,7 +159,10 @@ export function getArmorInstanceFieldValue(row: MinionArmorIds, field: MinionArm
 
 export function buildArmorLoadoutFromIds(
   armorIds: MinionArmorIds,
-  instancesById: Map<string, { baseItemId: string; optionsJson: string; enhanceLevel?: number }>,
+  instancesById: Map<
+    string,
+    { baseItemId: string; optionsJson: string; enhanceLevel?: number; quality?: number; itemLevel?: number }
+  >,
 ): MinionArmorLoadout {
   const slotMap: Array<["helmet" | "armor" | "pants" | "shoes", keyof MinionArmorIds, keyof MinionArmorIds]> = [
     ["helmet", "equippedHelmetInstanceId", "equippedHelmetItemId"],
@@ -177,6 +180,8 @@ export function buildArmorLoadoutFromIds(
           itemId: inst.baseItemId,
           optionsJson: inst.optionsJson,
           enhanceLevel: inst.enhanceLevel ?? 0,
+          quality: inst.quality ?? 0,
+          itemLevel: inst.itemLevel ?? 10,
         };
         continue;
       }
@@ -187,7 +192,13 @@ export function buildArmorLoadoutFromIds(
   return out;
 }
 
-type ArmorInstanceCombatRow = { baseItemId: string; optionsJson: string; enhanceLevel: number };
+type ArmorInstanceCombatRow = {
+  baseItemId: string;
+  optionsJson: string;
+  enhanceLevel: number;
+  quality: number;
+  itemLevel: number;
+};
 
 export async function loadArmorInstanceMapForIds(
   tx: Pick<PrismaClient, "armorInstance">,
@@ -203,13 +214,19 @@ export async function loadArmorInstanceMapForIds(
   if (!ids.length) return new Map();
   const rows = await tx.armorInstance.findMany({
     where: { id: { in: ids }, userId },
-    select: { id: true, baseItemId: true, optionsJson: true, enhanceLevel: true },
+    select: { id: true, baseItemId: true, optionsJson: true, enhanceLevel: true, quality: true, itemLevel: true },
     take: 20,
   });
   return new Map(
     rows.map((r) => [
       r.id,
-      { baseItemId: r.baseItemId, optionsJson: r.optionsJson, enhanceLevel: r.enhanceLevel ?? 0 },
+      {
+        baseItemId: r.baseItemId,
+        optionsJson: r.optionsJson,
+        enhanceLevel: r.enhanceLevel ?? 0,
+        quality: r.quality ?? 0,
+        itemLevel: r.itemLevel ?? 10,
+      },
     ]),
   );
 }
@@ -234,13 +251,19 @@ export async function loadArmorInstanceMapForUser(
   if (!ids.size) return new Map();
   const rows = await tx.armorInstance.findMany({
     where: { userId, id: { in: [...ids] } },
-    select: { id: true, baseItemId: true, optionsJson: true, enhanceLevel: true },
+    select: { id: true, baseItemId: true, optionsJson: true, enhanceLevel: true, quality: true, itemLevel: true },
     take: 200,
   });
   return new Map(
     rows.map((r) => [
       r.id,
-      { baseItemId: r.baseItemId, optionsJson: r.optionsJson, enhanceLevel: r.enhanceLevel ?? 0 },
+      {
+        baseItemId: r.baseItemId,
+        optionsJson: r.optionsJson,
+        enhanceLevel: r.enhanceLevel ?? 0,
+        quality: r.quality ?? 0,
+        itemLevel: r.itemLevel ?? 10,
+      },
     ]),
   );
 }

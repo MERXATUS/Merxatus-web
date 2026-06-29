@@ -2,6 +2,8 @@ import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
 import { loadDungeons, type DungeonDef } from "@/server/dungeonData";
+import { findDungeonById } from "@/server/specialDungeonData";
+import { getIdleDungeonState } from "@/server/dungeonIdleRun";
 import { resolvePendingLootDisplay } from "@/server/dungeonRun";
 import { loadUserRecoveryPotions } from "@/server/dungeonRecoveryPotions";
 import { parsePartyHpJson } from "@/shared/dungeonPartyHp";
@@ -39,8 +41,13 @@ export async function GET(req: Request) {
     if (!run) return Response.json({ ok: true, active: false });
 
     const { dungeons } = await loadDungeons();
-    const dungeon = dungeons.find((d) => d.id === run.dungeonId);
+    const dungeon = await findDungeonById(run.dungeonId);
     if (!dungeon) return Response.json({ ok: false, error: "DUNGEON_DEF_MISSING" }, { status: 500 });
+
+    if (dungeon.mode === "IDLE") {
+      const idleState = await getIdleDungeonState(auth.userId, dungeon as DungeonDef);
+      return Response.json({ ...idleState, idle: true });
+    }
 
     const lite = parsed.data.lite !== "0" && parsed.data.lite !== "false";
     if (lite) {

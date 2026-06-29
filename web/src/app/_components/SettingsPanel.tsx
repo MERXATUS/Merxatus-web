@@ -253,7 +253,9 @@ export function SettingsPanel(props: SettingsPanelProps) {
 
           <section className="settings-section">
             <h3 className="settings-section__title">친구</h3>
-            <FriendsPanel loggedIn={props.loggedIn} onStartTrade={props.onStartTrade} />
+            {props.open ? (
+              <FriendsPanel loggedIn={props.loggedIn} onStartTrade={props.onStartTrade} />
+            ) : null}
           </section>
 
           <section className="settings-section">

@@ -20,7 +20,7 @@ export const LEGACY_WEAPON_OPTION_ID: Record<string, string> = {
   ATTACK: "PHY_ATK_ADD",
   MAGIC_POWER: "MAG_ATK_ADD",
   ATTACK_SPEED: "ATK_SPD_PCT",
-  CRITICAL: "CRIT_CHANCE_PCT",
+  CRITICAL: "FINAL_DMG_PCT",
 };
 
 export const LEGACY_OPTION_LABEL_KO: Record<string, string> = {
@@ -117,37 +117,19 @@ export function statBonusFromOptionRows(
     else if (id === "STAT_DEX_ADD") out.agility += v;
     else if (id === "STAT_INT_ADD") out.intelligence += v;
     else if (id === "STAT_END_ADD") out.endurance += v;
-    else if (id === "ALL_STAT_PCT" && pool === "weapon") {
-      // 올스탯 % — flat 보너스에 % 가산 (기본 스탯 없이 장비 옵션만 반영 시 0 기준)
-      continue;
-    }
   }
   return out;
 }
 
-const WEAPON_POWER_OPTION_PREFIXES = ["PHY_ATK_", "MAG_ATK_", "FINAL_DMG_", "CRIT_", "ATK_SPD_", "ARMOR_PEN_", "LIFE_STEAL_", "DMG_VS_"];
+const FLAT_ATK_OPTION_IDS = new Set(["PHY_ATK_ADD", "MAG_ATK_ADD"]);
+const PCT_ATK_OPTION_IDS = new Set(["PHY_ATK_PCT", "MAG_ATK_PCT", "FINAL_DMG_PCT"]);
 
 /**
- * 유틸 % 옵션 → CP 환산 (표시값 1당).
- * 전투 시뮬과 이중 반영을 막기 위해 flat·공격력 옵션(0.08~0.35)보다 낮게 잡음.
- * ITEM_RARITY_PCT는 드랍 전용이라 0.
+ * % 옵션 → CP 환산 (표시값 1당). 깡스탯만 유지.
  */
 export const UTIL_OPTION_CP_PER_DISPLAY_UNIT: Record<string, number> = {
-  ATK_SPD_PCT: 0.11,
-  CRIT_CHANCE_PCT: 0.13,
-  CRIT_DMG_PCT: 0.09,
-  ARMOR_PEN_PCT: 0.1,
-  FINAL_DMG_PCT: 0.12,
-  LIFE_STEAL_PCT: 0.1,
-  DMG_VS_BOSS_PCT: 0.07,
-  DMG_VS_ANGEL_PCT: 0.07,
-  DMG_VS_DEMON_PCT: 0.07,
-  BLOCK_PCT: 0.11,
-  DMG_RED_PCT: 0.11,
-  CRIT_RESIST_PCT: 0.1,
-  EVASION_PCT: 0.11,
-  THORN_PCT: 0.09,
-  REGEN_HP_ADD: 0.14,
+  ATK_SPD_PCT: 0.12,
+  FINAL_DMG_PCT: 0.14,
 };
 
 export function utilOptionPowerFromDisplayValue(optionId: string, displayValue: number): number {
@@ -163,13 +145,7 @@ export function armorUtilPowerBonusFromOptionRows(rows: Array<{ optionId: string
     const id = normalizeOptionId(row.optionId);
     const v = optionTierValue(ARMOR_OPTION_CATALOG, id, row.tier);
     if (v <= 0) continue;
-    if (id === "FINAL_DMG_PCT" || id === "LIFE_STEAL_PCT") {
-      sum += utilOptionPowerFromDisplayValue(id, v);
-      continue;
-    }
-    const weight = UTIL_OPTION_CP_PER_DISPLAY_UNIT[id];
-    if (!weight) continue;
-    sum += utilOptionPowerFromDisplayValue(id, v);
+    if (id === "FINAL_DMG_PCT") sum += utilOptionPowerFromDisplayValue(id, v);
   }
   return Math.round(sum * 100) / 100;
 }
@@ -181,13 +157,12 @@ export function weaponPowerBonusFromOptionRows(rows: Array<{ optionId: string; t
     const v = optionTierValue(WEAPON_OPTION_CATALOG, id, row.tier);
     if (v <= 0) continue;
     if (isMechanizedWeaponOptionId(id)) {
-      if (id !== "ITEM_RARITY_PCT") sum += utilOptionPowerFromDisplayValue(id, v);
+      sum += utilOptionPowerFromDisplayValue(id, v);
       continue;
     }
-    if (id === "PHY_ATK_ADD" || id === "MAG_ATK_ADD") sum += v * 0.08;
-    else if (id.endsWith("_PCT") || id.includes("_PCT")) sum += v * 0.35;
-    else if (WEAPON_POWER_OPTION_PREFIXES.some((p) => id.startsWith(p))) sum += v * 0.25;
-    else if (LEGACY_WEAPON_OPTION_ID[id] === undefined && LEGACY_OPTION_LABEL_KO[id]) sum += v;
+    if (FLAT_ATK_OPTION_IDS.has(id)) sum += v * 0.1;
+    else if (PCT_ATK_OPTION_IDS.has(id)) sum += v * 0.4;
+    else if (LEGACY_OPTION_LABEL_KO[id]) sum += v;
   }
   return Math.round(sum * 100) / 100;
 }

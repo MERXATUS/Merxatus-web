@@ -10,7 +10,8 @@ export async function GET(req: Request) {
     if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
     const url = new URL(req.url);
     const includeLeaderboard = url.searchParams.get("leaderboard") === "1";
-    const out = await getTowerRunState(auth.userId, { includeLeaderboard });
+    const lite = url.searchParams.get("lite") !== "0";
+    const out = await getTowerRunState(auth.userId, { includeLeaderboard, lite });
     return Response.json(out);
   } catch (e) {
     return jsonApiError(e);

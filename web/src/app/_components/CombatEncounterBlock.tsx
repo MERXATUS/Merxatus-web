@@ -39,8 +39,8 @@ type Props = {
   hideEnemyPortrait?: boolean;
   /** 탐험 세션 키 — 바뀔 때만 로그 초기화 (층 이동 시에는 유지) */
   combatLogSessionKey?: string | number | null;
-  /** true면 재생 없이 즉시 완료 (자동 층 진행 등) */
-  skipPlayback?: boolean;
+  /** 층 이동·탐험 시작 등 전환 중 (아레나 대기 문구 강조) */
+  transitioning?: boolean;
 };
 
 type LogEntry = { id: number; text: string; tone: CombatFeedTone; divider?: boolean };
@@ -59,9 +59,8 @@ export function CombatEncounterBlock(props: Props) {
   const [lowHp, setLowHp] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<CombatPlaybackSpeed>("normal");
   const [combatLog, setCombatLog] = useState<LogEntry[]>([]);
-  const [skipRequest, setSkipRequest] = useState(0);
   const playbackSpeedRef = useRef<CombatPlaybackSpeed>("normal");
-  const savedSpeedRef = useRef<Exclude<CombatPlaybackSpeed, "skip">>("normal");
+  const savedSpeedRef = useRef<CombatPlaybackSpeed>("normal");
   const logIdRef = useRef(0);
   const logEndRef = useRef<HTMLDivElement | null>(null);
   const sessionKeyRef = useRef<string | number | null | undefined>(undefined);
@@ -99,12 +98,10 @@ export function CombatEncounterBlock(props: Props) {
   useEffect(() => {
     if (!arenaReady) {
       setLowHp(false);
-      if (!props.skipPlayback) {
-        const saved = loadCombatPlaybackSpeed();
-        savedSpeedRef.current = saved;
-        setPlaybackSpeed(saved);
-        playbackSpeedRef.current = saved;
-      }
+      const saved = loadCombatPlaybackSpeed();
+      savedSpeedRef.current = saved;
+      setPlaybackSpeed(saved);
+      playbackSpeedRef.current = saved;
       prevHitRef.current = null;
       prevSfxRef.current = null;
       prevOutcomeRef.current = null;
@@ -112,9 +109,12 @@ export function CombatEncounterBlock(props: Props) {
       return;
     }
 
+    const floor = props.replay!.floor;
+    const label = props.floorLabel ?? `${floor}층`;
+    playbackSpeedRef.current = savedSpeedRef.current;
+    setPlaybackSpeed(savedSpeedRef.current);
+
     if (!prevPlayingRef.current) {
-      const floor = props.replay!.floor;
-      const label = props.floorLabel ?? `${floor}층`;
       setCombatLog((prev) => {
         if (prev.length === 0) return prev;
         logIdRef.current += 1;
@@ -129,17 +129,9 @@ export function CombatEncounterBlock(props: Props) {
       });
     }
 
-    if (props.skipPlayback) {
-      setPlaybackSpeed("skip");
-      playbackSpeedRef.current = "skip";
-    } else {
-      const saved = savedSpeedRef.current;
-      setPlaybackSpeed(saved);
-      playbackSpeedRef.current = saved;
-    }
     prevPlayingRef.current = true;
-    if (!props.skipPlayback) playCombatSfx("start");
-  }, [arenaReady, props.replay, props.floorLabel, props.skipPlayback]);
+    playCombatSfx("start");
+  }, [arenaReady, combatPlaybackKey, props.replay, props.floorLabel, props.lines]);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -177,20 +169,15 @@ export function CombatEncounterBlock(props: Props) {
     props.onFrame?.(frame);
   };
 
-  const selectPlaybackSpeed = (speed: Exclude<CombatPlaybackSpeed, "skip">) => {
+  const selectPlaybackSpeed = (speed: CombatPlaybackSpeed) => {
     savedSpeedRef.current = speed;
     saveCombatPlaybackSpeed(speed);
     playbackSpeedRef.current = speed;
     setPlaybackSpeed(speed);
   };
 
-  const skipPlayback = () => {
-    playbackSpeedRef.current = "skip";
-    setPlaybackSpeed("skip");
-    setSkipRequest((n) => n + 1);
-  };
-
   const showArena = !props.bossGateIdle || props.playing;
+  const showTransition = !!props.preparingLabel && !arenaReady;
 
   return (
     <div className={`combat-encounter ${props.className ?? ""}`.trim()}>
@@ -213,29 +200,27 @@ export function CombatEncounterBlock(props: Props) {
         </div>
       ) : null}
 
-      {arenaReady ? (
-        <div className="combat-speed combat-speed--toolbar" role="group" aria-label="전투 재생 속도">
-          <span className="combat-speed__label">재생 속도</span>
-          {COMBAT_PLAYBACK_SPEED_OPTIONS.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              className={`combat-speed__btn${playbackSpeed === opt.id ? " combat-speed__btn--active" : ""}`}
-              aria-pressed={playbackSpeed === opt.id}
-              onClick={() => selectPlaybackSpeed(opt.id)}
-            >
-              {opt.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="combat-speed__btn combat-speed__btn--skip"
-            onClick={skipPlayback}
-          >
-            건너뛰기
-          </button>
+      {showTransition ? (
+        <div className="combat-transition" role="status" aria-live="polite">
+          <span className="combat-transition__pulse" aria-hidden />
+          <span className="combat-transition__text">{props.preparingLabel}</span>
         </div>
       ) : null}
+
+      <div className="combat-speed combat-speed--toolbar" role="group" aria-label="전투 재생 속도">
+        <span className="combat-speed__label">재생 속도</span>
+        {COMBAT_PLAYBACK_SPEED_OPTIONS.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            className={`combat-speed__btn${playbackSpeed === opt.id ? " combat-speed__btn--active" : ""}`}
+            aria-pressed={playbackSpeed === opt.id}
+            onClick={() => selectPlaybackSpeed(opt.id)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       {showArena ? (
         <DungeonCombatArena
@@ -245,15 +230,15 @@ export function CombatEncounterBlock(props: Props) {
           playbackKey={combatPlaybackKey}
           compact={props.embedded}
           idleHint={props.preparingLabel ?? props.idleHint}
+          idleTransition={showTransition || !!props.transitioning}
           isBoss={props.isBoss}
           hideEnemyPortrait={props.hideEnemyPortrait}
           onComplete={props.onComplete}
           onFrame={handleFrame}
           onLogLine={appendLogLine}
           playbackSpeedRef={playbackSpeedRef}
-          skipRequest={skipRequest}
           showFeed
-          shakeOnHit={arenaReady && !props.skipPlayback}
+          shakeOnHit={arenaReady}
           lowHpVignette={lowHp && arenaReady}
         />
       ) : null}

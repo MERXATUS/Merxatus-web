@@ -1,5 +1,6 @@
 import { clampItemGrade, type ItemGradeIndex } from "@/server/itemGrade";
 import { getArmorStats } from "@/shared/armorStatsData";
+import { normalizeItemLevel } from "@/shared/equipmentItemLevel";
 import { normalizeItemIdLower } from "@/shared/itemId";
 import { getWeaponStats } from "@/shared/weaponStatsData";
 
@@ -35,17 +36,33 @@ export function minEquipLevelForItem(baseItemId: string, gradeOverride?: number 
   return minEquipLevelForGrade(itemGradeForEquipCheck(baseItemId, gradeOverride));
 }
 
+/** 인스턴스 아이템 레벨과 등급 요구 중 높은 값 */
+export function requiredEquipLevelForInstance(
+  baseItemId: string,
+  gradeOverride?: number | null,
+  instanceItemLevel?: number | null,
+): number {
+  const gradeReq = minEquipLevelForItem(baseItemId, gradeOverride);
+  const il = normalizeItemLevel(instanceItemLevel ?? gradeReq);
+  return Math.max(gradeReq, il);
+}
+
 export function canMinionEquipItemByLevel(
   minionLevel: number,
   baseItemId: string,
   gradeOverride?: number | null,
+  instanceItemLevel?: number | null,
 ): boolean {
   const lv = Math.max(1, Math.floor(minionLevel));
-  return lv >= minEquipLevelForItem(baseItemId, gradeOverride);
+  return lv >= requiredEquipLevelForInstance(baseItemId, gradeOverride, instanceItemLevel);
 }
 
-export function equipLevelRequirementLabel(baseItemId: string, gradeOverride?: number | null): string | null {
-  const req = minEquipLevelForItem(baseItemId, gradeOverride);
+export function equipLevelRequirementLabel(
+  baseItemId: string,
+  gradeOverride?: number | null,
+  instanceItemLevel?: number | null,
+): string | null {
+  const req = requiredEquipLevelForInstance(baseItemId, gradeOverride, instanceItemLevel);
   if (req <= 1) return null;
   return `착용 Lv${req}+`;
 }
@@ -55,8 +72,9 @@ export function assertMinionMeetsEquipLevel(
   minionLevel: number,
   baseItemId: string,
   gradeOverride?: number | null,
+  instanceItemLevel?: number | null,
 ): void {
-  const required = minEquipLevelForItem(baseItemId, gradeOverride);
+  const required = requiredEquipLevelForInstance(baseItemId, gradeOverride, instanceItemLevel);
   const lv = Math.max(1, Math.floor(minionLevel));
   if (lv < required) {
     throw new Error(`MINION_LEVEL_TOO_LOW:${required}`);

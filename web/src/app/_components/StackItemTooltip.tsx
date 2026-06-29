@@ -8,6 +8,7 @@ import {
   type StackItemTooltipData,
 } from "@/shared/stackItemTooltip";
 import { isArmorInventoryItem } from "@/shared/armorStatsData";
+import { isAccessoryInventoryItem } from "@/shared/accessoryCatalog";
 import { minEquipLevelForItem } from "@/shared/itemEquipLevel";
 import type { ReactNode } from "react";
 
@@ -26,7 +27,9 @@ export function StackItemTooltipContent({
   const grade = stackItemGradeIndex(item);
   const bodyLines = stackItemTooltipBodyLines(item);
   const equipLevel =
-    isArmorInventoryItem(item) ? minEquipLevelForItem(item.itemId, item.grade) : 1;
+    isArmorInventoryItem(item) || isAccessoryInventoryItem(item)
+      ? minEquipLevelForItem(item.itemId, item.grade)
+      : 1;
 
   if (detailsOnly) {
     return (

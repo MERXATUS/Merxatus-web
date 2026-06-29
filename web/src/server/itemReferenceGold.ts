@@ -73,12 +73,17 @@ const REFERENCE_GOLD_BY_ITEM_ID: Record<string, number> = {
   item_tome_celestial: T6,
   item_tome_abyss: T6,
   item_gem_expansion: T5,
+  item_gem_metamorph: T5,
+  item_gem_metamorph_3: T5,
   item_gem_ascension: T6,
   item_gem_primordial: T6,
+  item_gem_metamorph_6: T6,
   item_gem_void: T6,
   item_gem_transfer: T6,
   item_gem_blessing: T6,
+  item_gem_metamorph_8: T6,
   item_raid_shard: T4,
+  item_raid_ticket: T4,
   item_minion_ticket: T5,
 
   // --- 던전/제작 재료 ---

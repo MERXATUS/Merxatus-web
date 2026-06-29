@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { MinionEquipBagPanel } from "@/app/_components/MinionEquipBagPanel";
 import { MinionEquipDetailPanel } from "@/app/_components/MinionEquipDetailPanel";
@@ -10,9 +10,12 @@ import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_componen
 import { itemGradeNameClassName } from "@/server/itemGrade";
 import { MINION_RECRUITED_EVENT, type MinionRecruitedDetail } from "@/shared/minionRecruit";
 import {
+  accessoryStackMatchesSlot,
   armorStackMatchesSlot,
+  isAccessoryEquipSlot,
   isArmorEquipSlot,
   isMinionEquipSlotImplemented,
+  MINION_ACCESSORY_SLOTS,
   MINION_EQUIP_SLOTS,
   MINION_EQUIP_SLOTS_ENABLED,
   minionEquipSlotsEnabledForPool,
@@ -27,7 +30,14 @@ import { canMinionEquipWeaponForClass } from "@/shared/minionWeaponRules";
 import { canMinionEquipItemByLevel, minEquipLevelForItem } from "@/shared/itemEquipLevel";
 import { useGameFrameOptional } from "@/app/_components/GameFrameContext";
 import { useSessionUser } from "@/app/_components/SessionProvider";
-import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
+import { API_CACHE_TTL } from "@/shared/apiCache";
+import {
+  MINION_NICKNAME_MAX_LEN,
+  minionDisplayName,
+  minionNicknameErrorMessage,
+} from "@/shared/minionNickname";
+import { invalidateCombatRosterCache } from "@/shared/combatRosterClient";
+import { apiGetJson, apiGetJsonCachedSwr, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import { MinionStatPanel } from "@/app/_components/MinionStatPanel";
@@ -47,7 +57,8 @@ import { serializeMinionSkillLevels } from "@/shared/minionSkills";
 
 import { useEscapeClose } from "@/shared/useEscapeClose";
 
-type EquippedArmorPiece = { itemId: string; instanceId?: string | null; name: string; grade?: number } | null;
+type EquippedArmorPiece = { itemId: string; instanceId?: string | null; name: string; grade?: number };
+type EquippedAccessoryPiece = { itemId: string; name: string; grade: number };
 
 function promotionErrorMessage(code: string): string {
   switch (code) {
@@ -77,6 +88,8 @@ type MinionRow = {
   jobType: string;
   combatClass?: MinionCombatClass;
   combatClassLabel: string;
+  displayName?: string;
+  nickname?: string | null;
   promotionTier?: number;
   canPromoteFirst?: boolean;
   canPromoteSecond?: boolean;
@@ -101,6 +114,7 @@ type MinionRow = {
     pants: EquippedArmorPiece;
     shoes: EquippedArmorPiece;
   };
+  equippedAccessories?: Partial<Record<(typeof MINION_ACCESSORY_SLOTS)[number], EquippedAccessoryPiece | null>>;
   equippedBootsItemId?: string | null;
   combatStats?: MinionCombatBreakdown;
   combatPower?: number;
@@ -137,6 +151,7 @@ function combatBreakdownFromMinionRow(m: MinionRow | null): MinionCombatBreakdow
       equippedChestItemId: m.equippedChestItemId,
       equippedPantsItemId: m.equippedPantsItemId,
       equippedBootsItemId: m.equippedBootsItemId,
+      equippedArmor: m.equippedArmor,
     }),
   });
 }
@@ -152,6 +167,7 @@ function armorInstanceIdForSlot(m: MinionRow, slotId: MinionEquipSlotId): string
 }
 
 function stackItemIdForSlot(m: MinionRow, slotId: MinionEquipSlotId): string | null {
+  if (isAccessoryEquipSlot(slotId)) return m.equippedAccessories?.[slotId]?.itemId ?? null;
   return armorItemIdForSlot(m, slotId);
 }
 
@@ -163,6 +179,130 @@ function armorItemIdForSlot(m: MinionRow, slotId: MinionEquipSlotId): string | n
   if (slotId === "pants") return a.pants?.itemId ?? null;
   if (slotId === "shoes") return a.shoes?.itemId ?? null;
   return null;
+}
+
+type EquippedArmorView = {
+  helmet: EquippedArmorPiece | null;
+  armor: EquippedArmorPiece | null;
+  pants: EquippedArmorPiece | null;
+  shoes: EquippedArmorPiece | null;
+};
+
+const EMPTY_EQUIPPED_ARMOR: EquippedArmorView = {
+  helmet: null,
+  armor: null,
+  pants: null,
+  shoes: null,
+};
+
+type ArmorSlotKey = "helmet" | "armor" | "pants" | "shoes";
+
+function armorSlotKey(slotId: MinionEquipSlotId): ArmorSlotKey | null {
+  if (slotId === "helmet" || slotId === "armor" || slotId === "pants" || slotId === "shoes") return slotId;
+  return null;
+}
+
+function legacyArmorItemIdsFromView(armor: EquippedArmorView) {
+  return {
+    equippedHelmetItemId: armor.helmet?.itemId ?? null,
+    equippedChestItemId: armor.armor?.itemId ?? null,
+    equippedPantsItemId: armor.pants?.itemId ?? null,
+    equippedBootsItemId: armor.shoes?.itemId ?? null,
+  };
+}
+
+function recomputeMinionRow(m: MinionRow): MinionRow {
+  const combatStats = combatBreakdownFromMinionRow(m);
+  return {
+    ...m,
+    combatStats: combatStats ?? undefined,
+    combatPower: combatStats?.combatPower,
+  };
+}
+
+function patchMinionWeaponEquip(
+  minions: MinionRow[],
+  minionId: string,
+  weaponInstanceId: string | null,
+  weapons: WeaponInstanceRow[],
+): MinionRow[] {
+  const weapon = weaponInstanceId ? weapons.find((w) => w.id === weaponInstanceId) ?? null : null;
+  return minions.map((m) => {
+    let next = m;
+    if (weaponInstanceId && m.equippedWeaponInstanceId === weaponInstanceId && m.id !== minionId) {
+      next = recomputeMinionRow({ ...m, equippedWeaponInstanceId: null, equippedWeapon: null });
+    }
+    if (m.id !== minionId) return next;
+    return recomputeMinionRow({
+      ...next,
+      equippedWeaponInstanceId: weaponInstanceId,
+      equippedWeapon: weapon
+        ? {
+            id: weapon.id,
+            baseItemId: weapon.baseItemId,
+            name: weapon.name,
+            enhanceLevel: weapon.enhanceLevel,
+            grade: weapon.grade,
+          }
+        : null,
+    });
+  });
+}
+
+function patchMinionAccessorySlot(
+  minions: MinionRow[],
+  minionId: string,
+  slotId: (typeof MINION_ACCESSORY_SLOTS)[number],
+  piece: EquippedAccessoryPiece | null,
+): MinionRow[] {
+  return minions.map((m) => {
+    if (m.id !== minionId) return m;
+    const accessories = { ...(m.equippedAccessories ?? {}), [slotId]: piece };
+    return recomputeMinionRow({ ...m, equippedAccessories: accessories });
+  });
+}
+
+function patchMinionArmorSlot(
+  minions: MinionRow[],
+  minionId: string,
+  slotId: MinionEquipSlotId,
+  piece: EquippedArmorPiece | null,
+  armorInstanceId?: string | null,
+): MinionRow[] {
+  const slotKey = armorSlotKey(slotId);
+  if (!slotKey) return minions;
+
+  let rows = minions;
+  if (armorInstanceId) {
+    rows = rows.map((m) => {
+      const armor = { ...(m.equippedArmor ?? EMPTY_EQUIPPED_ARMOR) };
+      let changed = false;
+      for (const key of ["helmet", "armor", "pants", "shoes"] as const) {
+        if (armor[key]?.instanceId === armorInstanceId) {
+          armor[key] = null;
+          changed = true;
+        }
+      }
+      if (!changed) return m;
+      return recomputeMinionRow({ ...m, equippedArmor: armor, ...legacyArmorItemIdsFromView(armor) });
+    });
+  }
+
+  return rows.map((m) => {
+    if (m.id !== minionId) return m;
+    const armor = { ...(m.equippedArmor ?? EMPTY_EQUIPPED_ARMOR), [slotKey]: piece };
+    return recomputeMinionRow({ ...m, equippedArmor: armor, ...legacyArmorItemIdsFromView(armor) });
+  });
+}
+
+function patchInventoryStackQuantity(
+  stacks: StackRow[],
+  itemId: string,
+  delta: number,
+): StackRow[] {
+  return stacks
+    .map((s) => (s.itemId === itemId ? { ...s, quantity: s.quantity + delta } : s))
+    .filter((s) => s.quantity > 0);
 }
 
 type EquipOptionRow = {
@@ -223,12 +363,110 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return apiPostJson<T>(url, body);
 }
 
-function minionDisplayLabel(m: Pick<MinionRow, "combatClassLabel" | "level">) {
-  return `Lv${m.level} · ${m.combatClassLabel}`;
+function minionTitle(m: Pick<MinionRow, "displayName" | "combatClassLabel" | "nickname">) {
+  return m.displayName ?? minionDisplayName(m.nickname, m.combatClassLabel);
 }
 
-function minionRosterTitle(m: Pick<MinionRow, "combatClassLabel">) {
-  return m.combatClassLabel;
+function minionDisplayLabel(m: Pick<MinionRow, "displayName" | "combatClassLabel" | "nickname" | "level">) {
+  return `Lv${m.level} · ${minionTitle(m)}`;
+}
+
+function minionRosterTitle(m: Pick<MinionRow, "displayName" | "combatClassLabel" | "nickname">) {
+  return minionTitle(m);
+}
+
+function MinionNicknameField(props: {
+  minionId: string;
+  displayName: string;
+  combatClassLabel: string;
+  nickname?: string | null;
+  level: number;
+  busy?: boolean;
+  compact?: boolean;
+  onSave: (minionId: string, nickname: string | null) => void | Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(props.nickname ?? "");
+
+  useEffect(() => {
+    if (!editing) setDraft(props.nickname ?? "");
+  }, [props.nickname, editing]);
+
+  if (!editing) {
+    return (
+      <div className={`minion-nickname-field${props.compact ? " minion-nickname-field--compact" : ""}`}>
+        <div className="minion-nickname-field__meta">
+          <div className="minion-nickname-field__title">
+            {props.displayName}
+            <span className="minion-nickname-field__level">Lv {props.level}</span>
+          </div>
+          {props.nickname?.trim() ? (
+            <div className="minion-nickname-field__job">{props.combatClassLabel}</div>
+          ) : null}
+        </div>
+        <GameBtn
+          variant="ghost"
+          className="minion-nickname-field__edit"
+          disabled={props.busy}
+          onClick={() => setEditing(true)}
+        >
+          이름
+        </GameBtn>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`minion-nickname-field minion-nickname-field--edit${props.compact ? " minion-nickname-field--compact" : ""}`}>
+      <input
+        className="minion-nickname-field__input"
+        value={draft}
+        maxLength={MINION_NICKNAME_MAX_LEN}
+        placeholder={props.combatClassLabel}
+        disabled={props.busy}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") void props.onSave(props.minionId, draft.trim() || null).then(() => setEditing(false));
+          if (e.key === "Escape") {
+            setEditing(false);
+            setDraft(props.nickname ?? "");
+          }
+        }}
+        autoFocus
+      />
+      <div className="minion-nickname-field__actions">
+        <GameBtn
+          className="minion-nickname-field__save"
+          disabled={props.busy}
+          onClick={() => void props.onSave(props.minionId, draft.trim() || null).then(() => setEditing(false))}
+        >
+          저장
+        </GameBtn>
+        <GameBtn
+          variant="ghost"
+          disabled={props.busy}
+          onClick={() => {
+            setEditing(false);
+            setDraft(props.nickname ?? "");
+          }}
+        >
+          취소
+        </GameBtn>
+        {props.nickname?.trim() ? (
+          <GameBtn
+            variant="ghost"
+            disabled={props.busy}
+            onClick={() => void props.onSave(props.minionId, null).then(() => setEditing(false))}
+          >
+            초기화
+          </GameBtn>
+        ) : null}
+      </div>
+      <p className="minion-nickname-field__hint">
+        {MINION_NICKNAME_MAX_LEN}자 이하 · 한글·영문·숫자·_ - .
+      </p>
+    </div>
+  );
 }
 
 function slotLabel(slotId: MinionEquipSlotId) {
@@ -263,13 +501,14 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
     isFirstSlot: true,
   });
   const frame = useGameFrameOptional();
+  const equipInFlightRef = useRef(false);
 
   const equipMode = equipModeMinionId != null;
 
-  async function refresh() {
+  async function refresh(opts?: { force?: boolean }) {
     if (!user) return;
     try {
-      const r = await getJson<{
+      const r = await apiGetJsonCachedSwr<{
         ok: boolean;
         minions: MinionRow[];
         maxGatherOwned?: number;
@@ -280,7 +519,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
         knightOrder?: KnightOrderView;
         representativeMinionId?: string | null;
         minionCreate?: MinionCreateEligibility;
-      }>(`/api/minions/panel`);
+      }>("/api/minions/panel", { ttlMs: API_CACHE_TTL.minionPanel, force: opts?.force });
       if (r?.ok) {
         if (r.minionCreate) setMinionCreate(r.minionCreate);
         setRepresentativeMinionId(r.representativeMinionId ?? null);
@@ -397,6 +636,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
             }
           : null,
         equippedArmor: m.equippedArmor,
+        equippedAccessories: m.equippedAccessories,
       },
       { weaponInstances, armorInstances },
     );
@@ -412,27 +652,121 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
     [minions, skillsModalMinionId],
   );
 
+  function schedulePanelRefresh() {
+    void refresh({ force: true });
+  }
+
   async function equipArmorForMinion(
     minionId: string,
     slotId: MinionEquipSlotId,
     opts: { itemId?: string | null; armorInstanceId?: string | null },
   ) {
     if (!isArmorEquipSlot(slotId)) return;
-    setBusy("equip-armor");
+    if (equipInFlightRef.current) return;
+    equipInFlightRef.current = true;
     setError(null);
+
+    const itemId = opts.itemId ?? null;
+    const armorInstanceId = opts.armorInstanceId ?? null;
+    const slotKey = armorSlotKey(slotId);
+    const prevMinions = minions;
+    const prevStacks = inventoryStacks;
+    const currentMinion = minions.find((m) => m.id === minionId);
+
+    let piece: EquippedArmorPiece | null = null;
+    if (armorInstanceId) {
+      const inst = armorInstances.find((a) => a.id === armorInstanceId);
+      if (inst) {
+        piece = {
+          itemId: inst.baseItemId,
+          instanceId: inst.id,
+          name: inst.name,
+          grade: inst.grade ?? 1,
+        };
+      }
+    } else if (itemId) {
+      const stack = inventoryStacks.find((s) => s.itemId === itemId);
+      piece = {
+        itemId,
+        instanceId: null,
+        name: stack?.name ?? itemId,
+        grade: stack?.grade ?? 1,
+      };
+    }
+
+    if (slotKey) {
+      setMinions(patchMinionArmorSlot(minions, minionId, slotId, piece, armorInstanceId));
+      if (itemId && !armorInstanceId) {
+        setInventoryStacks(patchInventoryStackQuantity(inventoryStacks, itemId, -1));
+      } else if (!piece && slotKey) {
+        const prevPiece = currentMinion?.equippedArmor?.[slotKey];
+        if (prevPiece?.itemId && !prevPiece.instanceId) {
+          setInventoryStacks(patchInventoryStackQuantity(inventoryStacks, prevPiece.itemId, 1));
+        }
+      }
+    }
+
     try {
       await postJson("/api/minions/armor/equip", {
         minionId,
         slotId,
-        itemId: opts.itemId ?? null,
-        armorInstanceId: opts.armorInstanceId ?? null,
+        itemId,
+        armorInstanceId,
       });
-      await refresh();
       setNotice(null);
+      schedulePanelRefresh();
     } catch (err) {
+      setMinions(prevMinions);
+      setInventoryStacks(prevStacks);
       setError(err);
     } finally {
-      setBusy(null);
+      equipInFlightRef.current = false;
+    }
+  }
+
+  async function equipAccessoryForMinion(
+    minionId: string,
+    slotId: MinionEquipSlotId,
+    itemId: string | null,
+  ) {
+    if (!isAccessoryEquipSlot(slotId)) return;
+    if (equipInFlightRef.current) return;
+    equipInFlightRef.current = true;
+    setError(null);
+
+    const prevMinions = minions;
+    const prevStacks = inventoryStacks;
+    const currentMinion = minions.find((m) => m.id === minionId);
+    let piece: EquippedAccessoryPiece | null = null;
+    if (itemId) {
+      const stack = inventoryStacks.find((s) => s.itemId === itemId);
+      piece = {
+        itemId,
+        name: stack?.name ?? itemId,
+        grade: stack?.grade ?? 1,
+      };
+    }
+
+    setMinions(patchMinionAccessorySlot(minions, minionId, slotId, piece));
+    if (itemId) {
+      setInventoryStacks(patchInventoryStackQuantity(inventoryStacks, itemId, -1));
+    } else {
+      const prevPiece = currentMinion?.equippedAccessories?.[slotId];
+      if (prevPiece?.itemId) {
+        setInventoryStacks(patchInventoryStackQuantity(inventoryStacks, prevPiece.itemId, 1));
+      }
+    }
+
+    try {
+      await postJson("/api/minions/accessory/equip", { minionId, slotId, itemId });
+      setNotice(null);
+      schedulePanelRefresh();
+    } catch (err) {
+      setMinions(prevMinions);
+      setInventoryStacks(prevStacks);
+      setError(err);
+    } finally {
+      equipInFlightRef.current = false;
     }
   }
 
@@ -444,17 +778,70 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
     }
     if (isArmorEquipSlot(activeSlot)) {
       await equipArmorForMinion(equipMinion.id, activeSlot, {});
+      return;
+    }
+    if (isAccessoryEquipSlot(activeSlot)) {
+      await equipAccessoryForMinion(equipMinion.id, activeSlot, null);
     }
   }
 
   async function equipWeaponForMinion(minionId: string, weaponInstanceId: string | null) {
-    setBusy("equip-weapon");
+    if (equipInFlightRef.current) return;
+    equipInFlightRef.current = true;
     setError(null);
+
+    const prevMinions = minions;
+    setMinions(patchMinionWeaponEquip(minions, minionId, weaponInstanceId, weaponInstances));
+
     try {
       await postJson("/api/minions/weapon/equip", { minionId, weaponInstanceId });
-      await refresh();
+      schedulePanelRefresh();
     } catch (err) {
+      setMinions(prevMinions);
       setError(err);
+    } finally {
+      equipInFlightRef.current = false;
+    }
+  }
+
+  async function saveMinionNickname(minionId: string, nickname: string | null) {
+    setBusy("nickname");
+    setError(null);
+    try {
+      const r = await postJson<{
+        ok: boolean;
+        nickname?: string | null;
+        displayName?: string;
+        combatClassLabel?: string;
+        error?: string;
+      }>("/api/minions/nickname", { minionId, nickname });
+      if (!r?.ok) {
+        setError(minionNicknameErrorMessage(r?.error ?? "UNKNOWN"));
+        return;
+      }
+      setMinions((prev) =>
+        prev.map((m) =>
+          m.id === minionId
+            ? {
+                ...m,
+                nickname: r.nickname ?? null,
+                displayName: r.displayName ?? minionDisplayName(r.nickname, m.combatClassLabel),
+                combatClassLabel: r.combatClassLabel ?? m.combatClassLabel,
+              }
+            : m,
+        ),
+      );
+      invalidateCombatRosterCache();
+      setNotice(nickname ? "이름을 변경했어요." : "이름을 초기화했어요.");
+      await frame?.refreshSummary({ force: true });
+    } catch (err) {
+      const code =
+        err && typeof err === "object" && "error" in err
+          ? String((err as { error?: string }).error)
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      setError(minionNicknameErrorMessage(code));
     } finally {
       setBusy(null);
     }
@@ -644,6 +1031,16 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
       return;
     }
 
+    if (payload.kind === "stack" && accessoryStackMatchesSlot(slotId, payload.itemId)) {
+      if (!isMinionEquipSlotImplemented(slotId) || !isAccessoryEquipSlot(slotId)) {
+        setNotice(`${slotLabel(slotId)} 착용 기능은 곧 추가됩니다.`);
+        return;
+      }
+      if (rejectIfLevelTooLow(payload.itemId)) return;
+      await equipAccessoryForMinion(equipMinion.id, slotId, payload.itemId);
+      return;
+    }
+
     if (payload.kind === "stack" && armorStackMatchesSlot(slotId, payload.itemId)) {
       if (!isMinionEquipSlotImplemented(slotId) || !isArmorEquipSlot(slotId)) {
         setNotice(`${slotLabel(slotId)} 착용 기능은 곧 추가됩니다.`);
@@ -673,7 +1070,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
               </GamePanelTitle>
               <p className="mt-1 text-xs text-[var(--game-muted)]">
                 {equipMode
-                  ? `${detailMinion ? minionDisplayLabel(detailMinion) : ""} — 슬롯 선택 후 왼쪽에서 장비를 고르세요`
+                  ? `${detailMinion ? minionDisplayLabel(detailMinion) : ""} — 슬롯 선택 후 가방에서 착용`
                   : `캐릭터 생성 · 부캐는 Lv${MINION_ALT_CREATE_LEVEL} 이상 후 · 장비는 슬롯에서 착용`}
               </p>
             </div>
@@ -684,7 +1081,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
         </div>
       ) : equipMode ? (
         <p className="mb-1 text-[10px] text-[var(--game-muted)]">
-          {detailMinion ? minionDisplayLabel(detailMinion) : ""} — 슬롯 선택 후 왼쪽에서 장비를 고르세요
+          {detailMinion ? minionDisplayLabel(detailMinion) : ""} — 슬롯 선택 후 가방에서 착용
         </p>
       ) : null}
 
@@ -856,10 +1253,16 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
                     onSlotClick={() => openEquipMode(selected!.id)}
                   />
                   <div className="minion-detail-head__meta">
-                    <div className="minion-detail-head__title">
-                      {selected!.combatClassLabel}
-                      <span className="minion-detail-head__level">Lv {selected!.level}</span>
-                    </div>
+                    <MinionNicknameField
+                      minionId={selected!.id}
+                      displayName={minionTitle(selected!)}
+                      combatClassLabel={selected!.combatClassLabel}
+                      nickname={selected!.nickname}
+                      level={selected!.level}
+                      busy={!!busy}
+                      compact
+                      onSave={saveMinionNickname}
+                    />
                     {detailCombatStats ? (
                       <MinionStatPanel stats={detailCombatStats} minimal />
                     ) : null}
@@ -923,14 +1326,15 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
               />
 
               <div className="min-w-0 space-y-3">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-base font-bold text-[var(--game-text)]">
-                      {selected!.combatClassLabel}
-                    </h3>
-                    <span className="text-xs font-semibold text-[var(--game-muted)]">Lv {selected!.level}</span>
-                  </div>
-                </div>
+                <MinionNicknameField
+                  minionId={selected!.id}
+                  displayName={minionTitle(selected!)}
+                  combatClassLabel={selected!.combatClassLabel}
+                  nickname={selected!.nickname}
+                  level={selected!.level}
+                  busy={!!busy}
+                  onSave={saveMinionNickname}
+                />
 
                 {selected!.baseStats ? (
                   <MinionStatAllocatePanel
@@ -1014,6 +1418,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
           open
           minionId={skillsModalMinion.id}
           combatClassLabel={skillsModalMinion.combatClassLabel}
+          displayName={minionTitle(skillsModalMinion)}
           level={skillsModalMinion.level}
           skills={skillsModalMinion.skills}
           unspentSkillPoints={skillsModalMinion.unspentSkillPoints ?? 0}

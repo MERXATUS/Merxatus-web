@@ -27,14 +27,13 @@ type Props = {
   shakeOnHit?: boolean;
   lowHpVignette?: boolean;
   idleHint?: string;
+  idleTransition?: boolean;
   isBoss?: boolean;
   hideEnemyPortrait?: boolean;
   /** 전투마다 고유 — 재생 루프 재시작 트리거 */
   playbackKey?: string;
   playbackSpeedRef: React.MutableRefObject<CombatPlaybackSpeed>;
   onLogLine?: (text: string, tone: BattleArenaFrame["lastLogTone"]) => void;
-  /** 증가할 때마다 남은 재생을 즉시 건너뜀 */
-  skipRequest?: number;
 };
 
 function hpPct(hp: number, maxHp: number) {
@@ -90,12 +89,12 @@ export function DungeonCombatArena(props: Props) {
     shakeOnHit,
     lowHpVignette,
     idleHint,
+    idleTransition = false,
     isBoss,
     hideEnemyPortrait,
     playbackKey = "",
     playbackSpeedRef,
     onLogLine,
-    skipRequest = 0,
   } = props;
   const [frame, setFrame] = useState<BattleArenaFrame | null>(null);
   const [shaking, setShaking] = useState(false);
@@ -119,31 +118,6 @@ export function DungeonCombatArena(props: Props) {
   replayRef.current = replay;
 
   const resolveSpeed = (): CombatPlaybackSpeed => playbackSpeedRef.current;
-
-  const flushRemaining = (seq: number) => {
-    const prog = playProgressRef.current;
-    if (!prog || prog.seq !== seq) return;
-    const playbackLines = linesRef.current;
-    let { i, current, floaterSeq } = prog;
-    while (i < playbackLines.length) {
-      const line = playbackLines[i]!;
-      floaterSeq += 1;
-      current = applyCombatLogLine(current, line, floaterSeq);
-      const logText = current.lastLog ?? combatLogLineText(line);
-      if (logText) {
-        onLogLineRef.current?.(logText, current.lastLog ? current.lastLogTone : combatLogLineTone(line));
-      }
-      i += 1;
-    }
-    playProgressRef.current = { i, current, floaterSeq, seq };
-    setFrame({ ...current, floaters: [...current.floaters] });
-    onFrameRef.current?.(current);
-    if (timerRef.current != null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    onCompleteRef.current?.();
-  };
 
   useEffect(() => {
     if (timerRef.current != null) {
@@ -171,22 +145,8 @@ export function DungeonCombatArena(props: Props) {
     onFrameRef.current?.(current);
     playProgressRef.current = { i: 0, current, floaterSeq: 0, seq };
 
-    const speedAtStart = resolveSpeed();
-    if (speedAtStart === "skip") {
-      flushRemaining(seq);
-      return () => {
-        if (timerRef.current != null) window.clearTimeout(timerRef.current);
-      };
-    }
-
     const step = () => {
       if (seq !== seqRef.current) return;
-
-      const speed = resolveSpeed();
-      if (speed === "skip") {
-        flushRemaining(seq);
-        return;
-      }
 
       if (i >= playbackLines.length) {
         onFrameRef.current?.(current);
@@ -221,15 +181,6 @@ export function DungeonCombatArena(props: Props) {
     };
   }, [playing, playbackKey, shakeOnHit]);
 
-  useEffect(() => {
-    if (!skipRequest || !playing || !replayRef.current || linesRef.current.length === 0) return;
-    if (timerRef.current != null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    flushRemaining(seqRef.current);
-  }, [skipRequest, playing, playbackKey]);
-
   const party = frame?.fighters.filter((f) => f.side === "party") ?? [];
   const enemy = frame?.fighters.find((f) => f.side === "enemy") ?? null;
   const portraitSize = compact ? 32 : 44;
@@ -240,6 +191,7 @@ export function DungeonCombatArena(props: Props) {
       className={[
         "dungeon-arena",
         playing ? "dungeon-arena--live" : "",
+        idleTransition ? "dungeon-arena--transition" : "",
         isBoss ? "dungeon-arena--boss" : "",
         compact ? "dungeon-arena--compact" : "",
         shaking ? "dungeon-arena--shake" : "",
@@ -254,7 +206,14 @@ export function DungeonCombatArena(props: Props) {
       </div>
 
       {!frame ? (
-        <p className="dungeon-arena__idle">
+        <p
+          className={[
+            "dungeon-arena__idle",
+            idleTransition ? "dungeon-arena__idle--transition" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           {playing
             ? "전투 준비 중…"
             : idleHint ?? "「다음 층」을 눌러\n실시간 전투를 관전하세요."}
@@ -263,9 +222,18 @@ export function DungeonCombatArena(props: Props) {
         <>
           {frame.banner ? (
             <div
-              className={`dungeon-arena__banner ${isBoss || frame.enemyName.includes("Boss") ? "dungeon-arena__banner--boss" : ""}`.trim()}
+              className={[
+                "dungeon-arena__banner",
+                isBoss || frame.enemyName.includes("Boss") ? "dungeon-arena__banner--boss" : "",
+                frame.bossPhaseId != null && frame.bossPhaseId >= 2 ? "dungeon-arena__banner--boss-phase" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
             >
               {frame.banner}
+              {frame.bossPhaseLabel ? (
+                <span className="dungeon-arena__boss-phase"> · {frame.bossPhaseLabel}</span>
+              ) : null}
             </div>
           ) : null}
           {frame.skillBanner ? (
@@ -352,7 +320,14 @@ export function DungeonCombatArena(props: Props) {
                 <div className="dungeon-arena__enemy-name">{enemy.label}</div>
                 <div className="dungeon-hp-track dungeon-arena__enemy-hp">
                   <div
-                    className="dungeon-hp-fill dungeon-hp-fill--enemy"
+                    className={[
+                      "dungeon-hp-fill",
+                      "dungeon-hp-fill--enemy",
+                      frame.bossPhaseId === 2 ? "dungeon-hp-fill--phase-2" : "",
+                      frame.bossPhaseId != null && frame.bossPhaseId >= 3 ? "dungeon-hp-fill--phase-3" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     style={{ width: `${hpPct(enemy.hp, enemy.maxHp)}%`, transition: "width 0.42s ease-out" }}
                   />
                 </div>

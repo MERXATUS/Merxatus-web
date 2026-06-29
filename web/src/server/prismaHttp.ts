@@ -83,7 +83,7 @@ export function prismaKnownErrorResponse(e: unknown): Response | null {
         { status: 503 },
       );
     }
-    if (e.code === "P2022") {
+    if (e.code === "P2021" || e.code === "P2022") {
       return Response.json(
         {
           ok: false,

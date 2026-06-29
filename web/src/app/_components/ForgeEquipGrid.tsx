@@ -7,6 +7,7 @@ import { WeaponTooltipHover } from "@/app/_components/WeaponTooltip";
 import { itemGradeFrameClassName } from "@/server/itemGrade";
 import type { ArmorTooltipData } from "@/shared/armorTooltip";
 import type { WeaponTooltipData } from "@/shared/weaponTooltip";
+import { ForgeEquippedByTag } from "@/app/_components/ForgeEquippedByTag";
 
 export type ForgeEquipGridWeaponItem = WeaponTooltipData;
 export type ForgeEquipGridArmorItem = ArmorTooltipData;
@@ -87,6 +88,11 @@ export function ForgeEquipGrid(props: {
                   </span>
                 ) : null}
                 {lv > 0 ? <span className="forge-equip-cell__badge">+{lv}</span> : null}
+                <ForgeEquippedByTag
+                  equippedByMinion={item.equippedByMinion}
+                  compact
+                  className="forge-equip-cell__equipped"
+                />
                 {item.identified === false ? (
                   <span className="forge-equip-cell__dot" aria-label="미감정" />
                 ) : null}

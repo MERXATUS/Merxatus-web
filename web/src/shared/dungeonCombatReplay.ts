@@ -40,11 +40,13 @@ export type BattleArenaFrame = {
   hitFlash: CombatHitKind | "block" | null;
   skillBanner: string | null;
   skillActor: string | null;
+  bossPhaseId: number | null;
+  bossPhaseLabel: string | null;
 };
 
 export function initBattleArena(replay: DungeonCombatReplay): BattleArenaFrame {
   const fighters: BattleFighterView[] = [
-    ...replay.partyBefore.map((p) => ({
+    ...(replay.partyBefore ?? []).map((p) => ({
       id: p.minionId,
       label: p.label,
       side: "party" as const,
@@ -78,6 +80,8 @@ export function initBattleArena(replay: DungeonCombatReplay): BattleArenaFrame {
     hitFlash: null,
     skillBanner: null,
     skillActor: null,
+    bossPhaseId: null,
+    bossPhaseLabel: null,
   };
 }
 
@@ -92,29 +96,47 @@ function hitKindLabel(kind: CombatHitKind | undefined): string {
   return "";
 }
 
-/** 전투 재생 한 줄당 대기(ms). normal 기준 — slow/fast 배율 적용, skip은 0 */
-export type CombatPlaybackSpeed = "slow" | "normal" | "fast" | "skip";
+/** 보통 속도 — 로그 한 줄당 대기(ms) */
+export const COMBAT_NORMAL_LINE_DELAY_MS = 500;
+
+/** 전투 재생 한 줄당 대기(ms). normal=0.5초/줄, slow/fast 배율 */
+export type CombatPlaybackSpeed = "slow" | "normal" | "fast";
 
 export const COMBAT_PLAYBACK_SPEED_OPTIONS = [
-  { id: "slow" as const, label: "느림" },
-  { id: "normal" as const, label: "보통" },
   { id: "fast" as const, label: "빠름" },
+  { id: "normal" as const, label: "보통" },
+  { id: "slow" as const, label: "느림" },
 ];
 
-const PLAYBACK_SPEED_KEY = "merxatus_combat_playback_speed";
+const PLAYBACK_SPEED_KEY = "merxatus_combat_playback_speed_v4";
+const LEGACY_PLAYBACK_SPEED_KEYS = [
+  "merxatus_combat_playback_speed_v3",
+  "merxatus_combat_playback_speed_v2",
+] as const;
 
-export function loadCombatPlaybackSpeed(): Exclude<CombatPlaybackSpeed, "skip"> {
+function normalizePlaybackSpeed(raw: string | null): CombatPlaybackSpeed | null {
+  if (raw === "slow" || raw === "normal" || raw === "fast") return raw;
+  if (raw === "skip") return "fast";
+  return null;
+}
+
+export function loadCombatPlaybackSpeed(): CombatPlaybackSpeed {
   if (typeof window === "undefined") return "normal";
   try {
-    const v = localStorage.getItem(PLAYBACK_SPEED_KEY);
-    if (v === "slow" || v === "normal" || v === "fast") return v;
+    for (const key of [PLAYBACK_SPEED_KEY, ...LEGACY_PLAYBACK_SPEED_KEYS]) {
+      const normalized = normalizePlaybackSpeed(localStorage.getItem(key));
+      if (normalized) {
+        if (key !== PLAYBACK_SPEED_KEY) saveCombatPlaybackSpeed(normalized);
+        return normalized;
+      }
+    }
   } catch {
     /* ignore */
   }
   return "normal";
 }
 
-export function saveCombatPlaybackSpeed(speed: Exclude<CombatPlaybackSpeed, "skip">) {
+export function saveCombatPlaybackSpeed(speed: CombatPlaybackSpeed) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(PLAYBACK_SPEED_KEY, speed);
@@ -123,16 +145,14 @@ export function saveCombatPlaybackSpeed(speed: Exclude<CombatPlaybackSpeed, "ski
   }
 }
 
-function playbackDelayMult(speed: CombatPlaybackSpeed): number {
+function lineDelayMs(speed: CombatPlaybackSpeed): number {
   switch (speed) {
     case "slow":
-      return 1.7;
+      return Math.round(COMBAT_NORMAL_LINE_DELAY_MS * 1.4);
     case "fast":
-      return 0.52;
-    case "skip":
-      return 0;
+      return Math.round(COMBAT_NORMAL_LINE_DELAY_MS * 0.36);
     default:
-      return 1;
+      return COMBAT_NORMAL_LINE_DELAY_MS;
   }
 }
 
@@ -199,46 +219,15 @@ export function combatLogLineTone(line: CombatLogLine): CombatFeedTone {
   }
 }
 
-function baseLineDelay(line: CombatLogLine): number {
-  switch (line.t) {
-    case "floor_start":
-      return 580;
-    case "skill":
-      return 520;
-    case "buff":
-      return 360;
-    case "hit":
-      return line.kind === "crit" ? 400 : line.kind === "extra" ? 340 : 360;
-    case "block":
-      return 340;
-    case "evade":
-      return 320;
-    case "heal":
-      return 320;
-    case "ko":
-      return 460;
-    case "status":
-      return line.action === "tick" ? 260 : line.action === "skip" ? 320 : 240;
-    case "counter":
-      return 340;
-    case "result":
-      return 800;
-    default:
-      return 280;
-  }
-}
-
-function lineDelay(line: CombatLogLine, speed: CombatPlaybackSpeed = "normal"): number {
-  const mult = playbackDelayMult(speed);
-  if (mult <= 0) return 0;
-  return Math.round(baseLineDelay(line) * mult);
+function lineDelay(_line: CombatLogLine, speed: CombatPlaybackSpeed = "normal"): number {
+  return lineDelayMs(speed);
 }
 
 /** 전투 재생 시작 전 짧은 대기(ms) */
 export function combatPlaybackLeadInMs(speed: CombatPlaybackSpeed = "normal"): number {
-  const mult = playbackDelayMult(speed);
-  if (mult <= 0) return 0;
-  return Math.round(480 * mult);
+  const delay = lineDelayMs(speed);
+  if (delay <= 0) return 0;
+  return Math.min(200, Math.round(delay * 0.24));
 }
 
 export function applyCombatLogLine(
@@ -403,7 +392,7 @@ export function applyCombatLogLine(
       };
     }
     case "heal": {
-      const healer = findFighter(fighters, line.actor, "party");
+      const healer = findFighter(fighters, line.actor, line.side);
       if (healer) {
         healer.hp = Math.min(healer.maxHp, healer.hp + line.amount);
         if (healer.hp > 0) healer.dead = false;
@@ -411,13 +400,15 @@ export function applyCombatLogLine(
           id: `f${floaterSeq}`,
           targetId: healer.id,
           damage: line.amount,
-          side: "party",
+          side: line.side,
           kind: "heal",
         });
       }
       const healText =
         line.source === "lifesteal"
           ? `${line.actor} 흡혈 +${line.amount} HP`
+          : line.source === "regen"
+            ? `${line.actor} 재생 +${line.amount} HP`
           : line.source === "skill" && line.skillName
             ? `✨ ${line.actor} · ${line.skillName} +${line.amount} HP`
             : `${line.actor} +${line.amount} HP 회복`;
@@ -448,11 +439,32 @@ export function applyCombatLogLine(
         floaters: [],
         actingId: null,
         hitTargetId: ko?.id ?? null,
+        banner: null,
         skillBanner: null,
         skillActor: null,
         lastLog: `${line.name} 처치!`,
         lastLogTone: "neutral",
         lastSfx: null,
+        hitFlash: null,
+      };
+    }
+    case "phase_change": {
+      const enemy = fighters.find((f) => f.side === "enemy");
+      const banner = `⚠ ${line.label}${line.flavor ? ` · ${line.flavor}` : ""}`;
+      return {
+        ...frame,
+        fighters,
+        floaters: [],
+        actingId: enemy?.id ?? null,
+        hitTargetId: null,
+        banner,
+        skillBanner: line.label,
+        skillActor: line.enemyName,
+        bossPhaseId: line.phase,
+        bossPhaseLabel: line.label,
+        lastLog: line.flavor ? `── ${line.label} · ${line.flavor} ──` : `── ${line.label} ──`,
+        lastLogTone: "skill",
+        lastSfx: "skill",
         hitFlash: null,
       };
     }
@@ -539,10 +551,10 @@ export function applyCombatLogLine(
   }
 }
 
-export { lineDelay, baseLineDelay };
+export { lineDelay };
 
-export function partyHpFromArena(fighters: BattleFighterView[]) {
-  return fighters
+export function partyHpFromArena(fighters: BattleFighterView[] | null | undefined) {
+  return (fighters ?? [])
     .filter((f) => f.side === "party")
     .map((f) => ({
       minionId: f.id,

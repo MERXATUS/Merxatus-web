@@ -6,10 +6,13 @@ import { isCatalogItemId, loadCatalogItemIdSet, loadCatalogItemNameMap } from "@
 import { normalizeItemIdLower } from "@/shared/itemId";
 import { inventoryAvailableQty } from "@/shared/inventoryLock";
 import { attachIcons, getItemIconMap, itemIconFieldsFromMap } from "@/server/itemCatalog";
+import { loadEquippedMinionByInstanceMaps } from "@/server/equipmentEquippedByMinion";
 import { formatEquipmentOptionDisplay, parseEquipmentOptionsPayload } from "@/server/equipmentOptions";
 import { GAME_RULES } from "@/server/gameRules";
 import { countOwnedEquipment } from "@/server/equipmentCapacity";
 import { MAX_EQUIPMENT_OWNED } from "@/shared/equipmentCapacity";
+import type { EquippedByMinionView } from "@/shared/equipmentEquippedBy";
+import { marketListingArmorView, marketListingWeaponView } from "@/server/marketListingView";
 
 export type MeStateScope = "inventory" | "weapons" | "armor" | "market" | "full";
 
@@ -18,13 +21,18 @@ function mapWeaponRows(
     id: string;
     baseItemId: string;
     enhanceLevel: number;
+    quality: number;
+    qualityCraftCount: number;
+    itemLevel: number;
     userLocked: boolean;
     createdAt: Date;
     optionsJson: string;
     baseItem: { name: string; grade: number };
   }>,
   catalogIds: Set<string>,
+  catalogNames: Map<string, string>,
   iconMap: Awaited<ReturnType<typeof getItemIconMap>>,
+  equippedByInstanceId: Map<string, EquippedByMinionView>,
 ) {
   return attachIcons(
     weaponInstances
@@ -32,10 +40,14 @@ function mapWeaponRows(
       .map((w) => ({
         id: w.id,
         baseItemId: w.baseItemId,
-        name: w.baseItem.name,
+        name: catalogNames.get(normalizeItemIdLower(w.baseItemId)) ?? w.baseItem.name,
         enhanceLevel: w.enhanceLevel,
+        quality: w.quality,
+        qualityCraftCount: w.qualityCraftCount,
+        itemLevel: w.itemLevel,
         userLocked: w.userLocked,
         createdAt: w.createdAt,
+        equippedByMinion: equippedByInstanceId.get(w.id) ?? null,
         ...itemGradeViewForItem(w.baseItemId, w.baseItem.grade),
         identified: parseEquipmentOptionsPayload(w.optionsJson).identified,
         options: formatEquipmentOptionDisplay(w.optionsJson, "weapon"),
@@ -50,13 +62,18 @@ function mapArmorRows(
     id: string;
     baseItemId: string;
     enhanceLevel: number;
+    quality: number;
+    qualityCraftCount: number;
+    itemLevel: number;
     userLocked: boolean;
     createdAt: Date;
     optionsJson: string;
     baseItem: { name: string; grade: number };
   }>,
   catalogIds: Set<string>,
+  catalogNames: Map<string, string>,
   iconMap: Awaited<ReturnType<typeof getItemIconMap>>,
+  equippedByInstanceId: Map<string, EquippedByMinionView>,
 ) {
   return attachIcons(
     armorInstances
@@ -64,10 +81,14 @@ function mapArmorRows(
       .map((a) => ({
         id: a.id,
         baseItemId: a.baseItemId,
-        name: a.baseItem.name,
+        name: catalogNames.get(normalizeItemIdLower(a.baseItemId)) ?? a.baseItem.name,
         enhanceLevel: a.enhanceLevel,
+        quality: a.quality,
+        qualityCraftCount: a.qualityCraftCount,
+        itemLevel: a.itemLevel,
         userLocked: a.userLocked,
         createdAt: a.createdAt,
+        equippedByMinion: equippedByInstanceId.get(a.id) ?? null,
         ...itemGradeViewForItem(a.baseItemId, a.baseItem.grade),
         identified: parseEquipmentOptionsPayload(a.optionsJson).identified,
         options: formatEquipmentOptionDisplay(a.optionsJson, "armor"),
@@ -124,24 +145,32 @@ async function buildInventoryScope(userId: string, catalogIds: Set<string>) {
 }
 
 async function buildWeaponsScope(userId: string, catalogIds: Set<string>) {
-  const [weaponInstances, iconMap] = await Promise.all([
+  const [weaponInstances, iconMap, catalogNames, equippedMaps] = await Promise.all([
     prisma.weaponInstance.findMany({
-      where: { userId },
+      where: { userId, status: "OWNED" },
       include: { baseItem: true },
       orderBy: [{ createdAt: "asc" }],
       take: 500,
     }),
     getItemIconMap(),
+    loadCatalogItemNameMap(),
+    loadEquippedMinionByInstanceMaps(userId),
   ]);
 
   return {
     ok: true as const,
-    weaponInstances: mapWeaponRows(weaponInstances, catalogIds, iconMap),
+    weaponInstances: mapWeaponRows(
+      weaponInstances,
+      catalogIds,
+      catalogNames,
+      iconMap,
+      equippedMaps.weaponByInstanceId,
+    ),
   };
 }
 
 async function buildArmorScope(userId: string, catalogIds: Set<string>) {
-  const [armorInstances, iconMap] = await Promise.all([
+  const [armorInstances, iconMap, catalogNames, equippedMaps] = await Promise.all([
     prisma.armorInstance.findMany({
       where: { userId, status: "OWNED" },
       include: { baseItem: true },
@@ -149,11 +178,19 @@ async function buildArmorScope(userId: string, catalogIds: Set<string>) {
       take: 500,
     }),
     getItemIconMap(),
+    loadCatalogItemNameMap(),
+    loadEquippedMinionByInstanceMaps(userId),
   ]);
 
   return {
     ok: true as const,
-    armorInstances: mapArmorRows(armorInstances, catalogIds, iconMap),
+    armorInstances: mapArmorRows(
+      armorInstances,
+      catalogIds,
+      catalogNames,
+      iconMap,
+      equippedMaps.armorByInstanceId,
+    ),
   };
 }
 
@@ -161,7 +198,11 @@ async function buildMarketScope(userId: string) {
   const [listings, iconMap] = await Promise.all([
     prisma.listing.findMany({
       where: { sellerId: userId, status: "ACTIVE" },
-      include: { item: true, weaponInstance: { include: { baseItem: true } } },
+      include: {
+        item: true,
+        weaponInstance: { include: { baseItem: true } },
+        armorInstance: { include: { baseItem: true } },
+      },
       orderBy: [{ createdAt: "desc" }],
       take: 50,
     }),
@@ -176,13 +217,14 @@ async function buildMarketScope(userId: string) {
       activeListingCount: listings.length,
     },
     myListings: listings.map((l) => {
-      const iconItemId = l.weaponInstance?.baseItemId ?? l.itemId;
+      const iconItemId = l.weaponInstance?.baseItemId ?? l.armorInstance?.baseItemId ?? l.itemId;
       const { icon, iconSrc } = itemIconFieldsFromMap(iconItemId, iconMap);
+      const equipName = l.weaponInstance?.baseItem.name ?? l.armorInstance?.baseItem.name;
       return {
         id: l.id,
         saleType: l.saleType,
         itemId: l.itemId,
-        itemName: l.weaponInstance?.baseItem.name ?? l.item.name,
+        itemName: equipName ?? l.item.name,
         quantity: l.quantity,
         fixedPricePerUnit: l.fixedPricePerUnit,
         fixedPriceTotal: l.fixedPriceTotal,
@@ -190,7 +232,10 @@ async function buildMarketScope(userId: string) {
         endsAt: l.endsAt?.toISOString() ?? null,
         highestBid: l.highestBid,
         weaponInstanceId: l.weaponInstanceId,
-        enhanceLevel: l.weaponInstance?.enhanceLevel ?? null,
+        armorInstanceId: l.armorInstanceId,
+        enhanceLevel: l.weaponInstance?.enhanceLevel ?? l.armorInstance?.enhanceLevel ?? null,
+        weapon: l.weaponInstance ? marketListingWeaponView(l.weaponInstance) : null,
+        armor: l.armorInstance ? marketListingArmorView(l.armorInstance) : null,
         icon,
         iconSrc,
       };

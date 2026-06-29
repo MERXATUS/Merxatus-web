@@ -4,6 +4,7 @@ export type GameTabKey =
   | "home"
   | "market"
   | "inventory"
+  | "codex"
   | "enhance"
   | "dungeon"
   | "raid"
@@ -35,6 +36,7 @@ export const GAME_TABS: GameTabDef[] = [
   { key: "ranking", label: "랭킹", shortLabel: "랭킹", glyph: "◈", group: "core" },
   { key: "market", label: "거래소", shortLabel: "거래", glyph: "¤", group: "trade" },
   { key: "inventory", label: "인벤토리", shortLabel: "인벤", glyph: "◆", group: "other" },
+  { key: "codex", label: "도감", shortLabel: "도감", glyph: "☰", group: "other" },
   { key: "minions", label: "미니언", shortLabel: "미니언", glyph: "●", group: "other" },
   { key: "enhance", label: "대장간", shortLabel: "대장간", glyph: "⚒", group: "other" },
 ];
@@ -43,6 +45,7 @@ const TAB_KEYS = new Set<GameTabKey>(GAME_TABS.map((t) => t.key));
 
 const LEGACY_PANEL_MAP: Record<string, GameTabKey> = {
   inventory: "inventory",
+  codex: "codex",
   gather: "dungeon",
   specialist: "dungeon",
   minions: "minions",
@@ -94,6 +97,7 @@ export function resolveGameTab(pathname: string, searchParams: URLSearchParams):
   if (pathname === "/ranking" || pathname.startsWith("/ranking")) return "ranking";
   if (pathname === "/enhance" || pathname.startsWith("/enhance/")) return "enhance";
   if (pathname === "/inventory" || pathname.startsWith("/inventory/")) return "inventory";
+  if (pathname === "/codex" || pathname.startsWith("/codex/")) return "codex";
 
   const tab = searchParams.get("tab");
   if (tab === "gather" || tab === "specialist") return "dungeon";
@@ -124,6 +128,8 @@ export function routeForGameTab(tab: GameTabKey): string {
       return "/enhance";
     case "inventory":
       return "/inventory";
+    case "codex":
+      return "/codex";
     default:
       return `/?tab=${tab}`;
   }
@@ -134,7 +140,7 @@ export function gameTabLabel(tab: GameTabKey): string {
 }
 
 /** 인벤·거래소·대장간처럼 리스트가 길어 전체 패널 스크롤이 필요한 탭 */
-export const SCROLLABLE_GAME_TABS = new Set<GameTabKey>(["inventory", "market", "enhance"]);
+export const SCROLLABLE_GAME_TABS = new Set<GameTabKey>(["inventory", "codex", "market", "enhance"]);
 
 export function isScrollableGameTab(tab: GameTabKey): boolean {
   return SCROLLABLE_GAME_TABS.has(tab);
@@ -153,6 +159,29 @@ export function visibleGameTabs(): GameTabDef[] {
 
 export function isVisibleGameTab(tab: GameTabKey): boolean {
   return visibleGameTabs().some((t) => t.key === tab);
+}
+
+/** 하단 독에 고정 표시할 주요 탭 (모바일) */
+export const MOBILE_DOCK_TAB_KEYS: GameTabKey[] = ["home", "dungeon", "raid", "inventory"];
+
+const MOBILE_MORE_TAB_KEYS: GameTabKey[] = ["tower", "pvp", "ranking", "market", "codex", "minions", "enhance"];
+
+export function mobileDockGameTabs(): GameTabDef[] {
+  const visible = new Set(visibleGameTabs().map((t) => t.key));
+  return MOBILE_DOCK_TAB_KEYS.filter((k) => visible.has(k)).map(
+    (k) => GAME_TABS.find((t) => t.key === k)!,
+  );
+}
+
+export function mobileMoreGameTabs(): GameTabDef[] {
+  const visible = new Set(visibleGameTabs().map((t) => t.key));
+  return MOBILE_MORE_TAB_KEYS.filter((k) => visible.has(k)).map(
+    (k) => GAME_TABS.find((t) => t.key === k)!,
+  );
+}
+
+export function isMobileMoreTab(tab: GameTabKey): boolean {
+  return MOBILE_MORE_TAB_KEYS.includes(tab);
 }
 
 export const GAME_FRAME_REFRESH_EVENT = "game_frame_refresh";

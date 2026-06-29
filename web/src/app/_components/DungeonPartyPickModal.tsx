@@ -11,6 +11,8 @@ export type PartyPickMinionRow = {
   id: string;
   level: number;
   combatClassLabel: string;
+  displayName?: string;
+  nickname?: string | null;
   combatStats?: { combatPower: number };
   equippedWeapon?: {
     id: string;
@@ -102,7 +104,7 @@ export function DungeonPartyPickModal({
                   }}
                 >
                   <div className="dungeon-party-pick-card__head">
-                    <span className="dungeon-party-pick-card__job">{m.combatClassLabel}</span>
+                    <span className="dungeon-party-pick-card__job">{m.displayName ?? m.combatClassLabel}</span>
                     <span className="dungeon-party-pick-card__level">Lv{m.level}</span>
                     {m.combatStats ? (
                       <span className="text-[10px] font-semibold text-[var(--game-gold-bright)]">
@@ -162,7 +164,7 @@ export function partyPickChips(minions: PartyPickMinionRow[], partyIds: Iterable
   for (const id of partyIds) {
     const m = minions.find((x) => x.id === id);
     if (!m) continue;
-    out.push({ id, label: `${m.combatClassLabel} Lv${m.level}` });
+    out.push({ id, label: `${m.displayName ?? m.combatClassLabel} Lv${m.level}` });
   }
   return out;
 }

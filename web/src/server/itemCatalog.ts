@@ -1,3 +1,5 @@
+import { stat } from "node:fs/promises";
+import path from "node:path";
 import { readItemsJson } from "@/server/adminData";
 import { invalidateCatalogItemCache } from "@/server/catalogItems";
 import { invalidateRoyalMaterialCache } from "@/server/royalPricing";
@@ -5,16 +7,41 @@ import { inferIconStemFromItemId, itemIconSrc } from "@/shared/itemIcon";
 import { normalizeItemIdLower } from "@/shared/itemId";
 
 let iconByItemId: Map<string, string | undefined> | null = null;
+let iconByItemIdSourceMtimeMs = -1;
+
+function itemsJsonPath() {
+  return path.join(process.cwd(), "data", "items.json");
+}
+
+async function shouldReloadIconByItemId(): Promise<boolean> {
+  if (!iconByItemId) return true;
+  if (process.env.NODE_ENV !== "development") return false;
+  try {
+    const mtimeMs = (await stat(itemsJsonPath())).mtimeMs;
+    return mtimeMs !== iconByItemIdSourceMtimeMs;
+  } catch {
+    return false;
+  }
+}
 
 async function loadIconByItemId(): Promise<Map<string, string | undefined>> {
-  if (iconByItemId) return iconByItemId;
+  if (!(await shouldReloadIconByItemId())) return iconByItemId!;
+  invalidateCatalogItemCache();
   const { data } = await readItemsJson();
   iconByItemId = new Map(data.map((it) => [it.id, it.icon]));
+  if (process.env.NODE_ENV === "development") {
+    try {
+      iconByItemIdSourceMtimeMs = (await stat(itemsJsonPath())).mtimeMs;
+    } catch {
+      iconByItemIdSourceMtimeMs = -1;
+    }
+  }
   return iconByItemId;
 }
 
 export function invalidateItemCatalogCache() {
   iconByItemId = null;
+  iconByItemIdSourceMtimeMs = -1;
   invalidateCatalogItemCache();
   invalidateRoyalMaterialCache();
 }

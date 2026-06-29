@@ -12,7 +12,7 @@ import type { WeaponTooltipData, WeaponTooltipOption } from "@/shared/weaponTool
 import {
   canMinionEquipItemByLevel,
   minEquipLevelForGrade,
-  minEquipLevelForItem,
+  requiredEquipLevelForInstance,
 } from "@/shared/itemEquipLevel";
 import { canMinionEquipWeaponForClass } from "@/shared/minionWeaponRules";
 import type { MinionCombatClass } from "@/shared/minionDerivedClass";
@@ -26,6 +26,7 @@ import {
   stackItemBagCategory,
   type EquipBagCategory,
 } from "@/shared/minionEquipBag";
+import { useIsMobile } from "@/shared/useIsMobile";
 type EquipOptionRow = WeaponTooltipOption;
 
 type WeaponRow = {
@@ -33,6 +34,9 @@ type WeaponRow = {
   baseItemId: string;
   name: string;
   enhanceLevel: number;
+  quality?: number;
+  qualityCraftCount?: number;
+  itemLevel?: number;
   grade?: number;
   gradeLabel?: string;
   identified?: boolean;
@@ -46,6 +50,9 @@ type ArmorRow = {
   baseItemId: string;
   name: string;
   enhanceLevel?: number;
+  quality?: number;
+  qualityCraftCount?: number;
+  itemLevel?: number;
   grade?: number;
   gradeLabel?: string;
   identified?: boolean;
@@ -73,6 +80,9 @@ type BagCell =
       baseItemId: string;
       name: string;
       enhanceLevel: number;
+      quality?: number;
+      qualityCraftCount?: number;
+      itemLevel?: number;
       grade: number;
       gradeLabel?: string;
       identified?: boolean;
@@ -88,6 +98,9 @@ type BagCell =
       baseItemId: string;
       name: string;
       enhanceLevel: number;
+      quality?: number;
+      qualityCraftCount?: number;
+      itemLevel?: number;
       grade: number;
       gradeLabel?: string;
       identified?: boolean;
@@ -150,6 +163,7 @@ export function MinionEquipBagPanel(props: {
     compact,
   } = props;
 
+  const isMobile = useIsMobile();
   const categoryTabs = EQUIP_BAG_CATEGORIES_ACTIVE.filter((c) => bagCategories.includes(c.id));
 
   const cells = useMemo((): BagCell[] => {
@@ -169,6 +183,9 @@ export function MinionEquipBagPanel(props: {
           baseItemId: w.baseItemId,
           name: w.name,
           enhanceLevel: w.enhanceLevel,
+          quality: w.quality,
+          qualityCraftCount: w.qualityCraftCount,
+          itemLevel: w.itemLevel,
           grade: w.grade ?? 1,
           gradeLabel: w.gradeLabel,
           identified: w.identified,
@@ -197,6 +214,9 @@ export function MinionEquipBagPanel(props: {
           baseItemId: a.baseItemId,
           name: a.name,
           enhanceLevel: a.enhanceLevel ?? 0,
+          quality: a.quality,
+          qualityCraftCount: a.qualityCraftCount,
+          itemLevel: a.itemLevel,
           grade: a.grade ?? 1,
           gradeLabel: a.gradeLabel,
           identified: a.identified,
@@ -298,6 +318,9 @@ export function MinionEquipBagPanel(props: {
         baseItemId: cell.baseItemId,
         name: cell.name,
         enhanceLevel: cell.enhanceLevel,
+        quality: cell.quality,
+        qualityCraftCount: cell.qualityCraftCount,
+        itemLevel: cell.itemLevel,
         grade: cell.grade,
         gradeLabel: cell.gradeLabel,
         identified: cell.identified,
@@ -312,6 +335,9 @@ export function MinionEquipBagPanel(props: {
         baseItemId: cell.baseItemId,
         name: cell.name,
         enhanceLevel: cell.enhanceLevel,
+        quality: cell.quality,
+        qualityCraftCount: cell.qualityCraftCount,
+        itemLevel: cell.itemLevel,
         grade: cell.grade,
         gradeLabel: cell.gradeLabel,
         identified: cell.identified,
@@ -334,12 +360,14 @@ export function MinionEquipBagPanel(props: {
   function cellLevelBlocked(cell: Exclude<BagCell, { kind: "unequip" }>): boolean {
     if (minionLevel == null) return false;
     const baseItemId = cell.kind === "stack" ? cell.itemId : cell.baseItemId;
-    return !canMinionEquipItemByLevel(minionLevel, baseItemId, cell.grade);
+    const instanceItemLevel = cell.kind === "weapon" || cell.kind === "armor" ? cell.itemLevel : undefined;
+    return !canMinionEquipItemByLevel(minionLevel, baseItemId, cell.grade, instanceItemLevel);
   }
 
   function cellRequiredLevel(cell: Exclude<BagCell, { kind: "unequip" }>): number {
     const baseItemId = cell.kind === "stack" ? cell.itemId : cell.baseItemId;
-    return minEquipLevelForItem(baseItemId, cell.grade);
+    const instanceItemLevel = cell.kind === "weapon" || cell.kind === "armor" ? cell.itemLevel : undefined;
+    return requiredEquipLevelForInstance(baseItemId, cell.grade, instanceItemLevel);
   }
 
   return (
@@ -349,8 +377,10 @@ export function MinionEquipBagPanel(props: {
           <h3 className="minion-equip-bag-panel__title">장비 가방</h3>
           {!compact ? (
             <p className="minion-equip-bag-panel__subtitle">
-              클릭 또는 드래그로 오른쪽 슬롯에 착용
+              {isMobile ? "탭하여 선택한 슬롯에 착용" : "클릭 또는 드래그로 오른쪽 슬롯에 착용"}
             </p>
+          ) : isMobile ? (
+            <p className="minion-equip-bag-panel__subtitle">탭하여 착용</p>
           ) : null}
         </div>
         <button type="button" className="minion-equip-bag-panel__back" disabled={busy} onClick={onBack}>
@@ -414,7 +444,7 @@ export function MinionEquipBagPanel(props: {
                 key={cell.key}
                 type="button"
                 disabled={busy || levelBlocked}
-                draggable={!!payload && !busy && !levelBlocked}
+                draggable={!isMobile && !!payload && !busy && !levelBlocked}
                 className={[
                   "inventory-item-card inventory-item-card--compact minion-equip-bag-panel__cell",
                   cell.kind === "weapon" || cell.kind === "armor"

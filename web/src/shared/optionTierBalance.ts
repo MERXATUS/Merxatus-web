@@ -33,27 +33,16 @@ export const OPTION_TIER_MAX_CRAFT: Record<ItemGradeIndex, number> = {
 
 /** 이 등급 미만 아이템 옵션 풀에서 제외 */
 const WEAPON_OPTION_MIN_GRADE: Record<string, number> = {
-  CRIT_DMG_PCT: 2,
-  ARMOR_PEN_PCT: 2,
-  LIFE_STEAL_PCT: 2,
+  PHY_ATK_PCT: 2,
+  MAG_ATK_PCT: 2,
+  ATK_SPD_PCT: 2,
   FINAL_DMG_PCT: 3,
-  ITEM_RARITY_PCT: 3,
-  DMG_VS_BOSS_PCT: 4,
-  DMG_VS_ANGEL_PCT: 4,
-  DMG_VS_DEMON_PCT: 4,
 };
 
 const ARMOR_OPTION_MIN_GRADE: Record<string, number> = {
   HP_PCT: 2,
   DEF_PCT: 2,
-  DMG_RED_PCT: 3,
-  BLOCK_PCT: 3,
-  CRIT_RESIST_PCT: 3,
-  EVASION_PCT: 3,
-  REGEN_HP_ADD: 2,
-  THORN_PCT: 4,
-  LIFE_STEAL_PCT: 4,
-  FINAL_DMG_PCT: 5,
+  FINAL_DMG_PCT: 4,
 };
 
 export type OptionTierRollMode = "loot" | "craft";
@@ -93,6 +82,22 @@ export function rollOptionTierForGrade(
   const weights: number[] = [];
   for (let t = min; t <= max; t++) {
     weights.push(Math.max(0.12, 1.2 - Math.abs(t - peak) * 0.38));
+  }
+  return min + pickWeightedIndex(weights, rnd);
+}
+
+/** 제작 보석 등 — 최소 티어 바닥을 보장한 뒤 등급 상한까지 가중 추첨 */
+export function rollOptionTierForGradeWithMinimum(
+  grade: number,
+  minTier: number,
+  rnd: () => number,
+): number {
+  const max = maxOptionTierForGrade(grade, "craft");
+  const min = Math.max(1, Math.min(Math.floor(minTier), max));
+  if (min >= max) return max;
+  const weights: number[] = [];
+  for (let t = min; t <= max; t++) {
+    weights.push(Math.max(0.12, 1.0 - Math.abs(t - max) * 0.34));
   }
   return min + pickWeightedIndex(weights, rnd);
 }

@@ -5,7 +5,7 @@ import {
   WEAPON_OPTION_CATALOG,
 } from "@/shared/itemOptionCatalog";
 
-/** 전투 시뮬에 직접 반영되는 장비 보정치 (% 단위, 합산) */
+/** 전투에 직접 반영되는 장비 % 보정 (깡스탯: 공속·데미지) */
 export type EquipmentCombatModifiers = {
   critChancePct: number;
   critDmgPct: number;
@@ -31,30 +31,10 @@ export type EnemyCombatTags = {
   isDemon: boolean;
 };
 
-/** 전투 시뮬 직접 적용 + CP는 `utilOptionPowerFromDisplayValue`로 부분 환산 (희귀도 제외) */
-export const MECHANIZED_WEAPON_OPTION_IDS = new Set([
-  "ATK_SPD_PCT",
-  "CRIT_CHANCE_PCT",
-  "CRIT_DMG_PCT",
-  "ARMOR_PEN_PCT",
-  "FINAL_DMG_PCT",
-  "LIFE_STEAL_PCT",
-  "DMG_VS_BOSS_PCT",
-  "DMG_VS_ANGEL_PCT",
-  "DMG_VS_DEMON_PCT",
-  "ITEM_RARITY_PCT",
-]);
+/** 공속·데미지 % — 전투 시뮬 직접 적용 + CP 환산 */
+export const MECHANIZED_WEAPON_OPTION_IDS = new Set(["ATK_SPD_PCT", "FINAL_DMG_PCT"]);
 
-export const MECHANIZED_ARMOR_OPTION_IDS = new Set([
-  "BLOCK_PCT",
-  "DMG_RED_PCT",
-  "CRIT_RESIST_PCT",
-  "EVASION_PCT",
-  "REGEN_HP_ADD",
-  "THORN_PCT",
-  "LIFE_STEAL_PCT",
-  "FINAL_DMG_PCT",
-]);
+export const MECHANIZED_ARMOR_OPTION_IDS = new Set(["FINAL_DMG_PCT"]);
 
 export function emptyCombatModifiers(): EquipmentCombatModifiers {
   return {
@@ -99,22 +79,8 @@ export function combatModifiersFromOptionRows(
     const v = optionTierValue(catalog, id, row.tier);
     if (v <= 0) continue;
 
-    if (id === "CRIT_CHANCE_PCT") out.critChancePct += v;
-    else if (id === "CRIT_DMG_PCT") out.critDmgPct += v;
-    else if (id === "ATK_SPD_PCT") out.atkSpdPct += v;
-    else if (id === "ARMOR_PEN_PCT") out.armorPenPct += v;
+    if (id === "ATK_SPD_PCT") out.atkSpdPct += v;
     else if (id === "FINAL_DMG_PCT") out.finalDmgPct += v;
-    else if (id === "LIFE_STEAL_PCT") out.lifeStealPct += v;
-    else if (id === "DMG_VS_BOSS_PCT") out.dmgVsBossPct += v;
-    else if (id === "DMG_VS_ANGEL_PCT") out.dmgVsAngelPct += v;
-    else if (id === "DMG_VS_DEMON_PCT") out.dmgVsDemonPct += v;
-    else if (id === "ITEM_RARITY_PCT") out.itemRarityPct += v;
-    else if (id === "BLOCK_PCT") out.blockPct += v;
-    else if (id === "DMG_RED_PCT") out.dmgReducePct += v;
-    else if (id === "EVASION_PCT") out.evasionPct += v;
-    else if (id === "CRIT_RESIST_PCT") out.critResistPct += v;
-    else if (id === "THORN_PCT") out.thornPct += v;
-    else if (id === "REGEN_HP_ADD") out.regenHpPerRound += Math.floor(v);
   }
 
   return out;
@@ -159,13 +125,9 @@ export function inferEnemyCombatTags(input: {
   };
 }
 
-/** 파티 전체 희귀도 보너스 — 드랍 롤용 (전투력 환산 X) */
+/** @deprecated — 희귀도 옵션 제거 */
 export function partyItemRarityBonusPct(
-  members: Array<{ combatMods?: EquipmentCombatModifiers }>,
+  _members: Array<{ combatMods?: EquipmentCombatModifiers }>,
 ): number {
-  let sum = 0;
-  for (const m of members) {
-    sum += m.combatMods?.itemRarityPct ?? 0;
-  }
-  return Math.max(0, sum);
+  return 0;
 }

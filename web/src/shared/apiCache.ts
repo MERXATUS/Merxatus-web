@@ -56,6 +56,41 @@ export async function withApiCache<T>(
   return promise;
 }
 
+/** stale-while-revalidate — 캐시가 있으면 즉시 반환, TTL 지나면 백그라운드 갱신 */
+export async function withApiCacheSwr<T>(
+  url: string,
+  fetcher: () => Promise<T>,
+  opts?: { ttlMs?: number; force?: boolean; onRevalidate?: (data: T) => void },
+): Promise<T> {
+  const key = apiCacheKey(url);
+  const ttl = opts?.ttlMs ?? DEFAULT_TTL_MS;
+  const now = Date.now();
+  const hit = store.get(key) as CacheEntry<T> | undefined;
+
+  if (!opts?.force && hit) {
+    const fresh = now - hit.fetchedAt < ttl;
+    if (fresh) return hit.data;
+
+    if (!inflight.has(key)) {
+      const promise = fetcher()
+        .then((data) => {
+          store.set(key, { data, fetchedAt: Date.now() });
+          opts?.onRevalidate?.(data);
+          return data;
+        })
+        .finally(() => {
+          if (inflight.get(key) === promise) inflight.delete(key);
+        });
+      inflight.set(key, promise);
+      void promise.catch(() => {});
+    }
+
+    return hit.data;
+  }
+
+  return withApiCache(url, fetcher, opts);
+}
+
 /** 자주 쓰는 GET TTL (ms) */
 export const API_CACHE_TTL = {
   auth: 30_000,
@@ -67,11 +102,16 @@ export const API_CACHE_TTL = {
   meStateWeapons: 12_000,
   meStateArmor: 12_000,
   meStateMarket: 15_000,
+  raidsEntry: 12_000,
   raidsList: 120_000,
   dungeonsList: 120_000,
   towerLeaderboard: 60_000,
   leaderboard: 60_000,
   leaderboardBoards: 120_000,
   minionPartyPick: 45_000,
+  minionPanel: 20_000,
+  pvpState: 15_000,
+  pvpHistory: 30_000,
+  friendsList: 30_000,
   runState: 4_000,
 } as const;

@@ -3,18 +3,24 @@ import type { RaidDef } from "@/server/raidData";
 import type { TowerDef } from "@/server/towerData";
 import {
   contentTierForDungeonId,
-  contentTierForRaidId,
   mergeCraftingDropPool,
   mergeCraftingIntoTowerDrops,
 } from "@/shared/craftingItemDrops";
+import { mergeRaidEntryTicketDrops } from "@/shared/raidEntry";
+import { contentTierForRaidId } from "@/shared/raidRoster";
 
 export function applyCraftingDropsToDungeon(dungeon: DungeonDef): DungeonDef {
   const tier = contentTierForDungeonId(dungeon.id);
   const maxFloors = dungeon.maxFloors ?? 20;
+  const dropCtx = { tier, maxFloors };
+  const bossCtx = { tier, maxFloors, boss: true as const };
   return {
     ...dungeon,
-    drops: mergeCraftingDropPool(dungeon.drops, { tier, maxFloors }),
-    bossDrops: mergeCraftingDropPool(dungeon.bossDrops ?? [], { tier, maxFloors, boss: true }),
+    drops: mergeRaidEntryTicketDrops(mergeCraftingDropPool(dungeon.drops, dropCtx), dropCtx),
+    bossDrops: mergeRaidEntryTicketDrops(
+      mergeCraftingDropPool(dungeon.bossDrops ?? [], bossCtx),
+      bossCtx,
+    ),
   };
 }
 

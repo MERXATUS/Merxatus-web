@@ -20,6 +20,7 @@ export function resolveFloorCombat(input: {
   enemyStatMult?: number;
   enemyCombatMults?: DungeonEnemyCombatMults;
   enemyTags?: EnemyCombatTags;
+  monsterId?: string;
 }): FloorCombatResult {
   const isBoss = input.enemyTags?.isBoss ?? input.floor >= input.maxFloors;
   const enemyTags: EnemyCombatTags = input.enemyTags ?? {
@@ -38,5 +39,6 @@ export function resolveFloorCombat(input: {
     enemyStatMult: input.enemyStatMult,
     enemyCombatMults: input.enemyCombatMults,
     enemyTags,
+    monsterId: input.monsterId,
   });
 }

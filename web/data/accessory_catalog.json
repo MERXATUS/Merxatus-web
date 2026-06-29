@@ -1,0 +1,532 @@
+{
+  "items": [
+    {
+      "id": "acc_demon_ring_lucifer",
+      "name": "[오만] 루시퍼의 반지",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "ring1",
+      "slotKind": "ring",
+      "bossKey": "lucifer",
+      "bossOrder": 1,
+      "isJin": false,
+      "grade": 2,
+      "raidId": "raid_demon_lucifer_normal",
+      "mods": {
+        "critChancePct": 4,
+        "critDmgPct": 5
+      }
+    },
+    {
+      "id": "acc_demon_ring_lucifer_jin",
+      "name": "진 [오만] 루시퍼의 반지",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "ring1",
+      "slotKind": "ring",
+      "bossKey": "lucifer",
+      "bossOrder": 1,
+      "isJin": true,
+      "grade": 3,
+      "raidId": "raid_demon_lucifer_hard",
+      "mods": {
+        "critChancePct": 6,
+        "critDmgPct": 7
+      }
+    },
+    {
+      "id": "acc_demon_ring_leviathan",
+      "name": "[질투] 레비아탄의 반지",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "ring2",
+      "slotKind": "ring",
+      "bossKey": "leviathan",
+      "bossOrder": 2,
+      "isJin": false,
+      "grade": 3,
+      "raidId": "raid_demon_leviathan_normal",
+      "mods": {
+        "critChancePct": 6,
+        "critDmgPct": 7
+      }
+    },
+    {
+      "id": "acc_demon_ring_leviathan_jin",
+      "name": "진 [질투] 레비아탄의 반지",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "ring2",
+      "slotKind": "ring",
+      "bossKey": "leviathan",
+      "bossOrder": 2,
+      "isJin": true,
+      "grade": 4,
+      "raidId": "raid_demon_leviathan_hard",
+      "mods": {
+        "critChancePct": 7,
+        "critDmgPct": 8
+      }
+    },
+    {
+      "id": "acc_demon_necklace_satan",
+      "name": "[분노] 사탄의 목걸이",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "necklace",
+      "slotKind": "necklace",
+      "bossKey": "satan",
+      "bossOrder": 3,
+      "isJin": false,
+      "grade": 4,
+      "raidId": "raid_demon_satan_normal",
+      "mods": {
+        "dmgReducePct": 7,
+        "regenHpPerRound": 2
+      }
+    },
+    {
+      "id": "acc_demon_necklace_satan_jin",
+      "name": "진 [분노] 사탄의 목걸이",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "necklace",
+      "slotKind": "necklace",
+      "bossKey": "satan",
+      "bossOrder": 3,
+      "isJin": true,
+      "grade": 5,
+      "raidId": "raid_demon_satan_hard",
+      "mods": {
+        "dmgReducePct": 9,
+        "regenHpPerRound": 2
+      }
+    },
+    {
+      "id": "acc_demon_necklace_belphegor",
+      "name": "[나태] 벨페고르의 목걸이",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "necklace2",
+      "slotKind": "necklace",
+      "bossKey": "belphegor",
+      "bossOrder": 4,
+      "isJin": false,
+      "grade": 5,
+      "raidId": "raid_demon_belphegor_normal",
+      "mods": {
+        "dmgReducePct": 9,
+        "regenHpPerRound": 2
+      }
+    },
+    {
+      "id": "acc_demon_necklace_belphegor_jin",
+      "name": "진 [나태] 벨페고르의 목걸이",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "necklace2",
+      "slotKind": "necklace",
+      "bossKey": "belphegor",
+      "bossOrder": 4,
+      "isJin": true,
+      "grade": 6,
+      "raidId": "raid_demon_belphegor_hard",
+      "mods": {
+        "dmgReducePct": 10,
+        "regenHpPerRound": 3
+      }
+    },
+    {
+      "id": "acc_demon_relic_mammon",
+      "name": "[탐욕] 마몬의 유물",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "relic",
+      "slotKind": "relic",
+      "bossKey": "mammon",
+      "bossOrder": 5,
+      "isJin": false,
+      "grade": 6,
+      "raidId": "raid_demon_mammon_normal",
+      "mods": {
+        "dmgVsAngelPct": 12,
+        "finalDmgPct": 10
+      }
+    },
+    {
+      "id": "acc_demon_relic_mammon_jin",
+      "name": "진 [탐욕] 마몬의 유물",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "relic",
+      "slotKind": "relic",
+      "bossKey": "mammon",
+      "bossOrder": 5,
+      "isJin": true,
+      "grade": 7,
+      "raidId": "raid_demon_mammon_hard",
+      "mods": {
+        "dmgVsAngelPct": 13,
+        "finalDmgPct": 11
+      }
+    },
+    {
+      "id": "acc_demon_relic_beelzebub",
+      "name": "[식탐] 바알제붑의 유물",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "relic2",
+      "slotKind": "relic",
+      "bossKey": "beelzebub",
+      "bossOrder": 6,
+      "isJin": false,
+      "grade": 7,
+      "raidId": "raid_demon_beelzebub_normal",
+      "mods": {
+        "dmgVsAngelPct": 13,
+        "finalDmgPct": 11
+      }
+    },
+    {
+      "id": "acc_demon_relic_beelzebub_jin",
+      "name": "진 [식탐] 바알제붑의 유물",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "relic2",
+      "slotKind": "relic",
+      "bossKey": "beelzebub",
+      "bossOrder": 6,
+      "isJin": true,
+      "grade": 8,
+      "raidId": "raid_demon_beelzebub_hard",
+      "mods": {
+        "dmgVsAngelPct": 15,
+        "finalDmgPct": 13
+      }
+    },
+    {
+      "id": "acc_demon_relic_asmodeus",
+      "name": "[색욕] 아스모데우스의 유물",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "relic3",
+      "slotKind": "relic",
+      "bossKey": "asmodeus",
+      "bossOrder": 7,
+      "isJin": false,
+      "grade": 8,
+      "raidId": "raid_demon_asmodeus_normal",
+      "mods": {
+        "dmgVsAngelPct": 15,
+        "finalDmgPct": 13
+      }
+    },
+    {
+      "id": "acc_demon_relic_asmodeus_jin",
+      "name": "진 [색욕] 아스모데우스의 유물",
+      "faction": "demon",
+      "setId": "demon_raid",
+      "slot": "relic3",
+      "slotKind": "relic",
+      "bossKey": "asmodeus",
+      "bossOrder": 7,
+      "isJin": true,
+      "grade": 8,
+      "raidId": "raid_demon_asmodeus_hard",
+      "mods": {
+        "dmgVsAngelPct": 15,
+        "finalDmgPct": 13
+      }
+    },
+    {
+      "id": "acc_angel_ring_michael",
+      "name": "[겸손] 미카엘의 반지",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "ring1",
+      "slotKind": "ring",
+      "bossKey": "michael",
+      "bossOrder": 1,
+      "isJin": false,
+      "grade": 2,
+      "raidId": "raid_angel_michael_normal",
+      "mods": {
+        "critChancePct": 4,
+        "critDmgPct": 5
+      }
+    },
+    {
+      "id": "acc_angel_ring_michael_jin",
+      "name": "진 [겸손] 미카엘의 반지",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "ring1",
+      "slotKind": "ring",
+      "bossKey": "michael",
+      "bossOrder": 1,
+      "isJin": true,
+      "grade": 3,
+      "raidId": "raid_angel_michael_hard",
+      "mods": {
+        "critChancePct": 6,
+        "critDmgPct": 7
+      }
+    },
+    {
+      "id": "acc_angel_ring_raguel",
+      "name": "[친절] 라구엘의 반지",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "ring2",
+      "slotKind": "ring",
+      "bossKey": "raguel",
+      "bossOrder": 2,
+      "isJin": false,
+      "grade": 3,
+      "raidId": "raid_angel_raguel_normal",
+      "mods": {
+        "critChancePct": 6,
+        "critDmgPct": 7
+      }
+    },
+    {
+      "id": "acc_angel_ring_raguel_jin",
+      "name": "진 [친절] 라구엘의 반지",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "ring2",
+      "slotKind": "ring",
+      "bossKey": "raguel",
+      "bossOrder": 2,
+      "isJin": true,
+      "grade": 4,
+      "raidId": "raid_angel_raguel_hard",
+      "mods": {
+        "critChancePct": 7,
+        "critDmgPct": 8
+      }
+    },
+    {
+      "id": "acc_angel_necklace_jophiel",
+      "name": "[인내] 요피엘의 목걸이",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "necklace",
+      "slotKind": "necklace",
+      "bossKey": "jophiel",
+      "bossOrder": 3,
+      "isJin": false,
+      "grade": 4,
+      "raidId": "raid_angel_jophiel_normal",
+      "mods": {
+        "dmgReducePct": 7,
+        "regenHpPerRound": 2
+      }
+    },
+    {
+      "id": "acc_angel_necklace_jophiel_jin",
+      "name": "진 [인내] 요피엘의 목걸이",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "necklace",
+      "slotKind": "necklace",
+      "bossKey": "jophiel",
+      "bossOrder": 3,
+      "isJin": true,
+      "grade": 5,
+      "raidId": "raid_angel_jophiel_hard",
+      "mods": {
+        "dmgReducePct": 9,
+        "regenHpPerRound": 2
+      }
+    },
+    {
+      "id": "acc_angel_necklace_gabriel",
+      "name": "[근면] 가브리엘의 목걸이",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "necklace2",
+      "slotKind": "necklace",
+      "bossKey": "gabriel",
+      "bossOrder": 4,
+      "isJin": false,
+      "grade": 5,
+      "raidId": "raid_angel_gabriel_normal",
+      "mods": {
+        "dmgReducePct": 9,
+        "regenHpPerRound": 2
+      }
+    },
+    {
+      "id": "acc_angel_necklace_gabriel_jin",
+      "name": "진 [근면] 가브리엘의 목걸이",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "necklace2",
+      "slotKind": "necklace",
+      "bossKey": "gabriel",
+      "bossOrder": 4,
+      "isJin": true,
+      "grade": 6,
+      "raidId": "raid_angel_gabriel_hard",
+      "mods": {
+        "dmgReducePct": 10,
+        "regenHpPerRound": 3
+      }
+    },
+    {
+      "id": "acc_angel_relic_raphael",
+      "name": "[자선] 라파엘의 유물",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "relic",
+      "slotKind": "relic",
+      "bossKey": "raphael",
+      "bossOrder": 5,
+      "isJin": false,
+      "grade": 6,
+      "raidId": "raid_angel_raphael_normal",
+      "mods": {
+        "dmgVsDemonPct": 12,
+        "blockPct": 10
+      }
+    },
+    {
+      "id": "acc_angel_relic_raphael_jin",
+      "name": "진 [자선] 라파엘의 유물",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "relic",
+      "slotKind": "relic",
+      "bossKey": "raphael",
+      "bossOrder": 5,
+      "isJin": true,
+      "grade": 7,
+      "raidId": "raid_angel_raphael_hard",
+      "mods": {
+        "dmgVsDemonPct": 13,
+        "blockPct": 11
+      }
+    },
+    {
+      "id": "acc_angel_relic_uriel",
+      "name": "[절제] 우리엘의 유물",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "relic2",
+      "slotKind": "relic",
+      "bossKey": "uriel",
+      "bossOrder": 6,
+      "isJin": false,
+      "grade": 7,
+      "raidId": "raid_angel_uriel_normal",
+      "mods": {
+        "dmgVsDemonPct": 13,
+        "blockPct": 11
+      }
+    },
+    {
+      "id": "acc_angel_relic_uriel_jin",
+      "name": "진 [절제] 우리엘의 유물",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "relic2",
+      "slotKind": "relic",
+      "bossKey": "uriel",
+      "bossOrder": 6,
+      "isJin": true,
+      "grade": 8,
+      "raidId": "raid_angel_uriel_hard",
+      "mods": {
+        "dmgVsDemonPct": 15,
+        "blockPct": 13
+      }
+    },
+    {
+      "id": "acc_angel_relic_sariel",
+      "name": "[순결] 사리엘의 유물",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "relic3",
+      "slotKind": "relic",
+      "bossKey": "sariel",
+      "bossOrder": 7,
+      "isJin": false,
+      "grade": 8,
+      "raidId": "raid_angel_sariel_normal",
+      "mods": {
+        "dmgVsDemonPct": 15,
+        "blockPct": 13
+      }
+    },
+    {
+      "id": "acc_angel_relic_sariel_jin",
+      "name": "진 [순결] 사리엘의 유물",
+      "faction": "angel",
+      "setId": "angel_raid",
+      "slot": "relic3",
+      "slotKind": "relic",
+      "bossKey": "sariel",
+      "bossOrder": 7,
+      "isJin": true,
+      "grade": 8,
+      "raidId": "raid_angel_sariel_hard",
+      "mods": {
+        "dmgVsDemonPct": 15,
+        "blockPct": 13
+      }
+    }
+  ],
+  "sets": [
+    {
+      "id": "demon_raid",
+      "faction": "demon",
+      "label": "7대 죄악",
+      "bonuses": [
+        {
+          "count": 2,
+          "mods": {
+            "finalDmgPct": 8
+          }
+        },
+        {
+          "count": 4,
+          "mods": {
+            "dmgVsAngelPct": 15
+          }
+        },
+        {
+          "count": 7,
+          "mods": {
+            "dmgVsBossPct": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "angel_raid",
+      "faction": "angel",
+      "label": "7대 미덕",
+      "bonuses": [
+        {
+          "count": 2,
+          "mods": {
+            "dmgReducePct": 8
+          }
+        },
+        {
+          "count": 4,
+          "mods": {
+            "dmgVsDemonPct": 15
+          }
+        },
+        {
+          "count": 7,
+          "mods": {
+            "regenHpPerRound": 8
+          }
+        }
+      ]
+    }
+  ]
+}

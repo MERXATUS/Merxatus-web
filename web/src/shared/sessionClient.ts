@@ -1,4 +1,5 @@
-import { API_CACHE_TTL, invalidateApiCache, withApiCache } from "@/shared/apiCache";
+import { API_CACHE_TTL, invalidateApiCache, withApiCache, withApiCacheSwr } from "@/shared/apiCache";
+import { invalidateCombatRosterCache } from "@/shared/combatRosterClient";
 import { formatPanelError } from "@/shared/formatPanelError";
 
 export const SESSION_CHANGED_EVENT = "auth_session_changed";
@@ -63,6 +64,13 @@ export async function apiGetJsonCached<T>(
   return withApiCache(url, () => apiGetJson<T>(url), opts);
 }
 
+export async function apiGetJsonCachedSwr<T>(
+  url: string,
+  opts?: { ttlMs?: number; force?: boolean; onRevalidate?: (data: T) => void },
+): Promise<T> {
+  return withApiCacheSwr(url, () => apiGetJson<T>(url), opts);
+}
+
 export async function apiPostJson<T>(url: string, body: unknown): Promise<T> {
   const res = await apiFetch(url, {
     method: "POST",
@@ -82,8 +90,10 @@ export async function apiPostJson<T>(url: string, body: unknown): Promise<T> {
   } else if (url.includes("/minions/")) {
     invalidateApiCache("/api/minions");
     invalidateApiCache("/api/me");
-  } else if (url.includes("/inventory/")) {
+    invalidateCombatRosterCache();
+  } else if (url.includes("/inventory/") || url.includes("/codex/")) {
     invalidateApiCache("/api/inventory");
+    invalidateApiCache("/api/codex");
     invalidateApiCache("/api/me");
   } else if (url.includes("/trade/")) {
     invalidateApiCache("/api/trade");

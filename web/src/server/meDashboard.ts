@@ -13,6 +13,7 @@ import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
 import { minionRoleLabel } from "@/server/minionJobs";
 import { promotionStateFromRow, resolveMinionCombatClass } from "@/shared/minionPromotion";
 import { skillViewsForMinion } from "@/shared/minionSkills";
+import { minionDisplayName } from "@/shared/minionNickname";
 import { itemGradeViewForItem } from "@/server/itemGrade";
 import { loadKnightOrderBonuses } from "@/server/knightOrder";
 import { knightOrderToView } from "@/server/knightOrderView";
@@ -67,6 +68,8 @@ function buildRepresentativeMinionView(
   return {
     id: m.id,
     combatClassLabel: minionRoleLabel({ combatClass }),
+    displayName: minionDisplayName(m.nickname, minionRoleLabel({ combatClass })),
+    nickname: m.nickname ?? null,
     level: m.level ?? 1,
     unspentSkillPoints: Math.max(0, Math.floor(m.unspentSkillPoints ?? 0)),
     skills: skillViewsForMinion({ combatClass, skillLevelsJson: m.skillLevelsJson }),

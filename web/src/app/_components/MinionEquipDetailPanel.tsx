@@ -10,6 +10,7 @@ import {
   type MinionEquipSlotId,
   type MinionEquipmentView,
 } from "@/shared/minionEquipSlots";
+import { useIsMobile } from "@/shared/useIsMobile";
 
 function slotLabel(slotId: MinionEquipSlotId) {
   return MINION_EQUIP_SLOTS.find((s) => s.id === slotId)?.label ?? slotId;
@@ -45,6 +46,7 @@ export function MinionEquipDetailPanel(props: {
     notice,
     compact,
   } = props;
+  const isMobile = useIsMobile();
 
   return (
     <div className={`minion-equip-detail-panel ${compact ? "minion-equip-detail-panel--compact" : ""}`}>
@@ -68,11 +70,12 @@ export function MinionEquipDetailPanel(props: {
             clickableSlots={clickableSlots}
             activeSlot={activeSlot}
             compact={compact}
+            strip={isMobile}
             onSlotClick={(slotId) => {
               onSlotClick(slotId);
               props.onSlotCategoryHint?.(slotToBagCategory(slotId));
             }}
-            onSlotDrop={onSlotDrop}
+            onSlotDrop={isMobile ? undefined : onSlotDrop}
           />
         </div>
 
@@ -80,7 +83,9 @@ export function MinionEquipDetailPanel(props: {
           {combatStats ? <MinionStatPanel stats={combatStats} compact /> : null}
 
           <p className="minion-equip-detail-panel__hint text-xs text-[var(--game-muted)]">
-            슬롯을 선택한 뒤 왼쪽 가방에서 장비를 고르세요. 드래그해서 슬롯에 놓을 수도 있습니다.
+            {isMobile
+              ? "슬롯을 탭한 뒤 아래 가방에서 장비를 선택하세요."
+              : "슬롯을 선택한 뒤 왼쪽 가방에서 장비를 고르세요. 드래그해서 슬롯에 놓을 수도 있습니다."}
           </p>
 
           <p className="minion-equip-detail-panel__slot-label">

@@ -23,6 +23,18 @@ function runNode(script, args) {
   });
 }
 
+function runTsx(script) {
+  return new Promise((resolve, reject) => {
+    const child = spawn("npx", ["tsx", script], {
+      cwd: process.cwd(),
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    });
+    child.on("error", reject);
+    child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`${script} exit ${code}`))));
+  });
+}
+
 function splitCsvLine(line) {
   const out = [];
   let cur = "";
@@ -317,6 +329,8 @@ async function main() {
   ]);
 
   await runNode("scripts/apply-dungeons-from-csv.mjs", []);
+
+  await runTsx("scripts/gen-drop-tables.ts");
 
   await runNode("scripts/apply-raids-tower-from-csv.mjs", []);
 

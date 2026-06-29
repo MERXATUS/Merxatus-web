@@ -1,9 +1,9 @@
 import { clampItemGrade, itemGradeLabel } from "@/server/itemGrade";
-import {
-  isMinionRecruitCategory,
-  isMinionRecruitItemId,
-} from "@/shared/minionRecruit";
+import { accessoryModDescriptionLines, accessoryTooltipMeta, isAccessoryInventoryItem } from "@/shared/accessoryCatalog";
+import { isMinionRecruitCategory, isMinionRecruitItemId } from "@/shared/minionRecruit";
+import { isRaidEntryTicketItemId } from "@/shared/raidEntry";
 import { getArmorStats, isArmorInventoryItem, armorSlotLabelKo } from "@/shared/armorStatsData";
+import { isEquipmentCraftConsumableItemId } from "@/shared/equipmentCraftConsumables";
 import { isOptionConsumableItemId } from "@/shared/optionConsumables";
 
 export type StackItemTooltipData = {
@@ -33,8 +33,11 @@ export function stackItemGradeLabel(it: StackItemTooltipData): string {
 export function shouldShowStackItemTooltip(it: StackItemTooltipData): boolean {
   if (it.category === "물약") return true;
   if (isArmorInventoryItem(it)) return true;
+  if (isAccessoryInventoryItem(it)) return true;
   if (isMinionRecruitCategory(it.category) || isMinionRecruitItemId(it.itemId)) return true;
+  if (isRaidEntryTicketItemId(it.itemId) || it.category === "레이드입장권") return true;
   if (isOptionConsumableItemId(it.itemId)) return true;
+  if (isEquipmentCraftConsumableItemId(it.itemId)) return true;
   return false;
 }
 
@@ -45,8 +48,16 @@ export function stackItemTooltipSubtitle(it: StackItemTooltipData): string {
     const slot = stats ? armorSlotLabelKo(stats.slot) : "방어구";
     return `${slot} · ${stackItemGradeLabel(it)}`;
   }
+  if (isAccessoryInventoryItem(it)) {
+    const meta = accessoryTooltipMeta(it.itemId);
+    if (meta) return `${meta.slotLabel} · ${meta.factionLabel} · ${stackItemGradeLabel(it)}`;
+    return `악세서리 · ${stackItemGradeLabel(it)}`;
+  }
   if (isMinionRecruitItemId(it.itemId) || isMinionRecruitCategory(it.category)) {
     return `미니언 고용권 · ${stackItemGradeLabel(it)}`;
+  }
+  if (isRaidEntryTicketItemId(it.itemId) || it.category === "레이드입장권") {
+    return `레이드 입장권 · ${stackItemGradeLabel(it)}`;
   }
   if (isOptionConsumableItemId(it.itemId)) return `장비 옵션 · ${stackItemGradeLabel(it)}`;
   return `${it.category} · ${stackItemGradeLabel(it)}`;
@@ -72,9 +83,43 @@ export function stackItemTooltipBodyLines(it: StackItemTooltipData): string[] {
     return lines;
   }
 
+  if (isAccessoryInventoryItem(it)) {
+    const meta = accessoryTooltipMeta(it.itemId);
+    const modLines = accessoryModDescriptionLines(it.itemId);
+    if (meta) lines.push(`${meta.setLabel} 세트 (${meta.factionLabel})`);
+    for (const line of modLines) lines.push(line);
+    lines.push("미니언 관리 → 장비 착용에서 악세서리 슬롯에 장착할 수 있습니다.");
+    lines.push("세트 보너스: 2/4/7피스 착용 시 추가 효과 (천사/악마 혼용 불가)");
+    return lines;
+  }
+
   if (isMinionRecruitItemId(it.itemId) || isMinionRecruitCategory(it.category)) {
     lines.push("미니언 후보 중 1명을 선택해 고용합니다. (고용권 1개 소모)");
     lines.push("사용 시 수집·전투 중 한 종류의 후보 직업이 무작위로 제시됩니다.");
+    return lines;
+  }
+
+  if (isRaidEntryTicketItemId(it.itemId) || it.category === "레이드입장권") {
+    lines.push("레이드 시작 시 소모됩니다. (노말 1장 · 하드 2장)");
+    lines.push("던전 탐험·보스 처치 시 드랍됩니다.");
+    return lines;
+  }
+
+  if (it.itemId === "item_craft_quality_stone") {
+    lines.push("장비 품질을 1단계 올립니다. 장비당 최대 10회 사용할 수 있습니다.");
+    lines.push("대장간 → 장비 가공에서 대상 장비를 고른 뒤 사용하세요.");
+    return lines;
+  }
+  if (it.itemId === "item_craft_level_tier1") {
+    lines.push("아이템 레벨을 Lv10~50 구간(5레벨 단위)으로 설정합니다.");
+    return lines;
+  }
+  if (it.itemId === "item_craft_level_tier2") {
+    lines.push("아이템 레벨을 Lv55~95 구간(5레벨 단위)으로 설정합니다.");
+    return lines;
+  }
+  if (it.itemId === "item_craft_level_tier3") {
+    lines.push("아이템 레벨을 Lv100~140 구간(5레벨 단위)으로 설정합니다.");
     return lines;
   }
 
@@ -127,6 +172,26 @@ export function stackItemTooltipBodyLines(it: StackItemTooltipData): string[] {
   }
   if (it.itemId === "item_gem_expansion") {
     lines.push("빈 옵션 슬롯 1개를 등급별 최대치까지 무작위로 채웁니다.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_metamorph") {
+    lines.push("감정된 장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
+    lines.push("최소 티어 보장 없음 · 봉인된 옵션은 변경되지 않습니다.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_metamorph_3") {
+    lines.push("감정된 장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
+    lines.push("각 옵션은 최소 T3 · 봉인된 옵션은 변경되지 않습니다.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_metamorph_6") {
+    lines.push("감정된 장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
+    lines.push("각 옵션은 최소 T6 · 봉인된 옵션은 변경되지 않습니다.");
+    return lines;
+  }
+  if (it.itemId === "item_gem_metamorph_8") {
+    lines.push("감정된 장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
+    lines.push("각 옵션은 최소 T8 · 봉인된 옵션은 변경되지 않습니다.");
     return lines;
   }
   if (it.itemId === "item_gem_blessing") {

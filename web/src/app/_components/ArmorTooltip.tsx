@@ -14,7 +14,9 @@ import {
   armorTotalPower,
   type ArmorTooltipData,
 } from "@/shared/armorTooltip";
-import { minEquipLevelForGrade } from "@/shared/itemEquipLevel";
+import { requiredEquipLevelForInstance } from "@/shared/itemEquipLevel";
+import { MAX_QUALITY_CRAFT_USES } from "@/shared/equipmentQuality";
+import { ITEM_LEVEL_DEFAULT } from "@/shared/equipmentItemLevel";
 import { equipmentSetSubtitle } from "@/shared/equipmentSets";
 import type { ReactNode } from "react";
 
@@ -24,9 +26,12 @@ export function ArmorTooltipContent({ armor }: { armor: ArmorTooltipData }) {
   const enhanceLv = armor.enhanceLevel ?? 0;
   const enhanceHpDef = base ? armorEnhanceHpDefBonus(enhanceLv, base.hp, base.def) : { hp: 0, def: 0 };
   const optBonus = base ? armorOptionHpDefBonus(armor.options, base.hp, base.def) : { hp: 0, def: 0 };
-  const enhancePower = armorEnhancePowerBonus(enhanceLv);
+  const enhancePower = armorEnhancePowerBonus(armor.baseItemId, enhanceLv);
   const total = armorTotalPower(armor);
   const armorOpts = armor.options ?? [];
+  const equipReq = requiredEquipLevelForInstance(armor.baseItemId, grade, armor.itemLevel);
+  const quality = armor.quality ?? 0;
+  const itemLevel = armor.itemLevel ?? ITEM_LEVEL_DEFAULT;
   const slotLabel = base ? armorSlotLabelKo(base.slot) : null;
   const setLine = equipmentSetSubtitle(armor.baseItemId);
 
@@ -36,10 +41,25 @@ export function ArmorTooltipContent({ armor }: { armor: ArmorTooltipData }) {
       <div className="item-tooltip__category">
         {setLine ? `${setLine}${slotLabel ? ` · ${slotLabel}` : ""}` : `방어구 · ${armorGradeLabel(armor)}${slotLabel ? ` · ${slotLabel}` : ""}`}
       </div>
-      {minEquipLevelForGrade(grade) > 1 ? (
+      {equipReq > 1 ? (
         <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
           <span>착용 레벨</span>
-          <span>Lv {minEquipLevelForGrade(grade)}+</span>
+          <span>Lv {equipReq}+</span>
+        </div>
+      ) : null}
+      {quality > 0 ? (
+        <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
+          <span>품질</span>
+          <span>
+            {quality}
+            {(armor.qualityCraftCount ?? 0) > 0 ? ` · 연마 ${armor.qualityCraftCount}/${MAX_QUALITY_CRAFT_USES}` : ""}
+          </span>
+        </div>
+      ) : null}
+      {itemLevel > ITEM_LEVEL_DEFAULT ? (
+        <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
+          <span>아이템 레벨</span>
+          <span>Lv {itemLevel}</span>
         </div>
       ) : null}
 

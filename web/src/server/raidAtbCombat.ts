@@ -15,9 +15,12 @@ import {
 import { loadPartyCombatRows } from "@/server/minionCombatBuild";
 import { knightOrderPartyDamageMult } from "@/shared/knightOrder";
 import { getMonster } from "@/server/monsterData";
+import { combatPowerFromMonster } from "@/server/monsterCombat";
 import { loadRaids, raidEncounterForPhase } from "@/server/raidData";
-import { contentTierForRaidId } from "@/shared/craftingItemDrops";
+import { raidBossCombatDisplayName } from "@/shared/raidBossDisplay";
+import { contentTierForRaidId } from "@/shared/raidRoster";
 import { raidClearGoldReward } from "@/shared/raidFaction";
+import { raidModeStatMult } from "@/shared/raidRoster";
 import { raidEnemyStatMult } from "@/shared/combatBalance";
 import { safeParsePendingLoot, enrichLootEntries, snapshotsToEntries } from "@/server/dungeonRun";
 import { scaleLootEntries } from "@/shared/dungeonPushLuck";
@@ -234,8 +237,11 @@ export async function startRaidAtbCombat(input: { userId: string; raidId: string
   const phase = Math.max(1, run.phase);
   const enc = raidEncounterForPhase(raid, phase);
   const monster = await getMonster(enc.monsterId);
-  const enemy: FloorEnemy = { name: monster.name, monster };
   const isBoss = String(enc.category).toUpperCase() === "BOSS";
+  const enemy: FloorEnemy = {
+    name: raidBossCombatDisplayName(monster.name, raid.difficulty, isBoss),
+    monster,
+  };
 
   const { memberInputs, knightOrder } = await loadPartyCombatRows(prisma, input.userId, run.party);
   const combatants = buildPartyCombatants(memberInputs.map(partyMemberToCombatantInput));
@@ -253,10 +259,12 @@ export async function startRaidAtbCombat(input: { userId: string; raidId: string
     rowByMinionId,
     agilityByMinionId,
     enemy,
-    enemyStatMult: raidEnemyStatMult(isBoss),
+    enemyStatMult:
+      raidEnemyStatMult(isBoss, combatPowerFromMonster(monster)) * raidModeStatMult(raid.difficulty),
     partyDamageMult: knightOrderPartyDamageMult(knightOrder, isBoss),
     enemyTags: { isBoss, isAngel: false, isDemon: false },
     phase,
+    monsterId: enc.monsterId,
   });
 
   await prisma.raidRun.update({

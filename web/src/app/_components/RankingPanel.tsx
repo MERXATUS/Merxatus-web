@@ -14,6 +14,7 @@ import {
   type LeaderboardRankView,
   type LeaderboardRowView,
 } from "@/shared/leaderboardView";
+import { LEADERBOARD_BOARD_DEFS } from "@/shared/leaderboardBoardsData";
 import { apiGetJsonCached } from "@/shared/sessionClient";
 
 type BoardsResponse = { ok: true; boards: LeaderboardBoardView[] };
@@ -27,33 +28,23 @@ type LeaderboardResponse = {
 
 export function RankingPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const { user, loading: sessionLoading } = useSessionUser();
-  const [boards, setBoards] = useState<LeaderboardBoardView[]>([]);
+  const [boards, setBoards] = useState<LeaderboardBoardView[]>(LEADERBOARD_BOARD_DEFS);
   const [boardKey, setBoardKey] = useState<string | null>(null);
   const [rank, setRank] = useState<LeaderboardRankView>(null);
   const [rows, setRows] = useState<LeaderboardRowView[]>([]);
   const [activeBoard, setActiveBoard] = useState<LeaderboardBoardView | null>(null);
-  const [boardsLoading, setBoardsLoading] = useState(true);
+  const [boardsLoading, setBoardsLoading] = useState(false);
   const [boardLoading, setBoardLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadBoards = useCallback(async (force = false) => {
-    setBoardsLoading(true);
-    setError(null);
-    try {
-      const r = await apiGetJsonCached<BoardsResponse>("/api/leaderboard/boards", {
-        ttlMs: API_CACHE_TTL.leaderboardBoards,
-        force,
-      });
-      setBoards(r.boards);
-      setBoardKey((prev) => {
-        if (prev && r.boards.some((b) => b.boardKey === prev)) return prev;
-        return r.boards[0]?.boardKey ?? null;
-      });
-    } catch (e) {
-      setError(formatPanelError(e));
-    } finally {
-      setBoardsLoading(false);
-    }
+    setBoardsLoading(false);
+    setBoards(LEADERBOARD_BOARD_DEFS);
+    setBoardKey((prev) => {
+      if (prev && LEADERBOARD_BOARD_DEFS.some((b) => b.boardKey === prev)) return prev;
+      return LEADERBOARD_BOARD_DEFS[0]?.boardKey ?? null;
+    });
+    void force;
   }, []);
 
   const loadBoard = useCallback(

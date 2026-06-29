@@ -58,6 +58,14 @@ export type CombatLogLine =
 
   | { t: "ko"; side: "party" | "enemy"; name: string }
 
+  | {
+      t: "phase_change";
+      phase: number;
+      label: string;
+      flavor?: string;
+      enemyName: string;
+    }
+
   | { t: "result"; outcome: "WIN" | "LOSS" };
 
 
@@ -156,6 +164,11 @@ export function formatCombatLogLine(line: CombatLogLine): string {
     case "ko":
 
       return `${line.name} 처치!`;
+
+    case "phase_change":
+      return line.flavor
+        ? `── ${line.label} · ${line.flavor} ──`
+        : `── ${line.label} ──`;
 
     case "result":
 

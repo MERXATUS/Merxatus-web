@@ -80,6 +80,8 @@ async function recordTowerBest(userId: string, config: TowerDef, reachedFloor: n
     score: Math.max(score, 0),
     displayName: user?.username ?? null,
   });
+  const { syncTowerPensionFloor } = await import("@/server/towerPension");
+  await syncTowerPensionFloor(userId, score);
 }
 
 export async function startTowerRun(input: { userId: string; minionIds: string[] }) {
@@ -150,6 +152,7 @@ export async function advanceTowerFloor(input: { userId: string }) {
     partyHp: partyHpStart,
     partyDamageMult,
     enemyTags: { isBoss, isAngel: false, isDemon: false },
+    monsterId: enc.monsterId,
   });
 
   const combatLog: CombatLogLine[] = battle.log;
@@ -252,19 +255,25 @@ export async function cashoutTowerRun(input: { userId: string }) {
   return { ok: true as const, cashedOut, bestFloor: reached, rank };
 }
 
-export async function getTowerRunState(userId: string, opts?: { includeLeaderboard?: boolean }) {
+export async function getTowerRunState(
+  userId: string,
+  opts?: { includeLeaderboard?: boolean; lite?: boolean },
+) {
+  const lite = opts?.lite === true;
   const config = await loadTowerConfig();
   const run = await prisma.towerRun.findFirst({
     where: { userId, status: "RUNNING", seasonKey: config.seasonKey },
     orderBy: { startedAt: "desc" },
-    include: { party: { include: { minion: true } } },
+    include: lite ? undefined : { party: { include: { minion: true } } },
   });
-  const rank = await getUserLeaderboardRank({
-    userId,
-    boardKey: config.leaderboardBoardKey,
-    seasonKey: config.seasonKey,
-  });
-  const includeLeaderboard = opts?.includeLeaderboard ?? false;
+  const rank = lite
+    ? null
+    : await getUserLeaderboardRank({
+        userId,
+        boardKey: config.leaderboardBoardKey,
+        seasonKey: config.seasonKey,
+      });
+  const includeLeaderboard = !lite && (opts?.includeLeaderboard ?? false);
   const leaderboard = includeLeaderboard
     ? await listLeaderboard({
         boardKey: config.leaderboardBoardKey,
@@ -274,16 +283,26 @@ export async function getTowerRunState(userId: string, opts?: { includeLeaderboa
     : undefined;
 
   if (!run) {
-    return { ok: true as const, active: false as const, config, rank, leaderboard };
+    return {
+      ok: true as const,
+      active: false as const,
+      config: lite ? undefined : config,
+      rank,
+      leaderboard,
+    };
   }
 
   const floor = Math.max(1, run.floor);
   const enc = towerMonsterForFloor(config, floor);
+  const pendingRaw = safeParsePendingLoot(run.pendingLootJson);
+  const pendingLoot = lite
+    ? pendingRaw.map((x) => ({ itemId: x.itemId, name: x.itemId, qty: x.qty }))
+    : await enrichLootEntries(prisma, pendingRaw);
 
   return {
     ok: true as const,
     active: true as const,
-    config,
+    config: lite ? undefined : config,
     rank,
     leaderboard,
     combat: { isBoss: enc.category === "Boss" },
@@ -291,7 +310,7 @@ export async function getTowerRunState(userId: string, opts?: { includeLeaderboa
       id: run.id,
       floor: run.floor,
       bestFloor: run.bestFloor,
-      pendingLoot: await enrichLootEntries(prisma, safeParsePendingLoot(run.pendingLootJson)),
+      pendingLoot,
     },
   };
 }

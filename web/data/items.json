@@ -64,6 +64,22 @@
     "icon": "Icon_Mana_Stone"
   },
   {
+    "id": "item_special_dungeon_ticket",
+    "name": "특수 던전 입장권",
+    "category": "던전입장권",
+    "tradable": true,
+    "grade": 4,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "item_raid_ticket",
+    "name": "레이드 입장권",
+    "category": "레이드입장권",
+    "tradable": true,
+    "grade": 4,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
     "id": "item_minion_ticket",
     "name": "미니언 고용권",
     "category": "미니언고용권",
@@ -168,6 +184,38 @@
     "icon": "Icon_Greater_Mana_Stone"
   },
   {
+    "id": "item_gem_metamorph",
+    "name": "변형의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Gem_Expansion"
+  },
+  {
+    "id": "item_gem_metamorph_3",
+    "name": "변형의 보석·III",
+    "category": "재료",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Gem_Chaos"
+  },
+  {
+    "id": "item_gem_metamorph_6",
+    "name": "심변형의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 6,
+    "icon": "Icon_Gem_Ascension"
+  },
+  {
+    "id": "item_gem_metamorph_8",
+    "name": "극변형의 보석",
+    "category": "재료",
+    "tradable": true,
+    "grade": 7,
+    "icon": "Icon_Gem_Void"
+  },
+  {
     "id": "weapon_wood_sword",
     "name": "나무 검",
     "category": "무기",
@@ -201,7 +249,7 @@
   },
   {
     "id": "weapon_gold_sword",
-    "name": "금 검",
+    "name": "심판 검",
     "category": "무기",
     "tradable": true,
     "grade": 4,
@@ -209,11 +257,11 @@
   },
   {
     "id": "weapon_diamond_sword",
-    "name": "다이아 검",
+    "name": "천광 검",
     "category": "무기",
     "tradable": true,
     "grade": 5,
-    "icon": "Icon_Gold_Sword"
+    "icon": "Icon_Diamond_Sword"
   },
   {
     "id": "armor_leather_helmet",
@@ -249,7 +297,7 @@
   },
   {
     "id": "armor_golden_helmet",
-    "name": "금 투구",
+    "name": "심판 투구",
     "category": "방어구",
     "tradable": true,
     "grade": 4,
@@ -257,11 +305,11 @@
   },
   {
     "id": "armor_diamond_helmet",
-    "name": "다이아 왕관",
+    "name": "천광 왕관",
     "category": "방어구",
     "tradable": true,
     "grade": 5,
-    "icon": "Icon_Golden_Helmet"
+    "icon": "Icon_Diamond_Helmet"
   },
   {
     "id": "armor_leather_armor",
@@ -297,7 +345,7 @@
   },
   {
     "id": "armor_golden_armor",
-    "name": "금 갑옷",
+    "name": "심판 흉갑",
     "category": "방어구",
     "tradable": true,
     "grade": 4,
@@ -305,11 +353,11 @@
   },
   {
     "id": "armor_diamond_armor",
-    "name": "다이아 흉갑",
+    "name": "천광 흉갑",
     "category": "방어구",
     "tradable": true,
     "grade": 5,
-    "icon": "Icon_Golden_Armor"
+    "icon": "Icon_Diamond_Armor"
   },
   {
     "id": "armor_leather_pants",
@@ -345,7 +393,7 @@
   },
   {
     "id": "armor_golden_pants",
-    "name": "금 각반",
+    "name": "심판 각반",
     "category": "방어구",
     "tradable": true,
     "grade": 4,
@@ -353,11 +401,11 @@
   },
   {
     "id": "armor_diamond_pants",
-    "name": "다이아 각갑",
+    "name": "천광 각갑",
     "category": "방어구",
     "tradable": true,
     "grade": 5,
-    "icon": "Icon_Golden_Pants"
+    "icon": "Icon_Diamond_Pants"
   },
   {
     "id": "armor_leather_boots",
@@ -393,7 +441,7 @@
   },
   {
     "id": "armor_golden_boots",
-    "name": "금 장화",
+    "name": "심판 장화",
     "category": "방어구",
     "tradable": true,
     "grade": 4,
@@ -401,10 +449,266 @@
   },
   {
     "id": "armor_diamond_boots",
-    "name": "다이아 장화",
+    "name": "천광 장화",
     "category": "방어구",
     "tradable": true,
     "grade": 5,
-    "icon": "Icon_Golden_Boots"
+    "icon": "Icon_Diamond_Boots"
+  },
+  {
+    "id": "acc_demon_ring_lucifer",
+    "name": "[오만] 루시퍼의 반지",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 2,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_ring_lucifer_jin",
+    "name": "진 [오만] 루시퍼의 반지",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 3,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_ring_leviathan",
+    "name": "[질투] 레비아탄의 반지",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 3,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_ring_leviathan_jin",
+    "name": "진 [질투] 레비아탄의 반지",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 4,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_necklace_satan",
+    "name": "[분노] 사탄의 목걸이",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 4,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_necklace_satan_jin",
+    "name": "진 [분노] 사탄의 목걸이",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_necklace_belphegor",
+    "name": "[나태] 벨페고르의 목걸이",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_necklace_belphegor_jin",
+    "name": "진 [나태] 벨페고르의 목걸이",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 6,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_relic_mammon",
+    "name": "[탐욕] 마몬의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 6,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_relic_mammon_jin",
+    "name": "진 [탐욕] 마몬의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 7,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_relic_beelzebub",
+    "name": "[식탐] 바알제붑의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 7,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_relic_beelzebub_jin",
+    "name": "진 [식탐] 바알제붑의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 8,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_relic_asmodeus",
+    "name": "[색욕] 아스모데우스의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 8,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_demon_relic_asmodeus_jin",
+    "name": "진 [색욕] 아스모데우스의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 8,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_ring_michael",
+    "name": "[겸손] 미카엘의 반지",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 2,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_ring_michael_jin",
+    "name": "진 [겸손] 미카엘의 반지",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 3,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_ring_raguel",
+    "name": "[친절] 라구엘의 반지",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 3,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_ring_raguel_jin",
+    "name": "진 [친절] 라구엘의 반지",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 4,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_necklace_jophiel",
+    "name": "[인내] 요피엘의 목걸이",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 4,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_necklace_jophiel_jin",
+    "name": "진 [인내] 요피엘의 목걸이",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_necklace_gabriel",
+    "name": "[근면] 가브리엘의 목걸이",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_necklace_gabriel_jin",
+    "name": "진 [근면] 가브리엘의 목걸이",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 6,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_relic_raphael",
+    "name": "[자선] 라파엘의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 6,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_relic_raphael_jin",
+    "name": "진 [자선] 라파엘의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 7,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_relic_uriel",
+    "name": "[절제] 우리엘의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 7,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_relic_uriel_jin",
+    "name": "진 [절제] 우리엘의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 8,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_relic_sariel",
+    "name": "[순결] 사리엘의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 8,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "acc_angel_relic_sariel_jin",
+    "name": "진 [순결] 사리엘의 유물",
+    "category": "악세서리",
+    "tradable": true,
+    "grade": 8,
+    "icon": "Icon_Minion_Ticket"
+  },
+  {
+    "id": "item_craft_quality_stone",
+    "name": "품질 연마제",
+    "category": "재료",
+    "tradable": true,
+    "grade": 4,
+    "icon": "Icon_Gem_Ascension"
+  },
+  {
+    "id": "item_craft_level_tier1",
+    "name": "하급 레벨각인",
+    "category": "재료",
+    "tradable": true,
+    "grade": 3,
+    "icon": "Icon_Appraisal_Scroll"
+  },
+  {
+    "id": "item_craft_level_tier2",
+    "name": "중급 레벨각인",
+    "category": "재료",
+    "tradable": true,
+    "grade": 5,
+    "icon": "Icon_Appraisal_Scroll"
+  },
+  {
+    "id": "item_craft_level_tier3",
+    "name": "상급 레벨각인",
+    "category": "재료",
+    "tradable": true,
+    "grade": 7,
+    "icon": "Icon_Appraisal_Scroll"
   }
 ]

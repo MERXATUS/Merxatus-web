@@ -18,12 +18,18 @@ import {
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import {
   MarketSellTab,
+  MARKET_ARMOR_CATEGORY,
   MARKET_SELL_CATEGORY_ALL,
   MARKET_WEAPON_CATEGORY,
+  type SellArmorRow,
   type SellInventoryRow,
   type SellWeaponRow,
 } from "@/app/_components/MarketSellTab";
 import { TradePanel } from "@/app/_components/TradePanel";
+import {
+  MarketListingEquipmentHover,
+  type MarketListingEquipmentView,
+} from "@/app/_components/MarketListingEquipmentHover";
 
 type Listing = {
   id: string;
@@ -34,14 +40,8 @@ type Listing = {
   itemName: string;
   itemGrade?: number;
   category: string;
-  weapon?: {
-    id: string;
-    baseItemId: string;
-    name: string;
-    enhanceLevel: number;
-    status: string;
-    grade?: number;
-  } | null;
+  weapon?: MarketListingEquipmentView | null;
+  armor?: MarketListingEquipmentView | null;
   quantity: number;
   fixedPricePerUnit: number | null;
   fixedPriceTotal?: number | null;
@@ -59,13 +59,8 @@ type MyListing = {
   itemId: string;
   itemName: string;
   itemGrade?: number;
-  weaponInstance?: {
-    id: string;
-    baseItemId: string;
-    name: string;
-    enhanceLevel: number;
-    grade?: number;
-  } | null;
+  weapon?: MarketListingEquipmentView | null;
+  armor?: MarketListingEquipmentView | null;
   quantity: number;
   fixedPricePerUnit: number | null;
   fixedPriceTotal?: number | null;
@@ -122,20 +117,26 @@ function formatListingEnds(iso: string) {
   return d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-function listingIconId(l: { itemId: string; weapon?: { baseItemId: string } | null }) {
-  return l.weapon?.baseItemId ?? l.itemId;
+function listingIconId(l: {
+  itemId: string;
+  weapon?: { baseItemId: string } | null;
+  armor?: { baseItemId: string } | null;
+}) {
+  return l.weapon?.baseItemId ?? l.armor?.baseItemId ?? l.itemId;
 }
 
 function listingDisplayName(l: {
   itemName: string;
   itemGrade?: number;
   weapon?: { name: string; enhanceLevel: number; grade?: number } | null;
+  armor?: { name: string; enhanceLevel: number; grade?: number } | null;
 }) {
-  if (l.weapon) {
+  const equip = l.weapon ?? l.armor;
+  if (equip) {
     return {
-      name: l.weapon.name,
-      enhance: l.weapon.enhanceLevel,
-      grade: l.weapon.grade ?? l.itemGrade ?? 1,
+      name: equip.name,
+      enhance: equip.enhanceLevel,
+      grade: equip.grade ?? l.itemGrade ?? 1,
     };
   }
   return { name: l.itemName, enhance: 0, grade: l.itemGrade ?? 1 };
@@ -268,12 +269,16 @@ export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
 
   const activeCategories = tab === "SELL" ? sellCategories : categories;
 
-  const onSellInventoryLoaded = useCallback((inv: SellInventoryRow[], weapons: SellWeaponRow[]) => {
-    const set = new Set<string>();
-    for (const it of inv) if (it.category) set.add(it.category);
-    if (weapons.length > 0) set.add(MARKET_WEAPON_CATEGORY);
-    setSellCategories([MARKET_SELL_CATEGORY_ALL, ...Array.from(set).sort()]);
-  }, []);
+  const onSellInventoryLoaded = useCallback(
+    (inv: SellInventoryRow[], weapons: SellWeaponRow[], armors: SellArmorRow[]) => {
+      const set = new Set<string>();
+      for (const it of inv) if (it.category) set.add(it.category);
+      if (weapons.length > 0) set.add(MARKET_WEAPON_CATEGORY);
+      if (armors.length > 0) set.add(MARKET_ARMOR_CATEGORY);
+      setSellCategories([MARKET_SELL_CATEGORY_ALL, ...Array.from(set).sort()]);
+    },
+    [],
+  );
 
   async function refresh() {
     setBusy(true);
@@ -421,23 +426,28 @@ export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
     const iconId = listingIconId(l);
     const isMine = userId && userId === l.sellerId;
 
+    const isEquipment = !!(l.weapon || l.armor);
+
     return (
       <div key={l.id} className="market-row">
-        <button type="button" className="market-row__item" onClick={() => void openStats(l.itemId)} title="시세 보기">
-          <ItemIcon itemId={iconId} size={44} className="market-row__icon" />
-          <div className="market-row__info">
-            <div className="market-row__name-line">
-              <span className={`market-row__name ${itemGradeNameClassName(d.grade)}`}>{d.name}</span>
-              {d.enhance > 0 ? <span className="market-row__enh">+{d.enhance}</span> : null}
+        <MarketListingEquipmentHover weapon={l.weapon} armor={l.armor}>
+          <button type="button" className="market-row__item" onClick={() => void openStats(l.itemId)} title="시세 보기">
+            <ItemIcon itemId={iconId} size={44} className="market-row__icon" />
+            <div className="market-row__info">
+              <div className="market-row__name-line">
+                <span className={`market-row__name ${itemGradeNameClassName(d.grade)}`}>{d.name}</span>
+                {d.enhance > 0 ? <span className="market-row__enh">+{d.enhance}</span> : null}
+              </div>
+              <div className="market-row__meta">
+                <span className={`market-row__badge market-row__badge--${l.saleType === "FIXED" ? "fixed" : "auction"}`}>
+                  {l.saleType === "FIXED" ? "고정가" : "경매"}
+                </span>
+                <span className="market-row__cat">{l.category}</span>
+                {isEquipment ? <span className="market-row__cat">옵션 호버</span> : null}
+              </div>
             </div>
-            <div className="market-row__meta">
-              <span className={`market-row__badge market-row__badge--${l.saleType === "FIXED" ? "fixed" : "auction"}`}>
-                {l.saleType === "FIXED" ? "고정가" : "경매"}
-              </span>
-              <span className="market-row__cat">{l.category}</span>
-            </div>
-          </div>
-        </button>
+          </button>
+        </MarketListingEquipmentHover>
 
         <div className="market-row__qty" title="수량">
           <span className="market-row__col-label">수량</span>
@@ -456,7 +466,7 @@ export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
         <div className="market-row__action">
           {l.saleType === "FIXED" ? (
             <div className="market-row__buy">
-              {l.fixedPriceTotal == null ? (
+              {l.fixedPriceTotal == null && !isEquipment ? (
                 <input
                   type="number"
                   className="market-input market-input--qty"
@@ -521,32 +531,33 @@ export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
     const d = listingDisplayName({
       itemName: l.itemName,
       itemGrade: l.itemGrade,
-      weapon: l.weaponInstance
-        ? { name: l.weaponInstance.name, enhanceLevel: l.weaponInstance.enhanceLevel, grade: l.weaponInstance.grade }
-        : null,
+      weapon: l.weapon,
+      armor: l.armor,
     });
     const price = listingPriceLabel(l);
-    const iconId = listingIconId({ itemId: l.itemId, weapon: l.weaponInstance ? { baseItemId: l.weaponInstance.baseItemId } : null });
+    const iconId = listingIconId({ itemId: l.itemId, weapon: l.weapon, armor: l.armor });
     const auctionLocked = l.saleType === "AUCTION" && (l.highestBid != null || l.highestBidderId != null);
     const expired = l.endsAt ? new Date(l.endsAt).getTime() <= Date.now() : false;
 
     return (
       <div key={l.id} className="market-row market-row--mine">
-        <div className="market-row__item">
-          <ItemIcon itemId={iconId} size={44} className="market-row__icon" />
-          <div className="market-row__info">
-            <div className="market-row__name-line">
-              <span className={`market-row__name ${itemGradeNameClassName(d.grade)}`}>{d.name}</span>
-              {d.enhance > 0 ? <span className="market-row__enh">+{d.enhance}</span> : null}
-            </div>
-            <div className="market-row__meta">
-              <span className={`market-row__badge market-row__badge--${l.saleType === "FIXED" ? "fixed" : "auction"}`}>
-                {l.saleType === "FIXED" ? "고정가" : "경매"}
-              </span>
-              <span className="market-row__cat">{l.itemId}</span>
+        <MarketListingEquipmentHover weapon={l.weapon} armor={l.armor}>
+          <div className="market-row__item">
+            <ItemIcon itemId={iconId} size={44} className="market-row__icon" />
+            <div className="market-row__info">
+              <div className="market-row__name-line">
+                <span className={`market-row__name ${itemGradeNameClassName(d.grade)}`}>{d.name}</span>
+                {d.enhance > 0 ? <span className="market-row__enh">+{d.enhance}</span> : null}
+              </div>
+              <div className="market-row__meta">
+                <span className={`market-row__badge market-row__badge--${l.saleType === "FIXED" ? "fixed" : "auction"}`}>
+                  {l.saleType === "FIXED" ? "고정가" : "경매"}
+                </span>
+                <span className="market-row__cat">{l.itemId}</span>
+              </div>
             </div>
           </div>
-        </div>
+        </MarketListingEquipmentHover>
 
         <div className="market-row__qty">
           <span className="market-row__col-label">수량</span>
@@ -839,12 +850,18 @@ export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
               </button>
             </div>
             <p className="market-modal__item">
-              {editListing.weaponInstance ? (
+              {editListing.weapon || editListing.armor ? (
                 <>
-                  <span className={itemGradeNameClassName(editListing.weaponInstance.grade ?? editListing.itemGrade ?? 1)}>
-                    {editListing.weaponInstance.name}
+                  <span
+                    className={itemGradeNameClassName(
+                      (editListing.weapon ?? editListing.armor)!.grade ?? editListing.itemGrade ?? 1,
+                    )}
+                  >
+                    {(editListing.weapon ?? editListing.armor)!.name}
                   </span>
-                  {editListing.weaponInstance.enhanceLevel > 0 ? ` +${editListing.weaponInstance.enhanceLevel}` : ""}
+                  {(editListing.weapon ?? editListing.armor)!.enhanceLevel > 0
+                    ? ` +${(editListing.weapon ?? editListing.armor)!.enhanceLevel}`
+                    : ""}
                 </>
               ) : (
                 <span className={itemGradeNameClassName(editListing.itemGrade ?? 1)}>{editListing.itemName}</span>

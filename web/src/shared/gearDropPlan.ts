@@ -108,7 +108,7 @@ export const GEAR_DROP_STAGE_PLAN: GearDropStageRow[] = [
     bossFloor: 18,
     dropMode: "direct",
     previewSetId: "throne",
-    notes: "금 세트 + 금 검",
+    notes: "심판 세트 + 심판 검",
   },
   {
     stageOrder: 5,
@@ -125,7 +125,7 @@ export const GEAR_DROP_STAGE_PLAN: GearDropStageRow[] = [
     bossFloor: 20,
     dropMode: "direct",
     previewSetId: null,
-    notes: "다이아 세트 + 다이아 검",
+    notes: "천광 세트 + 천광 검",
   },
   {
     stageOrder: 6,
@@ -142,7 +142,7 @@ export const GEAR_DROP_STAGE_PLAN: GearDropStageRow[] = [
     bossFloor: 22,
     dropMode: "direct",
     previewSetId: null,
-    notes: "다이아 세트 파밍",
+    notes: "천광 세트 파밍",
   },
   {
     stageOrder: 7,

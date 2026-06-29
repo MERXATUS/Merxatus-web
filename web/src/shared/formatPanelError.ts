@@ -56,7 +56,7 @@ export function formatPanelError(e: unknown): string {
 }
 
 function looksLikeDbMigration(text: string): boolean {
-  return /does not exist|Friendship|ArmorInstance|ToolInstance|TradeSession|PvpMatch|P2021/i.test(text);
+  return /does not exist|Friendship|ArmorInstance|ArmorCodexEntry|ToolInstance|TradeSession|PvpMatch|WeaponCodexEntry|P2021/i.test(text);
 }
 
 function minionLevelTooLowMessage(requiredLevel: number): string {
@@ -100,6 +100,13 @@ function mapErrorCode(code: string): string | null {
     INSUFFICIENT_ITEM: "보유 수량이 부족합니다.",
     ITEM_LOCKED: "잠긴 아이템은 사용·판매할 수 없습니다. 인벤에서 잠금을 해제해 주세요.",
     ITEM_USER_LOCKED: "잠긴 장비입니다. 인벤에서 잠금을 해제한 뒤 다시 시도해 주세요.",
+    EQUIPMENT_EQUIPPED: "착용 중인 장비는 도감에 등록할 수 없습니다. 해제 후 다시 시도해 주세요.",
+    EQUIPMENT_LOCKED: "거래 등록 중이거나 사용할 수 없는 장비입니다.",
+    WEAPON_CODEX_NOT_UPGRADE: "이미 등록된 무기보다 낮거나 같은 수치입니다. 더 강한 무기로 갱신할 수 있습니다.",
+    ARMOR_CODEX_NOT_UPGRADE: "이미 등록된 방어구보다 낮거나 같은 수치입니다. 더 강한 방어구로 갱신할 수 있습니다.",
+    CODEX_MILESTONE_INVALID: "잘못된 도감 단계입니다.",
+    CODEX_MILESTONE_NOT_MET: "이 장비는 해당 도감 단계 조건을 충족하지 않습니다.",
+    CODEX_MILESTONE_ALREADY: "이미 등록된 도감 단계입니다.",
     INSUFFICIENT_AVAILABLE: "잠글 수 있는 가용 수량이 부족합니다.",
     INSUFFICIENT_LOCKED: "해제할 잠금 수량이 부족합니다.",
     NOTHING_LOCKED: "잠긴 수량이 없습니다.",
@@ -115,6 +122,8 @@ function mapErrorCode(code: string): string | null {
     CHAT_BACKEND_UNAVAILABLE: "채팅 서버를 사용할 수 없습니다.",
     DB_MIGRATION_REQUIRED:
       "DB 마이그레이션이 필요합니다. web 폴더에서 npm run db:migrate 를 실행해 주세요. (친구·직거래 등 최신 테이블 반영)",
+    DB_SCHEMA_OUT_OF_DATE:
+      "DB가 최신 스키마와 맞지 않습니다. web 폴더에서 npx prisma db push 실행 후 서버를 재시작해 주세요.",
     DB_TRANSACTION_FAILED: "전투 처리 중 일시적인 오류가 발생했습니다. 새로고침 후 다시 시도해 주세요.",
     RUN_STATE_CHANGED: "탐험 상태가 바뀌었습니다. 새로고침 후 다시 시도해 주세요.",
     AUTO_EXPLORE_ACTIVE: "자동 탐험이 진행 중입니다. 층 탐험을 하려면 자동 탐험을 먼저 중지해 주세요.",
@@ -178,6 +187,16 @@ function mapErrorCode(code: string): string | null {
       return `파티 전투력이 부족합니다. (현재 ${have.toLocaleString()} / 최소 ${min.toLocaleString()} 필요)`;
     }
     return "파티 전투력이 부족해 레이드를 시작할 수 없습니다.";
+  }
+
+  if (code.startsWith("RAID_ENTRY_TICKET_MISSING:")) {
+    const parts = code.split(":");
+    const have = Number(parts[1] ?? 0);
+    const need = Number(parts[2] ?? 1);
+    if (Number.isFinite(need) && need > 0) {
+      return `레이드 입장권이 부족합니다. (보유 ${have} / 필요 ${need}) 던전에서 입장권을 획득하세요.`;
+    }
+    return "레이드 입장권이 부족합니다. 던전에서 입장권을 획득하세요.";
   }
 
   return null;

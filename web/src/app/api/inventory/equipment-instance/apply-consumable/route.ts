@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { requireUserId } from "@/server/auth";
 import { applyEquipmentConsumable } from "@/server/equipmentConsumables";
+import { applyEquipmentCraftConsumable } from "@/server/equipmentCraftConsumables";
+import { equipmentCraftConsumableKind } from "@/shared/equipmentCraftConsumables";
 import { prismaKnownErrorResponse } from "@/server/prismaHttp";
 
 export const runtime = "nodejs";
@@ -11,6 +13,7 @@ const BodySchema = z.object({
   targetKind: z.enum(["weapon", "armor"]),
   targetInstanceId: z.string().min(1),
   transferTargetInstanceId: z.string().min(1).optional(),
+  chosenItemLevel: z.number().int().optional(),
 });
 
 const ERROR_STATUS: Record<string, number> = {
@@ -31,7 +34,10 @@ const ERROR_STATUS: Record<string, number> = {
   TRANSFER_KIND_MISMATCH: 400,
   TRANSFER_GRADE_MISMATCH: 400,
   TRANSFER_ARMOR_SLOT_MISMATCH: 400,
-  BAD_REQUEST: 400,
+  QUALITY_CRAFT_LIMIT: 400,
+  ITEM_LEVEL_REQUIRED: 400,
+  ITEM_LEVEL_TIER_MISMATCH: 400,
+  NOT_CRAFT_CONSUMABLE: 400,
 };
 
 export async function POST(req: Request) {
@@ -43,6 +49,18 @@ export async function POST(req: Request) {
   if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
   try {
+    const craftKind = equipmentCraftConsumableKind(parsed.data.consumableItemId);
+    if (craftKind) {
+      const out = await applyEquipmentCraftConsumable({
+        userId: auth.userId,
+        consumableItemId: parsed.data.consumableItemId,
+        targetKind: parsed.data.targetKind,
+        targetInstanceId: parsed.data.targetInstanceId,
+        chosenItemLevel: parsed.data.chosenItemLevel,
+      });
+      return Response.json(out);
+    }
+
     const out = await applyEquipmentConsumable({
       userId: auth.userId,
       consumableItemId: parsed.data.consumableItemId,

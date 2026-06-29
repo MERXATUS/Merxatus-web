@@ -8,17 +8,24 @@ export const EQUIP_BAG_CATEGORIES: Array<{ id: EquipBagCategory; label: string }
   { id: "armor", label: "방어구" },
 ];
 
-/** 악세사리 슬롯은 아직 비활성 — 탭도 숨김 */
-export const EQUIP_BAG_CATEGORIES_ACTIVE = EQUIP_BAG_CATEGORIES;
+/** 무기·방어구·악세서리 가방 탭 */
+export const EQUIP_BAG_CATEGORIES_ACTIVE: Array<{ id: EquipBagCategory; label: string }> = [
+  { id: "weapon", label: "무기" },
+  { id: "armor", label: "방어구" },
+  { id: "accessory", label: "악세서리" },
+];
 
 const ARMOR_SLOTS = new Set<MinionEquipSlotId>(["helmet", "armor", "pants", "shoes", "gloves"]);
 const ACCESSORY_SLOTS = new Set<MinionEquipSlotId>([
-  "belt",
-  "cape",
   "ring1",
   "ring2",
   "necklace",
+  "necklace2",
   "relic",
+  "relic2",
+  "relic3",
+  "belt",
+  "cape",
 ]);
 
 export function slotToBagCategory(slotId: MinionEquipSlotId): EquipBagCategory {

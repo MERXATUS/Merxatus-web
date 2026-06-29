@@ -8,11 +8,10 @@ export const runtime = "nodejs";
 
 const Base = z.object({
   sellerId: z.string().min(1).optional(),
-  // stack item
   itemId: z.string().min(1).optional(),
   quantity: z.number().int().positive().optional(),
-  // weapon instance
   weaponInstanceId: z.string().min(1).optional(),
+  armorInstanceId: z.string().min(1).optional(),
 });
 
 const BodySchema = z
@@ -28,9 +27,12 @@ const BodySchema = z
     }),
   ])
   .refine(
-    (x) =>
-      (x.weaponInstanceId && !x.itemId) ||
-      (!x.weaponInstanceId && !!x.itemId && typeof x.quantity === "number" && x.quantity > 0),
+    (x) => {
+      const instances = [x.weaponInstanceId, x.armorInstanceId].filter(Boolean).length;
+      if (instances > 1) return false;
+      if (instances === 1) return !x.itemId;
+      return !!x.itemId && typeof x.quantity === "number" && x.quantity > 0;
+    },
     { message: "INVALID_PAYLOAD" },
   );
 
@@ -49,6 +51,7 @@ export async function POST(req: Request) {
       saleType: data.saleType,
       quantity: data.quantity ?? 1,
       weaponInstanceId: data.weaponInstanceId,
+      armorInstanceId: data.armorInstanceId,
       itemId: data.itemId,
       fixedPricePerUnit: data.saleType === "FIXED" ? data.fixedPricePerUnit : undefined,
       fixedPriceTotal: data.saleType === "FIXED" ? data.fixedPriceTotal : undefined,
@@ -61,4 +64,3 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
 }
-

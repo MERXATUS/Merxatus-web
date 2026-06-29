@@ -5,11 +5,17 @@ import {
   ATB_MAX_ACTIONS_PER_SEC,
   ATB_MAX_DT_MS,
   ATB_MAX_ELAPSED_MS,
-  BOSS_SUB_PHASE_LABELS,
   atbActionsPerSec,
   atbAttackIntervalMs,
   atbAttacksPerSecView,
 } from "@/shared/atbCombat";
+import {
+  bossFightConfig,
+  bossPhaseAtkMultForAtb,
+  bossPhaseAttackSpeedMult,
+  bossPhaseLabelFor,
+  phaseIdForHpRatio,
+} from "@/shared/bossPhases";
 import {
   performAttack,
   statsFromPower,
@@ -72,6 +78,9 @@ export type AtbCombatState = {
   phase: number;
   enemyName: string;
   bossSubPhase: number;
+  enemyMonsterId?: string | null;
+  bossBaseAtkMin?: number;
+  bossBaseAtkMax?: number;
   eventLog: AtbCombatEvent[];
 };
 
@@ -368,31 +377,34 @@ function checkBossSubPhaseTransition(state: AtbCombatState, events: AtbCombatEve
   if (!state.enemyTags.isBoss) return;
   const enemy = state.fighters.find((f) => f.side === "enemy" && f.hp > 0);
   if (!enemy) return;
+  const config = bossFightConfig(state.enemyMonsterId ?? null, true);
+  if (!config) return;
+
   const hpRatio = enemy.hp / Math.max(1, enemy.maxHp);
-  const nextPhase = hpRatio <= 0.4 ? 3 : hpRatio <= 0.7 ? 2 : 1;
+  const nextPhase = phaseIdForHpRatio(hpRatio, config);
   if (nextPhase <= state.bossSubPhase) return;
 
   state.bossSubPhase = nextPhase;
-  if (nextPhase === 2) {
-    enemy.attackSpeedMult = Math.min(
-      ATB_MAX_ACTIONS_PER_SEC / Math.max(0.125, atbActionsPerSec(enemy.agility, 0)),
-      (enemy.attackSpeedMult ?? 1) * 1.25,
-    );
-  } else if (nextPhase === 3) {
-    enemy.atkMin = Math.max(1, Math.floor(enemy.atkMin * 1.3));
-    enemy.atkMax = Math.max(enemy.atkMin, Math.floor(enemy.atkMax * 1.3));
-    enemy.attackSpeedMult = Math.min(
-      ATB_MAX_ACTIONS_PER_SEC / Math.max(0.125, atbActionsPerSec(enemy.agility, 0)),
-      (enemy.attackSpeedMult ?? 1) * 1.15,
-    );
-  }
 
+  const baseMin = state.bossBaseAtkMin ?? enemy.atkMin;
+  const baseMax = state.bossBaseAtkMax ?? enemy.atkMax;
+  const atkMult = bossPhaseAtkMultForAtb(nextPhase, config);
+  enemy.atkMin = Math.max(1, Math.floor(baseMin * atkMult));
+  enemy.atkMax = Math.max(enemy.atkMin, Math.floor(baseMax * atkMult));
+
+  const spdMult = bossPhaseAttackSpeedMult(nextPhase);
+  enemy.attackSpeedMult = Math.min(
+    ATB_MAX_ACTIONS_PER_SEC / Math.max(0.125, atbActionsPerSec(enemy.agility, enemy.combatMods?.atkSpdPct ?? 0)),
+    (enemy.attackSpeedMult ?? 1) * spdMult,
+  );
+
+  const phase = config.phases.find((p) => p.id === nextPhase);
   state.eventSeq += 1;
   events.push({
     seq: state.eventSeq,
     kind: "phase_change",
     actorId: enemy.id,
-    phaseLabel: BOSS_SUB_PHASE_LABELS[nextPhase] ?? `${nextPhase}페이즈`,
+    phaseLabel: phase?.label ?? bossPhaseLabelFor(state.enemyMonsterId ?? null, nextPhase),
   });
 }
 
@@ -489,6 +501,7 @@ export function initAtbCombat(input: {
   partyDamageMult: number;
   enemyTags: EnemyCombatTags;
   phase: number;
+  monsterId?: string;
   seed?: number;
 }): AtbCombatState {
   const seed = input.seed ?? Math.floor(Math.random() * 0xffffffff);
@@ -561,6 +574,9 @@ export function initAtbCombat(input: {
     phase: input.phase,
     enemyName: enemyLabel,
     bossSubPhase: 1,
+    enemyMonsterId: input.monsterId ?? null,
+    bossBaseAtkMin: enemyStats.atkMin,
+    bossBaseAtkMax: enemyStats.atkMax,
     eventLog: [],
   };
 }
@@ -680,7 +696,7 @@ export function stepAtbCombat(
 export function atbSnapshot(state: AtbCombatState, events: AtbCombatEvent[]): AtbCombatSnapshot {
   const bossPhaseLabel =
     state.enemyTags.isBoss && state.bossSubPhase > 0
-      ? (BOSS_SUB_PHASE_LABELS[state.bossSubPhase] ?? null)
+      ? bossPhaseLabelFor(state.enemyMonsterId ?? null, state.bossSubPhase)
       : null;
   return {
     elapsedMs: state.elapsedMs,

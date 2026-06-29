@@ -1,11 +1,17 @@
 import { clampItemGrade, itemGradeLabel } from "@/server/itemGrade";
+import type { EquippedByMinionView } from "@/shared/equipmentEquippedBy";
 import type { OptionRealm } from "@/shared/equipmentBlessings";
 import { blessedEquipmentDisplayName } from "@/shared/equipmentBlessings";
 import { armorHpDefBonusFromOptionRows, armorUtilPowerBonusFromOptionRows } from "@/shared/itemOptionCatalog";
 import { normalizeOptionId } from "@/shared/itemOptionCatalog";
 import { ARMOR_LEVEL_STAT_PCT_PER_LEVEL } from "@/shared/armorEnhanceRules";
-import { armorItemCombatPower, armorSlotLabelKo, getArmorStats } from "@/shared/armorStatsData";
-import { weaponEnhancePowerBonus } from "@/shared/weaponTooltip";
+import { equipmentInstanceStatMultiplier } from "@/shared/equipmentItemLevel";
+import {
+  armorItemCombatPower,
+  armorSlotLabelKo,
+  getArmorStats,
+  hpDefToArmorCombatPower,
+} from "@/shared/armorStatsData";
 
 export type ArmorTooltipOption = {
   kind: string;
@@ -29,7 +35,11 @@ export type ArmorTooltipData = {
   grade?: number;
   gradeLabel?: string;
   identified?: boolean;
+  quality?: number;
+  qualityCraftCount?: number;
+  itemLevel?: number;
   options?: ArmorTooltipOption[];
+  equippedByMinion?: EquippedByMinionView | null;
 };
 
 /** 강화 1단계당 HP·DEF — 베이스 스탯의 3% (전투 반영과 동일) */
@@ -43,8 +53,12 @@ export function armorEnhanceHpDefBonus(enhanceLevel: number, baseHp: number, bas
   };
 }
 
-export function armorEnhancePowerBonus(enhanceLevel: number): number {
-  return weaponEnhancePowerBonus(enhanceLevel);
+/** 강화로 추가된 HP·DEF를 베이스 방어구와 동일 공식으로 CP 환산 */
+export function armorEnhancePowerBonus(baseItemId: string, enhanceLevel: number): number {
+  const base = armorBaseHpDef(baseItemId);
+  if (!base) return 0;
+  const { hp, def } = armorEnhanceHpDefBonus(enhanceLevel, base.hp, base.def);
+  return hpDefToArmorCombatPower(hp, def);
 }
 
 export function armorBaseHpDef(baseItemId: string): { hp: number; def: number; slot: string } | null {
@@ -79,7 +93,7 @@ export function armorDisplayName(a: ArmorTooltipData): string {
 
 export function armorTotalPower(a: ArmorTooltipData): number {
   const base = armorBaseHpDef(a.baseItemId);
-  const enhance = armorEnhancePowerBonus(a.enhanceLevel ?? 0);
+  const enhance = armorEnhancePowerBonus(a.baseItemId, a.enhanceLevel ?? 0);
   const utilRows = (a.options ?? [])
     .filter((o) => !o.hidden)
     .map((o) => ({
@@ -87,9 +101,13 @@ export function armorTotalPower(a: ArmorTooltipData): number {
       tier: o.tier,
     }));
   const utilPower = armorUtilPowerBonusFromOptionRows(utilRows);
-  if (!base) return armorItemCombatPower(a.baseItemId) + enhance + utilPower;
-  const opt = armorOptionHpDefBonus(a.options, base.hp, base.def);
-  return armorItemCombatPower(a.baseItemId) + Math.floor(opt.hp * 0.2 + opt.def * 2) + enhance + utilPower;
+  let raw: number;
+  if (!base) raw = armorItemCombatPower(a.baseItemId) + enhance + utilPower;
+  else {
+    const opt = armorOptionHpDefBonus(a.options, base.hp, base.def);
+    raw = armorItemCombatPower(a.baseItemId) + hpDefToArmorCombatPower(opt.hp, opt.def) + enhance + utilPower;
+  }
+  return Math.floor(raw * equipmentInstanceStatMultiplier(a.quality ?? 0, a.itemLevel ?? 10));
 }
 
 export function armorGradeLabel(a: ArmorTooltipData): string {

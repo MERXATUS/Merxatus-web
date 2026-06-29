@@ -1,12 +1,15 @@
 import { clampItemGrade, itemGradeLabel } from "@/server/itemGrade";
 import {
   WEAPON_BASE_POWER_BY_ITEM_ID,
-  WEAPON_LEVEL_POWER_PER_LEVEL,
+  weaponEnhancePowerBonusFromBase,
+  weaponEnhancePowerPerLevel,
 } from "@/shared/weaponPowerRules";
 import { weaponPowerBonusFromOptionRows } from "@/shared/itemOptionCatalog";
+import type { EquippedByMinionView } from "@/shared/equipmentEquippedBy";
 import type { OptionRealm } from "@/shared/equipmentBlessings";
 import { blessedEquipmentDisplayName } from "@/shared/equipmentBlessings";
 import { normalizeOptionId } from "@/shared/itemOptionCatalog";
+import { equipmentInstanceStatMultiplier } from "@/shared/equipmentItemLevel";
 import { getWeaponStats, weaponCombatPowerFromStats } from "@/shared/weaponStatsData";
 
 export type WeaponTooltipOption = {
@@ -31,7 +34,11 @@ export type WeaponTooltipData = {
   grade?: number;
   gradeLabel?: string;
   identified?: boolean;
+  quality?: number;
+  qualityCraftCount?: number;
+  itemLevel?: number;
   options?: WeaponTooltipOption[];
+  equippedByMinion?: EquippedByMinionView | null;
 };
 
 export function weaponBasePower(baseItemId: string): number {
@@ -48,9 +55,12 @@ export function weaponBaseAtkMagic(baseItemId: string): { atk: number; magic: nu
   return { atk: s.atk, magic: s.magic };
 }
 
-export function weaponEnhancePowerBonus(enhanceLevel: number): number {
-  const lv = Math.max(0, Math.floor(enhanceLevel));
-  return lv * WEAPON_LEVEL_POWER_PER_LEVEL;
+export function weaponEnhancePowerPerLevelForItem(baseItemId: string): number {
+  return weaponEnhancePowerPerLevel(weaponBasePower(baseItemId));
+}
+
+export function weaponEnhancePowerBonus(baseItemId: string, enhanceLevel: number): number {
+  return weaponEnhancePowerBonusFromBase(weaponBasePower(baseItemId), enhanceLevel);
 }
 
 export function weaponOptionPowerBonus(options?: WeaponTooltipOption[]): number {
@@ -63,11 +73,11 @@ export function weaponOptionPowerBonus(options?: WeaponTooltipOption[]): number 
 }
 
 export function weaponTotalPower(w: WeaponTooltipData): number {
-  return (
+  const raw =
     weaponBasePower(w.baseItemId) +
-    weaponEnhancePowerBonus(w.enhanceLevel) +
-    weaponOptionPowerBonus(w.options)
-  );
+    weaponEnhancePowerBonus(w.baseItemId, w.enhanceLevel) +
+    weaponOptionPowerBonus(w.options);
+  return Math.floor(raw * equipmentInstanceStatMultiplier(w.quality ?? 0, w.itemLevel ?? 10));
 }
 
 export function weaponDisplayName(w: WeaponTooltipData): string {

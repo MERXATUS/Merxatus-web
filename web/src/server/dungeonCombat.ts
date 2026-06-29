@@ -1,5 +1,6 @@
 import { GAME_RULES } from "@/server/gameRules";
 import { minionBaseStatsFromRow, type MinionBaseStats } from "@/shared/minionBaseStats";
+import { weaponBasePower, weaponEnhancePowerBonus } from "@/shared/weaponTooltip";
 
 export function statPowerFromBaseStats(stats: MinionBaseStats) {
   const w = GAME_RULES.minion.baseStats;
@@ -24,8 +25,8 @@ export function computePartyPower(input: {
     weaponOptionBonus?: number | null;
     /** 방어구 HP/DEF 기반 전투력 환산 합 */
     armorPowerBonus?: number | null;
-    /** 스킬 전투력 보너스 */
-    skillPowerBonus?: number | null;
+    /** 품질·아이템 레벨 배율 (무기 전투력) */
+    weaponInstanceScale?: number | null;
     level?: number | null;
     fighterRank?: number | null;
     strength?: number | null;
@@ -38,7 +39,6 @@ export function computePartyPower(input: {
   const perLevel = GAME_RULES.combat.levelPowerPerLevel;
   const perFighter = GAME_RULES.combat.fighterTraitPowerPerRank;
   const weaponMap = GAME_RULES.combat.weaponPowerByItemId as Record<string, number>;
-  const perWeaponLevel = GAME_RULES.combat.weaponLevelPowerPerLevel;
   let power = 0;
   for (const m of input.members) {
     power += base;
@@ -47,11 +47,13 @@ export function computePartyPower(input: {
     const fighterRank = Math.max(0, Math.floor(m.fighterRank ?? 0));
     power += fighterRank * perFighter;
     if (m.weaponBaseItemId) {
-      const wBase = Math.max(0, Math.floor(weaponMap[m.weaponBaseItemId] ?? 0));
+      const wScale = Math.max(0.01, Number(m.weaponInstanceScale ?? 1) || 1);
+      const wBase = Math.max(0, Math.floor(weaponMap[m.weaponBaseItemId] ?? weaponBasePower(m.weaponBaseItemId)));
       const wLv = Math.max(0, Math.floor(m.weaponEnhanceLevel ?? 0));
-      power += wBase + wLv * perWeaponLevel;
+      const wPart = wBase + weaponEnhancePowerBonus(m.weaponBaseItemId, wLv);
       const ob = m.weaponOptionBonus;
-      if (typeof ob === "number" && Number.isFinite(ob) && ob > 0) power += ob;
+      const opt = typeof ob === "number" && Number.isFinite(ob) && ob > 0 ? ob : 0;
+      power += Math.floor((wPart + opt) * wScale);
     }
     const ap = Math.max(0, Math.floor(m.armorPowerBonus ?? 0));
     power += ap;

@@ -17,6 +17,7 @@ import {
   filterOptionIdsForGrade,
   maxOptionTierForGrade,
   rollOptionTierForGrade,
+  rollOptionTierForGradeWithMinimum,
 } from "@/shared/optionTierBalance";
 
 export type EquipmentOptionsPayload = {
@@ -188,6 +189,45 @@ export function rerollOptionIdsKeepingTiersInPayload(
       ...o,
       optionId: picked,
       tier: clampOptionTierToGrade(o.tier, itemGrade, "craft"),
+    };
+  });
+  return { ...payload, options: rolled };
+}
+
+/** 변형 계열 보석 — 모든 옵션 종류·티어 재추첨 (봉인 슬롯 유지) */
+export function rerollAllOptionsAndTiersInPayload(
+  payload: EquipmentOptionsPayload,
+  category: "weapon" | "armor",
+  itemGrade: number,
+  minTier: number | null,
+  rnd = Math.random,
+): EquipmentOptionsPayload {
+  const locked = lockedIndexSet(payload);
+  const fullPool = filterOptionIdsForGrade(
+    category === "weapon" ? weaponOptionIds() : armorOptionIds(),
+    itemGrade,
+    category,
+  );
+  const rolled = payload.options.map((o, i) => {
+    if (locked.has(i)) return o;
+    const pool = o.realm
+      ? filterOptionIdsForGrade(
+          blessingOptionIdsForRealm(category, o.realm),
+          itemGrade,
+          category,
+        )
+      : fullPool;
+    const pickPool = pool.length > 0 ? pool : fullPool;
+    const picked = pickPool[Math.floor(rnd() * pickPool.length)] ?? pickPool[0]!;
+    const tier =
+      minTier != null && minTier > 0
+        ? rollOptionTierForGradeWithMinimum(itemGrade, minTier, rnd)
+        : rollOptionTierForGrade(itemGrade, "craft", rnd);
+    const useRealm = !!o.realm && pickPool !== fullPool;
+    return {
+      optionId: picked,
+      tier: clampOptionTierToGrade(tier, itemGrade, "craft"),
+      ...(useRealm ? { realm: o.realm!, affix: rollBlessingAffix(o.realm!, rnd) } : {}),
     };
   });
   return { ...payload, options: rolled };

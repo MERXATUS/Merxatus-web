@@ -11,6 +11,7 @@ type MinionSkillsModalProps = {
   open: boolean;
   minionId: string;
   combatClassLabel: string;
+  displayName?: string;
   level: number;
   skills: MinionSkillView[];
   unspentSkillPoints: number;
@@ -24,6 +25,7 @@ export function MinionSkillsModal({
   open,
   minionId,
   combatClassLabel,
+  displayName,
   level,
   skills,
   unspentSkillPoints,
@@ -56,7 +58,7 @@ export function MinionSkillsModal({
       <div className="game-panel minion-skills-modal-panel" onMouseDown={(e) => e.stopPropagation()}>
         <div className="minion-skills-modal__header">
           <GamePanelTitle id="minion-skills-modal-title">
-            스킬 · {combatClassLabel} Lv {level}
+            스킬 · {displayName ?? combatClassLabel} Lv {level}
           </GamePanelTitle>
           <GameBtn variant="ghost" className="minion-skills-modal__close" onClick={onClose} disabled={!!busy}>
             닫기

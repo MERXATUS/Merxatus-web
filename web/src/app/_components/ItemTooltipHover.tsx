@@ -1,16 +1,65 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 
-function clampTooltipPos(x: number, y: number, width: number, height: number) {
-  const pad = 10;
-  const maxX = typeof window !== "undefined" ? window.innerWidth - width - pad : x;
-  const maxY = typeof window !== "undefined" ? window.innerHeight - height - pad : y;
-  return {
-    x: Math.max(pad, Math.min(x, maxX)),
-    y: Math.max(pad, Math.min(y, maxY)),
-  };
+const VIEWPORT_PAD = 10;
+const GAP = 12;
+const DEFAULT_SIZE = { w: 260, h: 220 };
+
+function computeTooltipPos(anchor: DOMRect | null, size: { w: number; h: number }, pointer?: { x: number; y: number }) {
+  if (typeof window === "undefined") {
+    return { x: pointer?.x ?? 0, y: pointer?.y ?? 0 };
+  }
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const maxW = Math.min(size.w, vw - VIEWPORT_PAD * 2);
+  const maxH = Math.min(size.h, vh - VIEWPORT_PAD * 2);
+
+  let x: number;
+  let y: number;
+
+  if (anchor) {
+    x = anchor.right + GAP;
+    y = anchor.top;
+
+    if (x + maxW > vw - VIEWPORT_PAD) {
+      x = anchor.left - maxW - GAP;
+    }
+    if (x < VIEWPORT_PAD) {
+      x = Math.max(VIEWPORT_PAD, Math.min(anchor.left, vw - maxW - VIEWPORT_PAD));
+    }
+
+    if (y + maxH > vh - VIEWPORT_PAD) {
+      y = anchor.bottom - maxH;
+    }
+    if (y < VIEWPORT_PAD) {
+      y = VIEWPORT_PAD;
+    }
+    if (y + maxH > vh - VIEWPORT_PAD) {
+      y = vh - maxH - VIEWPORT_PAD;
+    }
+  } else if (pointer) {
+    x = pointer.x + 14;
+    y = pointer.y + 14;
+    if (x + maxW > vw - VIEWPORT_PAD) x = pointer.x - maxW - 14;
+    if (y + maxH > vh - VIEWPORT_PAD) y = pointer.y - maxH - 14;
+    x = Math.max(VIEWPORT_PAD, Math.min(x, vw - maxW - VIEWPORT_PAD));
+    y = Math.max(VIEWPORT_PAD, Math.min(y, vh - maxH - VIEWPORT_PAD));
+  } else {
+    x = VIEWPORT_PAD;
+    y = VIEWPORT_PAD;
+  }
+
+  return { x, y };
 }
 
 export function ItemTooltipHover(props: {
@@ -23,23 +72,47 @@ export function ItemTooltipHover(props: {
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const tooltipSizeRef = useRef({ w: 240, h: 200 });
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const anchorRef = useRef<DOMRect | null>(null);
+  const pointerRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const showAt = useCallback((clientX: number, clientY: number, anchorRect?: DOMRect) => {
-    const { w, h } = tooltipSizeRef.current;
-    let x = anchorRect ? anchorRect.right + 12 : clientX + 14;
-    let y = anchorRect ? anchorRect.top : clientY + 14;
-    if (typeof window !== "undefined" && anchorRect && x + w > window.innerWidth - 8) {
-      x = anchorRect.left - w - 12;
-    }
-    const clamped = clampTooltipPos(x, y, w, h);
-    setPos(clamped);
-    setVisible(true);
+  const reposition = useCallback(() => {
+    const el = tooltipRef.current;
+    const size = el
+      ? { w: el.offsetWidth || DEFAULT_SIZE.w, h: el.offsetHeight || DEFAULT_SIZE.h }
+      : DEFAULT_SIZE;
+    setPos(computeTooltipPos(anchorRef.current, size, pointerRef.current ?? undefined));
   }, []);
+
+  const showAt = useCallback(
+    (clientX: number, clientY: number, anchorRect?: DOMRect) => {
+      anchorRef.current = anchorRect ?? null;
+      pointerRef.current = { x: clientX, y: clientY };
+      setPos(computeTooltipPos(anchorRect ?? null, DEFAULT_SIZE, { x: clientX, y: clientY }));
+      setVisible(true);
+    },
+    [],
+  );
+
+  useLayoutEffect(() => {
+    if (!visible) return;
+    reposition();
+  }, [visible, content, reposition]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const onReflow = () => reposition();
+    window.addEventListener("resize", onReflow);
+    window.addEventListener("scroll", onReflow, true);
+    return () => {
+      window.removeEventListener("resize", onReflow);
+      window.removeEventListener("scroll", onReflow, true);
+    };
+  }, [visible, reposition]);
 
   const scheduleShow = useCallback(
     (e: React.MouseEvent<HTMLSpanElement>) => {
@@ -53,6 +126,8 @@ export function ItemTooltipHover(props: {
   const hide = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
+    anchorRef.current = null;
+    pointerRef.current = null;
     setVisible(false);
   }, []);
 
@@ -60,14 +135,17 @@ export function ItemTooltipHover(props: {
     (e: React.MouseEvent<HTMLSpanElement>) => {
       if (!visible) return;
       const rect = e.currentTarget.getBoundingClientRect();
-      showAt(e.clientX, e.clientY, rect);
+      anchorRef.current = rect;
+      pointerRef.current = { x: e.clientX, y: e.clientY };
+      reposition();
     },
-    [visible, showAt],
+    [visible, reposition],
   );
 
   const portal =
     visible && mounted ? (
       <div
+        ref={tooltipRef}
         className="item-tooltip-portal"
         style={{ left: pos.x, top: pos.y }}
         role="tooltip"

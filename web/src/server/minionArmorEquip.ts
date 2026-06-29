@@ -86,7 +86,11 @@ export async function equipMinionArmor(input: {
     assertEquipmentNotUserLocked(inst);
     if (!armorStackMatchesSlot(slotId, inst.baseItemId)) throw new Error("ARMOR_SLOT_MISMATCH");
     if (!getArmorStats(inst.baseItemId)) throw new Error("ARMOR_STATS_NOT_FOUND");
-    assertMinionCanEquipBaseItem({ minionLevel: m.level, baseItemId: inst.baseItemId });
+    assertMinionCanEquipBaseItem({
+      minionLevel: m.level,
+      baseItemId: inst.baseItemId,
+      instanceItemLevel: inst.itemLevel,
+    });
 
     const currentInstanceId = getArmorInstanceFieldValue(armorRow, field);
     if (currentInstanceId === armorInstanceId) {

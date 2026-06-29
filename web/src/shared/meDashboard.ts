@@ -31,6 +31,8 @@ export type KnightOrderView = {
 export type MeDashboardRepresentativeMinion = {
   id: string;
   combatClassLabel: string;
+  displayName: string;
+  nickname?: string | null;
   level: number;
   unspentSkillPoints: number;
   skills: MinionSkillView[];

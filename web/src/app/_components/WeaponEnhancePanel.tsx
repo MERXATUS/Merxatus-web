@@ -7,6 +7,7 @@ import { ForgeBenchTopbar } from "@/app/_components/ForgeBenchTopbar";
 import { ForgeManaStonePicker } from "@/app/_components/ForgeManaStonePicker";
 import { ForgeEquipGrid } from "@/app/_components/ForgeEquipGrid";
 import { ForgeEquipPicker } from "@/app/_components/ForgeEquipPicker";
+import { ForgeEquippedByTag } from "@/app/_components/ForgeEquippedByTag";
 import { ForgeMaterialGrid, type ForgeMaterialCell } from "@/app/_components/ForgeMaterialGrid";
 import { ForgeToolPicker, renderForgeOptionChips, type ForgeEquipTarget } from "@/app/_components/ForgeToolPicker";
 import { GameBtn, GamePanel } from "@/app/_components/gameUi";
@@ -24,10 +25,11 @@ import { armorDisplayName } from "@/shared/armorTooltip";
 import { weaponDisplayName } from "@/shared/weaponTooltip";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
-import { API_CACHE_TTL } from "@/shared/apiCache";
+import { loadMeEquipmentState } from "@/shared/meEquipmentState";
 import { formatPanelError } from "@/shared/formatPanelError";
 import { apiGetJsonCached, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
+import type { EquippedByMinionView } from "@/shared/equipmentEquippedBy";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import {
   ITEM_ENHANCE_SCROLL_PROTECT,
@@ -35,6 +37,12 @@ import {
   forgeEnhanceMaterialLabel,
 } from "@/shared/enhanceConsumables";
 import { optionConsumableKind, ITEM_APPRAISAL_SCROLL } from "@/shared/optionConsumables";
+import {
+  equipmentCraftConsumableKind,
+  itemLevelTierForCraftKind,
+} from "@/shared/equipmentCraftConsumables";
+import { itemLevelsForTier } from "@/shared/equipmentItemLevel";
+import { MAX_QUALITY_CRAFT_USES } from "@/shared/equipmentQuality";
 import { getArmorStats } from "@/shared/armorStatsData";
 import {
   guaranteedSalvageLootBatch,
@@ -77,11 +85,15 @@ type WeaponRow = {
   baseItemId: string;
   name: string;
   enhanceLevel: number;
+  quality?: number;
+  qualityCraftCount?: number;
+  itemLevel?: number;
   createdAt: string;
   grade?: number;
   gradeLabel?: string;
   identified?: boolean;
   options?: EquipOptionRow[];
+  equippedByMinion?: EquippedByMinionView | null;
 };
 
 type ArmorRow = {
@@ -89,11 +101,15 @@ type ArmorRow = {
   baseItemId: string;
   name: string;
   enhanceLevel: number;
+  quality?: number;
+  qualityCraftCount?: number;
+  itemLevel?: number;
   createdAt: string;
   grade?: number;
   gradeLabel?: string;
   identified?: boolean;
   options?: EquipOptionRow[];
+  equippedByMinion?: EquippedByMinionView | null;
 };
 
 type WeaponSortId =
@@ -108,22 +124,11 @@ type ArmorSortId = WeaponSortId;
 type EquipKind = "weapon" | "armor";
 
 async function loadEnhanceMeState(force?: boolean): Promise<MeState> {
-  const [inv, weapons, armor] = await Promise.all([
-    apiGetJsonCached<MeState>("/api/me/state?scope=inventory", {
-      ttlMs: API_CACHE_TTL.meStateInventory,
-      force,
-    }),
-    apiGetJsonCached<{ ok: true; weaponInstances?: WeaponRow[] }>("/api/me/state?scope=weapons", {
-      ttlMs: API_CACHE_TTL.meStateWeapons,
-      force,
-    }),
-    apiGetJsonCached<{ ok: true; armorInstances?: ArmorRow[] }>("/api/me/state?scope=armor", {
-      ttlMs: API_CACHE_TTL.meStateArmor,
-      force,
-    }),
-  ]);
+  const bundle = await loadMeEquipmentState({ force, swr: !force });
+  const weapons = bundle.weapons as { ok: true; weaponInstances?: WeaponRow[] };
+  const armor = bundle.armor as { ok: true; armorInstances?: ArmorRow[] };
   return {
-    ...inv,
+    ...(bundle.inventory as MeState),
     weaponInstances: weapons.weaponInstances,
     armorInstances: armor.armorInstances,
   };
@@ -371,6 +376,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
   const [armorSortEnhance, setArmorSortEnhance] = useState<ArmorSortId>("enh_high");
   const [craftTarget, setCraftTarget] = useState<ForgeEquipTarget | null>(null);
   const [craftTransferTarget, setCraftTransferTarget] = useState<ForgeEquipTarget | null>(null);
+  const [chosenItemLevel, setChosenItemLevel] = useState<number>(10);
   const [useProtectionScroll, setUseProtectionScroll] = useState(false);
   const [useBlessingGem, setUseBlessingGem] = useState(false);
   const [selectedManaStoneId, setSelectedManaStoneId] = useState<EnhanceManaStoneItemId | null>(null);
@@ -417,6 +423,14 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
 
   useEffect(() => {
     setCraftTransferTarget(null);
+    const craftKind = selectedToolId ? equipmentCraftConsumableKind(selectedToolId) : null;
+    if (craftKind && craftKind !== "quality_up") {
+      const tier = itemLevelTierForCraftKind(craftKind);
+      if (tier) {
+        const levels = itemLevelsForTier(tier);
+        setChosenItemLevel(levels[0] ?? 10);
+      }
+    }
   }, [selectedToolId, craftTarget?.id]);
 
   const resetBenchState = useCallback(() => {
@@ -734,6 +748,14 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
     [forgeTools, selectedToolId],
   );
   const needsTransferTarget = !!activeCraftTool?.needsTransferTarget;
+  const needsItemLevelPicker = !!activeCraftTool?.needsItemLevelPicker;
+  const itemLevelOptions = useMemo(() => {
+    if (!selectedToolId) return [] as number[];
+    const ck = equipmentCraftConsumableKind(selectedToolId);
+    if (!ck || ck === "quality_up") return [];
+    const tier = itemLevelTierForCraftKind(ck);
+    return tier ? itemLevelsForTier(tier) : [];
+  }, [selectedToolId]);
 
   const craftTransferCandidates = useMemo(() => {
     if (!craftTarget) return [];
@@ -885,8 +907,9 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
 
   const applyCraftTool = useCallback(async () => {
     if (!craftTarget || !selectedToolId) return;
-    const kind = optionConsumableKind(selectedToolId);
-    if (kind === "transfer" && !craftTransferTarget) return;
+    const optKind = optionConsumableKind(selectedToolId);
+    const craftConsumableKind = equipmentCraftConsumableKind(selectedToolId);
+    if (optKind === "transfer" && !craftTransferTarget) return;
     setBusy(true);
     setError(null);
     try {
@@ -896,7 +919,9 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
           consumableItemId: selectedToolId,
           targetKind: craftTarget.kind,
           targetInstanceId: craftTarget.id,
-          transferTargetInstanceId: kind === "transfer" ? craftTransferTarget?.id : undefined,
+          transferTargetInstanceId: optKind === "transfer" ? craftTransferTarget?.id : undefined,
+          chosenItemLevel:
+            craftConsumableKind && craftConsumableKind !== "quality_up" ? chosenItemLevel : undefined,
         },
       );
       if (!r?.ok) throw new Error(typeof r === "object" && r && "error" in r ? String((r as { error: unknown }).error) : "CRAFT_FAILED");
@@ -907,7 +932,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
     } finally {
       setBusy(false);
     }
-  }, [craftTarget, craftTransferTarget, selectedToolId, load, nameById]);
+  }, [craftTarget, craftTransferTarget, selectedToolId, chosenItemLevel, load, nameById]);
 
   const runAppraiseAll = useCallback(async () => {
     if (unidentifiedEquipCount === 0) return;
@@ -1177,6 +1202,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                             >
                               {selectedEnhanceDisplayName}
                             </h3>
+                            <ForgeEquippedByTag equippedByMinion={selectedEnhance.equippedByMinion} />
                           </div>
                           <p className="enhance-bench__level">
                             <span className="enhance-bench__level-now">+{displayFrom}</span>
@@ -1531,6 +1557,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                         name={craftHero.name}
                         grade={craftHero.grade}
                         enhanceLevel={craftHero.enhanceLevel}
+                        equippedByMinion={craftHero.equippedByMinion}
                         onBack={closeBench}
                       />
                       <div className="enhance-forge__hero">
@@ -1551,11 +1578,38 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                           <p className="enhance-forge__hero-meta">
                             {craftHero.gradeLabel ?? ""}
                             {craftHero.identified === false ? " · 미감정" : ""}
+                            {(craftSelectedWeapon?.quality ?? craftSelectedArmor?.quality ?? 0) > 0
+                              ? ` · 품질 ${craftSelectedWeapon?.quality ?? craftSelectedArmor?.quality}`
+                              : ""}
+                            {(craftSelectedWeapon?.qualityCraftCount ?? craftSelectedArmor?.qualityCraftCount ?? 0) > 0
+                              ? ` · 연마 ${craftSelectedWeapon?.qualityCraftCount ?? craftSelectedArmor?.qualityCraftCount}/${MAX_QUALITY_CRAFT_USES}`
+                              : ""}
+                            {(craftSelectedWeapon?.itemLevel ?? craftSelectedArmor?.itemLevel ?? 10) > 10
+                              ? ` · 아이템 Lv${craftSelectedWeapon?.itemLevel ?? craftSelectedArmor?.itemLevel}`
+                              : ""}
                           </p>
                         </div>
                       </div>
 
                       {renderForgeOptionChips(craftHero.options ?? [], craftHeroTone)}
+
+                      {needsItemLevelPicker && itemLevelOptions.length > 0 ? (
+                        <div className="forge-level-pick">
+                          <p className="game-label">설정할 아이템 레벨</p>
+                          <select
+                            className="inventory-input w-full max-w-xs"
+                            value={chosenItemLevel}
+                            disabled={busy}
+                            onChange={(e) => setChosenItemLevel(Number(e.target.value))}
+                          >
+                            {itemLevelOptions.map((lv) => (
+                              <option key={lv} value={lv}>
+                                Lv {lv}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : null}
 
                       {needsTransferTarget ? (
                         <div className="forge-transfer-pick">

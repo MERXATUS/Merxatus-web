@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CombatEncounterBlock } from "@/app/_components/CombatEncounterBlock";
+import { DungeonDropTable } from "@/app/_components/DungeonDropTable";
 import { DungeonRunSettlementModal } from "@/app/_components/DungeonRunSettlementModal";
 import {
   DungeonPartyPickModal,
@@ -20,31 +21,25 @@ import { formatRaidPartyLootMultiplier, raidPartyLootMultiplier } from "@/shared
 import { raidKindLabel } from "@/shared/raidBossKind";
 import { RAID_FACTION_LABELS, RAID_FACTION_ORDER, type RaidFaction } from "@/shared/raidFaction";
 import {
-  difficultyTabLabel,
+  difficultyModeTabLabel,
   formatRaidDifficultyLine,
-  formatRaidDifficultyStars,
   partyPowerAdequacy,
-  RAID_DIFFICULTY_STAR_ORDER,
+  RAID_DIFFICULTY_MODE_ORDER,
 } from "@/shared/raidDifficulty";
+import type { RaidDifficultyMode } from "@/shared/raidRoster";
 import { API_CACHE_TTL } from "@/shared/apiCache";
 import { fetchCombatRoster } from "@/shared/combatRosterClient";
-import { apiGetJson, apiGetJsonCached, apiPostJson } from "@/shared/sessionClient";
+import { apiGetJson, apiGetJsonCachedSwr, apiPostJson } from "@/shared/sessionClient";
+import { raidDropTableForId } from "@/shared/raidDropTablesData";
+import { RAIDS_CATALOG, type RaidCatalogEntry } from "@/shared/raidsCatalogData";
 
 const RAID_PARTY_KEY = "raid_party_minion_ids_v1";
 
-type RaidDef = {
-  id: string;
+type RaidDef = RaidCatalogEntry & { canEnter?: boolean };
+type RaidEntryTicket = {
+  itemId: string;
   name: string;
-  maxPhases: number;
-  maxPartySize: number;
-  faction?: RaidFaction;
-  isBoss?: boolean;
-  enemyPower?: number;
-  recommendedPartyPower?: number;
-  minPartyPower?: number;
-  recommendedPerMinion?: number;
-  difficultyLabel?: string;
-  difficultyStars?: number;
+  availableQty: number;
 };
 type MinionRow = PartyPickMinionRow & { pool?: string };
 type RunState = {
@@ -81,7 +76,10 @@ type AdvanceResult = {
 
 export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
   const { user, loading: sessionLoading } = useSessionUser();
-  const [raids, setRaids] = useState<RaidDef[]>([]);
+  const [raids, setRaids] = useState<RaidDef[]>(() =>
+    RAIDS_CATALOG.map((r) => ({ ...r, canEnter: false })),
+  );
+  const [entryTicket, setEntryTicket] = useState<RaidEntryTicket | null>(null);
   const [minions, setMinions] = useState<MinionRow[]>([]);
   const [selectedRaidId, setSelectedRaidId] = useState("");
   const [partyIds, setPartyIds] = useState<Set<string>>(new Set());
@@ -96,7 +94,7 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
   const [battleReplay, setBattleReplay] = useState<DungeonCombatReplay | null>(null);
   const [battleLines, setBattleLines] = useState<CombatLogLine[]>([]);
   const [bossPickerOpen, setBossPickerOpen] = useState(false);
-  const [difficultyStarTab, setDifficultyStarTab] = useState(1);
+  const [difficultyModeTab, setDifficultyModeTab] = useState<RaidDifficultyMode>("normal");
   const [factionTab, setFactionTab] = useState<RaidFaction>("demon");
   const pendingResultRef = useRef<AdvanceResult | null>(null);
   const [clearSettlement, setClearSettlement] = useState<DungeonSettlement | null>(null);
@@ -107,22 +105,27 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
     setError(null);
     setDataLoading(true);
     try {
-      const [listR, stateR, roster] = await Promise.all([
-        apiGetJsonCached<{ ok: boolean; raids: RaidDef[] }>("/api/raids/list", {
-          ttlMs: API_CACHE_TTL.raidsList,
+      const [entryR, stateR, roster] = await Promise.all([
+        apiGetJsonCachedSwr<{ ok: boolean; entryTicket: RaidEntryTicket }>("/api/raids/entry", {
+          ttlMs: API_CACHE_TTL.raidsEntry,
         }),
-        apiGetJsonCached<RunState & { ok: boolean }>("/api/raids/run/state", {
+        apiGetJsonCachedSwr<RunState & { ok: boolean }>("/api/raids/run/state?lite=1", {
           ttlMs: API_CACHE_TTL.runState,
         }),
         fetchCombatRoster(user.id),
       ]);
-      setRaids(listR.raids ?? []);
+      const ticketQty = entryR.entryTicket?.availableQty ?? 0;
+      setRaids(RAIDS_CATALOG.map((r) => ({ ...r, canEnter: ticketQty >= r.entryTicketCost })));
+      setEntryTicket(entryR.entryTicket ?? null);
       setRun(stateR);
       setMinions(roster);
       // ATB 전투 상태가 남아 있어도 UI는 로그 전투로 통일한다.
-      if (!selectedRaidId && listR.raids?.[0]) setSelectedRaidId(listR.raids[0].id);
+      if (!selectedRaidId && RAIDS_CATALOG[0]) setSelectedRaidId(RAIDS_CATALOG[0].id);
       if (!stateR.active) {
-        const cap = Math.max(1, listR.raids?.find((r) => r.id === (selectedRaidId || listR.raids?.[0]?.id))?.maxPartySize ?? 3);
+        const cap = Math.max(
+          1,
+          RAIDS_CATALOG.find((r) => r.id === (selectedRaidId || RAIDS_CATALOG[0]?.id))?.maxPartySize ?? 3,
+        );
         setPartyIds(resolveSavedPartyIds(readSavedPartyIds(RAID_PARTY_KEY), roster, cap));
       }
     } catch (e) {
@@ -167,32 +170,32 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
     [raids, selectedRaidId],
   );
   const difficultyTabs = useMemo(() => {
-    const counts = new Map<number, number>();
+    const counts = new Map<RaidDifficultyMode, number>();
     for (const r of raids) {
-      const s = r.difficultyStars ?? 3;
-      counts.set(s, (counts.get(s) ?? 0) + 1);
+      const mode = r.difficulty ?? "normal";
+      counts.set(mode, (counts.get(mode) ?? 0) + 1);
     }
-    return RAID_DIFFICULTY_STAR_ORDER.filter((s) => counts.has(s)).map((s) => ({
-      stars: s,
-      label: difficultyTabLabel(s),
-      count: counts.get(s)!,
+    return RAID_DIFFICULTY_MODE_ORDER.filter((m) => counts.has(m)).map((m) => ({
+      mode: m,
+      label: difficultyModeTabLabel(m),
+      count: counts.get(m)!,
     }));
   }, [raids]);
   const raidsInDifficulty = useMemo(
-    () => raids.filter((r) => (r.difficultyStars ?? 3) === difficultyStarTab),
-    [raids, difficultyStarTab],
+    () => raids.filter((r) => (r.difficulty ?? "normal") === difficultyModeTab),
+    [raids, difficultyModeTab],
   );
   const factionTabs = useMemo(
     () =>
-      RAID_FACTION_ORDER.filter((f) => raidsInDifficulty.some((r) => (r.faction ?? "void") === f)).map((f) => ({
+      RAID_FACTION_ORDER.filter((f) => raidsInDifficulty.some((r) => r.faction === f)).map((f) => ({
         faction: f,
         label: RAID_FACTION_LABELS[f],
-        count: raidsInDifficulty.filter((r) => (r.faction ?? "void") === f).length,
+        count: raidsInDifficulty.filter((r) => r.faction === f).length,
       })),
     [raidsInDifficulty],
   );
   const visibleRaids = useMemo(
-    () => raidsInDifficulty.filter((r) => (r.faction ?? "void") === factionTab),
+    () => raidsInDifficulty.filter((r) => r.faction === factionTab),
     [raidsInDifficulty, factionTab],
   );
   const partyPower = useMemo(() => {
@@ -206,10 +209,10 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
 
   useEffect(() => {
     if (!raids.length || !difficultyTabs.length) return;
-    if (!difficultyTabs.some((t) => t.stars === difficultyStarTab)) {
-      setDifficultyStarTab(difficultyTabs[0]!.stars);
+    if (!difficultyTabs.some((t) => t.mode === difficultyModeTab)) {
+      setDifficultyModeTab(difficultyTabs[0]!.mode);
     }
-  }, [raids.length, difficultyTabs, difficultyStarTab]);
+  }, [raids.length, difficultyTabs, difficultyModeTab]);
 
   useEffect(() => {
     if (!factionTabs.length) return;
@@ -226,7 +229,7 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
 
   useEffect(() => {
     if (!bossPickerOpen || !selectedRaid) return;
-    setDifficultyStarTab(selectedRaid.difficultyStars ?? 3);
+    setDifficultyModeTab(selectedRaid.difficulty ?? "normal");
     if (selectedRaid.faction) setFactionTab(selectedRaid.faction);
   }, [bossPickerOpen, selectedRaid]);
 
@@ -345,7 +348,11 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
       ? partyPowerAdequacy(partyPower, selectedRaid.recommendedPartyPower)
       : null;
   const minPartyPower = selectedRaid?.minPartyPower ?? 0;
-  const canStartRaid = partyIds.size > 0 && !!selectedRaidId && (minPartyPower <= 0 || partyPower >= minPartyPower);
+  const entryTicketCost = selectedRaid?.entryTicketCost ?? (selectedRaid?.difficulty === "hard" ? 2 : 1);
+  const entryTicketQty = entryTicket?.availableQty ?? 0;
+  const hasEntryTicket = entryTicketQty >= entryTicketCost;
+  const canStartRaid =
+    partyIds.size > 0 && !!selectedRaidId && (minPartyPower <= 0 || partyPower >= minPartyPower) && hasEntryTicket;
 
   function pickRaid(raidId: string) {
     setSelectedRaidId(raidId);
@@ -358,7 +365,7 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
         <div>
           <p className="game-label">레이드</p>
           <h2 className="game-title text-lg">진영 레이드</h2>
-          <p className="mt-1 text-xs text-[var(--game-muted)]">난이도·진영별 레이드 · 인원 적을수록 보상 증가 · 패배 시 누적 보상 소멸</p>
+          <p className="mt-1 text-xs text-[var(--game-muted)]">난이도·진영별 레이드 · 입장권 필요 · 인원 적을수록 보상 증가 · 패배 시 누적 보상 소멸</p>
         </div>
         <span className={`dungeon-status-pill ${active ? "dungeon-status-pill--live" : ""}`.trim()}>
           {active ? "● 진행 중" : "○ 대기"}
@@ -471,17 +478,17 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
                 <div className="raid-difficulty-tabs" role="tablist" aria-label="레이드 난이도">
                   {difficultyTabs.map((t) => (
                     <button
-                      key={t.stars}
+                      key={t.mode}
                       type="button"
                       role="tab"
-                      aria-selected={difficultyStarTab === t.stars}
+                      aria-selected={difficultyModeTab === t.mode}
                       className={[
                         "raid-difficulty-tab",
-                        difficultyStarTab === t.stars ? "raid-difficulty-tab--active" : "",
+                        difficultyModeTab === t.mode ? "raid-difficulty-tab--active" : "",
                       ]
                         .filter(Boolean)
                         .join(" ")}
-                      onClick={() => setDifficultyStarTab(t.stars)}
+                      onClick={() => setDifficultyModeTab(t.mode)}
                     >
                       <span className="raid-difficulty-tab__label">{t.label}</span>
                       <span className="raid-difficulty-tab__count">{t.count}</span>
@@ -508,7 +515,7 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
                 <div
                   className="raid-boss-pick-grid"
                   role="listbox"
-                  aria-label={`${difficultyTabLabel(difficultyStarTab)} ${RAID_FACTION_LABELS[factionTab]} 레이드`}
+                  aria-label={`${difficultyModeTabLabel(difficultyModeTab)} ${RAID_FACTION_LABELS[factionTab]} 레이드`}
                 >
                   {visibleRaids.length === 0 ? (
                     <p className="raid-boss-pick-empty">이 난이도·진영에 레이드가 없습니다.</p>
@@ -533,6 +540,7 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
                             <span className="raid-boss-pick-card__meta">
                               권장 {r.recommendedPartyPower.toLocaleString()}
                               {r.recommendedPerMinion != null ? ` · 1인 ${r.recommendedPerMinion.toLocaleString()}` : ""}
+                              {r.entryTicketCost != null ? ` · 입장권 ${r.entryTicketCost}장` : ""}
                             </span>
                           ) : null}
                         </button>
@@ -543,6 +551,14 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
               </div>
             ) : null}
           </div>
+          {selectedRaidId ? (
+            <DungeonDropTable
+              table={raidDropTableForId(selectedRaidId)}
+              compact={embedded}
+              ariaLabel="레이드 드랍표"
+              hint="페이즈·클리어 시 각각 추첨 · 확률은 해당 풀 기준"
+            />
+          ) : null}
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-[var(--game-muted)]">파티 {partyIds.size}/{maxParty}</p>
@@ -579,6 +595,15 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
               최소 파티 전투력 {minPartyPower.toLocaleString()} 필요 (현재 {partyPower.toLocaleString()})
             </p>
           ) : null}
+          {!hasEntryTicket ? (
+            <p className="text-xs text-amber-300/90">
+              {entryTicket?.name ?? "레이드 입장권"} 부족 (보유 {entryTicketQty} / 필요 {entryTicketCost}) · 던전에서 획득
+            </p>
+          ) : (
+            <p className="text-xs text-[var(--game-muted)]">
+              {entryTicket?.name ?? "레이드 입장권"} {entryTicketQty}장 · 시작 시 {entryTicketCost}장 소모
+            </p>
+          )}
           <GameBtn
             variant="gold"
             className="w-full h-10"

@@ -50,12 +50,15 @@ function RepresentativeMinionCard(props: {
         <div className="min-w-0 space-y-2">
           <div>
             <h3 className="text-sm font-bold text-[var(--game-text)]">
-              {minion.combatClassLabel}{" "}
+              {minion.displayName ?? minion.combatClassLabel}{" "}
               <span className="text-xs font-semibold text-[var(--game-muted)]">Lv {minion.level}</span>
               {minion.unspentSkillPoints > 0 ? (
                 <span className="home-minion-detail__skill-badge">스킬 {minion.unspentSkillPoints}P</span>
               ) : null}
             </h3>
+            {minion.nickname?.trim() ? (
+              <p className="mt-0.5 text-[10px] text-[var(--game-muted)]">{minion.combatClassLabel}</p>
+            ) : null}
             {!embedded ? (
               <p className="mt-0.5 text-[10px] font-semibold text-[var(--game-gold-bright)]">
                 전투력 {minion.combatStats.combatPower.toLocaleString()}
@@ -123,7 +126,7 @@ function RepresentativePickModal(props: {
                   onClick={() => props.onPick(m.id)}
                 >
                   <span>
-                    {m.combatClassLabel} · Lv {m.level}
+                    {m.displayName ?? m.combatClassLabel} · Lv {m.level}
                   </span>
                   <span className="tabular-nums text-[var(--game-gold-bright)]">
                     {(m.combatStats?.combatPower ?? m.combatPower ?? 0).toLocaleString()}

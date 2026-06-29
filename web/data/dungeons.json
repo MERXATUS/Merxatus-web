@@ -2,7 +2,7 @@
   {
     "id": "dungeon_slime_forest",
     "name": "마계 · 오염의 웅덩이",
-    "mode": "PUSH_LUCK",
+    "mode": "IDLE",
     "baseWaveSeconds": 8,
     "maxFloors": 10,
     "maxPartySize": 1,
@@ -90,14 +90,6 @@
         "maxFloor": 9
       },
       {
-        "itemId": "weapon_steel_sword",
-        "weight": 70,
-        "minQty": 1,
-        "maxQty": 1,
-        "minFloor": 7,
-        "maxFloor": 9
-      },
-      {
         "itemId": "armor_crimson_helmet",
         "weight": 55,
         "minQty": 1,
@@ -127,6 +119,38 @@
         "minQty": 1,
         "maxQty": 1,
         "minFloor": 7,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_chain_helmet",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_chain_armor",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_chain_pants",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
+        "maxFloor": 9
+      },
+      {
+        "itemId": "armor_chain_boots",
+        "weight": 380,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 1,
         "maxFloor": 9
       }
     ],
@@ -200,14 +224,6 @@
         "maxFloor": 10
       },
       {
-        "itemId": "weapon_steel_sword",
-        "weight": 70,
-        "minQty": 1,
-        "maxQty": 1,
-        "minFloor": 10,
-        "maxFloor": 10
-      },
-      {
         "itemId": "armor_crimson_helmet",
         "weight": 55,
         "minQty": 1,
@@ -238,13 +254,45 @@
         "maxQty": 1,
         "minFloor": 10,
         "maxFloor": 10
+      },
+      {
+        "itemId": "armor_chain_helmet",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_chain_armor",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_chain_pants",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
+      },
+      {
+        "itemId": "armor_chain_boots",
+        "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 10,
+        "maxFloor": 10
       }
     ]
   },
   {
     "id": "dungeon_goblin_den",
     "name": "마계 · 군번의 심굴",
-    "mode": "PUSH_LUCK",
+    "mode": "IDLE",
     "baseWaveSeconds": 8,
     "maxFloors": 14,
     "maxPartySize": 1,
@@ -290,14 +338,6 @@
         "maxFloor": 13
       },
       {
-        "itemId": "weapon_steel_sword",
-        "weight": 480,
-        "minQty": 1,
-        "maxQty": 1,
-        "minFloor": 1,
-        "maxFloor": 13
-      },
-      {
         "itemId": "armor_crimson_helmet",
         "weight": 340,
         "minQty": 1,
@@ -327,14 +367,6 @@
         "minQty": 1,
         "maxQty": 1,
         "minFloor": 1,
-        "maxFloor": 13
-      },
-      {
-        "itemId": "weapon_steel_sword",
-        "weight": 70,
-        "minQty": 1,
-        "maxQty": 1,
-        "minFloor": 11,
         "maxFloor": 13
       },
       {
@@ -407,7 +439,7 @@
       },
       {
         "itemId": "weapon_steel_sword",
-        "weight": 1020,
+        "weight": 950,
         "minQty": 1,
         "maxQty": 1,
         "minFloor": 14,
@@ -440,6 +472,14 @@
       {
         "itemId": "armor_crimson_boots",
         "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 14,
+        "maxFloor": 14
+      },
+      {
+        "itemId": "weapon_steel_sword",
+        "weight": 70,
         "minQty": 1,
         "maxQty": 1,
         "minFloor": 14,
@@ -490,7 +530,7 @@
   {
     "id": "dungeon_wolf_ravine",
     "name": "마계 · 피의 사구",
-    "mode": "PUSH_LUCK",
+    "mode": "IDLE",
     "baseWaveSeconds": 8,
     "maxFloors": 16,
     "maxPartySize": 1,
@@ -535,14 +575,6 @@
       },
       {
         "itemId": "weapon_steel_sword",
-        "weight": 420,
-        "minQty": 1,
-        "maxQty": 1,
-        "minFloor": 1,
-        "maxFloor": 15
-      },
-      {
-        "itemId": "weapon_gold_sword",
         "weight": 420,
         "minQty": 1,
         "maxQty": 1,
@@ -645,7 +677,7 @@
       },
       {
         "itemId": "weapon_gold_sword",
-        "weight": 1020,
+        "weight": 950,
         "minQty": 1,
         "maxQty": 1,
         "minFloor": 16,
@@ -678,6 +710,14 @@
       {
         "itemId": "armor_iron_boots",
         "weight": 750,
+        "minQty": 1,
+        "maxQty": 1,
+        "minFloor": 16,
+        "maxFloor": 16
+      },
+      {
+        "itemId": "weapon_gold_sword",
+        "weight": 70,
         "minQty": 1,
         "maxQty": 1,
         "minFloor": 16,
@@ -720,7 +760,7 @@
   {
     "id": "dungeon_crypt_of_dead",
     "name": "천계 · 낙천자의 묘",
-    "mode": "PUSH_LUCK",
+    "mode": "IDLE",
     "baseWaveSeconds": 8,
     "maxFloors": 18,
     "maxPartySize": 1,
@@ -862,7 +902,7 @@
   {
     "id": "dungeon_scorch_rift",
     "name": "천계 · 심판의 화염",
-    "mode": "PUSH_LUCK",
+    "mode": "IDLE",
     "baseWaveSeconds": 8,
     "maxFloors": 20,
     "maxPartySize": 1,
@@ -906,7 +946,7 @@
         "maxQty": 1
       },
       {
-        "itemId": "weapon_gold_sword",
+        "itemId": "weapon_diamond_sword",
         "weight": 340,
         "minQty": 1,
         "maxQty": 1,
@@ -914,7 +954,7 @@
         "maxFloor": 19
       },
       {
-        "itemId": "armor_golden_helmet",
+        "itemId": "armor_diamond_helmet",
         "weight": 240,
         "minQty": 1,
         "maxQty": 1,
@@ -922,7 +962,7 @@
         "maxFloor": 19
       },
       {
-        "itemId": "armor_golden_armor",
+        "itemId": "armor_diamond_armor",
         "weight": 240,
         "minQty": 1,
         "maxQty": 1,
@@ -930,7 +970,7 @@
         "maxFloor": 19
       },
       {
-        "itemId": "armor_golden_pants",
+        "itemId": "armor_diamond_pants",
         "weight": 240,
         "minQty": 1,
         "maxQty": 1,
@@ -938,7 +978,7 @@
         "maxFloor": 19
       },
       {
-        "itemId": "armor_golden_boots",
+        "itemId": "armor_diamond_boots",
         "weight": 240,
         "minQty": 1,
         "maxQty": 1,
@@ -960,7 +1000,7 @@
         "maxQty": 2
       },
       {
-        "itemId": "weapon_gold_sword",
+        "itemId": "weapon_diamond_sword",
         "weight": 950,
         "minQty": 1,
         "maxQty": 1,
@@ -968,7 +1008,7 @@
         "maxFloor": 20
       },
       {
-        "itemId": "armor_golden_helmet",
+        "itemId": "armor_diamond_helmet",
         "weight": 750,
         "minQty": 1,
         "maxQty": 1,
@@ -976,7 +1016,7 @@
         "maxFloor": 20
       },
       {
-        "itemId": "armor_golden_armor",
+        "itemId": "armor_diamond_armor",
         "weight": 750,
         "minQty": 1,
         "maxQty": 1,
@@ -984,7 +1024,7 @@
         "maxFloor": 20
       },
       {
-        "itemId": "armor_golden_pants",
+        "itemId": "armor_diamond_pants",
         "weight": 750,
         "minQty": 1,
         "maxQty": 1,
@@ -992,7 +1032,7 @@
         "maxFloor": 20
       },
       {
-        "itemId": "armor_golden_boots",
+        "itemId": "armor_diamond_boots",
         "weight": 750,
         "minQty": 1,
         "maxQty": 1,
@@ -1004,7 +1044,7 @@
   {
     "id": "dungeon_frost_citadel",
     "name": "천계 · 서릿빛 성벽",
-    "mode": "PUSH_LUCK",
+    "mode": "IDLE",
     "baseWaveSeconds": 8,
     "maxFloors": 22,
     "maxPartySize": 1,
@@ -1048,7 +1088,7 @@
         "maxQty": 1
       },
       {
-        "itemId": "weapon_gold_sword",
+        "itemId": "weapon_diamond_sword",
         "weight": 320,
         "minQty": 1,
         "maxQty": 1,
@@ -1056,7 +1096,7 @@
         "maxFloor": 21
       },
       {
-        "itemId": "armor_golden_helmet",
+        "itemId": "armor_diamond_helmet",
         "weight": 220,
         "minQty": 1,
         "maxQty": 1,
@@ -1064,7 +1104,7 @@
         "maxFloor": 21
       },
       {
-        "itemId": "armor_golden_armor",
+        "itemId": "armor_diamond_armor",
         "weight": 220,
         "minQty": 1,
         "maxQty": 1,
@@ -1072,7 +1112,7 @@
         "maxFloor": 21
       },
       {
-        "itemId": "armor_golden_pants",
+        "itemId": "armor_diamond_pants",
         "weight": 220,
         "minQty": 1,
         "maxQty": 1,
@@ -1080,7 +1120,7 @@
         "maxFloor": 21
       },
       {
-        "itemId": "armor_golden_boots",
+        "itemId": "armor_diamond_boots",
         "weight": 220,
         "minQty": 1,
         "maxQty": 1,
@@ -1102,7 +1142,7 @@
         "maxQty": 2
       },
       {
-        "itemId": "weapon_gold_sword",
+        "itemId": "weapon_diamond_sword",
         "weight": 950,
         "minQty": 1,
         "maxQty": 1,
@@ -1110,7 +1150,7 @@
         "maxFloor": 22
       },
       {
-        "itemId": "armor_golden_helmet",
+        "itemId": "armor_diamond_helmet",
         "weight": 750,
         "minQty": 1,
         "maxQty": 1,
@@ -1118,7 +1158,7 @@
         "maxFloor": 22
       },
       {
-        "itemId": "armor_golden_armor",
+        "itemId": "armor_diamond_armor",
         "weight": 750,
         "minQty": 1,
         "maxQty": 1,
@@ -1126,7 +1166,7 @@
         "maxFloor": 22
       },
       {
-        "itemId": "armor_golden_pants",
+        "itemId": "armor_diamond_pants",
         "weight": 750,
         "minQty": 1,
         "maxQty": 1,
@@ -1134,7 +1174,7 @@
         "maxFloor": 22
       },
       {
-        "itemId": "armor_golden_boots",
+        "itemId": "armor_diamond_boots",
         "weight": 750,
         "minQty": 1,
         "maxQty": 1,
@@ -1146,7 +1186,7 @@
   {
     "id": "dungeon_dragon_roost",
     "name": "이계 · 차원 용혈",
-    "mode": "PUSH_LUCK",
+    "mode": "IDLE",
     "baseWaveSeconds": 8,
     "maxFloors": 24,
     "maxPartySize": 1,
@@ -1288,7 +1328,7 @@
   {
     "id": "dungeon_void_rift",
     "name": "이계 · 공허 균열",
-    "mode": "PUSH_LUCK",
+    "mode": "IDLE",
     "baseWaveSeconds": 8,
     "maxFloors": 26,
     "maxPartySize": 1,

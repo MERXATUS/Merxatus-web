@@ -12,8 +12,8 @@ const WEAPONS = {
   weapon_stone_sword: "돌 검",
   weapon_red_gold_sword: "적빛 검",
   weapon_steel_sword: "철 검",
-  weapon_gold_sword: "금 검",
-  weapon_diamond_sword: "다이아 검",
+  weapon_gold_sword: "심판 검",
+  weapon_diamond_sword: "천광 검",
 };
 
 const ARMOR = {
@@ -33,14 +33,14 @@ const ARMOR = {
   armor_iron_armor: "철 갑옷",
   armor_iron_pants: "철 각반",
   armor_iron_boots: "철 장화",
-  armor_golden_helmet: "금 투구",
-  armor_golden_armor: "금 갑옷",
-  armor_golden_pants: "금 각반",
-  armor_golden_boots: "금 장화",
-  armor_diamond_helmet: "다이아 왕관",
-  armor_diamond_armor: "다이아 흉갑",
-  armor_diamond_pants: "다이아 각갑",
-  armor_diamond_boots: "다이아 장화",
+  armor_golden_helmet: "심판 투구",
+  armor_golden_armor: "심판 흉갑",
+  armor_golden_pants: "심판 각반",
+  armor_golden_boots: "심판 장화",
+  armor_diamond_helmet: "천광 왕관",
+  armor_diamond_armor: "천광 흉갑",
+  armor_diamond_pants: "천광 각갑",
+  armor_diamond_boots: "천광 장화",
 };
 
 const CSV_WEAPON = {

@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   try {
     const auth = requireUserId(req, null);
     if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
-    const out = await listRaidsPayload();
+    const out = await listRaidsPayload(auth.userId);
     return Response.json(out);
   } catch (e) {
     return jsonApiError(e);

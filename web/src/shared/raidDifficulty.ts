@@ -1,4 +1,4 @@
-import { contentTierForRaidId } from "@/shared/craftingItemDrops";
+import { contentTierForRaidId, RAID_DIFFICULTY_LABELS, type RaidDifficultyMode } from "@/shared/raidRoster";
 
 export type RaidDifficultyMeta = {
   /** 파티 합산 전투력 권장 (최대 3인 기준) */
@@ -38,6 +38,13 @@ export function difficultyLabelForStars(stars: number): string {
   return DIFFICULTY_LABEL_BY_STARS[Math.max(1, Math.min(6, Math.floor(stars)))] ?? "보통";
 }
 
+/** 난이도 모드 UI 탭 (노말 → 하드) */
+export const RAID_DIFFICULTY_MODE_ORDER: RaidDifficultyMode[] = ["normal", "hard"];
+
+export function difficultyModeTabLabel(mode: RaidDifficultyMode): string {
+  return RAID_DIFFICULTY_LABELS[mode];
+}
+
 export function difficultyTabLabel(stars: number): string {
   const s = Math.max(1, Math.min(6, Math.floor(stars)));
   return `${formatRaidDifficultyStars(s)} ${difficultyLabelForStars(s)}`;
@@ -67,10 +74,10 @@ export function maxRecommendedPartyPowerForRaid(
   return max;
 }
 
-/** 몬스터 combatPowerFromMonster 와 같은 척도 — 파티 합산 권장치 */
+/** 몬스터 combatPowerFromMonster 와 같은 척도 — 파티 합산 권장치 (턴 시뮬 기준) */
 export function recommendedPartyPowerForRaid(enemyPower: number, isBoss: boolean, maxPartySize = 3): number {
   const ep = Math.max(1, Math.floor(enemyPower));
-  const mult = isBoss ? 2.35 : 1.55;
+  const mult = isBoss ? 2.5 : 1.45;
   const base = Math.ceil(ep * mult);
   const cap = maxPartySize >= 3 ? base : Math.ceil(base * (3 / Math.max(1, maxPartySize)));
   return Math.max(ep, cap);
@@ -81,15 +88,17 @@ export function raidDifficultyMeta(
   enemyPower: number,
   isBoss: boolean,
   maxPartySize = 3,
+  mode: RaidDifficultyMode = "normal",
 ): RaidDifficultyMeta {
   const tier = contentTierForRaidId(raidId);
   const diff = DIFFICULTY_BY_TIER[Math.max(1, Math.min(8, tier))] ?? DIFFICULTY_BY_TIER[5]!;
   const recommendedPartyPower = recommendedPartyPowerForRaid(enemyPower, isBoss, maxPartySize);
   const recommendedPerMinion = Math.ceil(recommendedPartyPower / Math.max(1, maxPartySize));
+  const modeLabel = mode === "hard" ? "하드" : "노말";
   return {
     recommendedPartyPower,
     recommendedPerMinion,
-    label: diff.label,
+    label: modeLabel,
     stars: diff.stars,
   };
 }
@@ -100,7 +109,7 @@ export function formatRaidDifficultyStars(stars: number): string {
 }
 
 export function formatRaidDifficultyLine(meta: Pick<RaidDifficultyMeta, "recommendedPartyPower" | "label" | "stars">) {
-  return `권장 ${meta.recommendedPartyPower.toLocaleString()} · ${meta.label} ${formatRaidDifficultyStars(meta.stars)}`;
+  return `권장 ${meta.recommendedPartyPower.toLocaleString()} · ${meta.label} · ${formatRaidDifficultyStars(meta.stars)}`;
 }
 
 export function partyPowerAdequacy(partyPower: number, recommendedPartyPower: number): "low" | "ok" | "high" {

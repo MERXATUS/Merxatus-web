@@ -25,6 +25,9 @@ export async function POST(req: Request) {
     const dungeon = dungeons.find((d) => d.id === parsed.data.dungeonId);
     if (!dungeon) return Response.json({ ok: false, error: "DUNGEON_NOT_FOUND" }, { status: 404 });
     if (dungeon.mode !== "PUSH_LUCK") {
+      if (dungeon.mode === "IDLE") {
+        return Response.json({ ok: false, error: "USE_IDLE_API" }, { status: 400 });
+      }
       return Response.json({ ok: false, error: "NOT_PUSH_LUCK_DUNGEON" }, { status: 400 });
     }
 

@@ -10,13 +10,23 @@ import {
   sumStatAllocation,
   xpRequiredForNextLevel,
 } from "@/shared/minionLevel";
-import { grantSkillPointsOnLevelUp } from "@/server/minionSkills";
+import { MINION_SKILL_RULES } from "@/shared/minionSkills";
 import {
   dungeonAutoWaveXpForStage,
   dungeonFloorXpForStage,
 } from "@/shared/dungeonStageProgression";
 
-type Db = Pick<PrismaClient, "minion"> | Prisma.TransactionClient;
+type Db =
+  | Pick<PrismaClient, "minion" | "$transaction">
+  | Prisma.TransactionClient;
+
+type MinionXpRow = {
+  id: string;
+  level: number;
+  experience: number;
+  unspentStatPoints: number;
+  unspentSkillPoints: number;
+};
 
 export type MinionXpGrantResult = {
   minionId: string;
@@ -107,10 +117,46 @@ export async function grantMinionExperience(
   });
 
   if (next.levelsGained > 0) {
-    await grantSkillPointsOnLevelUp(db, minionId, next.levelsGained);
+    await db.minion.update({
+      where: { id: minionId },
+      data: {
+        unspentSkillPoints: {
+          increment: next.levelsGained * MINION_SKILL_RULES.pointsPerLevel,
+        },
+      },
+    });
   }
 
   return next;
+}
+
+async function persistMinionXpPlans(
+  db: Pick<PrismaClient, "minion">,
+  rows: MinionXpRow[],
+  plans: Array<{ row: MinionXpRow; next: MinionXpGrantResult }>,
+) {
+  const rowById = new Map(rows.map((r) => [r.id, r]));
+  for (const { next } of plans) {
+    if (next.xpGained <= 0) continue;
+    const row = rowById.get(next.minionId);
+    if (!row) continue;
+    const skillPointAdd =
+      next.levelsGained > 0 ? next.levelsGained * MINION_SKILL_RULES.pointsPerLevel : 0;
+    await db.minion.update({
+      where: { id: next.minionId },
+      data: {
+        level: next.level,
+        experience: next.experience,
+        unspentStatPoints: next.unspentStatPoints,
+        ...(skillPointAdd > 0
+          ? {
+              unspentSkillPoints:
+                Math.max(0, Math.floor(row.unspentSkillPoints ?? 0)) + skillPointAdd,
+            }
+          : {}),
+      },
+    });
+  }
 }
 
 export async function grantMinionsExperience(
@@ -121,12 +167,39 @@ export async function grantMinionsExperience(
   const xp = Math.max(0, Math.floor(xpPerMinion));
   if (xp <= 0 || minionIds.length === 0) return [];
 
-  const out: MinionXpGrantResult[] = [];
-  for (const minionId of minionIds) {
-    const r = await grantMinionExperience(db, minionId, xp);
-    if (r) out.push(r);
+  const uniqueIds = [...new Set(minionIds)];
+  const rows = await db.minion.findMany({
+    where: { id: { in: uniqueIds } },
+    select: {
+      id: true,
+      level: true,
+      experience: true,
+      unspentStatPoints: true,
+      unspentSkillPoints: true,
+    },
+  });
+  const rowById = new Map(rows.map((r) => [r.id, r]));
+
+  const plans = minionIds
+    .map((minionId) => {
+      const row = rowById.get(minionId);
+      if (!row) return null;
+      const mult = minionXpGrantMultiplier(row.level);
+      const adjustedXp = Math.max(0, Math.floor(xp * mult));
+      return { row, next: applyXpToRow(row, adjustedXp) };
+    })
+    .filter((plan): plan is { row: MinionXpRow; next: MinionXpGrantResult } => plan != null);
+
+  const writes = plans.filter(({ next }) => next.xpGained > 0);
+  if (writes.length > 0) {
+    if ("$transaction" in db && typeof db.$transaction === "function") {
+      await db.$transaction(async (tx) => persistMinionXpPlans(tx, rows, writes));
+    } else {
+      await persistMinionXpPlans(db, rows, writes);
+    }
   }
-  return out;
+
+  return plans.map(({ next }) => next);
 }
 
 export async function grantDungeonFloorXp(

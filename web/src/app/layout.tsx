@@ -22,6 +22,16 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Merxatus",
   description: "경제 시뮬레이션 — 던전·무탑·레이드, 거래, 대장간",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Merxatus",
+  },
+  icons: {
+    icon: [{ url: "/pwa/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/pwa/icon-192.png", sizes: "192x192", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({

@@ -13,7 +13,9 @@ import {
   weaponTotalPower,
   type WeaponTooltipData,
 } from "@/shared/weaponTooltip";
-import { minEquipLevelForGrade } from "@/shared/itemEquipLevel";
+import { requiredEquipLevelForInstance } from "@/shared/itemEquipLevel";
+import { MAX_QUALITY_CRAFT_USES } from "@/shared/equipmentQuality";
+import { ITEM_LEVEL_DEFAULT } from "@/shared/equipmentItemLevel";
 import { equipmentSetSubtitle } from "@/shared/equipmentSets";
 import type { ReactNode } from "react";
 
@@ -21,10 +23,13 @@ export function WeaponTooltipContent({ weapon }: { weapon: WeaponTooltipData }) 
   const grade = weaponGradeIndex(weapon);
   const baseAtkMagic = weaponBaseAtkMagic(weapon.baseItemId);
   const base = weaponBasePower(weapon.baseItemId);
-  const enhance = weaponEnhancePowerBonus(weapon.enhanceLevel);
+  const enhance = weaponEnhancePowerBonus(weapon.baseItemId, weapon.enhanceLevel);
   const optBonus = weaponOptionPowerBonus(weapon.options);
   const total = weaponTotalPower(weapon);
   const weaponOpts = weapon.options ?? [];
+  const equipReq = requiredEquipLevelForInstance(weapon.baseItemId, grade, weapon.itemLevel);
+  const quality = weapon.quality ?? 0;
+  const itemLevel = weapon.itemLevel ?? ITEM_LEVEL_DEFAULT;
 
   const setLine = equipmentSetSubtitle(weapon.baseItemId);
 
@@ -34,10 +39,25 @@ export function WeaponTooltipContent({ weapon }: { weapon: WeaponTooltipData }) 
       <div className="item-tooltip__category">
         {setLine ?? `무기 · ${weaponGradeLabel(weapon)}`}
       </div>
-      {minEquipLevelForGrade(grade) > 1 ? (
+      {equipReq > 1 ? (
         <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
           <span>착용 레벨</span>
-          <span>Lv {minEquipLevelForGrade(grade)}+</span>
+          <span>Lv {equipReq}+</span>
+        </div>
+      ) : null}
+      {quality > 0 ? (
+        <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
+          <span>품질</span>
+          <span>
+            {quality}
+            {(weapon.qualityCraftCount ?? 0) > 0 ? ` · 연마 ${weapon.qualityCraftCount}/${MAX_QUALITY_CRAFT_USES}` : ""}
+          </span>
+        </div>
+      ) : null}
+      {itemLevel > ITEM_LEVEL_DEFAULT ? (
+        <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
+          <span>아이템 레벨</span>
+          <span>Lv {itemLevel}</span>
         </div>
       ) : null}
 

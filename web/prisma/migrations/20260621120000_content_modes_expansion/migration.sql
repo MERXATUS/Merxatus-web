@@ -1,0 +1,7 @@
+-- AlterTable User: 무탑 주간 연금
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "towerPensionWeekKey" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "towerPensionFloor" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "towerLastPensionClaimDay" TEXT NOT NULL DEFAULT '';
+
+-- AlterTable RaidRun: 난이도 기록
+ALTER TABLE "RaidRun" ADD COLUMN IF NOT EXISTS "difficulty" TEXT NOT NULL DEFAULT 'normal';

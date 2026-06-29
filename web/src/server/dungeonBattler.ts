@@ -64,6 +64,13 @@ import {
   effectiveVsTagBonusPct,
   lifeStealHealAmount,
 } from "@/shared/combatUtilBalance";
+import {
+  applyBossHealOnHit,
+  checkBossPhaseTransition,
+  createBossRuntime,
+  tickBossRoundStart,
+  type BossFightRuntime,
+} from "@/shared/bossPhases";
 
 
 
@@ -82,6 +89,12 @@ export type CombatantInput = {
   bonusHp?: number;
 
   bonusDef?: number;
+
+  /** 도감 등 ATK 플랫 보정 (소수 첫째 자리) */
+  bonusAtkFlat?: number;
+
+  /** 도감 MAG 플랫 보정 */
+  bonusMagicFlat?: number;
 
   /** 스킬 피해 배율 (기사단 배율과 곱) */
 
@@ -163,6 +176,8 @@ type Fighter = {
 
   onHitStatuses: StatusApplySpec[];
 
+  bossRuntime?: BossFightRuntime | null;
+
 };
 
 
@@ -193,11 +208,19 @@ export function buildPartyCombatants(
 
     combatClassLabel: string;
 
+    nickname?: string | null;
+
+    displayName?: string;
+
     power: number;
 
     bonusHp?: number;
 
     bonusDef?: number;
+
+    bonusAtkFlat?: number;
+
+    bonusMagicFlat?: number;
 
     skillDamageMult?: number;
 
@@ -227,21 +250,39 @@ export function buildPartyCombatants(
 
   return members.map((m) => {
 
-    const n = (labelCount.get(m.combatClassLabel) ?? 0) + 1;
+    const custom = (m.displayName ?? m.nickname)?.trim();
 
-    labelCount.set(m.combatClassLabel, n);
+    let label: string;
+
+    if (custom) {
+
+      label = custom;
+
+    } else {
+
+      const n = (labelCount.get(m.combatClassLabel) ?? 0) + 1;
+
+      labelCount.set(m.combatClassLabel, n);
+
+      label = `${m.combatClassLabel} ${n}`;
+
+    }
 
     return {
 
       id: m.minionId,
 
-      label: `${m.combatClassLabel} ${n}`,
+      label,
 
       power: m.power,
 
       bonusHp: m.bonusHp,
 
       bonusDef: m.bonusDef,
+
+      bonusAtkFlat: m.bonusAtkFlat,
+
+      bonusMagicFlat: m.bonusMagicFlat,
 
       skillDamageMult: m.skillDamageMult,
 
@@ -273,6 +314,8 @@ export function partyMemberToCombatantInput(
   x: {
     minionId: string;
     combatClassLabel: string;
+    nickname?: string | null;
+    displayName?: string;
     power: number;
     bonusHp?: number;
     bonusDef?: number;
@@ -291,6 +334,8 @@ export function partyMemberToCombatantInput(
   return {
     minionId: x.minionId,
     combatClassLabel: x.combatClassLabel,
+    nickname: x.nickname ?? null,
+    displayName: x.displayName,
     power: x.power,
     bonusHp: x.bonusHp,
     bonusDef: x.bonusDef,
@@ -735,6 +780,9 @@ export function performAttack(input: {
     if (attacker.onHitStatuses.length > 0 && target.hp > 0) {
       rollStatusApplications(attacker.onHitStatuses, attacker, target, log, rnd, true);
     }
+    if (attacker.side === "enemy" && attacker.bossRuntime) {
+      applyBossHealOnHit(attacker, hit.damage, log);
+    }
   }
 
   if (
@@ -883,6 +931,9 @@ export function simulateFloorCombat(input: {
   /** 던전 — HP·공격·방어 채널별 배율 */
   enemyCombatMults?: DungeonEnemyCombatMults;
 
+  /** 보스 페이즈·기믹용 몬스터 ID */
+  monsterId?: string;
+
 }): { outcome: "WIN" | "LOSS"; log: CombatLogLine[]; partyHp: PartyHpSnapshot[] } {
 
   const rnd = input.rnd ?? Math.random;
@@ -921,6 +972,10 @@ export function simulateFloorCombat(input: {
 
     const hp = Math.min(maxHp, Math.max(0, saved?.hp ?? maxHp));
 
+    const bonusAtk = Math.max(0, p.bonusAtkFlat ?? 0);
+    const bonusMagic = Math.max(0, p.bonusMagicFlat ?? 0);
+    const atkFlat = Math.round((bonusAtk + bonusMagic) * 10) / 10;
+
     return {
 
       id: p.id,
@@ -933,9 +988,9 @@ export function simulateFloorCombat(input: {
 
       maxHp,
 
-      atkMin: st.atkMin,
+      atkMin: st.atkMin + atkFlat,
 
-      atkMax: st.atkMax,
+      atkMax: st.atkMax + atkFlat,
 
       def: Math.max(0, Math.floor(p.bonusDef ?? 0)),
 
@@ -1024,15 +1079,40 @@ export function simulateFloorCombat(input: {
 
 
 
+  const bossEnemy = enemies[0]!;
+  if (enemyTags.isBoss && input.monsterId) {
+    const runtime = createBossRuntime(input.monsterId, bossEnemy, true);
+    if (runtime) {
+      bossEnemy.bossRuntime = runtime;
+      if (runtime.onHitParty) bossEnemy.onHitStatuses = [runtime.onHitParty];
+      const phase1 = runtime.config.phases.find((p) => p.id === 1);
+      if (phase1?.modifiers?.regenPctPerRound) {
+        runtime.regenPctPerRound = phase1.modifiers.regenPctPerRound;
+      }
+    }
+  }
+
+
+
   let round = 0;
 
-  const maxRounds = 48;
+  const maxRounds = 72;
 
 
 
   while (round < maxRounds) {
 
     round += 1;
+
+    if (bossEnemy.bossRuntime && bossEnemy.hp > 0) {
+      tickBossRoundStart({
+        enemy: bossEnemy,
+        runtime: bossEnemy.bossRuntime,
+        party: partyFighters,
+        log,
+        rnd,
+      });
+    }
 
     for (const f of [...partyFighters, ...enemies]) {
       if (f.hp > 0) processStatusRoundStart(f, log);
@@ -1139,6 +1219,16 @@ export function simulateFloorCombat(input: {
         critStackBonusPct: critStackBonus,
       });
 
+      if (target.bossRuntime && target.hp > 0) {
+        checkBossPhaseTransition({
+          enemy: target,
+          runtime: target.bossRuntime,
+          party: partyFighters,
+          log,
+          rnd,
+        });
+      }
+
       attacker.skillDamageMult = savedSkillMult;
 
       if (activeProc.proc && target.hp > 0) {
@@ -1196,6 +1286,15 @@ export function simulateFloorCombat(input: {
           lowHpAtkBonusPct: lowHpBonus,
           critStackBonusPct: critStackBonus,
         });
+        if (target.bossRuntime && target.hp > 0) {
+          checkBossPhaseTransition({
+            enemy: target,
+            runtime: target.bossRuntime,
+            party: partyFighters,
+            log,
+            rnd,
+          });
+        }
       }
 
       const extraChance = effectiveAtkSpdProcPct(attacker.combatMods.atkSpdPct);
@@ -1258,6 +1357,19 @@ export function simulateFloorCombat(input: {
       enemyTags,
 
     });
+
+    const br = enemy.bossRuntime;
+    if (br && br.extraHitChancePct > 0 && victim.hp > 0 && rnd() * 100 < br.extraHitChancePct) {
+      performAttack({
+        attacker: enemy,
+        target: victim,
+        rnd,
+        log,
+        partyDamageMult: 1,
+        enemyTags,
+        hitKind: "extra",
+      });
+    }
     }
 
     for (const f of [...partyFighters, ...enemies]) {
@@ -1274,6 +1386,18 @@ export function simulateFloorCombat(input: {
   const win = pickAlive(enemies, "enemy").length === 0 && pickAlive(partyFighters, "party").length > 0;
 
   const outcome = win ? "WIN" : "LOSS";
+
+  if (win) {
+    const isBossFloor = input.floor >= input.maxFloors;
+    const floorProgress =
+      input.maxFloors <= 1 ? 0 : (input.floor - 1) / Math.max(1, input.maxFloors - 1);
+    const regenPct = isBossFloor ? 0.06 : 0.08 + 0.11 * (1 - floorProgress);
+    for (const f of partyFighters) {
+      if (f.hp <= 0) continue;
+      const regen = Math.max(1, Math.floor(f.maxHp * regenPct));
+      f.hp = Math.min(f.maxHp, f.hp + regen);
+    }
+  }
 
   log.push({ t: "result", outcome });
 

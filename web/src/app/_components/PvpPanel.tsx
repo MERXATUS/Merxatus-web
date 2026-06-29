@@ -8,9 +8,10 @@ import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_componen
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
 import type { CombatReport } from "@/shared/combatReport";
+import { API_CACHE_TTL } from "@/shared/apiCache";
 import { formatPanelError } from "@/shared/formatPanelError";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
-import { apiGetJson, apiPostJson } from "@/shared/sessionClient";
+import { apiGetJsonCachedSwr, apiPostJson } from "@/shared/sessionClient";
 import type { CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatLog";
 
 type Opponent = {
@@ -80,8 +81,10 @@ export function PvpPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     setError(null);
     try {
       const [oppR, histR] = await Promise.all([
-        apiGetJson<PvpState>("/api/pvp/opponents"),
-        apiGetJson<{ ok: boolean; history: HistoryRow[] }>("/api/pvp/history"),
+        apiGetJsonCachedSwr<PvpState>("/api/pvp/opponents", { ttlMs: API_CACHE_TTL.pvpState }),
+        apiGetJsonCachedSwr<{ ok: boolean; history: HistoryRow[] }>("/api/pvp/history", {
+          ttlMs: API_CACHE_TTL.pvpHistory,
+        }),
       ]);
       setState(oppR);
       setHistory(histR.history ?? []);

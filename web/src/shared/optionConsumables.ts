@@ -10,6 +10,10 @@ export const ITEM_GEM_PRIMORDIAL = "item_gem_primordial";
 export const ITEM_GEM_VOID = "item_gem_void";
 export const ITEM_GEM_TRANSFER = "item_gem_transfer";
 export const ITEM_GEM_EXPANSION = "item_gem_expansion";
+export const ITEM_GEM_METAMORPH = "item_gem_metamorph";
+export const ITEM_GEM_METAMORPH_3 = "item_gem_metamorph_3";
+export const ITEM_GEM_METAMORPH_6 = "item_gem_metamorph_6";
+export const ITEM_GEM_METAMORPH_8 = "item_gem_metamorph_8";
 
 export type OptionConsumableKind =
   | "appraisal"
@@ -22,7 +26,11 @@ export type OptionConsumableKind =
   | "primordial"
   | "void_reroll"
   | "transfer"
-  | "expansion";
+  | "expansion"
+  | "metamorph"
+  | "metamorph_3"
+  | "metamorph_6"
+  | "metamorph_8";
 
 const BY_ITEM_ID: Record<string, OptionConsumableKind> = {
   [ITEM_APPRAISAL_SCROLL]: "appraisal",
@@ -36,6 +44,10 @@ const BY_ITEM_ID: Record<string, OptionConsumableKind> = {
   [ITEM_GEM_VOID]: "void_reroll",
   [ITEM_GEM_TRANSFER]: "transfer",
   [ITEM_GEM_EXPANSION]: "expansion",
+  [ITEM_GEM_METAMORPH]: "metamorph",
+  [ITEM_GEM_METAMORPH_3]: "metamorph_3",
+  [ITEM_GEM_METAMORPH_6]: "metamorph_6",
+  [ITEM_GEM_METAMORPH_8]: "metamorph_8",
 };
 
 export function optionConsumableKind(itemId: string): OptionConsumableKind | null {
@@ -72,5 +84,28 @@ export function optionConsumableLabel(kind: OptionConsumableKind): string {
       return "전이의 보석";
     case "expansion":
       return "확장의 보석";
+    case "metamorph":
+      return "변형의 보석";
+    case "metamorph_3":
+      return "변형의 보석·III";
+    case "metamorph_6":
+      return "심변형의 보석";
+    case "metamorph_8":
+      return "극변형의 보석";
+  }
+}
+
+export function metamorphMinTierForKind(kind: OptionConsumableKind): number | null {
+  switch (kind) {
+    case "metamorph":
+      return null;
+    case "metamorph_3":
+      return 3;
+    case "metamorph_6":
+      return 6;
+    case "metamorph_8":
+      return 8;
+    default:
+      return null;
   }
 }

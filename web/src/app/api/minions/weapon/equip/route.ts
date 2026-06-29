@@ -48,7 +48,11 @@ export async function POST(req: Request) {
       if (inst.userLocked) throw new Error("ITEM_USER_LOCKED");
       const combatClass = resolveMinionCombatClass(promotionStateFromRow(m));
       if (!canMinionEquipWeaponForClass(combatClass, inst.baseItemId)) throw new Error("WEAPON_JOB_MISMATCH");
-      assertMinionCanEquipBaseItem({ minionLevel: m.level, baseItemId: inst.baseItemId });
+      assertMinionCanEquipBaseItem({
+        minionLevel: m.level,
+        baseItemId: inst.baseItemId,
+        instanceItemLevel: inst.itemLevel,
+      });
 
       const same = m.equippedWeaponInstanceId === weaponInstanceId;
       const updated = await tx.minion.update({

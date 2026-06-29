@@ -32,13 +32,17 @@ export const CRAFTING_ITEM_GRADE: Record<string, number> = {
   item_gem_chaos: 5,
   item_gem_seal: 5,
   item_gem_expansion: 5,
+  item_gem_metamorph: 5,
+  item_gem_metamorph_3: 5,
   item_tome_celestial: 6,
   item_tome_abyss: 6,
   item_gem_ascension: 6,
   item_gem_primordial: 6,
+  item_gem_metamorph_6: 6,
   item_gem_void: 7,
   item_gem_transfer: 7,
   item_gem_blessing: 7,
+  item_gem_metamorph_8: 7,
 };
 
 export type LootDropRow = {
@@ -71,7 +75,8 @@ export function maxCraftingGradeForTier(tier: number): number {
   if (t <= 2) return 2;
   if (t <= 4) return 4;
   if (t <= 6) return 5;
-  return 6;
+  if (t <= 7) return 6;
+  return 7;
 }
 
 function floorGateForGrade(
@@ -98,21 +103,25 @@ function weightTableForTier(tier: number): WeightRow[] {
   };
 
   push("item_lesser_mana_stone", 1, t <= 2 ? 3200 : t <= 4 ? 1400 : t <= 6 ? 500 : 0, 1, 2);
-  push("item_appraisal_scroll", 2, t <= 2 ? 2400 : t <= 4 ? 2800 : t <= 6 ? 2400 : 2000, 1, 2);
-  push("item_mana_stone", 3, t <= 2 ? 0 : t <= 4 ? 2300 : t <= 6 ? 2500 : 1000, 1, 2);
-  push("item_enhance_scroll_protect", 4, t <= 3 ? 0 : t <= 4 ? 500 : t <= 6 ? 850 : 1100, 1, 1);
-  push("item_gem_destruction", 4, t <= 3 ? 0 : t <= 4 ? 600 : t <= 6 ? 900 : 850, 1, 1);
-  push("item_greater_mana_stone", 5, t <= 4 ? 0 : t <= 6 ? 2100 : 3200, 1, 2);
-  push("item_gem_chaos", 5, t <= 5 ? 0 : t <= 6 ? 520 : 1150, 1, 1);
-  push("item_gem_seal", 5, t <= 5 ? 0 : t <= 6 ? 220 : 480, 1, 1);
-  push(ITEM_TOME_CELESTIAL, 6, t <= 6 ? 0 : t <= 7 ? 180 : 320, 1, 1);
-  push(ITEM_TOME_ABYSS, 6, t <= 6 ? 0 : t <= 7 ? 180 : 320, 1, 1);
-  push("item_gem_expansion", 5, t <= 5 ? 0 : t <= 6 ? 380 : 720, 1, 1);
-  push("item_gem_ascension", 6, t <= 6 ? 0 : t <= 7 ? 140 : 260, 1, 1);
-  push("item_gem_primordial", 6, t <= 6 ? 0 : t <= 7 ? 120 : 220, 1, 1);
-  push("item_gem_void", 7, t <= 7 ? 0 : 160, 1, 1);
-  push("item_gem_transfer", 7, t <= 7 ? 0 : 140, 1, 1);
-  push("item_gem_blessing", 7, t <= 7 ? 0 : 180, 1, 1);
+  push("item_appraisal_scroll", 2, t <= 2 ? 2400 : t <= 4 ? 3000 : t <= 6 ? 2600 : 2200, 1, 2);
+  push("item_mana_stone", 3, t <= 2 ? 0 : t <= 4 ? 2300 : t <= 6 ? 2600 : 1200, 1, 2);
+  push("item_enhance_scroll_protect", 4, t <= 3 ? 0 : t <= 4 ? 400 : t <= 6 ? 600 : 600, 1, 1);
+  push("item_gem_destruction", 4, t <= 3 ? 0 : t <= 4 ? 450 : t <= 6 ? 650 : 350, 1, 1);
+  push("item_greater_mana_stone", 5, t <= 4 ? 0 : t <= 6 ? 2000 : 2400, 1, 2);
+  push("item_gem_chaos", 5, t <= 5 ? 0 : t <= 6 ? 240 : 280, 1, 1);
+  push("item_gem_seal", 5, t <= 5 ? 0 : t <= 6 ? 100 : 120, 1, 1);
+  push(ITEM_TOME_CELESTIAL, 6, t <= 6 ? 0 : t <= 7 ? 70 : 90, 1, 1);
+  push(ITEM_TOME_ABYSS, 6, t <= 6 ? 0 : t <= 7 ? 70 : 90, 1, 1);
+  push("item_gem_expansion", 5, t <= 5 ? 0 : t <= 6 ? 200 : 180, 1, 1);
+  push("item_gem_metamorph", 5, t <= 5 ? 0 : t <= 6 ? 220 : 200, 1, 1);
+  push("item_gem_metamorph_3", 5, t <= 5 ? 0 : t <= 6 ? 180 : 160, 1, 1);
+  push("item_gem_ascension", 6, t <= 6 ? 0 : t <= 7 ? 45 : 55, 1, 1);
+  push("item_gem_primordial", 6, t <= 6 ? 0 : t <= 7 ? 38 : 45, 1, 1);
+  push("item_gem_metamorph_6", 6, t <= 6 ? 0 : t <= 7 ? 42 : 50, 1, 1);
+  push("item_gem_void", 7, t <= 7 ? 0 : 25, 1, 1);
+  push("item_gem_transfer", 7, t <= 7 ? 0 : 22, 1, 1);
+  push("item_gem_blessing", 7, t <= 7 ? 0 : 28, 1, 1);
+  push("item_gem_metamorph_8", 7, t <= 7 ? 0 : 18, 1, 1);
 
   return rows;
 }
@@ -127,7 +136,10 @@ export function craftingDropRowsForContext(ctx: CraftingDropContext): LootDropRo
 
   for (const row of weightTableForTier(tier)) {
     if (row.grade > maxGrade) continue;
-    const weight = Math.round(row.weight * (boss && row.grade >= 4 ? 1.3 : 1));
+    const weight = Math.round(
+      row.weight *
+        (boss && row.grade >= 5 ? 1.5 : boss && row.grade >= 4 ? 1.3 : 1),
+    );
     if (weight <= 0) continue;
     out.push({
       itemId: row.itemId,
@@ -150,56 +162,6 @@ export function mergeCraftingDropPool(baseDrops: LootDropRow[], ctx: CraftingDro
 
 export function contentTierForDungeonId(dungeonId: string): number {
   return stageOrderForDungeonId(dungeonId) ?? 1;
-}
-
-export const RAID_CONTENT_TIER: Record<string, number> = {
-  raid_monster_slime: 1,
-  raid_monster_goblin: 2,
-  raid_monster_wolf: 3,
-  raid_boss_slime_king: 2,
-  raid_boss_goblin_chieftain: 3,
-  raid_boss_wolf_alpha: 4,
-  raid_boss_demon_barbatos: 3,
-  raid_boss_demon_lerajie: 3,
-  raid_boss_demon_eligos: 4,
-  raid_boss_demon_naberius: 4,
-  raid_boss_demon_glasya: 4,
-  raid_boss_demon_bune: 5,
-  raid_boss_demon_ronove: 5,
-  raid_boss_demon_baal: 5,
-  raid_boss_demon_agares: 5,
-  raid_boss_demon_paimon: 5,
-  raid_boss_demon_astaroth: 6,
-  raid_boss_demon_asmodeus: 6,
-  raid_boss_demon_belial: 6,
-  raid_boss_demon_vassago: 6,
-  raid_monster_skeleton: 4,
-  raid_monster_fire_salamander: 5,
-  raid_monster_ice_wisp: 5,
-  raid_boss_skeleton_lord: 5,
-  raid_boss_flame_tyrant: 6,
-  raid_boss_frost_titan: 6,
-  raid_boss_angel_cassiel: 3,
-  raid_boss_angel_sachiel: 3,
-  raid_boss_angel_anael: 4,
-  raid_boss_angel_raphael: 4,
-  raid_boss_angel_gabriel: 4,
-  raid_boss_angel_michael: 5,
-  raid_boss_angel_uriel: 5,
-  raid_boss_angel_metatron: 6,
-  raid_boss_angel_raziel: 6,
-  raid_boss_angel_zadkiel: 6,
-  raid_boss_angel_camael: 6,
-  raid_boss_angel_haniel: 6,
-  raid_boss_angel_zophiel: 6,
-  raid_boss_angel_raguel: 7,
-  raid_boss_elder_dragon: 7,
-  raid_boss_void_harbinger: 8,
-  raid_boss_void_overlord: 8,
-};
-
-export function contentTierForRaidId(raidId: string): number {
-  return RAID_CONTENT_TIER[raidId.trim().toLowerCase()] ?? 5;
 }
 
 /** 무탑 1~80층 → 티어 1~8 (10층 단위) */

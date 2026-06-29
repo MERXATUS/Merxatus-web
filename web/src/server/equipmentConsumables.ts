@@ -9,6 +9,7 @@ import {
   formatEquipmentOptionDisplay,
   parseEquipmentOptionsPayload,
   removeRandomUnlockedOption,
+  rerollAllOptionsAndTiersInPayload,
   rerollOptionIdsKeepingTiersInPayload,
   rerollRandomOptionToVoidInPayload,
   sealRandomUnlockedSlot,
@@ -18,7 +19,7 @@ import {
 import { assertEquipmentNotUserLocked } from "@/server/inventoryEquipmentLock";
 import { stackAvailableQty, takeAvailableFromStack } from "@/server/inventoryStackOps";
 import { resolveDisplayItemGrade } from "@/server/itemGrade";
-import { optionConsumableKind, type OptionConsumableKind, ITEM_APPRAISAL_SCROLL } from "@/shared/optionConsumables";
+import { metamorphMinTierForKind, optionConsumableKind, type OptionConsumableKind, ITEM_APPRAISAL_SCROLL } from "@/shared/optionConsumables";
 import { normalizeItemIdLower } from "@/shared/itemId";
 import { getArmorStats } from "@/shared/armorStatsData";
 
@@ -141,6 +142,15 @@ function applyKindToPayload(
     case "expansion": {
       if (!payload.identified) throw new Error("NEEDS_APPRAISAL");
       return expandRandomOptionSlotInPayload(payload, category, itemGrade);
+    }
+    case "metamorph":
+    case "metamorph_3":
+    case "metamorph_6":
+    case "metamorph_8": {
+      if (!payload.identified) throw new Error("NEEDS_APPRAISAL");
+      if (payload.options.length === 0) throw new Error("NO_OPTIONS");
+      const minTier = metamorphMinTierForKind(kind);
+      return rerollAllOptionsAndTiersInPayload(payload, category, itemGrade, minTier);
     }
     case "transfer":
       throw new Error("TRANSFER_NEEDS_SECOND_TARGET");

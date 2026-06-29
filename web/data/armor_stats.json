@@ -32,7 +32,7 @@
     "icon": "Icon_Iron_Helmet"
   },
   "armor_golden_helmet": {
-    "name": "금 투구",
+    "name": "심판 투구",
     "slot": "Helmet",
     "grade": 4,
     "hp": 25,
@@ -40,12 +40,12 @@
     "icon": "Icon_Golden_Helmet"
   },
   "armor_diamond_helmet": {
-    "name": "다이아 왕관",
+    "name": "천광 왕관",
     "slot": "Helmet",
     "grade": 5,
     "hp": 35,
     "def": 15,
-    "icon": "Icon_Golden_Helmet"
+    "icon": "Icon_Diamond_Helmet"
   },
   "armor_leather_armor": {
     "name": "가죽 갑옷",
@@ -80,7 +80,7 @@
     "icon": "Icon_Iron_Armor"
   },
   "armor_golden_armor": {
-    "name": "금 갑옷",
+    "name": "심판 흉갑",
     "slot": "Armor",
     "grade": 4,
     "hp": 25,
@@ -88,12 +88,12 @@
     "icon": "Icon_Golden_Armor"
   },
   "armor_diamond_armor": {
-    "name": "다이아 흉갑",
+    "name": "천광 흉갑",
     "slot": "Armor",
     "grade": 5,
     "hp": 35,
     "def": 15,
-    "icon": "Icon_Golden_Armor"
+    "icon": "Icon_Diamond_Armor"
   },
   "armor_leather_pants": {
     "name": "가죽 각반",
@@ -128,7 +128,7 @@
     "icon": "Icon_Iron_Pants"
   },
   "armor_golden_pants": {
-    "name": "금 각반",
+    "name": "심판 각반",
     "slot": "Pants",
     "grade": 4,
     "hp": 25,
@@ -136,12 +136,12 @@
     "icon": "Icon_Golden_Pants"
   },
   "armor_diamond_pants": {
-    "name": "다이아 각갑",
+    "name": "천광 각갑",
     "slot": "Pants",
     "grade": 5,
     "hp": 35,
     "def": 15,
-    "icon": "Icon_Golden_Pants"
+    "icon": "Icon_Diamond_Pants"
   },
   "armor_leather_boots": {
     "name": "가죽 장화",
@@ -176,7 +176,7 @@
     "icon": "Icon_Iron_Boots"
   },
   "armor_golden_boots": {
-    "name": "금 장화",
+    "name": "심판 장화",
     "slot": "Boots",
     "grade": 4,
     "hp": 25,
@@ -184,11 +184,11 @@
     "icon": "Icon_Golden_Boots"
   },
   "armor_diamond_boots": {
-    "name": "다이아 장화",
+    "name": "천광 장화",
     "slot": "Boots",
     "grade": 5,
     "hp": 35,
     "def": 15,
-    "icon": "Icon_Golden_Boots"
+    "icon": "Icon_Diamond_Boots"
   }
 }

@@ -12,6 +12,7 @@ import { knightOrderPartyDamageMult } from "@/shared/knightOrder";
 import { getMonster } from "@/server/monsterData";
 import { loadRaids, raidEncounterForPhase, type RaidDef } from "@/server/raidData";
 import { loadMonsters } from "@/server/monsterData";
+import { raidBossCombatDisplayName } from "@/shared/raidBossDisplay";
 import { combatPowerFromMonster } from "@/server/monsterCombat";
 import { raidEnemyStatMult } from "@/shared/combatBalance";
 import {
@@ -25,11 +26,16 @@ import { raidPartyLootMultiplier } from "@/shared/raidPartyLoot";
 import { parsePartyHpJson, serializePartyHp } from "@/shared/dungeonPartyHp";
 import { grantLootToUser } from "@/server/grantLootToUser";
 import { grantMinionsExperience } from "@/server/minionLevelUp";
-import { contentTierForRaidId } from "@/shared/craftingItemDrops";
+import { contentTierForRaidId, raidModeStatMult } from "@/shared/raidRoster";
 import { raidClearGoldReward } from "@/shared/raidFaction";
 import type { CombatLogLine } from "@/shared/dungeonCombatLog";
 import { incrementLeaderboardScore } from "@/server/leaderboard";
 import { RAID_TOTAL_BOARD_KEY } from "@/server/leaderboardBoards";
+import { stackAvailableQty, takeAvailableFromStack } from "@/server/inventoryStackOps";
+import {
+  RAID_ENTRY_TICKET_ITEM_ID,
+  raidEntryTicketCost,
+} from "@/shared/raidEntry";
 
 type LootEntry = { itemId: string; qty: number };
 
@@ -99,10 +105,6 @@ export async function startRaidRun(input: { userId: string; raidId: string; mini
   const ids = [...new Set(input.minionIds)];
   if (ids.length < 1 || ids.length > (raid.maxPartySize ?? 3)) throw new Error("INVALID_PARTY_SIZE");
 
-  await prisma.raidRun.updateMany({
-    where: { userId: input.userId, status: "RUNNING" },
-    data: { status: "STOPPED" },
-  });
   const minions = await prisma.minion.findMany({ where: { id: { in: ids }, userId: input.userId } });
   if (minions.length !== ids.length) throw new Error("MINION_NOT_FOUND");
 
@@ -128,23 +130,41 @@ export async function startRaidRun(input: { userId: string; raidId: string; mini
     throw new Error(`RAID_PARTY_POWER_TOO_LOW:${minPartyPower}:${partyPower}`);
   }
 
-  const run = await prisma.raidRun.create({
-    data: {
-      userId: input.userId,
-      raidId: raid.id,
-      status: "RUNNING",
-      phase: 1,
-      party: { create: ids.map((minionId) => ({ minionId })) },
-    },
-    include: { party: { include: { minion: true } } },
+  const ticketCost = raidEntryTicketCost(raid.difficulty);
+  const ticketStack = await prisma.inventoryStack.findUnique({
+    where: { userId_itemId: { userId: input.userId, itemId: RAID_ENTRY_TICKET_ITEM_ID } },
   });
+  const ticketAvailable = ticketStack ? stackAvailableQty(ticketStack) : 0;
+  if (ticketAvailable < ticketCost) {
+    throw new Error(`RAID_ENTRY_TICKET_MISSING:${ticketAvailable}:${ticketCost}`);
+  }
 
-  const { combatants } = await loadRaidPartyCombat(prisma, input.userId, run);
-  await prisma.raidRun.update({
-    where: { id: run.id },
-    data: { partyHpJson: serializePartyHp(snapshotsToEntries(buildFullPartyHp(combatants))) },
+  return prisma.$transaction(async (tx) => {
+    await tx.raidRun.updateMany({
+      where: { userId: input.userId, status: "RUNNING" },
+      data: { status: "STOPPED" },
+    });
+    await takeAvailableFromStack(tx, input.userId, RAID_ENTRY_TICKET_ITEM_ID, ticketCost);
+
+    const run = await tx.raidRun.create({
+      data: {
+        userId: input.userId,
+        raidId: raid.id,
+        difficulty: raid.difficulty ?? "normal",
+        status: "RUNNING",
+        phase: 1,
+        party: { create: ids.map((minionId) => ({ minionId })) },
+      },
+      include: { party: { include: { minion: true } } },
+    });
+
+    const { combatants } = await loadRaidPartyCombat(tx, input.userId, run);
+    await tx.raidRun.update({
+      where: { id: run.id },
+      data: { partyHpJson: serializePartyHp(snapshotsToEntries(buildFullPartyHp(combatants))) },
+    });
+    return { ok: true as const, runId: run.id, ticketsConsumed: ticketCost };
   });
-  return { ok: true as const, runId: run.id };
 }
 
 export async function advanceRaidPhase(input: { userId: string; raidId: string }) {
@@ -162,13 +182,17 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
   const phase = Math.max(1, run.phase);
   const enc = raidEncounterForPhase(raid, phase);
   const monster = await getMonster(enc.monsterId);
-  const enemy: FloorEnemy = { name: monster.name, monster };
+  const isBoss = String(enc.category).toUpperCase() === "BOSS";
+  const enemy: FloorEnemy = {
+    name: raidBossCombatDisplayName(monster.name, raid.difficulty, isBoss),
+    monster,
+  };
 
   const { combatants, memberInputs, knightOrder } = await loadRaidPartyCombat(prisma, input.userId, run);
   const entries = parsePartyHpJson(run.partyHpJson);
   const partyHpStart = Object.fromEntries(entries.map((e) => [e.minionId, { hp: e.hp, maxHp: e.maxHp }]));
-  const isBoss = String(enc.category).toUpperCase() === "BOSS";
-  const enemyStatMult = raidEnemyStatMult(isBoss);
+  const enemyStatMult =
+    raidEnemyStatMult(isBoss, combatPowerFromMonster(monster)) * raidModeStatMult(raid.difficulty);
   const partyDamageMult = knightOrderPartyDamageMult(knightOrder, isBoss);
 
   const combatReplay = buildCombatReplay(
@@ -189,6 +213,7 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
     partyDamageMult,
     enemyStatMult,
     enemyTags: { isBoss, isAngel: false, isDemon: false },
+    monsterId: enc.monsterId,
   });
 
   const combatLog: CombatLogLine[] = battle.log;
@@ -305,11 +330,14 @@ export async function advanceRaidPhase(input: { userId: string; raidId: string }
   };
 }
 
-export async function getRaidRunState(userId: string) {
+export async function getRaidRunState(userId: string, opts?: { lite?: boolean }) {
+  const lite = opts?.lite !== false;
   const run = await prisma.raidRun.findFirst({
     where: { userId, status: "RUNNING" },
     orderBy: { startedAt: "desc" },
-    include: { party: { include: { minion: true } } },
+    include: {
+      party: lite ? { select: { minionId: true } } : { include: { minion: true } },
+    },
   });
   if (!run) return { ok: true as const, active: false as const };
   const { raids } = await loadRaids();
@@ -317,6 +345,9 @@ export async function getRaidRunState(userId: string) {
   const phase = Math.max(1, run.phase);
   const enc = raid ? raidEncounterForPhase(raid, phase) : null;
   const isBoss = enc ? String(enc.category).toUpperCase() === "BOSS" : false;
+  const pendingLoot = lite
+    ? safeParsePendingLoot(run.pendingLootJson).map((x) => ({ itemId: x.itemId, name: x.itemId, qty: x.qty }))
+    : await enrichLootEntries(prisma, safeParsePendingLoot(run.pendingLootJson));
   return {
     ok: true as const,
     active: true as const,
@@ -331,7 +362,7 @@ export async function getRaidRunState(userId: string) {
       raidName: raid?.name ?? run.raidId,
       phase: run.phase,
       maxPhases: raid?.maxPhases ?? 1,
-      pendingLoot: await enrichLootEntries(prisma, safeParsePendingLoot(run.pendingLootJson)),
+      pendingLoot,
     },
   };
 }
@@ -351,23 +382,38 @@ export async function stopRaidRun(userId: string) {
   return { ok: true as const, forfeitedLoot: forfeited };
 }
 
-export async function listRaidsPayload() {
+export async function listRaidsPayload(userId: string) {
   const { raids } = await loadRaids();
   const monsters = await loadMonsters();
+  const [ticketStack, ticketItem] = await Promise.all([
+    prisma.inventoryStack.findUnique({
+      where: { userId_itemId: { userId, itemId: RAID_ENTRY_TICKET_ITEM_ID } },
+    }),
+    prisma.item.findUnique({ where: { id: RAID_ENTRY_TICKET_ITEM_ID }, select: { name: true } }),
+  ]);
+  const entryTicketAvailableQty = ticketStack ? stackAvailableQty(ticketStack) : 0;
   return {
     ok: true as const,
+    entryTicket: {
+      itemId: RAID_ENTRY_TICKET_ITEM_ID,
+      name: ticketItem?.name ?? "레이드 입장권",
+      availableQty: entryTicketAvailableQty,
+    },
     raids: raids.map((r) => {
       const enc = raidEncounterForPhase(r, 1);
       const monster = monsters[enc.monsterId.trim().toLowerCase()];
       const isBoss = String(enc?.category ?? "").toUpperCase() === "BOSS";
       const enemyPower = monster ? combatPowerFromMonster(monster) : 0;
-      const diff = raidDifficultyMeta(r.id, enemyPower, isBoss, r.maxPartySize ?? 3);
+      const powerForDiff = Math.floor(enemyPower * raidModeStatMult(r.difficulty));
+      const diff = raidDifficultyMeta(r.id, powerForDiff, isBoss, r.maxPartySize ?? 3, r.difficulty);
+      const entryTicketCost = raidEntryTicketCost(r.difficulty);
       return {
         id: r.id,
         name: r.name,
         maxPhases: r.maxPhases,
         maxPartySize: r.maxPartySize,
-        faction: r.faction ?? "void",
+        faction: r.faction,
+        difficulty: r.difficulty,
         isBoss,
         enemyPower,
         recommendedPartyPower: diff.recommendedPartyPower,
@@ -375,6 +421,8 @@ export async function listRaidsPayload() {
         recommendedPerMinion: diff.recommendedPerMinion,
         difficultyLabel: diff.label,
         difficultyStars: diff.stars,
+        entryTicketCost,
+        canEnter: entryTicketAvailableQty >= entryTicketCost,
       };
     }),
   };

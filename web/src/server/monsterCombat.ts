@@ -1,4 +1,5 @@
 import type { MonsterDef } from "@/server/monsterData";
+import { combatPowerFromMonster as combatPowerFromMonsterShared } from "@/shared/monsterCombatPower";
 
 export type FighterCombatStats = {
   maxHp: number;
@@ -41,10 +42,7 @@ export function scaleFighterStatsByChannel(
 
 /** AUTO_WAVES 승률 추정용 단일 수치 (파티 power와 같은 척도) */
 export function combatPowerFromMonster(m: MonsterDef) {
-  return Math.max(
-    1,
-    Math.floor(m.hp * 0.8 + m.atk * 4 + m.magic * 3 + m.def * 2),
-  );
+  return combatPowerFromMonsterShared(m);
 }
 
 export function applyDefense(rawDamage: number, def: number) {

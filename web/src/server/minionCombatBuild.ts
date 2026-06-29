@@ -2,13 +2,17 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { computeMemberPower } from "@/server/dungeonBattler";
 import { computePartyPower } from "@/server/dungeonCombat";
 import { parseOptionsJson, weaponCombatBonusFromOptions } from "@/server/itemOptions";
-import type { MinionArmorIds } from "@/server/minionArmorDb";
-import { buildArmorLoadoutFromIds, loadMinionArmorIdsForUser } from "@/server/minionArmorDb";
+import { accessoryIdsFromRow, accessorySlotsFromIds, EMPTY_ACCESSORY_IDS, type MinionAccessoryIds } from "@/server/minionAccessoryDb";
+import { buildArmorLoadoutFromIds, type MinionArmorIds } from "@/server/minionArmorDb";
+import {
+  accessoryCombatModifiersForSlots,
+} from "@/shared/accessoryCatalog";
 import {
   combatModifiersFromOptionRows,
   mergeCombatModifiers,
   type EquipmentCombatModifiers,
 } from "@/shared/equipmentCombatModifiers";
+import type { MinionAccessorySlotId } from "@/shared/minionEquipSlots";
 import {
   armorLoadoutFromSlotIds,
   combatMemberFromMinion,
@@ -28,13 +32,21 @@ import {
 } from "@/shared/minionSkills";
 import { passiveModsForSkill } from "@/shared/skillCombatRuntime";
 import type { StatusApplySpec } from "@/shared/combatStatus";
+import { minionDisplayName } from "@/shared/minionNickname";
 import { loadKnightOrderBonuses, scalePartyPowerWithKnightOrder } from "@/server/knightOrder";
+import { loadArmorCodexTotals } from "@/server/armorCodex";
+import { loadSetCodexTotals } from "@/server/setCodex";
+import { loadWeaponCodexTotals } from "@/server/weaponCodex";
+import { formatCodexAtkMilli } from "@/shared/weaponCodex";
+import type { SetCodexBuffSlice } from "@/shared/equipmentSetCodex";
 import type { KnightOrderBonuses } from "@/shared/knightOrder";
 
 export type MinionWeaponEquip = {
   baseItemId: string;
   enhanceLevel: number;
   optionsJson?: string | null;
+  quality?: number;
+  itemLevel?: number;
 };
 
 export type MinionCombatEquipInput = {
@@ -45,6 +57,7 @@ export type MinionCombatEquipInput = {
   skillLevelsJson?: string | null;
   weapon: MinionWeaponEquip | null;
   armor: MinionArmorLoadout | MinionArmorSlots;
+  accessories?: Partial<Record<MinionAccessorySlotId, string | null>>;
 };
 
 function isArmorSlotView(armor: MinionArmorLoadout | MinionArmorSlots): armor is MinionArmorSlots {
@@ -68,6 +81,7 @@ function combatModsFromEquip(input: MinionCombatEquipInput): EquipmentCombatModi
   return mergeCombatModifiers(
     combatModifiersFromOptionRows(weaponRows, "weapon"),
     ...armorMods,
+    accessoryCombatModifiersForSlots(input.accessories ?? {}),
   );
 }
 function toCombatInput(input: MinionCombatEquipInput) {
@@ -83,6 +97,8 @@ function toCombatInput(input: MinionCombatEquipInput) {
           enhanceLevel: input.weapon.enhanceLevel,
           optionBonus: weaponCombatBonusFromOptions(input.weapon.optionsJson),
           optionsJson: input.weapon.optionsJson,
+          quality: input.weapon.quality,
+          itemLevel: input.weapon.itemLevel,
         }
       : null,
     armor: normalizeArmor(input.armor),
@@ -99,8 +115,11 @@ export function buildMinionPartyCombatRow(
   input: MinionCombatEquipInput & {
     minionId: string;
     combatClassLabel?: string;
+    nickname?: string | null;
     promotionTier?: number | null;
     promotionClass?: string | null;
+    bonusAtkFlat?: number;
+    bonusMagicFlat?: number;
   },
 ) {
   const combatClass =
@@ -114,6 +133,7 @@ export function buildMinionPartyCombatRow(
   const combatInput = toCombatInput({ ...input, combatClass });
   const built = combatMemberFromMinion(combatInput);
   const combatClassLabel = input.combatClassLabel ?? minionCombatClassLabel(combatClass);
+  const displayName = minionDisplayName(input.nickname, combatClassLabel);
   const primarySkill = primaryActiveSkillForMinion(combatClass, input.skillLevelsJson);
   const passiveSkill = primaryPassiveSkillForMinion(combatClass, input.skillLevelsJson);
   let combatMods = combatModsFromEquip(input);
@@ -138,6 +158,8 @@ export function buildMinionPartyCombatRow(
     minionId: input.minionId,
     combatClass,
     combatClassLabel,
+    nickname: input.nickname ?? null,
+    displayName,
     weaponBaseItemId: input.weapon?.baseItemId ?? null,
     power: computeMemberPower(built.member),
     bonusHp: built.bonusHp,
@@ -155,6 +177,8 @@ export function buildMinionPartyCombatRow(
     combatMods,
     onHitStatuses,
     onFightStartSelfStatuses,
+    bonusAtkFlat: input.bonusAtkFlat,
+    bonusMagicFlat: input.bonusMagicFlat,
     row: built.member,
   };
 }
@@ -177,37 +201,123 @@ type PartyMinionRow = {
 
 export type PartyCombatDb =
   | Prisma.TransactionClient
-  | Pick<PrismaClient, "minion" | "minionTrait" | "weaponInstance" | "armorInstance" | "$queryRaw">;
+  | Pick<
+      PrismaClient,
+      "minion" | "minionTrait" | "weaponInstance" | "armorInstance" | "weaponCodexEntry" | "armorCodexEntry" | "$queryRaw"
+    >;
 
 type CombatDb = PartyCombatDb;
+
+const USER_COMBAT_META_TTL_MS = 30_000;
+const userCombatMetaCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    weaponCodex: Awaited<ReturnType<typeof loadWeaponCodexTotals>>;
+    armorCodex: Awaited<ReturnType<typeof loadArmorCodexTotals>>;
+    setCodex: SetCodexBuffSlice;
+    knightOrder: KnightOrderBonuses;
+  }
+>();
+
+export function invalidateUserCombatMetaCache(userId?: string) {
+  if (userId) userCombatMetaCache.delete(userId);
+  else userCombatMetaCache.clear();
+}
+
+async function loadUserCombatMeta(tx: CombatDb, userId: string) {
+  const cached = userCombatMetaCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) return cached;
+
+  const [weaponCodex, armorCodex, setCodex, knightOrder] = await Promise.all([
+    loadWeaponCodexTotals(tx, userId),
+    loadArmorCodexTotals(tx, userId),
+    loadSetCodexTotals(userId),
+    loadKnightOrderBonuses(tx, userId),
+  ]);
+  const value = {
+    expiresAt: Date.now() + USER_COMBAT_META_TTL_MS,
+    weaponCodex,
+    armorCodex,
+    setCodex,
+    knightOrder,
+  };
+  userCombatMetaCache.set(userId, value);
+  return value;
+}
+
+const EMPTY_ARMOR_IDS: MinionArmorIds = {
+  equippedHelmetItemId: null,
+  equippedChestItemId: null,
+  equippedPantsItemId: null,
+  equippedBootsItemId: null,
+  equippedHelmetInstanceId: null,
+  equippedChestInstanceId: null,
+  equippedPantsInstanceId: null,
+  equippedBootsInstanceId: null,
+};
+
+type MinionCombatEquipRow = MinionArmorIds & MinionAccessoryIds & { id: string; nickname: string | null };
+
 /** 던전·자동 웨이브 — UI와 동일한 장비/옵션/방어구 반영 */
 export async function loadPartyCombatRows(tx: CombatDb, userId: string, party: PartyMinionRow[]) {
   const minionIds = party.map((p) => p.minionId);
-  const traits = await tx.minionTrait.findMany({
-    where: { minionId: { in: minionIds }, type: "FIGHTER" },
-    select: { minionId: true, rank: true },
-    take: 50,
-  });
-  const fighterByMinionId = new Map(traits.map((t) => [t.minionId, t.rank]));
-
   const weaponInstanceIds = party
     .map((p) => p.minion.equippedWeaponInstanceId)
     .filter(Boolean) as string[];
-  const weapons = weaponInstanceIds.length
-    ? await tx.weaponInstance.findMany({
-        where: { id: { in: weaponInstanceIds }, userId },
-        select: {
-          id: true,
-          baseItemId: true,
-          enhanceLevel: true,
-          optionsJson: true,
-        },
-        take: 50,
-      })
-    : [];
-  const weaponById = new Map(weapons.map((w) => [w.id, w]));
 
-  const armorByMinionId = await loadMinionArmorIdsForUser(tx, userId);
+  const [traits, weapons, armorRows, userMeta] = await Promise.all([
+    tx.minionTrait.findMany({
+      where: { minionId: { in: minionIds }, type: "FIGHTER" },
+      select: { minionId: true, rank: true },
+      take: 50,
+    }),
+    weaponInstanceIds.length
+      ? tx.weaponInstance.findMany({
+          where: { id: { in: weaponInstanceIds }, userId },
+          select: {
+            id: true,
+            baseItemId: true,
+            enhanceLevel: true,
+            optionsJson: true,
+            quality: true,
+            itemLevel: true,
+          },
+          take: 50,
+        })
+      : Promise.resolve([]),
+    minionIds.length
+      ? tx.minion.findMany({
+          where: { userId, id: { in: minionIds } },
+          select: {
+            id: true,
+            nickname: true,
+            equippedHelmetItemId: true,
+            equippedChestItemId: true,
+            equippedPantsItemId: true,
+            equippedBootsItemId: true,
+            equippedHelmetInstanceId: true,
+            equippedChestInstanceId: true,
+            equippedPantsInstanceId: true,
+            equippedBootsInstanceId: true,
+            equippedRing1ItemId: true,
+            equippedRing2ItemId: true,
+            equippedNecklaceItemId: true,
+            equippedNecklace2ItemId: true,
+            equippedRelicItemId: true,
+            equippedRelic2ItemId: true,
+            equippedRelic3ItemId: true,
+          },
+        })
+      : Promise.resolve([]),
+    loadUserCombatMeta(tx, userId),
+  ]);
+
+  const fighterByMinionId = new Map(traits.map((t) => [t.minionId, t.rank]));
+  const weaponById = new Map(weapons.map((w) => [w.id, w]));
+  const armorByMinionId = new Map<string, MinionCombatEquipRow>(
+    armorRows.map((r) => [r.id, r as MinionCombatEquipRow]),
+  );
 
   const armorInstanceIds = new Set<string>();
   for (const row of armorByMinionId.values()) {
@@ -223,26 +333,28 @@ export async function loadPartyCombatRows(tx: CombatDb, userId: string, party: P
   const armorInstances = armorInstanceIds.size
     ? await tx.armorInstance.findMany({
         where: { id: { in: [...armorInstanceIds] }, userId },
-        select: { id: true, baseItemId: true, optionsJson: true, enhanceLevel: true },
+        select: { id: true, baseItemId: true, optionsJson: true, enhanceLevel: true, quality: true, itemLevel: true },
         take: 100,
       })
     : [];
   const armorInstById = new Map(armorInstances.map((a) => [a.id, a]));
 
+  const { weaponCodex, armorCodex, setCodex, knightOrder } = userMeta;
+  const codexAtkFlat =
+    Number(formatCodexAtkMilli(weaponCodex.bonusAtkMilli + setCodex.bonusAtkMilli));
+  const codexMagicFlat =
+    Number(formatCodexAtkMilli(weaponCodex.bonusMagicMilli + setCodex.bonusMagicMilli));
+  const codexPower = weaponCodex.bonusPower + armorCodex.bonusPower + setCodex.bonusPower;
+  const codexBonusHp = Math.floor((armorCodex.bonusHpMilli + setCodex.bonusHpMilli) / 1000);
+  const codexBonusDef = Math.floor((armorCodex.bonusDefMilli + setCodex.bonusDefMilli) / 1000);
+
   const memberInputs = party.map((p) => {
     const wi = weaponById.get(p.minion.equippedWeaponInstanceId ?? "");
-    const armorRow = armorByMinionId.get(p.minionId) ?? {
-      equippedHelmetItemId: null,
-      equippedChestItemId: null,
-      equippedPantsItemId: null,
-      equippedBootsItemId: null,
-      equippedHelmetInstanceId: null,
-      equippedChestInstanceId: null,
-      equippedPantsInstanceId: null,
-      equippedBootsInstanceId: null,
-    };
+    const equipRow = armorByMinionId.get(p.minionId);
+    const armorIds: MinionArmorIds = equipRow ?? EMPTY_ARMOR_IDS;
     return buildMinionPartyCombatRow({
       minionId: p.minionId,
+      nickname: equipRow?.nickname ?? null,
       level: p.minion.level,
       fighterRank: fighterByMinionId.get(p.minionId) ?? 0,
       baseStats: minionBaseStatsFromRow(p.minion),
@@ -254,14 +366,24 @@ export async function loadPartyCombatRows(tx: CombatDb, userId: string, party: P
             baseItemId: wi.baseItemId,
             enhanceLevel: wi.enhanceLevel,
             optionsJson: wi.optionsJson,
+            quality: wi.quality,
+            itemLevel: wi.itemLevel,
           }
         : null,
-      armor: buildArmorLoadoutFromIds(armorRow, armorInstById),
+      armor: buildArmorLoadoutFromIds(armorIds, armorInstById),
+      accessories: accessorySlotsFromIds(accessoryIdsFromRow(equipRow ?? EMPTY_ACCESSORY_IDS)),
+      bonusAtkFlat: codexAtkFlat,
+      bonusMagicFlat: codexMagicFlat,
     });
   });
 
+  for (const row of memberInputs) {
+    row.power += codexPower;
+    row.bonusHp += codexBonusHp;
+    row.bonusDef += codexBonusDef;
+  }
+
   const basePartyPower = computePartyPower({ members: memberInputs.map((x) => x.row) });
-  const knightOrder = await loadKnightOrderBonuses(tx, userId);
   const partyPower = scalePartyPowerWithKnightOrder(basePartyPower, knightOrder);
-  return { memberInputs, partyPower, basePartyPower, knightOrder };
+  return { memberInputs, partyPower, basePartyPower, knightOrder, weaponCodex, armorCodex };
 }

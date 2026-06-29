@@ -17,6 +17,7 @@ import type { CombatReport } from "@/shared/combatReport";
 import { CombatEncounterBlock } from "@/app/_components/CombatEncounterBlock";
 import { DungeonCashoutConfirmModal } from "@/app/_components/DungeonCashoutConfirmModal";
 import { DungeonPartyPickModal } from "@/app/_components/DungeonPartyPickModal";
+import { DungeonDropTable } from "@/app/_components/DungeonDropTable";
 import { DungeonRunSettlementModal } from "@/app/_components/DungeonRunSettlementModal";
 import {
   DungeonPartyHpList,
@@ -34,22 +35,27 @@ import { settlementTitle } from "@/shared/dungeonSettlement";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import {
   dungeonIdForStageOrder,
+  dungeonStageMetaFor,
   listDungeonStagePickerOptions,
   stageOrderForDungeonId,
 } from "@/shared/dungeonStageProgression";
 import { checkDungeonPartyEligibility } from "@/shared/dungeonDifficulty";
 import { pushLuckFloorGoldReward, pushLuckLootMultiplier } from "@/shared/dungeonPushLuck";
 import { assertDungeonStage } from "@/shared/dungeonStageProgression";
+import { dungeonDropTableForId } from "@/shared/dungeonDropTablesData";
+import { DUNGEONS_LIST_LITE } from "@/shared/dungeonsListData";
 import { normalizeItemIdLower } from "@/shared/itemId";
 import { fetchCombatRoster } from "@/shared/combatRosterClient";
 
 type DungeonDef = {
   id: string;
   name: string;
-  mode?: "AUTO_WAVES" | "PUSH_LUCK";
+  mode?: "AUTO_WAVES" | "PUSH_LUCK" | "IDLE";
   maxFloors?: number;
   maxPartySize?: number;
   baseWaveSeconds: number;
+  linkedStageOrder?: number;
+  ticketCost?: number;
   stage?: {
     stageOrder: number;
     realm?: "마계" | "천계" | "이계";
@@ -66,6 +72,7 @@ type DungeonDef = {
 type RunState = {
   ok: boolean;
   active: boolean;
+  idle?: boolean;
   combatActive?: boolean;
   run?: {
     id: string;
@@ -73,6 +80,9 @@ type RunState = {
     wins: number;
     losses: number;
     floor?: number;
+    rollIntervalSeconds?: number;
+    nextRollAt?: string | null;
+    offlineCapSeconds?: number;
   };
   combat?: { partyPower: number };
   dungeon?: DungeonDef;
@@ -118,6 +128,8 @@ type DungeonMinionRow = {
   level: number;
   pool: string;
   combatClassLabel: string;
+  displayName?: string;
+  nickname?: string | null;
   combatStats?: { combatPower: number };
   equippedWeapon?: {
     id: string;
@@ -131,8 +143,41 @@ type DungeonMinionRow = {
 type DisplayLogLine = { id: string; text: string; tone: "party" | "enemy" | "system" | "win" | "loss" };
 
 const PARTY_KEY = "dungeon_party_minion_ids_v1";
+const SPECIAL_PARTY_KEY = "special_dungeon_party_minion_ids_v1";
 const DUNGEON_SELECT_KEY = "dungeon_selected_id_v1";
+const SPECIAL_DUNGEON_SELECT_KEY = "special_dungeon_selected_id_v1";
 const DUNGEON_STAGE_SELECT_KEY = "dungeon_selected_stage_v1";
+const SPECIAL_DUNGEON_STAGE_SELECT_KEY = "special_dungeon_selected_stage_v1";
+
+type DungeonContentMode = "idle" | "special";
+
+function specialListEntryToDef(entry: {
+  id: string;
+  name: string;
+  maxFloors: number;
+  maxPartySize: number;
+  linkedStageOrder: number;
+  ticketCost: number;
+}): DungeonDef {
+  const mainId = dungeonIdForStageOrder(entry.linkedStageOrder) ?? "dungeon_slime_forest";
+  const stage = dungeonStageMetaFor(mainId, entry.maxFloors);
+  return {
+    id: entry.id,
+    name: entry.name,
+    mode: "PUSH_LUCK",
+    maxFloors: entry.maxFloors,
+    maxPartySize: entry.maxPartySize,
+    baseWaveSeconds: 8,
+    linkedStageOrder: entry.linkedStageOrder,
+    ticketCost: entry.ticketCost,
+    stage: stage ?? undefined,
+  };
+}
+
+function dungeonMinionLabel(m: Pick<DungeonMinionRow, "displayName" | "combatClassLabel" | "level">) {
+  const name = m.displayName ?? m.combatClassLabel;
+  return `${name} Lv${m.level}`;
+}
 
 function potionErrorMessage(code: string): string {
   switch (code) {
@@ -151,17 +196,25 @@ function potionErrorMessage(code: string): string {
   }
 }
 
-function resolveDungeonFromList(list: DungeonDef[], currentId?: string | null): DungeonDef | null {
+function resolveDungeonFromList(
+  list: DungeonDef[],
+  currentId?: string | null,
+  keys?: { stageKey: string; idKey: string },
+): DungeonDef | null {
   if (!list.length) return null;
+  const stageKey = keys?.stageKey ?? DUNGEON_STAGE_SELECT_KEY;
+  const idKey = keys?.idKey ?? DUNGEON_SELECT_KEY;
   if (typeof window !== "undefined") {
-    const savedStageRaw = localStorage.getItem(DUNGEON_STAGE_SELECT_KEY);
+    const savedStageRaw = localStorage.getItem(stageKey);
     const savedStage = savedStageRaw ? Number(savedStageRaw) : NaN;
     if (Number.isFinite(savedStage) && savedStage > 0) {
+      const byStageOrder = list.find((d) => (d.linkedStageOrder ?? d.stage?.stageOrder) === savedStage);
+      if (byStageOrder) return byStageOrder;
       const id = dungeonIdForStageOrder(savedStage);
       const byStage = id ? list.find((d) => d.id === id) : null;
       if (byStage) return byStage;
     }
-    const savedId = localStorage.getItem(DUNGEON_SELECT_KEY) ?? "";
+    const savedId = localStorage.getItem(idKey) ?? "";
     const byId = list.find((d) => d.id === savedId);
     if (byId) return byId;
   }
@@ -191,12 +244,21 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return apiPostJson<T>(url, body);
 }
 
-export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
+function floorTransitionMessage(enteringBoss: boolean, isAdvancing: boolean) {
+  if (enteringBoss) return "보스 입장 중…";
+  if (isAdvancing) return "다음 층으로 가는 중…";
+  return "탐험을 시작하는 중…";
+}
+
+export function DungeonsPanel({
+  embedded = false,
+  contentMode = "idle",
+}: EmbeddedPanelProps & { contentMode?: DungeonContentMode } = {}) {
   const { user, loading: sessionLoading } = useSessionUser();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [dungeon, setDungeon] = useState<DungeonDef | null>(null);
-  const [dungeons, setDungeons] = useState<DungeonDef[]>([]);
+  const [dungeons, setDungeons] = useState<DungeonDef[]>(DUNGEONS_LIST_LITE);
   const [run, setRun] = useState<RunState | null>(null);
   const [minions, setMinions] = useState<DungeonMinionRow[]>([]);
   const [partyIds, setPartyIds] = useState<Set<string>>(new Set());
@@ -226,6 +288,13 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const [dataLoading, setDataLoading] = useState(true);
   const logId = useRef(0);
 
+  const isSpecialMode = contentMode === "special";
+  const isIdleMode = !isSpecialMode && (dungeon?.mode ?? "IDLE") === "IDLE";
+  const storageKeys = isSpecialMode
+    ? { stageKey: SPECIAL_DUNGEON_STAGE_SELECT_KEY, idKey: SPECIAL_DUNGEON_SELECT_KEY }
+    : { stageKey: DUNGEON_STAGE_SELECT_KEY, idKey: DUNGEON_SELECT_KEY };
+  const partyStorageKey = isSpecialMode ? SPECIAL_PARTY_KEY : PARTY_KEY;
+
   const exploring = runSession || !!run?.active || combatActive;
 
   function setAutoAdvanceOn(on: boolean) {
@@ -244,28 +313,47 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       autoAdvanceTimer.current = null;
       if (!autoAdvanceRef.current) return;
       void advance();
-    }, 700);
+    }, 0);
   }
 
   const floor = Math.max(1, Math.floor(run?.run?.floor ?? 1));
   const maxFloors = dungeon?.maxFloors ?? 20;
   const maxParty = Math.max(1, dungeon?.maxPartySize ?? 1);
   const atBossGate = exploring && floor >= maxFloors && !combatActive && !battlePreparing;
-  const floorPct = atBossGate
-    ? Math.min(99, Math.round(((maxFloors - 1) / maxFloors) * 100))
-    : Math.min(99, Math.round(((Math.min(floor, maxFloors) - 1) / maxFloors) * 100));
-  const floorLabel = atBossGate
-    ? `보스 · ${maxFloors}층`
-    : exploring
-      ? `${Math.min(floor, maxFloors)} / ${maxFloors}층`
-      : `최대 ${maxFloors}층`;
+  const idleRollIntervalSec = run?.run?.rollIntervalSeconds ?? 20 * 60;
+  const idleRollPct = useMemo(() => {
+    if (!isIdleMode || !exploring || !run?.run?.nextRollAt) return 0;
+    const nextAt = new Date(run.run.nextRollAt).getTime();
+    const remainMs = Math.max(0, nextAt - Date.now());
+    return Math.min(99, Math.round(100 * (1 - remainMs / (idleRollIntervalSec * 1000))));
+  }, [isIdleMode, exploring, run?.run?.nextRollAt, idleRollIntervalSec]);
+  const floorPct = isIdleMode
+    ? idleRollPct
+    : atBossGate
+      ? Math.min(99, Math.round(((maxFloors - 1) / maxFloors) * 100))
+      : Math.min(99, Math.round(((Math.min(floor, maxFloors) - 1) / maxFloors) * 100));
+  const floorLabel = isIdleMode
+    ? exploring
+      ? `누적 롤 ${Math.max(0, run?.run?.wins ?? 0).toLocaleString()}회`
+      : "방치 탐험"
+    : atBossGate
+      ? `보스 · ${maxFloors}층`
+      : exploring
+        ? `${Math.min(floor, maxFloors)} / ${maxFloors}층`
+        : `최대 ${maxFloors}층`;
+  const idleNextRollLabel = run?.run?.nextRollAt
+    ? new Date(run.run.nextRollAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
+    : null;
+  const enteringBossFloor = floor >= maxFloors;
+  const isFloorTransition = battlePreparing || busy === "advance" || busy === "start";
+  const transitionMessage = isFloorTransition
+    ? floorTransitionMessage(enteringBossFloor, busy === "advance" || (battlePreparing && !busy))
+    : null;
   const advanceActionLabel = combatActive
     ? "전투 중…"
-    : busy === "combat" || busy === "start" || battlePreparing
-      ? floor >= maxFloors
-        ? "보스 입장 중…"
-        : "전투 준비…"
-      : floor >= maxFloors
+    : isFloorTransition && transitionMessage
+      ? transitionMessage
+      : enteringBossFloor
         ? "보스 입장"
         : "다음 층";
   const cashoutLoot = useMemo(() => {
@@ -279,6 +367,21 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }, [run?.pendingLootItems, run?.pendingLoot]);
 
   const stagePickerRows = useMemo(() => {
+    if (isSpecialMode) {
+      return listDungeonStagePickerOptions()
+        .map((opt) => {
+          const dungeonsInStage = dungeons.filter(
+            (d) => (d.linkedStageOrder ?? d.stage?.stageOrder) === opt.stageOrder,
+          );
+          if (dungeonsInStage.length === 0) return null;
+          return {
+            ...opt,
+            dungeons: dungeonsInStage,
+            primaryDungeonId: dungeonsInStage[0]!.id,
+          };
+        })
+        .filter((row): row is NonNullable<typeof row> => row != null);
+    }
     return listDungeonStagePickerOptions()
       .map((opt) => {
         const dungeonsInStage = opt.dungeonIds
@@ -288,7 +391,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         return { ...opt, dungeons: dungeonsInStage };
       })
       .filter((row): row is NonNullable<typeof row> => row != null);
-  }, [dungeons]);
+  }, [dungeons, isSpecialMode]);
 
   const selectedStageOrder =
     dungeon?.stage?.stageOrder ?? stageOrderForDungeonId(dungeon?.id ?? "") ?? stagePickerRows[0]?.stageOrder ?? 1;
@@ -322,13 +425,13 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       if (!next) return;
       setDungeon(next);
       try {
-        localStorage.setItem(DUNGEON_STAGE_SELECT_KEY, String(stageOrder));
-        localStorage.setItem(DUNGEON_SELECT_KEY, next.id);
+        localStorage.setItem(storageKeys.stageKey, String(stageOrder));
+        localStorage.setItem(storageKeys.idKey, next.id);
       } catch {
         /* ignore */
       }
     },
-    [exploring, busy, stagePickerRows],
+    [exploring, busy, stagePickerRows, storageKeys],
   );
 
   const partyChips = useMemo(() => {
@@ -338,7 +441,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       if (!m) continue;
       out.push({
         id,
-        label: `${m.combatClassLabel} Lv${m.level}`,
+        label: dungeonMinionLabel(m),
       });
     }
     return out;
@@ -347,7 +450,11 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const partyEligibility = useMemo(() => {
     if (!dungeon?.id || partyIds.size === 0) return null;
     try {
-      const stage = assertDungeonStage(dungeon.id);
+      const stageDungeonId =
+        dungeon.linkedStageOrder != null
+          ? dungeonIdForStageOrder(dungeon.linkedStageOrder) ?? dungeon.id
+          : dungeon.id;
+      const stage = assertDungeonStage(stageDungeonId);
       return checkDungeonPartyEligibility({
         stage,
         partyLevels: [...partyIds]
@@ -357,7 +464,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     } catch {
       return null;
     }
-  }, [dungeon?.id, partyIds, minions]);
+  }, [dungeon?.id, dungeon?.linkedStageOrder, partyIds, minions]);
 
   const canStartDungeon =
     !!dungeon && partyIds.size > 0 && (partyEligibility == null || partyEligibility.ok);
@@ -370,7 +477,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       const m = minions.find((x) => x.id === p.minionId);
       const maxHp = Math.max(1, Math.floor(live?.maxHp ?? p.maxHp ?? 1));
       const hp = Math.min(maxHp, Math.max(0, Math.floor(live?.hp ?? p.hp ?? maxHp)));
-      const fallbackLabel = m ? `${m.combatClassLabel} Lv${m.level}` : p.minionId.slice(0, 8);
+      const fallbackLabel = m ? dungeonMinionLabel(m) : p.minionId.slice(0, 8);
       return {
         id: p.minionId,
         label: live?.label ?? p.label ?? fallbackLabel,
@@ -448,7 +555,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
 
   function minionLabelForSettlement(minionId: string, fallback?: string) {
     const m = minions.find((x) => x.id === minionId);
-    if (m) return `${m.combatClassLabel} Lv${m.level}`;
+    if (m) return dungeonMinionLabel(m);
     return fallback ?? minionId.slice(0, 8);
   }
 
@@ -480,12 +587,36 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     setRunSession(false);
   }
 
+  function runMatchesPanel(state: RunState): boolean {
+    if (!state.active) return true;
+    const mode = state.dungeon?.mode;
+    if (isSpecialMode) return mode === "PUSH_LUCK";
+    return mode === "IDLE" || !!state.idle;
+  }
+
   function applyRunStateFromApi(state: RunState) {
     if (state.ok) {
-      setRun(state);
+      if (!runMatchesPanel(state)) {
+        setRun({ ok: true, active: false });
+        if (!combatActive) endRunSession();
+        return;
+      }
+      const mapped: RunState = state.idle
+        ? {
+            ...state,
+            run: state.run
+              ? {
+                  ...state.run,
+                  losses: state.run.losses ?? 0,
+                  floor: state.run.wins,
+                }
+              : state.run,
+          }
+        : state;
+      setRun(mapped);
       if (state.active) setRunSession(true);
       else if (!combatActive) endRunSession();
-      if (state.active && state.dungeon) setDungeon(state.dungeon);
+      if (state.active && state.dungeon) setDungeon(state.dungeon as DungeonDef);
       if (state.active && state.party?.length) {
         setPartyIds(new Set(state.party.map((p) => p.minionId)));
       }
@@ -646,29 +777,44 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     }
     setDataLoading(true);
     try {
-      const [list, state, roster] = await Promise.all([
-        apiGetJsonCached<{ ok: boolean; dungeons: DungeonDef[] }>("/api/dungeons/list?lite=1", {
-          ttlMs: API_CACHE_TTL.dungeonsList,
-        }),
+      const rosterPromise = fetchCombatRoster(user.id);
+      let list: DungeonDef[];
+      if (isSpecialMode) {
+        const specialR = await apiGetJsonCached<{
+          ok: boolean;
+          dungeons: Array<{
+            id: string;
+            name: string;
+            maxFloors: number;
+            maxPartySize: number;
+            linkedStageOrder: number;
+            ticketCost: number;
+          }>;
+        }>("/api/special-dungeons/list", { ttlMs: API_CACHE_TTL.runState });
+        list = (specialR.dungeons ?? []).map(specialListEntryToDef);
+      } else {
+        list = DUNGEONS_LIST_LITE;
+      }
+      const [state, roster] = await Promise.all([
         apiGetJsonCached<RunState>("/api/dungeons/run/state?lite=1", { ttlMs: API_CACHE_TTL.runState }),
-        fetchCombatRoster(user.id),
+        rosterPromise,
       ]);
       if (roster.length) setMinions(roster as DungeonMinionRow[]);
-      if (list.ok) {
-        setDungeons(list.dungeons);
-      }
+      setDungeons(list);
       if (state.ok) {
         applyRunStateFromApi(state);
-        if (!state.active && list.ok) {
-          const next = resolveDungeonFromList(list.dungeons, dungeon?.id);
+        if (!state.active && list.length) {
+          const next = resolveDungeonFromList(list, dungeon?.id, storageKeys);
           setDungeon(next);
         }
         if (!state.active && roster.length) {
           const cap = Math.max(1, (state.dungeon ?? dungeon)?.maxPartySize ?? 1);
-          setPartyIds(resolveSavedPartyIds(readSavedPartyIds(PARTY_KEY), roster as DungeonMinionRow[], cap));
+          setPartyIds(
+            resolveSavedPartyIds(readSavedPartyIds(partyStorageKey), roster as DungeonMinionRow[], cap),
+          );
         }
-      } else if (list.ok) {
-        const next = resolveDungeonFromList(list.dungeons, dungeon?.id);
+      } else if (list.length) {
+        const next = resolveDungeonFromList(list, dungeon?.id, storageKeys);
         setDungeon(next);
       }
     } catch (e) {
@@ -808,9 +954,9 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     setPartyIds((prev) => {
       const trimmed = resolveSavedPartyIds([...prev], minions, maxParty);
       if (trimmed.size > 0) return trimmed;
-      return resolveSavedPartyIds(readSavedPartyIds(PARTY_KEY), minions, maxParty);
+      return resolveSavedPartyIds(readSavedPartyIds(partyStorageKey), minions, maxParty);
     });
-  }, [minions, maxParty, exploring]);
+  }, [minions, maxParty, exploring, partyStorageKey]);
 
   useEscapeClose(partyOpen, () => setPartyOpen(false));
   useEscapeClose(!!settlement, dismissSettlement);
@@ -845,7 +991,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
   }
 
   function confirmParty() {
-    writeSavedPartyIds(PARTY_KEY, partyIds);
+    writeSavedPartyIds(partyStorageKey, partyIds);
     setPartyOpen(false);
   }
 
@@ -864,8 +1010,52 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     startBattlePlayback(lines, replay, r.isBoss);
   }
 
+  async function executeIdleCollect() {
+    if (!dungeon) return;
+    setBusy("collect");
+    setError(null);
+    try {
+      const r = await postJson<{ ok: boolean; cashedOut?: DungeonLootRow[]; goldGained?: number }>(
+        "/api/dungeons/idle/collect",
+        { dungeonId: dungeon.id },
+      );
+      openSettlement({
+        kind: "cashout",
+        subtitle: "방치 탐험 보상을 수령했습니다.",
+        xpGrants: [],
+        loot: r.cashedOut ?? [],
+        goldGained: r.goldGained,
+      });
+      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [], pendingGold: 0 } : prev));
+      endRunSession();
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function startRun(enableAuto = false) {
     if (!dungeon) return;
+    if (isIdleMode) {
+      setBusy("start");
+      setError(null);
+      try {
+        await postJson("/api/dungeons/idle/start", {
+          dungeonId: dungeon.id,
+          minionIds: [...partyIds],
+        });
+        writeSavedPartyIds(partyStorageKey, partyIds);
+        setRunSession(true);
+        await refresh({ runStateOnly: true });
+      } catch (e) {
+        endRunSession();
+        setError(e);
+      } finally {
+        setBusy(null);
+      }
+      return;
+    }
     setAutoAdvanceOn(enableAuto);
     setBusy("start");
     setLogLines([]);
@@ -876,6 +1066,12 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     try {
       resetSessionXp();
       setRunSession(true);
+      if (isSpecialMode) {
+        await postJson("/api/special-dungeons/run/start", {
+          dungeonId: dungeon.id,
+          minionIds: [...partyIds],
+        });
+      }
       await runAdvanceFloor({ dungeonId: dungeon.id, minionIds: [...partyIds] });
     } catch (e) {
       setPlayingLog(false);
@@ -893,10 +1089,8 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
     setBusy("advance");
     setError(null);
     const enteringBoss = floor >= maxFloors;
-    if (enteringBoss) {
-      setCombatIsBoss(true);
-      setBattlePreparing(true);
-    }
+    if (enteringBoss) setCombatIsBoss(true);
+    setBattlePreparing(true);
     try {
       await runAdvanceFloor();
     } catch (e) {
@@ -925,8 +1119,12 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
               <p className="game-label">던전</p>
               <h2 className="game-title mt-1 text-lg">{dungeon?.name ?? "마계 · 오염의 웅덩이"}</h2>
               <p className="mt-1 text-xs text-[var(--game-muted)]">
-                층마다 전투 진행 · 패배 시 보상 소멸
-                {autoAdvance && exploring ? " · 다음 층 자동 진행 중" : ""}
+                {isIdleMode
+                  ? "시간에 따라 자동 롤 · XP·골드·재료 위주 (장비 드랍 축소)"
+                  : isSpecialMode
+                    ? `층마다 전투 · 티켓 ${dungeon?.ticketCost ?? 1}장 소비 · 패배 시 보상 소멸`
+                    : "층마다 전투 진행 · 패배 시 보상 소멸"}
+                {!isIdleMode && autoAdvance && exploring ? " · 다음 층 자동 진행 중" : ""}
               </p>
               {dungeon?.stage ? (
                 <p className="mt-1 text-[11px] font-semibold text-[var(--game-gold-bright)]">
@@ -954,7 +1152,13 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
             </div>
           )}
           <span className={`dungeon-status-pill ${exploring ? "dungeon-status-pill--live" : ""}`.trim()}>
-            {autoAdvance && exploring ? "● 자동 탐험" : exploring ? "● 탐험 중" : "○ 대기"}
+            {isIdleMode && exploring
+              ? "● 방치 중"
+              : autoAdvance && exploring
+                ? "● 자동 탐험"
+                : exploring
+                  ? "● 탐험 중"
+                  : "○ 대기"}
           </span>
         </div>
         <div className="dungeon-floor-track">
@@ -965,7 +1169,16 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         </p>
         {exploring ? (
           <p className="text-right text-[10px] text-[var(--game-muted)]">
-            {atBossGate ? (
+            {isIdleMode ? (
+              <>
+                다음 롤 {idleNextRollLabel ?? "—"} · 간격 {Math.round(idleRollIntervalSec / 60)}분
+                {(run?.pendingGold ?? 0) > 0 ? (
+                  <span className="ml-2 text-[var(--game-gold-bright)]">
+                    대기 골드 +{(run?.pendingGold ?? 0).toLocaleString()} G
+                  </span>
+                ) : null}
+              </>
+            ) : atBossGate ? (
               <span className="font-semibold text-rose-300">최종 보스 대기 중</span>
             ) : (
               <>
@@ -975,6 +1188,10 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                   : null}
               </>
             )}
+          </p>
+        ) : isSpecialMode && dungeon?.ticketCost ? (
+          <p className="text-right text-[10px] text-[var(--game-muted)]">
+            입장권 <span className="text-[var(--game-gold-bright)]">{dungeon.ticketCost}장</span> 소비
           </p>
         ) : null}
         {lastFloorBonus ? (
@@ -1048,6 +1265,9 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                   </GameBtn>
                 ))}
               </div>
+            ) : null}
+            {dungeon?.id && !exploring ? (
+              <DungeonDropTable table={dungeonDropTableForId(dungeon.id)} compact={embedded} />
             ) : null}
           </div>
         ) : exploring ? (
@@ -1154,7 +1374,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
           </GamePanel>
           ) : null}
 
-          {exploring ? (
+          {exploring && !isIdleMode ? (
           <GamePanel className={embedded ? "!p-2" : "!p-3"}>
             <GamePanelTitle>{embedded ? "명령" : "명령"}</GamePanelTitle>
             <div className={`dungeon-action-grid ${embedded ? "mt-1.5" : "mt-2"}`}>
@@ -1190,6 +1410,51 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         </div>
 
         <div className="combat-encounter mt-3">
+          {isIdleMode ? (
+            <>
+              {exploring && cashoutLoot.length > 0 ? (
+                <div className="dungeon-idle-loot mb-2 rounded-lg border border-[var(--game-border)] bg-black/25 p-3">
+                  <p className="text-xs font-semibold text-[var(--game-muted)]">대기 중인 전리품</p>
+                  <ul className="mt-1 space-y-0.5 text-xs">
+                    {cashoutLoot.map((row) => (
+                      <li key={`${row.itemId}-${row.qty}`}>
+                        {row.name} ×{row.qty}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <p className="combat-encounter__hint text-xs text-[var(--game-muted)]">
+                {exploring
+                  ? "오프라인·방치 중에도 롤이 쌓입니다. 수확하면 파티가 해제됩니다."
+                  : "스테이지·파티를 고른 뒤 방치 탐험을 시작하세요."}
+              </p>
+              {exploring ? (
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <GameBtn
+                    variant="gold"
+                    className={`combat-encounter__action-btn flex-1 ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
+                    disabled={!!busy}
+                    onClick={() => void executeIdleCollect()}
+                  >
+                    {busy === "collect" ? "수확 중…" : "보상 수확"}
+                  </GameBtn>
+                </div>
+              ) : (
+                <div className="mt-2">
+                  <GameBtn
+                    variant="primary"
+                    className={`combat-encounter__action-btn w-full ${embedded ? "h-10 text-sm" : "h-11 text-base"}`}
+                    disabled={!!busy || !canStartDungeon}
+                    onClick={() => void startRun(false)}
+                  >
+                    {busy === "start" ? "시작 중…" : "방치 시작"}
+                  </GameBtn>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
           <CombatEncounterBlock
             embedded={embedded}
             playing={playingLog}
@@ -1198,15 +1463,14 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
             onComplete={finishBattlePlayback}
             isBoss={combatIsBoss}
             bossGateIdle={atBossGate && !battlePreparing}
-            preparingLabel={battlePreparing ? (floor >= maxFloors ? "보스 입장 중…" : "전투 준비 중…") : undefined}
+            preparingLabel={transitionMessage ?? undefined}
+            transitioning={isFloorTransition && !playingLog}
             idleHint={!exploring ? "전투를 시작하면 여기서 재생됩니다." : undefined}
           />
 
           <p className="combat-encounter__hint mt-2 text-xs text-[var(--game-muted)]">
-            {battlePreparing
-              ? floor >= maxFloors
-                ? "보스 입장 중…"
-                : "전투 준비 중…"
+            {transitionMessage
+              ? transitionMessage
               : atBossGate
                 ? autoAdvance
                   ? "보스 방 도착 · 곧 보스 전투가 자동으로 시작됩니다."
@@ -1246,7 +1510,7 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                   disabled={!!busy || !canStartDungeon || combatActive}
                   onClick={() => void startRun(false)}
                 >
-                  {busy === "start" ? "전투 준비…" : "탐험 시작"}
+                  {busy === "start" ? "탐험을 시작하는 중…" : "탐험 시작"}
                 </GameBtn>
                 <GameBtn
                   variant="gold"
@@ -1254,10 +1518,12 @@ export function DungeonsPanel({ embedded = false }: EmbeddedPanelProps = {}) {
                   disabled={!!busy || !canStartDungeon || combatActive}
                   onClick={() => void startRun(true)}
                 >
-                  {busy === "start" ? "전투 준비…" : "자동 탐험"}
+                  {busy === "start" ? "탐험을 시작하는 중…" : "자동 탐험"}
                 </GameBtn>
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
         {logLines.length > 0 && !combatActive ? (

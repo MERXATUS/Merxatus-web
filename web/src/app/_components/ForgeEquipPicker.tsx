@@ -12,6 +12,7 @@ import { weaponDisplayName } from "@/shared/weaponTooltip";
 import type { ArmorTooltipData } from "@/shared/armorTooltip";
 import type { WeaponTooltipData } from "@/shared/weaponTooltip";
 import { renderForgeOptionChips } from "@/app/_components/ForgeToolPicker";
+import { ForgeEquippedByTag } from "@/app/_components/ForgeEquippedByTag";
 
 export type ForgePickerItem = WeaponTooltipData | ArmorTooltipData;
 
@@ -160,6 +161,7 @@ export function ForgeEquipPicker(props: Props) {
                   >
                     {renderIcon(item, 40)}
                     {lv > 0 ? <span className="forge-lobby__icon-cell-badge">+{lv}</span> : null}
+                    <ForgeEquippedByTag equippedByMinion={item.equippedByMinion} compact className="forge-lobby__icon-equipped" />
                     {item.identified === false ? (
                       <span className="forge-lobby__icon-cell-dot" aria-label="미감정" />
                     ) : null}
@@ -207,6 +209,7 @@ export function ForgeEquipPicker(props: Props) {
                         <span className="forge-lobby__card-meta-hint">미감정</span>
                       ) : null}
                     </div>
+                    <ForgeEquippedByTag equippedByMinion={item.equippedByMinion} />
                     <div className="forge-lobby__card-bar" aria-hidden>
                       <div className="forge-lobby__card-bar-fill" style={{ width: `${pct}%` }} />
                     </div>

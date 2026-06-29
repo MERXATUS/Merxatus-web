@@ -3,6 +3,7 @@ import { ensureMinionEntitiesForUser } from "@/server/ensureMinionEntitiesForUse
 import { attachIcons, getItemIconMap } from "@/server/itemCatalog";
 import { itemGradeLabel, itemGradeViewForItem } from "@/server/itemGrade";
 import { loadMinionArmorIdsForUser } from "@/server/minionArmorDb";
+import { loadMinionAccessoryIdsForUser } from "@/server/minionAccessoryDb";
 import { MAX_DUNGEON_MINIONS } from "@/server/minionCapacity";
 import { mapMinionToListRow } from "@/server/minionListBuild";
 import { formatEquipmentOptionDisplay, parseEquipmentOptionsPayload } from "@/server/equipmentOptions";
@@ -20,9 +21,10 @@ export async function loadMinionPanelPayload(userId: string) {
     console.warn("[minionPanelPayload] ensureMinionEntitiesForUser", e);
   });
 
-  const [armorByMinionId, minions, weaponInstances, armorInstances, iconMap, knightOrderRaw, userRow, minionCreate] =
+  const [armorByMinionId, accessoryByMinionId, minions, weaponInstances, armorInstances, iconMap, knightOrderRaw, userRow, minionCreate] =
     await Promise.all([
     loadMinionArmorIdsForUser(prisma, userId),
+    loadMinionAccessoryIdsForUser(prisma, userId),
     prisma.minion.findMany({
       where: { userId },
       include: minionInclude,
@@ -61,7 +63,7 @@ export async function loadMinionPanelPayload(userId: string) {
     minionCreate,
     knightOrder: knightOrderToView(knightOrderRaw),
     minions: minions.map((m) =>
-      mapMinionToListRow(m, armorByMinionId, { armorInstancesById: armorInstById }),
+      mapMinionToListRow(m, armorByMinionId, { armorInstancesById: armorInstById, accessoryByMinionId }),
     ),
     weaponInstances: attachIcons(
       weaponInstances.map((w) => ({
@@ -69,6 +71,9 @@ export async function loadMinionPanelPayload(userId: string) {
         baseItemId: w.baseItemId,
         name: w.baseItem.name,
         enhanceLevel: w.enhanceLevel,
+        quality: w.quality,
+        qualityCraftCount: w.qualityCraftCount,
+        itemLevel: w.itemLevel,
         ...itemGradeViewForItem(w.baseItemId, w.baseItem.grade),
         identified: parseEquipmentOptionsPayload(w.optionsJson).identified,
         options: formatEquipmentOptionDisplay(w.optionsJson, "weapon"),
@@ -82,6 +87,9 @@ export async function loadMinionPanelPayload(userId: string) {
         baseItemId: a.baseItemId,
         name: a.baseItem.name,
         enhanceLevel: a.enhanceLevel,
+        quality: a.quality,
+        qualityCraftCount: a.qualityCraftCount,
+        itemLevel: a.itemLevel,
         createdAt: a.createdAt,
         ...itemGradeViewForItem(a.baseItemId, a.baseItem.grade),
         identified: parseEquipmentOptionsPayload(a.optionsJson).identified,

@@ -1,5 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
+import { accessoryIdsFromRow, accessorySlotsFromIds } from "@/server/minionAccessoryDb";
 import { armorIdsFromRow, buildArmorLoadoutFromIds, type MinionArmorIds } from "@/server/minionArmorDb";
+import { getAccessoryCatalogEntry } from "@/shared/accessoryCatalog";
+import type { MinionAccessorySlotId } from "@/shared/minionEquipSlots";
 import { weaponCombatBonusFromOptions } from "@/server/itemOptions";
 import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
 import { minionLevelProgress } from "@/shared/minionLevel";
@@ -11,6 +14,7 @@ import {
   resolveMinionCombatClass,
 } from "@/shared/minionPromotion";
 import { skillViewsForMinion } from "@/shared/minionSkills";
+import { minionDisplayName } from "@/shared/minionNickname";
 import { getArmorStats } from "@/shared/armorStatsData";
 import {
   armorSlotsFromMinionRow,
@@ -29,6 +33,27 @@ type MinionRow = Awaited<ReturnType<PrismaClient["minion"]["findMany"]>>[number]
     baseItem?: { id: string; name: string; grade: number };
   } | null;
 };
+
+export function accessoryEquippedView(accessoryIds: ReturnType<typeof accessoryIdsFromRow>) {
+  const slots = accessorySlotsFromIds(accessoryIds);
+  const view = {} as Partial<
+    Record<MinionAccessorySlotId, { itemId: string; name: string; grade: number } | null>
+  >;
+  for (const slot of Object.keys(slots) as MinionAccessorySlotId[]) {
+    const itemId = slots[slot];
+    if (!itemId) {
+      view[slot] = null;
+      continue;
+    }
+    const catalog = getAccessoryCatalogEntry(itemId);
+    view[slot] = {
+      itemId,
+      name: catalog?.name ?? itemId,
+      grade: catalog?.grade ?? 1,
+    };
+  }
+  return view as Record<MinionAccessorySlotId, { itemId: string; name: string; grade: number } | null>;
+}
 
 export function armorEquippedView(
   armorIds: MinionArmorIds,
@@ -74,11 +99,15 @@ export function mapMinionToPartyPickRow(m: MinionRow) {
     armor: {},
   });
 
+  const combatClassLabel = minionRoleLabel({ combatClass });
+
   return {
     id: m.id,
     level: lv,
     pool: "dungeon",
-    combatClassLabel: minionRoleLabel({ combatClass }),
+    nickname: m.nickname ?? null,
+    displayName: minionDisplayName(m.nickname, combatClassLabel),
+    combatClassLabel,
     combatPower,
     combatStats: { combatPower },
     equippedWeapon: m.equippedWeaponInstance?.baseItem
@@ -110,11 +139,13 @@ export function mapMinionToListRow(
   options?: {
     detailMinionId?: string | null;
     armorInstancesById?: Map<string, { baseItemId: string; optionsJson: string }>;
+    accessoryByMinionId?: Map<string, ReturnType<typeof accessoryIdsFromRow>>;
   },
 ) {
   const lv = m.level ?? 1;
   const fighterRank = (m.traits ?? []).find((t) => t.type === "FIGHTER")?.rank ?? 0;
   const armorIds = armorIdsFromRow(armorByMinionId.get(m.id));
+  const accessoryIds = accessoryIdsFromRow(options?.accessoryByMinionId?.get(m.id));
   const armorInstMap = options?.armorInstancesById ?? new Map();
   const baseStats = minionBaseStatsFromRow(m);
   const promotion = promotionStateFromRow(m);
@@ -142,6 +173,7 @@ export function mapMinionToListRow(
         }
       : null,
     armor: buildArmorLoadoutFromIds(armorIds, armorInstMap),
+    accessories: accessorySlotsFromIds(accessoryIds),
   };
 
   const needDetail = options?.detailMinionId === m.id;
@@ -149,6 +181,8 @@ export function mapMinionToListRow(
   const combatStats: MinionCombatBreakdown | undefined = needDetail
     ? computeMinionCombatBreakdown(combatInput)
     : undefined;
+
+  const combatClassLabel = minionRoleLabel({ combatClass });
 
   return {
     id: m.id,
@@ -171,7 +205,9 @@ export function mapMinionToListRow(
     canPromoteThird: promotionInfo.canPromoteThird,
     nextPromotionLabel: promotionInfo.nextPromotionLabel,
     skills,
-    combatClassLabel: minionRoleLabel({ combatClass }),
+    combatClassLabel,
+    nickname: m.nickname ?? null,
+    displayName: minionDisplayName(m.nickname, combatClassLabel),
     equippedWeaponInstanceId: m.equippedWeaponInstanceId ?? null,
     equippedHelmetItemId: armorIds.equippedHelmetItemId,
     equippedChestItemId: armorIds.equippedChestItemId,
@@ -199,6 +235,7 @@ export function mapMinionToListRow(
           }
         : null,
     equippedArmor: armorEquippedView(armorIds, armorInstMap),
+    equippedAccessories: accessoryEquippedView(accessoryIds),
     ...(combatStats ? { combatStats } : {}),
     traits: (m.traits ?? []).map((t) => ({ type: t.type, rank: t.rank, xp: t.xp })),
   };

@@ -10,6 +10,8 @@ import { formatPanelError } from "@/shared/formatPanelError";
 import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
 import { API_CACHE_TTL } from "@/shared/apiCache";
 import { apiGetJson, apiGetJsonCached, apiPostJson } from "@/shared/sessionClient";
+import { MarketListingEquipmentHover } from "@/app/_components/MarketListingEquipmentHover";
+import type { MarketListingEquipmentView } from "@/app/_components/MarketListingEquipmentHover";
 
 export type SellInventoryRow = {
   itemId: string;
@@ -27,7 +29,16 @@ export type SellWeaponRow = {
   name: string;
   enhanceLevel: number;
   grade?: number;
+  gradeLabel?: string;
+  identified?: boolean;
+  options?: MarketListingEquipmentView["options"];
+  userLocked?: boolean;
+  equippedByMinion?: { minionId: string; displayName: string } | null;
+  icon?: string | null;
+  iconSrc?: string;
 };
+
+export type SellArmorRow = SellWeaponRow;
 
 type MeState = {
   ok: true;
@@ -50,20 +61,23 @@ type MarketStatsSuggest = {
 };
 
 async function loadSellMeState() {
-  const [inv, weapons] = await Promise.all([
+  const [inv, weapons, armors, marketR] = await Promise.all([
     apiGetJsonCached<MeState>("/api/me/state?scope=inventory", { ttlMs: API_CACHE_TTL.meStateInventory }),
-    apiGetJsonCached<{ ok: true; weaponInstances?: SellWeaponRow[]; market?: MeState["market"] }>(
-      "/api/me/state?scope=weapons",
-      { ttlMs: API_CACHE_TTL.meStateWeapons },
-    ),
+    apiGetJsonCached<{ ok: true; weaponInstances?: SellWeaponRow[] }>("/api/me/state?scope=weapons", {
+      ttlMs: API_CACHE_TTL.meStateWeapons,
+    }),
+    apiGetJsonCached<{ ok: true; armorInstances?: SellArmorRow[] }>("/api/me/state?scope=armor", {
+      ttlMs: API_CACHE_TTL.meStateArmor,
+    }),
+    apiGetJsonCached<MeState>("/api/me/state?scope=market", { ttlMs: API_CACHE_TTL.meStateMarket }),
   ]);
-  const marketR = await apiGetJsonCached<MeState>("/api/me/state?scope=market", {
-    ttlMs: API_CACHE_TTL.meStateMarket,
-  });
+  const sellable = <T extends SellWeaponRow>(rows: T[] | undefined) =>
+    (rows ?? []).filter((r) => !r.userLocked && !r.equippedByMinion);
   return {
     ok: true as const,
     inventory: inv.inventory,
-    weaponInstances: weapons.weaponInstances,
+    weaponInstances: sellable(weapons.weaponInstances),
+    armorInstances: sellable(armors.armorInstances),
     market: marketR.market,
   };
 }
@@ -84,6 +98,20 @@ function iconProps(row: Pick<SellInventoryRow, "itemId" | "icon" | "iconSrc">) {
 
 const CATEGORY_ALL = "전체";
 const WEAPON_CATEGORY = "무기";
+const ARMOR_CATEGORY = "방어구";
+
+function sellEquipView(row: SellWeaponRow): MarketListingEquipmentView {
+  return {
+    id: row.id,
+    baseItemId: row.baseItemId,
+    name: row.name,
+    enhanceLevel: row.enhanceLevel,
+    grade: row.grade ?? 1,
+    gradeLabel: row.gradeLabel ?? "",
+    identified: row.identified ?? true,
+    options: row.options,
+  };
+}
 
 type Props = {
   userId: string;
@@ -91,7 +119,7 @@ type Props = {
   setBusy: (v: boolean) => void;
   onError: (e: unknown) => void;
   onListed: (message?: string) => void;
-  onInventoryLoaded?: (inventory: SellInventoryRow[], weapons: SellWeaponRow[]) => void;
+  onInventoryLoaded?: (inventory: SellInventoryRow[], weapons: SellWeaponRow[], armors: SellArmorRow[]) => void;
   searchQuery: string;
   categoryFilter: string;
 };
@@ -99,6 +127,7 @@ type Props = {
 export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInventoryLoaded, searchQuery, categoryFilter }: Props) {
   const [inventory, setInventory] = useState<SellInventoryRow[]>([]);
   const [weapons, setWeapons] = useState<SellWeaponRow[]>([]);
+  const [armors, setArmors] = useState<SellArmorRow[]>([]);
   const [activeListingCount, setActiveListingCount] = useState(0);
   const [maxActiveListings, setMaxActiveListings] = useState(20);
   const [loadBusy, setLoadBusy] = useState(false);
@@ -107,6 +136,7 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
   const [sellOpen, setSellOpen] = useState(false);
   const [sellItem, setSellItem] = useState<SellInventoryRow | null>(null);
   const [sellWeapon, setSellWeapon] = useState<SellWeaponRow | null>(null);
+  const [sellArmor, setSellArmor] = useState<SellArmorRow | null>(null);
   const [sellQty, setSellQty] = useState(1);
   const [sellType, setSellType] = useState<"FIXED" | "AUCTION">("FIXED");
   const [sellPriceMode, setSellPriceMode] = useState<"UNIT" | "TOTAL">("UNIT");
@@ -120,8 +150,9 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
     setSellOpen(false);
     setSellItem(null);
     setSellWeapon(null);
+    setSellArmor(null);
   }, []);
-  useEscapeClose(sellOpen && !!(sellItem || sellWeapon), closeSellModal);
+  useEscapeClose(sellOpen && !!(sellItem || sellWeapon || sellArmor), closeSellModal);
 
   const load = useCallback(async () => {
     setLoadBusy(true);
@@ -130,11 +161,13 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
       const r = await loadSellMeState();
       const inv = r.inventory ?? [];
       const w = r.weaponInstances ?? [];
+      const a = r.armorInstances ?? [];
       setInventory(inv);
       setWeapons(w);
+      setArmors(a);
       setActiveListingCount(r.market?.activeListingCount ?? 0);
       setMaxActiveListings(r.market?.maxActiveListings ?? 20);
-      onInventoryLoaded?.(inv, w);
+      onInventoryLoaded?.(inv, w, a);
     } catch (e) {
       onError(e);
     } finally {
@@ -149,8 +182,10 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
   const filteredInventory = useMemo(() => {
     const qq = searchQuery.trim().toLowerCase();
     return inventory.filter((it) => {
-      if (categoryFilter !== CATEGORY_ALL && categoryFilter !== WEAPON_CATEGORY && it.category !== categoryFilter) return false;
-      if (categoryFilter === WEAPON_CATEGORY) return false;
+      if (categoryFilter !== CATEGORY_ALL && categoryFilter !== WEAPON_CATEGORY && categoryFilter !== ARMOR_CATEGORY && it.category !== categoryFilter) {
+        return false;
+      }
+      if (categoryFilter === WEAPON_CATEGORY || categoryFilter === ARMOR_CATEGORY) return false;
       if (!qq) return true;
       return it.name.toLowerCase().includes(qq) || it.itemId.toLowerCase().includes(qq);
     });
@@ -164,6 +199,15 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
       return w.name.toLowerCase().includes(qq) || w.baseItemId.toLowerCase().includes(qq);
     });
   }, [weapons, searchQuery, categoryFilter]);
+
+  const filteredArmors = useMemo(() => {
+    if (categoryFilter !== CATEGORY_ALL && categoryFilter !== ARMOR_CATEGORY) return [];
+    const qq = searchQuery.trim().toLowerCase();
+    return armors.filter((a) => {
+      if (!qq) return true;
+      return a.name.toLowerCase().includes(qq) || a.baseItemId.toLowerCase().includes(qq);
+    });
+  }, [armors, searchQuery, categoryFilter]);
 
   async function fetchSuggested(itemId: string) {
     setSuggestBusy(true);
@@ -187,6 +231,7 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
   async function openSell(item: SellInventoryRow) {
     setSellItem(item);
     setSellWeapon(null);
+    setSellArmor(null);
     setSellQty(1);
     setSellType("FIXED");
     setSellPriceMode("UNIT");
@@ -201,6 +246,7 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
 
   async function openSellWeapon(w: SellWeaponRow) {
     setSellWeapon(w);
+    setSellArmor(null);
     setSellItem(null);
     setSellQty(1);
     setSellType("FIXED");
@@ -214,13 +260,30 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
     setSellOpen(true);
   }
 
-  async function submitSell() {
-    const isWeapon = !!sellWeapon;
-    if (!sellItem && !sellWeapon) return;
-    const qty = isWeapon ? 1 : Math.max(1, Math.floor(sellQty));
-    if (!isWeapon && sellItem && qty > sellItem.quantity) throw new Error("수량이 부족해.");
+  async function openSellArmor(a: SellArmorRow) {
+    setSellArmor(a);
+    setSellWeapon(null);
+    setSellItem(null);
+    setSellQty(1);
+    setSellType("FIXED");
+    setSellPriceMode("UNIT");
+    setSuggestedUnit(null);
+    const sug = await fetchSuggested(a.baseItemId);
+    const unit = Math.max(1, sug ?? 100);
+    setSellUnitPrice(unit);
+    setSellTotalPrice(unit);
+    setSellStartPrice(unit);
+    setSellOpen(true);
+  }
 
-    const itemLabel = isWeapon ? sellWeapon!.name : sellItem!.name;
+  async function submitSell() {
+    const sellEquip = sellWeapon ?? sellArmor;
+    if (!sellItem && !sellEquip) return;
+    const isEquipment = !!sellEquip;
+    const qty = isEquipment ? 1 : Math.max(1, Math.floor(sellQty));
+    if (!isEquipment && sellItem && qty > sellItem.quantity) throw new Error("수량이 부족해.");
+
+    const itemLabel = sellEquip ? sellEquip.name : sellItem!.name;
     const price =
       sellType === "FIXED"
         ? sellPriceMode === "UNIT"
@@ -230,7 +293,11 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
 
     if (sellType === "FIXED") {
       const r = await postJson<{ tutorialAdvanced?: boolean }>("/api/market/list", {
-        ...(isWeapon ? { weaponInstanceId: sellWeapon!.id } : { itemId: sellItem!.itemId, quantity: qty }),
+        ...(sellWeapon
+          ? { weaponInstanceId: sellWeapon.id }
+          : sellArmor
+            ? { armorInstanceId: sellArmor.id }
+            : { itemId: sellItem!.itemId, quantity: qty }),
         quantity: qty,
         saleType: "FIXED",
         ...(sellPriceMode === "UNIT"
@@ -240,7 +307,11 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
       if (r.tutorialAdvanced) notifyTutorialRefresh();
     } else {
       const r = await postJson<{ tutorialAdvanced?: boolean }>("/api/market/list", {
-        ...(isWeapon ? { weaponInstanceId: sellWeapon!.id } : { itemId: sellItem!.itemId, quantity: qty }),
+        ...(sellWeapon
+          ? { weaponInstanceId: sellWeapon.id }
+          : sellArmor
+            ? { armorInstanceId: sellArmor.id }
+            : { itemId: sellItem!.itemId, quantity: qty }),
         saleType: "AUCTION",
         startPrice: Math.max(1, Math.floor(sellStartPrice)),
       });
@@ -288,21 +359,24 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
   }
 
   function renderWeaponRow(w: SellWeaponRow) {
-    const icon = iconProps({ itemId: w.baseItemId });
+    const icon = iconProps({ itemId: w.baseItemId, icon: w.icon, iconSrc: w.iconSrc });
+    const view = sellEquipView(w);
     return (
       <div key={w.id} className="market-row market-row--sell">
-        <div className="market-row__item market-row__item--static">
-          <ItemIcon itemId={icon.itemId} icon={icon.icon} iconSrc={icon.iconSrc} size={44} className="market-row__icon item-icon" />
-          <div className="market-row__info">
-            <div className="market-row__name-line">
-              <span className={`market-row__name ${itemGradeNameClassName(w.grade ?? 1)}`}>{w.name}</span>
-              {w.enhanceLevel > 0 ? <span className="market-row__enh">+{w.enhanceLevel}</span> : null}
-            </div>
-            <div className="market-row__meta">
-              <span className="market-row__badge market-row__badge--fixed">무기</span>
+        <MarketListingEquipmentHover weapon={view}>
+          <div className="market-row__item market-row__item--static">
+            <ItemIcon itemId={icon.itemId} icon={icon.icon} iconSrc={icon.iconSrc} size={44} className="market-row__icon item-icon" />
+            <div className="market-row__info">
+              <div className="market-row__name-line">
+                <span className={`market-row__name ${itemGradeNameClassName(w.grade ?? 1)}`}>{w.name}</span>
+                {w.enhanceLevel > 0 ? <span className="market-row__enh">+{w.enhanceLevel}</span> : null}
+              </div>
+              <div className="market-row__meta">
+                <span className="market-row__badge market-row__badge--fixed">무기</span>
+              </div>
             </div>
           </div>
-        </div>
+        </MarketListingEquipmentHover>
         <div className="market-row__qty">
           <span className="market-row__col-label">수량</span>
           <span className="market-row__qty-val">1</span>
@@ -320,7 +394,43 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
     );
   }
 
-  if (loadBusy && inventory.length === 0 && weapons.length === 0) {
+  function renderArmorRow(a: SellArmorRow) {
+    const icon = iconProps({ itemId: a.baseItemId, icon: a.icon, iconSrc: a.iconSrc });
+    const view = sellEquipView(a);
+    return (
+      <div key={a.id} className="market-row market-row--sell">
+        <MarketListingEquipmentHover armor={view}>
+          <div className="market-row__item market-row__item--static">
+            <ItemIcon itemId={icon.itemId} icon={icon.icon} iconSrc={icon.iconSrc} size={44} className="market-row__icon item-icon" />
+            <div className="market-row__info">
+              <div className="market-row__name-line">
+                <span className={`market-row__name ${itemGradeNameClassName(a.grade ?? 1)}`}>{a.name}</span>
+                {a.enhanceLevel > 0 ? <span className="market-row__enh">+{a.enhanceLevel}</span> : null}
+              </div>
+              <div className="market-row__meta">
+                <span className="market-row__badge market-row__badge--fixed">방어구</span>
+              </div>
+            </div>
+          </div>
+        </MarketListingEquipmentHover>
+        <div className="market-row__qty">
+          <span className="market-row__col-label">수량</span>
+          <span className="market-row__qty-val">1</span>
+        </div>
+        <div className="market-row__price market-row__price--muted">
+          <span className="market-row__col-label">등록</span>
+          <span className="market-row__price-sub">인스턴스 1개</span>
+        </div>
+        <div className="market-row__action">
+          <button type="button" className="market-btn market-btn--buy" disabled={!!busy || !userId || atListingCap} onClick={() => void openSellArmor(a)}>
+            판매 등록
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadBusy && inventory.length === 0 && weapons.length === 0 && armors.length === 0) {
     return <div className="market-empty">불러오는 중…</div>;
   }
 
@@ -330,7 +440,7 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
 
   const atListingCap = activeListingCount >= maxActiveListings;
 
-  if (filteredInventory.length === 0 && filteredWeapons.length === 0) {
+  if (filteredInventory.length === 0 && filteredWeapons.length === 0 && filteredArmors.length === 0) {
     return <div className="market-empty">판매할 수 있는 아이템이 없습니다.</div>;
   }
 
@@ -342,9 +452,10 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
         {atListingCap ? <span className="ml-2 text-amber-300">등록 한도에 도달했어요.</span> : null}
       </p>
       {filteredWeapons.map((w) => renderWeaponRow(w))}
+      {filteredArmors.map((a) => renderArmorRow(a))}
       {filteredInventory.map((it) => renderStackRow(it))}
 
-      {sellOpen && (sellItem || sellWeapon) ? (
+      {sellOpen && (sellItem || sellWeapon || sellArmor) ? (
         <div className="market-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && closeSellModal()}>
           <div className="market-modal market-modal--sell" role="dialog" aria-modal="true">
             <div className="market-modal__head">
@@ -359,6 +470,11 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
                   <span className={itemGradeNameClassName(sellWeapon.grade ?? 1)}>{sellWeapon.name}</span>
                   {sellWeapon.enhanceLevel > 0 ? ` +${sellWeapon.enhanceLevel}` : ""}
                 </>
+              ) : sellArmor ? (
+                <>
+                  <span className={itemGradeNameClassName(sellArmor.grade ?? 1)}>{sellArmor.name}</span>
+                  {sellArmor.enhanceLevel > 0 ? ` +${sellArmor.enhanceLevel}` : ""}
+                </>
               ) : (
                 <>
                   <span className={itemGradeNameClassName(sellItem!.grade ?? 1)}>{sellItem!.name}</span>
@@ -369,7 +485,7 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
             {suggestedUnit ? <p className="market-modal__hint">최근 시세(대략) 단가: {fmtGold(suggestedUnit)} G</p> : null}
 
             <div className="market-modal__form market-modal__form--grid">
-              {!sellWeapon ? (
+              {!sellWeapon && !sellArmor ? (
                 <label className="market-modal__label">
                   수량
                   <div className="market-modal__qty-row">
@@ -459,7 +575,9 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
                       className="market-btn market-btn--ghost market-modal__suggest"
                       disabled={suggestBusy}
                       onClick={() =>
-                        void fetchSuggested(sellWeapon?.baseItemId ?? sellItem!.itemId).then((v) => v && setSellUnitPrice(v))
+                        void fetchSuggested(sellWeapon?.baseItemId ?? sellArmor?.baseItemId ?? sellItem!.itemId).then(
+                          (v) => v && setSellUnitPrice(v),
+                        )
                       }
                     >
                       {suggestBusy ? "…" : "시세 맞추기"}
@@ -505,4 +623,8 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
   );
 }
 
-export { CATEGORY_ALL as MARKET_SELL_CATEGORY_ALL, WEAPON_CATEGORY as MARKET_WEAPON_CATEGORY };
+export {
+  CATEGORY_ALL as MARKET_SELL_CATEGORY_ALL,
+  WEAPON_CATEGORY as MARKET_WEAPON_CATEGORY,
+  ARMOR_CATEGORY as MARKET_ARMOR_CATEGORY,
+};

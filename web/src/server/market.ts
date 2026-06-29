@@ -112,21 +112,73 @@ export async function expireStaleActiveListings(options?: { limit?: number }) {
 
 async function returnListingEscrowToSeller(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-  listing: { sellerId: string; itemId: string; quantity: number; weaponInstanceId: string | null },
+  listing: {
+    sellerId: string;
+    itemId: string;
+    quantity: number;
+    weaponInstanceId: string | null;
+    armorInstanceId: string | null;
+  },
 ) {
-  const isWeapon = listing.weaponInstanceId != null;
-  if (isWeapon) {
-    const inst = await tx.weaponInstance.findUnique({ where: { id: listing.weaponInstanceId! } });
+  if (listing.weaponInstanceId != null) {
+    const inst = await tx.weaponInstance.findUnique({ where: { id: listing.weaponInstanceId } });
     if (inst && inst.userId === listing.sellerId) {
       await tx.weaponInstance.update({ where: { id: inst.id }, data: { status: "OWNED" } });
     }
-  } else {
-    await tx.inventoryStack.upsert({
-      where: { userId_itemId: { userId: listing.sellerId, itemId: listing.itemId } },
-      create: { userId: listing.sellerId, itemId: listing.itemId, quantity: listing.quantity },
-      update: { quantity: { increment: listing.quantity } },
-    });
+    return;
   }
+  if (listing.armorInstanceId != null) {
+    const inst = await tx.armorInstance.findUnique({ where: { id: listing.armorInstanceId } });
+    if (inst && inst.userId === listing.sellerId) {
+      await tx.armorInstance.update({ where: { id: inst.id }, data: { status: "OWNED" } });
+    }
+    return;
+  }
+  await tx.inventoryStack.upsert({
+    where: { userId_itemId: { userId: listing.sellerId, itemId: listing.itemId } },
+    create: { userId: listing.sellerId, itemId: listing.itemId, quantity: listing.quantity },
+    update: { quantity: { increment: listing.quantity } },
+  });
+}
+
+function listingIsEquipment(listing: { weaponInstanceId: string | null; armorInstanceId?: string | null }) {
+  return listing.weaponInstanceId != null || listing.armorInstanceId != null;
+}
+
+async function transferListedEquipmentToBuyer(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  listing: {
+    sellerId: string;
+    weaponInstanceId: string | null;
+    armorInstanceId: string | null;
+  },
+  buyerId: string,
+) {
+  if (listing.weaponInstanceId != null) {
+    const inst = await tx.weaponInstance.findUnique({ where: { id: listing.weaponInstanceId } });
+    if (!inst) throw new Error("WEAPON_INSTANCE_NOT_FOUND");
+    if (inst.userId !== listing.sellerId) throw new Error("WEAPON_OWNER_MISMATCH");
+    if (inst.status !== "LISTED") throw new Error("WEAPON_NOT_LISTED");
+    await assertCanGrantEquipment(tx, buyerId, 1);
+    await tx.weaponInstance.update({
+      where: { id: inst.id },
+      data: { userId: buyerId, status: "OWNED" },
+    });
+    return;
+  }
+  if (listing.armorInstanceId != null) {
+    const inst = await tx.armorInstance.findUnique({ where: { id: listing.armorInstanceId } });
+    if (!inst) throw new Error("ARMOR_INSTANCE_NOT_FOUND");
+    if (inst.userId !== listing.sellerId) throw new Error("ARMOR_OWNER_MISMATCH");
+    if (inst.status !== "LISTED") throw new Error("ARMOR_NOT_LISTED");
+    await assertCanGrantEquipment(tx, buyerId, 1);
+    await tx.armorInstance.update({
+      where: { id: inst.id },
+      data: { userId: buyerId, status: "OWNED" },
+    });
+    return;
+  }
+  throw new Error("NOT_EQUIPMENT_LISTING");
 }
 
 function assertListingNotExpired(listing: ListingTimingRow, now: Date = new Date()) {
@@ -208,12 +260,12 @@ export async function buyFixedListingPartial(input: { listingId: string; buyerId
     if (!hasTotal && !hasUnit) throw new Error("INVALID_PRICE");
     if (listing.sellerId === input.buyerId) throw new Error("CANNOT_BUY_OWN_LISTING");
 
-    const isWeapon = listing.weaponInstanceId != null;
+    const isEquipment = listingIsEquipment(listing);
     const buyQty = Math.floor(input.quantity);
     if (buyQty <= 0) throw new Error("INVALID_QUANTITY");
     if (buyQty > listing.quantity) throw new Error("INSUFFICIENT_LISTING_QTY");
-    if (isWeapon) {
-      if (listing.quantity !== 1) throw new Error("WEAPON_LISTING_QTY_INVALID");
+    if (isEquipment) {
+      if (listing.quantity !== 1) throw new Error("EQUIPMENT_LISTING_QTY_INVALID");
       if (buyQty !== 1) throw new Error("MUST_BUY_ALL");
     } else {
       if (hasTotal && buyQty !== listing.quantity) throw new Error("MUST_BUY_ALL");
@@ -239,16 +291,8 @@ export async function buyFixedListingPartial(input: { listingId: string; buyerId
       update: { goldAvailable: { increment: netGold } },
     });
 
-    if (isWeapon) {
-      const inst = await tx.weaponInstance.findUnique({ where: { id: listing.weaponInstanceId! } });
-      if (!inst) throw new Error("WEAPON_INSTANCE_NOT_FOUND");
-      if (inst.userId !== listing.sellerId) throw new Error("WEAPON_OWNER_MISMATCH");
-      if (inst.status !== "LISTED") throw new Error("WEAPON_NOT_LISTED");
-      await assertCanGrantEquipment(tx, input.buyerId, 1);
-      await tx.weaponInstance.update({
-        where: { id: inst.id },
-        data: { userId: input.buyerId, status: "OWNED" },
-      });
+    if (isEquipment) {
+      await transferListedEquipmentToBuyer(tx, listing, input.buyerId);
     } else {
       await tx.inventoryStack.upsert({
         where: { userId_itemId: { userId: input.buyerId, itemId: listing.itemId } },
@@ -367,7 +411,7 @@ export async function settleAuctionListing(input: { listingId: string }) {
     if (!endsAt) throw new Error("AUCTION_ENDS_AT_MISSING");
     if (endsAt.getTime() > now.getTime()) throw new Error("AUCTION_NOT_ENDED");
 
-    const isWeapon = listing.weaponInstanceId != null;
+    const isEquipment = listingIsEquipment(listing);
     // No bids -> return item to seller (escrowed quantity)
     if (!listing.highestBidderId || !listing.highestBid) {
       await returnListingEscrowToSeller(tx, listing);
@@ -401,13 +445,8 @@ export async function settleAuctionListing(input: { listingId: string }) {
     });
 
     // Give item to winner
-    if (isWeapon) {
-      const inst = await tx.weaponInstance.findUnique({ where: { id: listing.weaponInstanceId! } });
-      if (!inst) throw new Error("WEAPON_INSTANCE_NOT_FOUND");
-      if (inst.userId !== listing.sellerId) throw new Error("WEAPON_OWNER_MISMATCH");
-      if (inst.status !== "LISTED") throw new Error("WEAPON_NOT_LISTED");
-      await assertCanGrantEquipment(tx, listing.highestBidderId, 1);
-      await tx.weaponInstance.update({ where: { id: inst.id }, data: { userId: listing.highestBidderId, status: "OWNED" } });
+    if (isEquipment) {
+      await transferListedEquipmentToBuyer(tx, listing, listing.highestBidderId);
     } else {
       await tx.inventoryStack.upsert({
         where: { userId_itemId: { userId: listing.highestBidderId, itemId: listing.itemId } },
@@ -441,6 +480,7 @@ export async function createListing(input: {
   itemId?: string;
   quantity: number;
   weaponInstanceId?: string;
+  armorInstanceId?: string;
   saleType: "FIXED" | "AUCTION";
   fixedPricePerUnit?: number;
   fixedPriceTotal?: number;
@@ -448,6 +488,10 @@ export async function createListing(input: {
 }) {
   return prisma.$transaction(async (tx) => {
     if (input.quantity <= 0) throw new Error("INVALID_QUANTITY");
+
+    const instanceIds = [input.weaponInstanceId, input.armorInstanceId].filter(Boolean);
+    if (instanceIds.length > 1) throw new Error("INVALID_PAYLOAD");
+    if (instanceIds.length === 1 && input.itemId) throw new Error("INVALID_PAYLOAD");
 
     const activeCount = await tx.listing.count({
       where: { sellerId: input.sellerId, status: "ACTIVE" },
@@ -457,6 +501,7 @@ export async function createListing(input: {
     }
 
     const isWeapon = input.weaponInstanceId != null;
+    const isArmor = input.armorInstanceId != null;
     let itemId = input.itemId;
 
     if (isWeapon) {
@@ -475,6 +520,31 @@ export async function createListing(input: {
         select: { id: true },
       });
       if (equipped) throw new Error("WEAPON_EQUIPPED");
+      itemId = inst.baseItemId;
+    } else if (isArmor) {
+      if (input.quantity !== 1) throw new Error("ARMOR_LISTING_QTY_INVALID");
+      const inst = await tx.armorInstance.findUnique({
+        where: { id: input.armorInstanceId! },
+        include: { baseItem: true },
+      });
+      if (!inst) throw new Error("ARMOR_INSTANCE_NOT_FOUND");
+      if (inst.userId !== input.sellerId) throw new Error("INSUFFICIENT_ITEM");
+      if (inst.status !== "OWNED") throw new Error("ARMOR_NOT_OWNED");
+      assertEquipmentNotUserLocked(inst);
+      if (inst.baseItem.category !== "방어구") throw new Error("NOT_ARMOR");
+      const equipped = await tx.minion.findFirst({
+        where: {
+          userId: input.sellerId,
+          OR: [
+            { equippedHelmetInstanceId: inst.id },
+            { equippedChestInstanceId: inst.id },
+            { equippedPantsInstanceId: inst.id },
+            { equippedBootsInstanceId: inst.id },
+          ],
+        },
+        select: { id: true },
+      });
+      if (equipped) throw new Error("ARMOR_EQUIPPED");
       itemId = inst.baseItemId;
     } else {
       if (!itemId) throw new Error("ITEM_ID_REQUIRED");
@@ -501,6 +571,8 @@ export async function createListing(input: {
     // Escrow
     if (isWeapon) {
       await tx.weaponInstance.update({ where: { id: input.weaponInstanceId! }, data: { status: "LISTED" } });
+    } else if (isArmor) {
+      await tx.armorInstance.update({ where: { id: input.armorInstanceId! }, data: { status: "LISTED" } });
     } else {
       await takeAvailableFromStack(tx, input.sellerId, itemId!, input.quantity);
     }
@@ -515,6 +587,7 @@ export async function createListing(input: {
         itemId: itemId!,
         quantity: input.quantity,
         weaponInstanceId: input.weaponInstanceId ?? null,
+        armorInstanceId: input.armorInstanceId ?? null,
         fixedPricePerUnit:
           input.saleType === "FIXED" && input.fixedPricePerUnit != null && input.fixedPricePerUnit > 0
             ? input.fixedPricePerUnit

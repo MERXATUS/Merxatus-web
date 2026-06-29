@@ -10,6 +10,14 @@ import {
 
   ITEM_GEM_EXPANSION,
 
+  ITEM_GEM_METAMORPH,
+
+  ITEM_GEM_METAMORPH_3,
+
+  ITEM_GEM_METAMORPH_6,
+
+  ITEM_GEM_METAMORPH_8,
+
   ITEM_GEM_PRIMORDIAL,
 
   ITEM_GEM_SEAL,
@@ -29,6 +37,15 @@ import {
 } from "@/shared/optionConsumables";
 
 import { ITEM_ENHANCE_SCROLL_PROTECT, ITEM_GEM_BLESSING, enhanceProtectScrollLabel } from "@/shared/enhanceConsumables";
+import {
+  equipmentCraftConsumableLabel,
+  ITEM_CRAFT_LEVEL_TIER1,
+  ITEM_CRAFT_LEVEL_TIER2,
+  ITEM_CRAFT_LEVEL_TIER3,
+  ITEM_CRAFT_QUALITY_STONE,
+  type EquipmentCraftConsumableKind,
+} from "@/shared/equipmentCraftConsumables";
+import { itemLevelTierLabel } from "@/shared/equipmentItemLevel";
 
 
 
@@ -64,7 +81,7 @@ export type ForgeToolDef = {
 
   itemId: string;
 
-  kind: OptionConsumableKind | "craft";
+  kind: OptionConsumableKind | EquipmentCraftConsumableKind | "craft";
 
   label: string;
 
@@ -82,6 +99,8 @@ export type ForgeToolDef = {
 
   needsTransferTarget?: boolean;
 
+  /** 레벨각인 — 대상 레벨 선택 UI */
+  needsItemLevelPicker?: boolean;
 };
 
 
@@ -310,11 +329,135 @@ export const FORGE_OPTION_TOOLS: ForgeToolDef[] = [
 
   },
 
+  {
+
+    itemId: ITEM_GEM_METAMORPH,
+
+    kind: "metamorph",
+
+    label: optionConsumableLabel("metamorph"),
+
+    shortLabel: "변형",
+
+    description: "모든 옵션 종류와 티어(T)를 다시 정합니다. 최소 티어 보장 없음.",
+
+    hint: "봉인 슬롯 제외 · 혼돈+티어 재추첨",
+
+    category: "option",
+
+    glyph: "⟲T",
+
+  },
+
+  {
+
+    itemId: ITEM_GEM_METAMORPH_3,
+
+    kind: "metamorph_3",
+
+    label: optionConsumableLabel("metamorph_3"),
+
+    shortLabel: "변형III",
+
+    description: "모든 옵션 종류와 티어(T)를 다시 정합니다. 각 옵션은 최소 T3입니다.",
+
+    hint: "봉인 슬롯 제외 · 최소 T3",
+
+    category: "option",
+
+    glyph: "Ⅲ",
+
+  },
+
+  {
+
+    itemId: ITEM_GEM_METAMORPH_6,
+
+    kind: "metamorph_6",
+
+    label: optionConsumableLabel("metamorph_6"),
+
+    shortLabel: "심변형",
+
+    description: "모든 옵션 종류와 티어(T)를 다시 정합니다. 각 옵션은 최소 T6입니다.",
+
+    hint: "봉인 슬롯 제외 · 고급 장비용",
+
+    category: "option",
+
+    glyph: "Ⅵ",
+
+  },
+
+  {
+
+    itemId: ITEM_GEM_METAMORPH_8,
+
+    kind: "metamorph_8",
+
+    label: optionConsumableLabel("metamorph_8"),
+
+    shortLabel: "극변형",
+
+    description: "모든 옵션 종류와 티어(T)를 다시 정합니다. 각 옵션은 최소 T8입니다.",
+
+    hint: "봉인 슬롯 제외 · 최상급 장비용",
+
+    category: "option",
+
+    glyph: "Ⅷ",
+
+  },
+
 ];
 
 
 
-export const FORGE_CRAFT_TOOLS: ForgeToolDef[] = [];
+export const FORGE_CRAFT_TOOLS: ForgeToolDef[] = [
+  {
+    itemId: ITEM_CRAFT_QUALITY_STONE,
+    kind: "quality_up",
+    label: equipmentCraftConsumableLabel("quality_up"),
+    shortLabel: "품질",
+    description: "장비 품질을 1단계 올립니다. 장비당 최대 10회.",
+    hint: "품질 0→10 · 연마제 10회 한도",
+    category: "craft",
+    glyph: "✦",
+  },
+  {
+    itemId: ITEM_CRAFT_LEVEL_TIER1,
+    kind: "level_tier1",
+    label: equipmentCraftConsumableLabel("level_tier1"),
+    shortLabel: "Lv각인Ⅰ",
+    description: `아이템 레벨을 ${itemLevelTierLabel(1)} 구간으로 설정합니다.`,
+    hint: "5레벨 단위 선택",
+    category: "craft",
+    glyph: "Ⅰ",
+    needsItemLevelPicker: true,
+  },
+  {
+    itemId: ITEM_CRAFT_LEVEL_TIER2,
+    kind: "level_tier2",
+    label: equipmentCraftConsumableLabel("level_tier2"),
+    shortLabel: "Lv각인Ⅱ",
+    description: `아이템 레벨을 ${itemLevelTierLabel(2)} 구간으로 설정합니다.`,
+    hint: "5레벨 단위 선택",
+    category: "craft",
+    glyph: "Ⅱ",
+    needsItemLevelPicker: true,
+  },
+  {
+    itemId: ITEM_CRAFT_LEVEL_TIER3,
+    kind: "level_tier3",
+    label: equipmentCraftConsumableLabel("level_tier3"),
+    shortLabel: "Lv각인Ⅲ",
+    description: `아이템 레벨을 ${itemLevelTierLabel(3)} 구간으로 설정합니다.`,
+    hint: "5레벨 단위 선택",
+    category: "craft",
+    glyph: "Ⅲ",
+    needsItemLevelPicker: true,
+  },
+];
 
 
 

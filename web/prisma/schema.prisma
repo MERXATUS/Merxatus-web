@@ -100,9 +100,16 @@ model User {
 
   /** 0..N-1 = 진행 중 단계, 100 = 튜토리얼 완료 (`shared/tutorial`) */
   tutorialStep Int @default(0)
-  /** 홈 대시보드에 표시할 대표 미니언 */
+  /** 홈 대시보드에 표시할 대표 미니언 (PVP·결투 대표와 동일) */
   representativeMinionId String?
   representativeMinion   Minion? @relation("UserRepresentativeMinion", fields: [representativeMinionId], references: [id], onDelete: SetNull)
+
+  /** 무탑 주간 연금 — ISO 주차 키(월요일 기준) */
+  towerPensionWeekKey String @default("")
+  /** 해당 주에 기록한 최고 층(연금 산정) */
+  towerPensionFloor Int @default(0)
+  /** 마지막 일일 연금 수령 일자 YYYY-MM-DD (UTC) */
+  towerLastPensionClaimDay String @default("")
 
   /** 자동 탐험 일일 웨이브 집계 (UTC 일자 키와 쌍) */
   autoExploreDailyWaves Int @default(0)
@@ -136,6 +143,9 @@ model User {
   pvpDefenses PvpMatch[] @relation("PvpDefender")
 
   chatMessages         ChatMessage[]
+
+  weaponCodexEntries WeaponCodexEntry[]
+  armorCodexEntries ArmorCodexEntry[]
 
   royalTrades      RoyalTradeLog[]
   blackMarketTrades BlackMarketTradeLog[]
@@ -397,6 +407,9 @@ model Minion {
   /** 전직 후 저장 클래스 (SWORDSMAN, WARRIOR 등) */
   promotionClass String @default("ADVENTURER")
 
+  /** 사용자 지정 이름 — 없으면 직업명 표시 */
+  nickname String?
+
   // 개별 무기 장착(던전 전투에 사용)
   equippedWeaponInstanceId String?
   equippedWeaponInstance   WeaponInstance? @relation(fields: [equippedWeaponInstanceId], references: [id], onDelete: SetNull)
@@ -420,6 +433,21 @@ model Minion {
   equippedBootsInstanceId  String?
   equippedBootsInstance    ArmorInstance? @relation("MinionEquippedBootsInst", fields: [equippedBootsInstanceId], references: [id], onDelete: SetNull)
 
+  equippedRing1ItemId     String?
+  equippedRing1           Item? @relation("MinionEquippedRing1", fields: [equippedRing1ItemId], references: [id], onDelete: SetNull)
+  equippedRing2ItemId     String?
+  equippedRing2           Item? @relation("MinionEquippedRing2", fields: [equippedRing2ItemId], references: [id], onDelete: SetNull)
+  equippedNecklaceItemId  String?
+  equippedNecklace        Item? @relation("MinionEquippedNecklace", fields: [equippedNecklaceItemId], references: [id], onDelete: SetNull)
+  equippedNecklace2ItemId String?
+  equippedNecklace2       Item? @relation("MinionEquippedNecklace2", fields: [equippedNecklace2ItemId], references: [id], onDelete: SetNull)
+  equippedRelicItemId     String?
+  equippedRelic           Item? @relation("MinionEquippedRelic", fields: [equippedRelicItemId], references: [id], onDelete: SetNull)
+  equippedRelic2ItemId    String?
+  equippedRelic2          Item? @relation("MinionEquippedRelic2", fields: [equippedRelic2ItemId], references: [id], onDelete: SetNull)
+  equippedRelic3ItemId    String?
+  equippedRelic3          Item? @relation("MinionEquippedRelic3", fields: [equippedRelic3ItemId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -438,6 +466,13 @@ model Minion {
   @@index([equippedChestInstanceId])
   @@index([equippedPantsInstanceId])
   @@index([equippedBootsInstanceId])
+  @@index([equippedRing1ItemId])
+  @@index([equippedRing2ItemId])
+  @@index([equippedNecklaceItemId])
+  @@index([equippedNecklace2ItemId])
+  @@index([equippedRelicItemId])
+  @@index([equippedRelic2ItemId])
+  @@index([equippedRelic3ItemId])
 }
 
 model WeaponInstance {
@@ -445,6 +480,11 @@ model WeaponInstance {
   userId     String
   baseItemId String
   enhanceLevel Int @default(0)
+  /** 장비 품질 0~10 (품질 연마제 최대 10회) */
+  quality Int @default(0)
+  qualityCraftCount Int @default(0)
+  /** 착용·스탯 기준 아이템 레벨 (10~140, 5 단위) */
+  itemLevel Int @default(10)
   status WeaponInstanceStatus @default(OWNED)
   /** 사용자가 실수 방지용으로 잠근 장비 */
   userLocked Boolean @default(false)
@@ -463,11 +503,57 @@ model WeaponInstance {
   @@index([baseItemId])
 }
 
+/** 무기 도감 — 종류·마일스톤별 등록, 계정 공통 버프 누적 */
+model WeaponCodexEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  baseItemId String
+  milestoneId String @default("base")
+  /** 등록 무기 전투력의 10% (정수) */
+  bonusPower Int @default(0)
+  /** ATK×1000 기준 10% (표시·전투 보정) */
+  bonusAtkMilli Int @default(0)
+  /** MAG×1000 기준 10% */
+  bonusMagicMilli Int @default(0)
+  registeredEnhanceLevel Int @default(0)
+  registeredQuality Int @default(0)
+  registeredItemLevel Int @default(10)
+  registeredAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, baseItemId, milestoneId])
+  @@index([userId])
+}
+
+/** 방어구 도감 — 종류·마일스톤별 등록, 계정 공통 버프 누적 */
+model ArmorCodexEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  baseItemId String
+  milestoneId String @default("base")
+  bonusPower Int @default(0)
+  bonusHpMilli Int @default(0)
+  bonusDefMilli Int @default(0)
+  registeredEnhanceLevel Int @default(0)
+  registeredQuality Int @default(0)
+  registeredItemLevel Int @default(10)
+  registeredAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, baseItemId, milestoneId])
+  @@index([userId])
+}
+
 model ArmorInstance {
   id         String @id @default(cuid())
   userId     String
   baseItemId String
   enhanceLevel Int @default(0)
+  quality Int @default(0)
+  qualityCraftCount Int @default(0)
+  itemLevel Int @default(10)
   status ArmorInstanceStatus @default(OWNED)
   /** 사용자가 실수 방지용으로 잠근 장비 */
   userLocked Boolean @default(false)
@@ -484,6 +570,7 @@ model ArmorInstance {
   equippedChestOn Minion[] @relation("MinionEquippedChestInst")
   equippedPantsOn Minion[] @relation("MinionEquippedPantsInst")
   equippedBootsOn Minion[] @relation("MinionEquippedBootsInst")
+  listing Listing?
 
   @@index([userId, createdAt])
   @@index([baseItemId])
@@ -519,6 +606,13 @@ model Item {
   minionsEquippedChest  Minion[] @relation("MinionEquippedChest")
   minionsEquippedPants  Minion[] @relation("MinionEquippedPants")
   minionsEquippedBoots  Minion[] @relation("MinionEquippedBoots")
+  minionsEquippedRing1     Minion[] @relation("MinionEquippedRing1")
+  minionsEquippedRing2     Minion[] @relation("MinionEquippedRing2")
+  minionsEquippedNecklace  Minion[] @relation("MinionEquippedNecklace")
+  minionsEquippedNecklace2 Minion[] @relation("MinionEquippedNecklace2")
+  minionsEquippedRelic     Minion[] @relation("MinionEquippedRelic")
+  minionsEquippedRelic2    Minion[] @relation("MinionEquippedRelic2")
+  minionsEquippedRelic3    Minion[] @relation("MinionEquippedRelic3")
 
   royalPrice        RoyalPrice?
   blackMarketPrice  BlackMarketPrice?
@@ -567,6 +661,8 @@ model DungeonRun {
   pendingGold Int @default(0)
   /** PUSH_LUCK: 파티원 층간 유지 HP. 예: [{"minionId":"…","hp":80,"maxHp":120,"label":"전사 1"}] */
   partyHpJson String @default("[]")
+  /** PUSH_LUCK: 런 시작 시 고정된 파티 전투 빌드(장비·스킬·코덱스). 층마다 재조회하지 않음 */
+  partyBuildJson String @default("")
   /** ATB 전투 진행 상태 (JSON) */
   combatStateJson String @default("")
   /** true면 AUTO_WAVES 틱(배속·일일 한도) — 던전 mode와 무관 */
@@ -623,6 +719,8 @@ model RaidRun {
   id              String        @id @default(cuid())
   userId          String
   raidId          String
+  /** normal | hard — raids.json difficulty 스냅샷 */
+  difficulty      String        @default("normal")
   status          RaidRunStatus @default(RUNNING)
   phase           Int           @default(1)
   wins            Int           @default(0)
@@ -736,6 +834,10 @@ model Listing {
   // Optional: 개별 무기(WeaponInstance) 거래
   weaponInstanceId String? @unique
   weaponInstance   WeaponInstance? @relation(fields: [weaponInstanceId], references: [id], onDelete: SetNull)
+
+  // Optional: 개별 방어구(ArmorInstance) 거래
+  armorInstanceId String? @unique
+  armorInstance   ArmorInstance? @relation(fields: [armorInstanceId], references: [id], onDelete: SetNull)
 
   // FIXED
   fixedPricePerUnit Int?

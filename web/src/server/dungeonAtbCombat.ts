@@ -294,6 +294,7 @@ export async function startDungeonAtbCombat(input: { userId: string; dungeonId: 
     partyDamageMult,
     enemyTags: { isBoss, isAngel: false, isDemon: false },
     phase: floor,
+    monsterId: floorMonster.monsterId,
   });
 
   await prisma.dungeonRun.update({

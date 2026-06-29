@@ -84,10 +84,10 @@ export const EQUIPMENT_SETS: EquipmentSetDef[] = [
   },
   {
     id: "royal",
-    name: "금",
+    name: "심판",
     grade: 4,
     realm: "천계",
-    tagline: "낙천자의 잔광이 깃든 금장비",
+    tagline: "심판의 빛을 담은 장비",
     weaponIds: ["weapon_gold_sword"],
     armorItemIds: [
       "armor_golden_helmet",
@@ -98,10 +98,10 @@ export const EQUIPMENT_SETS: EquipmentSetDef[] = [
   },
   {
     id: "throne",
-    name: "다이아",
+    name: "천광",
     grade: 5,
     realm: "천계",
-    tagline: "심판의 빛을 담은 다이아 장비",
+    tagline: "낙천자의 잔광이 깃든 장비",
     weaponIds: ["weapon_diamond_sword"],
     armorItemIds: [
       "armor_diamond_helmet",

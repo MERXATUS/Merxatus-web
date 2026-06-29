@@ -1,4 +1,10 @@
-import type { MinionEquipmentView, MinionEquippedItemView } from "@/shared/minionEquipSlots";
+import type { MinionAccessorySlotId, MinionEquipmentView, MinionEquippedItemView } from "@/shared/minionEquipSlots";
+import { MINION_ACCESSORY_SLOTS } from "@/shared/minionEquipSlots";
+type EquippedAccessoryPiece = {
+  itemId: string;
+  name: string;
+  grade?: number;
+} | null;
 
 type EquippedArmorPiece = {
   itemId: string;
@@ -12,6 +18,9 @@ export type MinionEquipInstanceRow = {
   baseItemId: string;
   name: string;
   enhanceLevel?: number;
+  quality?: number;
+  qualityCraftCount?: number;
+  itemLevel?: number;
   grade?: number;
   gradeLabel?: string;
   identified?: boolean;
@@ -34,6 +43,7 @@ export type MinionEquipmentSource = {
     pants: EquippedArmorPiece;
     shoes: EquippedArmorPiece;
   };
+  equippedAccessories?: Partial<Record<MinionAccessorySlotId, EquippedAccessoryPiece>>;
 };
 
 function weaponPiece(
@@ -50,6 +60,9 @@ function weaponPiece(
     gradeLabel: inst?.gradeLabel,
     identified: inst?.identified,
     options: inst?.options,
+    quality: inst?.quality,
+    qualityCraftCount: inst?.qualityCraftCount,
+    itemLevel: inst?.itemLevel,
     equipKind: "weapon",
   };
 }
@@ -69,6 +82,9 @@ function armorPiece(
     gradeLabel: inst?.gradeLabel,
     identified: inst?.identified,
     options: inst?.options,
+    quality: inst?.quality,
+    qualityCraftCount: inst?.qualityCraftCount,
+    itemLevel: inst?.itemLevel,
     equipKind: hasInstance ? "armor" : "stack",
   };
 }
@@ -116,6 +132,20 @@ export function buildMinionEquipmentViewWithTooltips(
   }
   if (armor?.shoes) {
     view.shoes = armorPiece(armor.shoes, lookupInstance(armor.shoes.instanceId, armors));
+  }
+
+  const accessories = m.equippedAccessories;
+  if (accessories) {
+    for (const slot of MINION_ACCESSORY_SLOTS) {
+      const piece = accessories[slot];
+      if (!piece) continue;
+      view[slot] = {
+        baseItemId: piece.itemId,
+        name: piece.name,
+        grade: piece.grade,
+        equipKind: "accessory",
+      };
+    }
   }
 
   return view;
