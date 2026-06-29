@@ -9,7 +9,7 @@ import { ARMOR_STATS_BY_ID, armorSlotLabelKo, type ArmorStatRow } from "@/shared
 import { CODEX_BUFF_RATIO, formatCodexAtkMilli } from "@/shared/weaponCodex";
 import {
   CODEX_MILESTONE_BASE_ID,
-  EQUIPMENT_CODEX_MILESTONES,
+  codexMilestonesForPool,
   codexMilestoneDef,
   scaleCodexBuffSlice,
   type CodexMilestoneDef,
@@ -160,7 +160,7 @@ export function previewArmorCodexMilestones(
     }
   >,
 ): ArmorCodexMilestoneView[] {
-  return EQUIPMENT_CODEX_MILESTONES.map((m: CodexMilestoneDef) => {
+  return codexMilestonesForPool("armor").map((m: CodexMilestoneDef) => {
     const reg = registeredByMilestone.get(m.id);
     const previewBuff = codexMilestoneBuffFromArmor({
       baseItemId,
@@ -201,7 +201,7 @@ export function aggregateArmorCodexBuffs(
   catalogItemCount?: number,
 ): ArmorCodexTotals {
   const perItem = catalogItemCount ?? codexArmorCatalog().length;
-  const milestonesPerItem = EQUIPMENT_CODEX_MILESTONES.length;
+  const milestonesPerItem = codexMilestonesForPool("armor").length;
   const totalCount = perItem * milestonesPerItem;
   let bonusPower = 0;
   let bonusHpMilli = 0;

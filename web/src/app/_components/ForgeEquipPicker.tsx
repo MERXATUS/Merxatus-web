@@ -13,6 +13,7 @@ import type { ArmorTooltipData } from "@/shared/armorTooltip";
 import type { WeaponTooltipData } from "@/shared/weaponTooltip";
 import { renderForgeOptionChips } from "@/app/_components/ForgeToolPicker";
 import { ForgeEquippedByTag } from "@/app/_components/ForgeEquippedByTag";
+import { useIsMobile } from "@/shared/useIsMobile";
 
 export type ForgePickerItem = WeaponTooltipData | ArmorTooltipData;
 
@@ -21,15 +22,15 @@ type ForgeViewMode = "icons" | "list";
 const VIEW_MODE_KEY = "inv_view_mode_v1";
 const DEFAULT_VIEW_MODE: ForgeViewMode = "list";
 
-function readViewMode(): ForgeViewMode {
-  if (typeof window === "undefined") return DEFAULT_VIEW_MODE;
+function readViewMode(isMobile: boolean): ForgeViewMode {
+  if (typeof window === "undefined") return isMobile ? "icons" : DEFAULT_VIEW_MODE;
   try {
     const raw = localStorage.getItem(VIEW_MODE_KEY);
     if (raw === "grid2") return "list";
     if (raw === "icons" || raw === "list") return raw;
-    return DEFAULT_VIEW_MODE;
+    return isMobile ? "icons" : DEFAULT_VIEW_MODE;
   } catch {
-    return DEFAULT_VIEW_MODE;
+    return isMobile ? "icons" : DEFAULT_VIEW_MODE;
   }
 }
 
@@ -56,6 +57,7 @@ function isWeapon(item: ForgePickerItem, kind: "weapon" | "armor"): item is Weap
 }
 
 export function ForgeEquipPicker(props: Props) {
+  const isMobile = useIsMobile();
   const modeLabel = props.mode === "enhance" ? "제련" : "가공";
   const empty =
     props.emptyMessage ??
@@ -64,8 +66,8 @@ export function ForgeEquipPicker(props: Props) {
   const [viewMode, setViewMode] = useState<ForgeViewMode>(DEFAULT_VIEW_MODE);
 
   useEffect(() => {
-    setViewMode(readViewMode());
-  }, []);
+    setViewMode(readViewMode(isMobile));
+  }, [isMobile]);
 
   useEffect(() => {
     writeViewMode(viewMode);
@@ -81,18 +83,29 @@ export function ForgeEquipPicker(props: Props) {
   }
 
   return (
-    <section className="forge-lobby" aria-label={`${modeLabel} 장비 선택`}>
+    <section
+      className={`forge-lobby${isMobile ? " forge-lobby--mobile" : ""}`}
+      aria-label={`${modeLabel} 장비 선택`}
+    >
       <header className="forge-lobby__banner">
         <div className="forge-lobby__banner-glow" aria-hidden />
-        <p className="forge-lobby__eyebrow">대장간</p>
+        {!isMobile ? <p className="forge-lobby__eyebrow">대장간</p> : null}
         <h2 className="forge-lobby__title">
-          {props.mode === "enhance" ? "제련할 장비를 고르세요" : "가공할 장비를 고르세요"}
+          {isMobile
+            ? props.mode === "enhance"
+              ? "제련할 장비"
+              : "가공할 장비"
+            : props.mode === "enhance"
+              ? "제련할 장비를 고르세요"
+              : "가공할 장비를 고르세요"}
         </h2>
-        <p className="forge-lobby__lead">
-          {props.mode === "enhance"
-            ? "장비를 선택하면 제련 작업대가 열립니다. 마석·골드를 모아 단계를 올려 보세요."
-            : "감정·보석 가공은 장비를 고른 뒤 작업대에서 진행합니다."}
-        </p>
+        {!isMobile ? (
+          <p className="forge-lobby__lead">
+            {props.mode === "enhance"
+              ? "장비를 선택하면 제련 작업대가 열립니다. 마석·골드를 모아 단계를 올려 보세요."
+              : "감정·보석 가공은 장비를 고른 뒤 작업대에서 진행합니다."}
+          </p>
+        ) : null}
       </header>
 
       <div className="forge-lobby__panel">

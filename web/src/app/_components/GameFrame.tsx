@@ -15,6 +15,7 @@ import { SettingsPanel } from "@/app/_components/SettingsPanel";
 import { UsernameSetupModal } from "@/app/_components/UsernameSetupModal";
 import { TutorialPanel } from "@/app/_components/TutorialPanel";
 import { GameBtn } from "@/app/_components/gameUi";
+import { GameBootSplash, type GameBootSplashPhase } from "@/app/_components/GameBootSplash";
 import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import {
@@ -218,6 +219,28 @@ export function GameFrame() {
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
   const [contentKey, setContentKey] = useState(0);
+  const [bootMinDone, setBootMinDone] = useState(false);
+  const [splashFading, setSplashFading] = useState(false);
+  const [splashMounted, setSplashMounted] = useState(true);
+
+  const bootDataReady = !sessionLoading && (!sessionUser || !summaryLoading);
+  const bootSplashPhase: GameBootSplashPhase = sessionLoading
+    ? "session"
+    : sessionUser && summaryLoading
+      ? "world"
+      : "default";
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setBootMinDone(true), 650);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (!bootDataReady || !bootMinDone || !splashMounted) return;
+    setSplashFading(true);
+    const t = window.setTimeout(() => setSplashMounted(false), 480);
+    return () => window.clearTimeout(t);
+  }, [bootDataReady, bootMinDone, splashMounted]);
 
   const navigateTab = useCallback(
     (tab: GameTabKey, opts?: { minionTab?: MinionPanelTab }) => {
@@ -526,6 +549,8 @@ export function GameFrame() {
           }}
         />
       </div>
+
+      {splashMounted ? <GameBootSplash phase={bootSplashPhase} fading={splashFading} /> : null}
     </GameFrameProvider>
   );
 }

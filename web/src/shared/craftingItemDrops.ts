@@ -61,6 +61,29 @@ export type CraftingDropContext = {
   maxFloors?: number;
 };
 
+/** 크래프팅 소모품(마석·보석·감정서 등) 드랍 가중치 배율 */
+export const CRAFTING_DROP_WEIGHT_FACTOR = 1.5;
+
+/** 베이스 장비(weapon_/armor_ 템플릿) 드랍 가중치 배율 */
+export const BASE_EQUIPMENT_DROP_WEIGHT_FACTOR = 0.65;
+
+export function isBaseEquipmentDropItemId(itemId: string): boolean {
+  const id = itemId.trim().toLowerCase();
+  return id.startsWith("weapon_") || id.startsWith("armor_");
+}
+
+export function scaleBaseEquipmentDropWeight(weight: number): number {
+  return Math.max(1, Math.round(weight * BASE_EQUIPMENT_DROP_WEIGHT_FACTOR));
+}
+
+function scaleBaseEquipmentDrops(drops: LootDropRow[]): LootDropRow[] {
+  return drops.map((d) =>
+    isBaseEquipmentDropItemId(d.itemId)
+      ? { ...d, weight: scaleBaseEquipmentDropWeight(d.weight) }
+      : d,
+  );
+}
+
 export function isCraftingConsumableItemId(itemId: string): boolean {
   return CRAFTING_ID_SET.has(itemId.trim().toLowerCase());
 }
@@ -138,6 +161,7 @@ export function craftingDropRowsForContext(ctx: CraftingDropContext): LootDropRo
     if (row.grade > maxGrade) continue;
     const weight = Math.round(
       row.weight *
+        CRAFTING_DROP_WEIGHT_FACTOR *
         (boss && row.grade >= 5 ? 1.5 : boss && row.grade >= 4 ? 1.3 : 1),
     );
     if (weight <= 0) continue;
@@ -154,7 +178,7 @@ export function craftingDropRowsForContext(ctx: CraftingDropContext): LootDropRo
 }
 
 export function mergeCraftingDropPool(baseDrops: LootDropRow[], ctx: CraftingDropContext): LootDropRow[] {
-  const base = stripCraftingConsumablesFromDrops(baseDrops);
+  const base = scaleBaseEquipmentDrops(stripCraftingConsumablesFromDrops(baseDrops));
   const crafting = craftingDropRowsForContext(ctx);
   if (!crafting.length) return base;
   return [...base, ...crafting];
@@ -184,6 +208,6 @@ export function craftingDropRowsForTower(): LootDropRow[] {
 }
 
 export function mergeCraftingIntoTowerDrops(drops: LootDropRow[]): LootDropRow[] {
-  const base = stripCraftingConsumablesFromDrops(drops);
+  const base = scaleBaseEquipmentDrops(stripCraftingConsumablesFromDrops(drops));
   return [...base, ...craftingDropRowsForTower()];
 }

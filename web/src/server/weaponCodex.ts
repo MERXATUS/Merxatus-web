@@ -6,8 +6,8 @@ import { itemGradeViewForItem } from "@/server/itemGrade";
 import { invalidateUserCombatMetaCache } from "@/server/minionCombatBuild";
 import {
   codexMilestoneDef,
+  codexMilestonesForPool,
   instanceMeetsCodexMilestone,
-  EQUIPMENT_CODEX_MILESTONES,
 } from "@/shared/equipmentCodexMilestones";
 import {
   aggregateCodexBuffs,
@@ -85,7 +85,7 @@ export async function loadWeaponCodexPayload(userId: string) {
       icon: w.icon,
       milestones,
       registeredMilestoneCount,
-      totalMilestones: EQUIPMENT_CODEX_MILESTONES.length,
+      totalMilestones: codexMilestonesForPool("weapon").length,
       buff: sumWeaponCodexBuffs(milestones.filter((m) => m.registered).map((m) => m.buff)),
     };
   });
@@ -155,9 +155,11 @@ async function loadRegisterableWeaponClaims(userId: string) {
       enhanceLevel: w.enhanceLevel,
       quality: w.quality,
       itemLevel: w.itemLevel,
+      optionsJson: w.optionsJson,
+      optionPool: "weapon" as const,
     };
     const optionBonus = weaponCombatBonusFromOptions(w.optionsJson);
-    for (const milestone of EQUIPMENT_CODEX_MILESTONES) {
+    for (const milestone of codexMilestonesForPool("weapon")) {
       if (claimed.has(`${baseItemId}:${milestone.id}`)) continue;
       if (!instanceMeetsCodexMilestone(snapshot, milestone)) continue;
       out.push({
@@ -213,6 +215,8 @@ export async function registerWeaponToCodex(
       enhanceLevel: w.enhanceLevel,
       quality: w.quality,
       itemLevel: w.itemLevel,
+      optionsJson: w.optionsJson,
+      optionPool: "weapon" as const,
     };
     if (!instanceMeetsCodexMilestone(snapshot, milestone)) {
       throw new Error("CODEX_MILESTONE_NOT_MET");

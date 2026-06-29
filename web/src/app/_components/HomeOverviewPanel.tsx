@@ -211,7 +211,7 @@ export function HomeOverviewPanel(props: { embedded?: boolean; onNavigate: (tab:
   }
 
   if ((frame.summaryLoading || frame.dashboardLoading) && !data) {
-    return <GamePanelLoading label="대시보드 불러오는 중…" />;
+    return <GamePanelLoading label="홈 정보를 불러오는 중…" />;
   }
 
   const bootstrapFailed = frame.summaryError ?? (error && !data ? error : null);
@@ -231,7 +231,7 @@ export function HomeOverviewPanel(props: { embedded?: boolean; onNavigate: (tab:
     if (summaryReady && frame.dashboardLoading) {
       return <GamePanelLoading label="자산·미니언 정보 불러오는 중…" />;
     }
-    return <GamePanelLoading label="대시보드 준비 중…" />;
+    return <GamePanelLoading label="홈을 준비하는 중…" />;
   }
 
   const { assets, pendingSales, representativeMinion, knightOrder, totalUnspentSkillPoints, leaderboardHighlights } =

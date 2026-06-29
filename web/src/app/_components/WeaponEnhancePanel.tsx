@@ -55,6 +55,7 @@ import {
   type ForgeWorkbenchMode,
 } from "@/shared/forgeWorkbench";
 import { consumeForgeOpenRequest, FORGE_OPEN_EVENT } from "@/shared/forgeNav";
+import { useIsMobile } from "@/shared/useIsMobile";
 
 type EquipOptionRow = {
   kind: string;
@@ -353,6 +354,7 @@ function validateEnhanceAfford(input: {
 
 export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const { user, loading: sessionLoading } = useSessionUser();
+  const isMobile = useIsMobile();
   const [me, setMe] = useState<MeState | null>(null);
   const [busy, setBusy] = useState(false);
   const [forgeMode, setForgeMode] = useState<ForgeWorkbenchMode>("enhance");
@@ -1087,7 +1089,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
               className={`forge-hub__mode ${forgeMode === "craft" ? "forge-hub__mode--active" : ""}`}
               onClick={() => switchForgeMode("craft")}
             >
-              장비 가공
+              {isMobile ? "가공" : "장비 가공"}
             </button>
             <button
               type="button"
@@ -1096,7 +1098,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
               className={`forge-hub__mode ${forgeMode === "salvage" ? "forge-hub__mode--active" : ""}`}
               onClick={() => switchForgeMode("salvage")}
             >
-              분해·추출
+              {isMobile ? "분해" : "분해·추출"}
             </button>
           </div>
           {!embedded ? (
@@ -1635,7 +1637,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                 </main>
 
                 <ForgeToolPicker
-                  layout="rail"
+                  layout={isMobile ? "inline" : "rail"}
                   tools={forgeTools}
                   inventory={me?.inventory ?? []}
                   selectedToolId={selectedToolId}

@@ -3,7 +3,7 @@ import { weaponEnhancePowerBonus, weaponBasePower } from "@/shared/weaponTooltip
 import { WEAPON_STATS_BY_ID, type WeaponStatRow } from "@/shared/weaponStatsData";
 import {
   CODEX_MILESTONE_BASE_ID,
-  EQUIPMENT_CODEX_MILESTONES,
+  codexMilestonesForPool,
   codexMilestoneDef,
   scaleCodexBuffSlice,
   type CodexMilestoneDef,
@@ -137,7 +137,7 @@ export function previewWeaponCodexMilestones(
     }
   >,
 ): WeaponCodexMilestoneView[] {
-  return EQUIPMENT_CODEX_MILESTONES.map((m: CodexMilestoneDef) => {
+  return codexMilestonesForPool("weapon").map((m: CodexMilestoneDef) => {
     const reg = registeredByMilestone.get(m.id);
     const previewBuff = codexMilestoneBuffFromWeapon({
       baseItemId,
@@ -178,7 +178,7 @@ export function aggregateCodexBuffs(
   catalogItemCount?: number,
 ): WeaponCodexTotals {
   const perItem = catalogItemCount ?? codexWeaponCatalog().length;
-  const milestonesPerItem = EQUIPMENT_CODEX_MILESTONES.length;
+  const milestonesPerItem = codexMilestonesForPool("weapon").length;
   const totalCount = perItem * milestonesPerItem;
   let bonusPower = 0;
   let bonusAtkMilli = 0;

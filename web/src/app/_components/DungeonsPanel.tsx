@@ -15,6 +15,7 @@ import type { CombatLogLine, DungeonCombatReplay } from "@/shared/dungeonCombatL
 import { partyHpFromArena, type BattleArenaFrame } from "@/shared/dungeonCombatReplay";
 import type { CombatReport } from "@/shared/combatReport";
 import { CombatEncounterBlock } from "@/app/_components/CombatEncounterBlock";
+import { ItemIcon } from "@/app/_components/ItemIcon";
 import { DungeonCashoutConfirmModal } from "@/app/_components/DungeonCashoutConfirmModal";
 import { DungeonPartyPickModal } from "@/app/_components/DungeonPartyPickModal";
 import { DungeonDropTable } from "@/app/_components/DungeonDropTable";
@@ -45,7 +46,9 @@ import { assertDungeonStage } from "@/shared/dungeonStageProgression";
 import { dungeonDropTableForId } from "@/shared/dungeonDropTablesData";
 import { DUNGEONS_LIST_LITE } from "@/shared/dungeonsListData";
 import { normalizeItemIdLower } from "@/shared/itemId";
+import { DUNGEON_IDLE_RULES } from "@/shared/dungeonIdle";
 import { fetchCombatRoster } from "@/shared/combatRosterClient";
+import { itemGradeFrameClassName } from "@/server/itemGrade";
 
 type DungeonDef = {
   id: string;
@@ -321,7 +324,7 @@ export function DungeonsPanel({
   const maxFloors = dungeon?.maxFloors ?? 20;
   const maxParty = Math.max(1, dungeon?.maxPartySize ?? 1);
   const atBossGate = exploring && floor >= maxFloors && !combatActive && !battlePreparing;
-  const idleRollIntervalSec = run?.run?.rollIntervalSeconds ?? 20 * 60;
+  const idleRollIntervalSec = run?.run?.rollIntervalSeconds ?? DUNGEON_IDLE_RULES.baseRollIntervalSeconds;
   const idleRollPct = useMemo(() => {
     if (!isIdleMode || !exploring || !run?.run?.nextRollAt) return 0;
     const nextAt = new Date(run.run.nextRollAt).getTime();
@@ -1172,7 +1175,10 @@ export function DungeonsPanel({
           <p className="text-right text-[10px] text-[var(--game-muted)]">
             {isIdleMode ? (
               <>
-                다음 롤 {idleNextRollLabel ?? "—"} · 간격 {Math.round(idleRollIntervalSec / 60)}분
+                다음 롤 {idleNextRollLabel ?? "—"} · 간격{" "}
+                {idleRollIntervalSec >= 60
+                  ? `${Math.round(idleRollIntervalSec / 60)}분`
+                  : `${idleRollIntervalSec}초`}
                 {(run?.pendingGold ?? 0) > 0 ? (
                   <span className="ml-2 text-[var(--game-gold-bright)]">
                     대기 골드 +{(run?.pendingGold ?? 0).toLocaleString()} G
@@ -1414,12 +1420,25 @@ export function DungeonsPanel({
           {isIdleMode ? (
             <>
               {exploring && cashoutLoot.length > 0 ? (
-                <div className="dungeon-idle-loot mb-2 rounded-lg border border-[var(--game-border)] bg-black/25 p-3">
-                  <p className="text-xs font-semibold text-[var(--game-muted)]">대기 중인 전리품</p>
-                  <ul className="mt-1 space-y-0.5 text-xs">
+                <div
+                  className={`dungeon-pending-loot ${embedded ? "dungeon-pending-loot--compact" : ""}`.trim()}
+                  aria-label="대기 중인 전리품"
+                >
+                  <ul className="dungeon-pending-loot__icon-grid">
                     {cashoutLoot.map((row) => (
-                      <li key={`${row.itemId}-${row.qty}`}>
-                        {row.name} ×{row.qty}
+                      <li
+                        key={row.itemId}
+                        className="dungeon-pending-loot__icon-cell"
+                        title={`${row.name} ×${row.qty.toLocaleString()}`}
+                      >
+                        <ItemIcon
+                          itemId={row.itemId}
+                          size={embedded ? 36 : 40}
+                          className={`dungeon-pending-loot__icon ${itemGradeFrameClassName(row.grade)}`.trim()}
+                        />
+                        {row.qty > 1 ? (
+                          <span className="dungeon-pending-loot__icon-badge">×{row.qty.toLocaleString()}</span>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
