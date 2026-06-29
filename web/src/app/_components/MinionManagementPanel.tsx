@@ -60,6 +60,22 @@ import { useEscapeClose } from "@/shared/useEscapeClose";
 type EquippedArmorPiece = { itemId: string; instanceId?: string | null; name: string; grade?: number };
 type EquippedAccessoryPiece = { itemId: string; name: string; grade: number };
 
+type EquippedArmorView = {
+  helmet: EquippedArmorPiece | null;
+  armor: EquippedArmorPiece | null;
+  pants: EquippedArmorPiece | null;
+  shoes: EquippedArmorPiece | null;
+};
+
+const EMPTY_EQUIPPED_ARMOR: EquippedArmorView = {
+  helmet: null,
+  armor: null,
+  pants: null,
+  shoes: null,
+};
+
+type ArmorSlotKey = "helmet" | "armor" | "pants" | "shoes";
+
 function promotionErrorMessage(code: string): string {
   switch (code) {
     case "NO_SWORD_EQUIPPED":
@@ -108,12 +124,7 @@ type MinionRow = {
   equippedHelmetItemId?: string | null;
   equippedChestItemId?: string | null;
   equippedPantsItemId?: string | null;
-  equippedArmor?: {
-    helmet: EquippedArmorPiece;
-    armor: EquippedArmorPiece;
-    pants: EquippedArmorPiece;
-    shoes: EquippedArmorPiece;
-  };
+  equippedArmor?: EquippedArmorView;
   equippedAccessories?: Partial<Record<(typeof MINION_ACCESSORY_SLOTS)[number], EquippedAccessoryPiece | null>>;
   equippedBootsItemId?: string | null;
   combatStats?: MinionCombatBreakdown;
@@ -181,27 +192,6 @@ function armorItemIdForSlot(m: MinionRow, slotId: MinionEquipSlotId): string | n
   return null;
 }
 
-type EquippedArmorView = {
-  helmet: EquippedArmorPiece | null;
-  armor: EquippedArmorPiece | null;
-  pants: EquippedArmorPiece | null;
-  shoes: EquippedArmorPiece | null;
-};
-
-const EMPTY_EQUIPPED_ARMOR: EquippedArmorView = {
-  helmet: null,
-  armor: null,
-  pants: null,
-  shoes: null,
-};
-
-type ArmorSlotKey = "helmet" | "armor" | "pants" | "shoes";
-
-function armorSlotKey(slotId: MinionEquipSlotId): ArmorSlotKey | null {
-  if (slotId === "helmet" || slotId === "armor" || slotId === "pants" || slotId === "shoes") return slotId;
-  return null;
-}
-
 function legacyArmorItemIdsFromView(armor: EquippedArmorView) {
   return {
     equippedHelmetItemId: armor.helmet?.itemId ?? null,
@@ -209,6 +199,11 @@ function legacyArmorItemIdsFromView(armor: EquippedArmorView) {
     equippedPantsItemId: armor.pants?.itemId ?? null,
     equippedBootsItemId: armor.shoes?.itemId ?? null,
   };
+}
+
+function armorSlotKey(slotId: MinionEquipSlotId): ArmorSlotKey | null {
+  if (slotId === "helmet" || slotId === "armor" || slotId === "pants" || slotId === "shoes") return slotId;
+  return null;
 }
 
 function recomputeMinionRow(m: MinionRow): MinionRow {
@@ -426,7 +421,11 @@ function MinionNicknameField(props: {
         disabled={props.busy}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") void props.onSave(props.minionId, draft.trim() || null).then(() => setEditing(false));
+          if (e.key === "Enter") {
+            void Promise.resolve(props.onSave(props.minionId, draft.trim() || null)).then(() =>
+              setEditing(false),
+            );
+          }
           if (e.key === "Escape") {
             setEditing(false);
             setDraft(props.nickname ?? "");
@@ -438,7 +437,11 @@ function MinionNicknameField(props: {
         <GameBtn
           className="minion-nickname-field__save"
           disabled={props.busy}
-          onClick={() => void props.onSave(props.minionId, draft.trim() || null).then(() => setEditing(false))}
+          onClick={() =>
+            void Promise.resolve(props.onSave(props.minionId, draft.trim() || null)).then(() =>
+              setEditing(false),
+            )
+          }
         >
           저장
         </GameBtn>
@@ -456,7 +459,7 @@ function MinionNicknameField(props: {
           <GameBtn
             variant="ghost"
             disabled={props.busy}
-            onClick={() => void props.onSave(props.minionId, null).then(() => setEditing(false))}
+            onClick={() => void Promise.resolve(props.onSave(props.minionId, null)).then(() => setEditing(false))}
           >
             초기화
           </GameBtn>

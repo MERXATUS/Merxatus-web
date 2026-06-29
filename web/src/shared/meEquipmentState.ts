@@ -1,23 +1,31 @@
 import { API_CACHE_TTL } from "@/shared/apiCache";
 import { apiGetJsonCached, apiGetJsonCachedSwr } from "@/shared/sessionClient";
 
-export type MeEquipmentState = {
-  inventory: Awaited<ReturnType<typeof fetchScope<"inventory">>>;
-  weapons: Awaited<ReturnType<typeof fetchScope<"weapons">>>;
-  armor: Awaited<ReturnType<typeof fetchScope<"armor">>>;
-};
-
 type MeStateResponse = { ok: boolean };
 
-async function fetchScope(scope: "inventory" | "weapons" | "armor") {
-  const ttl =
-    scope === "inventory"
-      ? API_CACHE_TTL.meStateInventory
-      : scope === "weapons"
-        ? API_CACHE_TTL.meStateWeapons
-        : API_CACHE_TTL.meStateArmor;
-  return apiGetJsonCached<MeStateResponse>(`/api/me/state?scope=${scope}`, { ttlMs: ttl });
+async function fetchInventoryScope() {
+  return apiGetJsonCached<MeStateResponse>("/api/me/state?scope=inventory", {
+    ttlMs: API_CACHE_TTL.meStateInventory,
+  });
 }
+
+async function fetchWeaponsScope() {
+  return apiGetJsonCached<MeStateResponse>("/api/me/state?scope=weapons", {
+    ttlMs: API_CACHE_TTL.meStateWeapons,
+  });
+}
+
+async function fetchArmorScope() {
+  return apiGetJsonCached<MeStateResponse>("/api/me/state?scope=armor", {
+    ttlMs: API_CACHE_TTL.meStateArmor,
+  });
+}
+
+export type MeEquipmentState = {
+  inventory: Awaited<ReturnType<typeof fetchInventoryScope>>;
+  weapons: Awaited<ReturnType<typeof fetchWeaponsScope>>;
+  armor: Awaited<ReturnType<typeof fetchArmorScope>>;
+};
 
 export async function loadMeEquipmentState(opts?: {
   force?: boolean;

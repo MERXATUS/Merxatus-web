@@ -45,7 +45,7 @@ function buildRaidCatalogEntry(raid: RaidJson): RaidCatalogEntry {
     powerForDiff,
     isBoss,
     raid.maxPartySize ?? 3,
-    raid.difficulty,
+    raid.difficulty as RaidDifficultyMode,
   );
   return {
     id: raid.id,

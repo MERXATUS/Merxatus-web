@@ -289,7 +289,8 @@ export function DungeonsPanel({
   const logId = useRef(0);
 
   const isSpecialMode = contentMode === "special";
-  const isIdleMode = !isSpecialMode && (dungeon?.mode ?? "IDLE") === "IDLE";
+  /** 허브 「방치 탐험」 탭 — 던전 mode 필드와 무관하게 방치 UI (API·캐시 불일치 방지) */
+  const isIdleMode = contentMode === "idle";
   const storageKeys = isSpecialMode
     ? { stageKey: SPECIAL_DUNGEON_STAGE_SELECT_KEY, idKey: SPECIAL_DUNGEON_SELECT_KEY }
     : { stageKey: DUNGEON_STAGE_SELECT_KEY, idKey: DUNGEON_SELECT_KEY };

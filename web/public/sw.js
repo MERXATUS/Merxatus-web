@@ -1,4 +1,6 @@
-const CACHE = "merxatus-static-v1";
+const CACHE = "merxatus-static-v2";
+
+const LEGACY_CACHES = ["merxatus-static-v1"];
 
 function isCacheableAsset(url) {
   return url.pathname.startsWith("/Icon/") || url.pathname.startsWith("/_next/static/");
@@ -9,7 +11,14 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all([
+        ...keys.filter((k) => LEGACY_CACHES.includes(k)).map((k) => caches.delete(k)),
+        self.clients.claim(),
+      ]),
+    ),
+  );
 });
 
 self.addEventListener("fetch", (event) => {

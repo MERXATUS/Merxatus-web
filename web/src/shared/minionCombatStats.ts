@@ -4,6 +4,7 @@ import {
   aggregateSkillCombatBonuses,
   normalizeSkillLevelsForClass,
   parseMinionSkillLevels,
+  primaryCombatSkillForMinion,
   skillBreakdownForClass,
   type SkillBreakdown,
 } from "@/shared/minionSkills";

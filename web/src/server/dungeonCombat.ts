@@ -25,6 +25,8 @@ export function computePartyPower(input: {
     weaponOptionBonus?: number | null;
     /** 방어구 HP/DEF 기반 전투력 환산 합 */
     armorPowerBonus?: number | null;
+    /** 스킬 전투력 보너스 */
+    skillPowerBonus?: number | null;
     /** 품질·아이템 레벨 배율 (무기 전투력) */
     weaponInstanceScale?: number | null;
     level?: number | null;

@@ -34,6 +34,7 @@ import { weaponBaseStatLine } from "@/shared/weaponStatsData";
 import { armorDisplayName } from "@/shared/armorTooltip";
 import { weaponDisplayName } from "@/shared/weaponTooltip";
 import { equipmentCapacityLabel } from "@/shared/equipmentCapacity";
+import { inventoryAvailableQty } from "@/shared/inventoryLock";
 
 type MeState = {
   ok: true;

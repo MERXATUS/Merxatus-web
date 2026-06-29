@@ -14,7 +14,7 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: "dungeon_first_cashout",
     title: "던전 첫 정산",
-    hint: "던전 → 탐험 시작 → 한 층 이상 클리어 후 「정산」으로 보상(재료·장비)을 받아 보세요.",
+    hint: "던전 → 방치 탐험 → 「방치 시작」 후 「보상 수확」으로 재료·골드를 받아 보세요.",
     action: { kind: "panel", panel: "dungeon" },
   },
   {
