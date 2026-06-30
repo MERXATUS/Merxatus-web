@@ -4,7 +4,7 @@
     "name": "[오만] 루시퍼",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -21,12 +21,6 @@
         "maxQty": 3
       },
       {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
         "itemId": "acc_demon_ring_lucifer",
         "weight": 2200,
         "minQty": 1,
@@ -40,7 +34,7 @@
     "name": "진 [오만] 루시퍼",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -55,12 +49,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -82,7 +70,7 @@
     "name": "[질투] 레비아탄",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -97,12 +85,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -124,7 +106,7 @@
     "name": "진 [질투] 레비아탄",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -139,12 +121,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -172,7 +148,7 @@
     "name": "[분노] 사탄",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -187,12 +163,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -220,7 +190,7 @@
     "name": "진 [분노] 사탄",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -235,12 +205,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -274,7 +238,7 @@
     "name": "[나태] 벨페고르",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -289,12 +253,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -322,7 +280,7 @@
     "name": "진 [나태] 벨페고르",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -337,12 +295,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -376,7 +328,7 @@
     "name": "[탐욕] 마몬",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -391,12 +343,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -424,7 +370,7 @@
     "name": "진 [탐욕] 마몬",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -439,12 +385,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -478,7 +418,7 @@
     "name": "[식탐] 바알제붑",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -493,12 +433,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -526,7 +460,7 @@
     "name": "진 [식탐] 바알제붑",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -541,12 +475,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -580,7 +508,7 @@
     "name": "[색욕] 아스모데우스",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -595,12 +523,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -628,7 +550,7 @@
     "name": "진 [색욕] 아스모데우스",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "demon",
     "encounters": [
       {
@@ -643,12 +565,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -682,7 +598,7 @@
     "name": "[겸손] 미카엘",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -699,12 +615,6 @@
         "maxQty": 3
       },
       {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
         "itemId": "acc_angel_ring_michael",
         "weight": 2200,
         "minQty": 1,
@@ -718,7 +628,7 @@
     "name": "진 [겸손] 미카엘",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -733,12 +643,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -760,7 +664,7 @@
     "name": "[친절] 라구엘",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -775,12 +679,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -802,7 +700,7 @@
     "name": "진 [친절] 라구엘",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -817,12 +715,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -850,7 +742,7 @@
     "name": "[인내] 요피엘",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -865,12 +757,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -898,7 +784,7 @@
     "name": "진 [인내] 요피엘",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -913,12 +799,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -952,7 +832,7 @@
     "name": "[근면] 가브리엘",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -967,12 +847,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -1000,7 +874,7 @@
     "name": "진 [근면] 가브리엘",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -1015,12 +889,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -1054,7 +922,7 @@
     "name": "[자선] 라파엘",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -1069,12 +937,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -1102,7 +964,7 @@
     "name": "진 [자선] 라파엘",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -1117,12 +979,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -1156,7 +1012,7 @@
     "name": "[절제] 우리엘",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -1171,12 +1027,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -1204,7 +1054,7 @@
     "name": "진 [절제] 우리엘",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -1219,12 +1069,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -1258,7 +1102,7 @@
     "name": "[순결] 사리엘",
     "difficulty": "normal",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -1273,12 +1117,6 @@
         "weight": 7500,
         "minQty": 1,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 1
       },
       {
         "itemId": "item_appraisal_scroll",
@@ -1306,7 +1144,7 @@
     "name": "진 [순결] 사리엘",
     "difficulty": "hard",
     "maxPhases": 1,
-    "maxPartySize": 3,
+    "maxPartySize": 1,
     "faction": "angel",
     "encounters": [
       {
@@ -1321,12 +1159,6 @@
         "weight": 6500,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "item_appraisal_scroll",

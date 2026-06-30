@@ -6,10 +6,8 @@ type EquipmentDb = Pick<PrismaClient, "weaponInstance" | "armorInstance"> | Pris
 export { MAX_EQUIPMENT_OWNED };
 
 export async function countOwnedEquipment(db: EquipmentDb, userId: string) {
-  const [weaponCount, armorCount] = await Promise.all([
-    db.weaponInstance.count({ where: { userId } }),
-    db.armorInstance.count({ where: { userId } }),
-  ]);
+  const weaponCount = await db.weaponInstance.count({ where: { userId } });
+  const armorCount = await db.armorInstance.count({ where: { userId } });
   return weaponCount + armorCount;
 }
 

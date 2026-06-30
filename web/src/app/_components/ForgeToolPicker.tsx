@@ -11,7 +11,13 @@ export type ForgeEquipTarget = { kind: "weapon" | "armor"; id: string };
 
 export function ForgeToolPicker(props: {
   tools: ForgeToolDef[];
-  inventory: Array<{ itemId: string; name: string; quantity: number }>;
+  inventory: Array<{
+    itemId: string;
+    name: string;
+    quantity: number;
+    icon?: string | null;
+    iconSrc?: string | null;
+  }>;
   selectedToolId: string | null;
   onSelectTool: (itemId: string | null) => void;
   selectedEquip: ForgeEquipTarget | null;
@@ -41,7 +47,8 @@ export function ForgeToolPicker(props: {
         {props.tools.map((tool) => {
           const qty = qtyById.get(tool.itemId) ?? 0;
           const active = props.selectedToolId === tool.itemId;
-          const name = props.inventory.find((x) => x.itemId === tool.itemId)?.name ?? tool.label;
+          const invRow = props.inventory.find((x) => x.itemId === tool.itemId);
+          const name = invRow?.name ?? tool.label;
           const tooltipItem: StackItemTooltipData = {
             itemId: tool.itemId,
             name,
@@ -57,13 +64,13 @@ export function ForgeToolPicker(props: {
               className={`forge-tool-card ${isRail ? "forge-material-cell forge-tool-cell--rail" : ""} ${active ? "forge-tool-card--active forge-material-cell--active" : ""} ${qty < 1 ? "forge-tool-card--empty" : ""}`}
               onClick={() => props.onSelectTool(active ? null : tool.itemId)}
             >
-              {isRail ? (
-                <ItemIcon itemId={tool.itemId} size={40} className="item-icon forge-material-cell__icon" />
-              ) : (
-                <span className="forge-tool-card__glyph" aria-hidden>
-                  {tool.glyph}
-                </span>
-              )}
+              <ItemIcon
+                itemId={tool.itemId}
+                icon={invRow?.icon}
+                iconSrc={invRow?.iconSrc}
+                size={isRail ? 40 : 36}
+                className="item-icon forge-material-cell__icon forge-tool-card__icon"
+              />
               <span className={isRail ? "forge-material-cell__label" : "forge-tool-card__name"}>
                 {tool.shortLabel}
               </span>

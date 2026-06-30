@@ -7,7 +7,7 @@ import { useSessionUser } from "@/app/_components/SessionProvider";
 import { API_CACHE_TTL } from "@/shared/apiCache";
 import { apiGetJson, apiGetJsonCached, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import { formatPanelError } from "@/shared/formatPanelError";
-import { START_TRADE_WITH_EVENT, TRADE_START_USERNAME_KEY } from "@/shared/gameNav";
+import { FriendsPanel } from "@/app/_components/FriendsPanel";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { itemGradeNameClassName } from "@/server/itemGrade";
 
@@ -62,29 +62,6 @@ export function TradePanel() {
   const [inv, setInv] = useState<TradeInvState | null>(null);
 
   const [counterpartyUsername, setCounterpartyUsername] = useState("");
-
-  useEffect(() => {
-    function applyPrefill(username: string) {
-      setCounterpartyUsername(username);
-      try {
-        sessionStorage.removeItem(TRADE_START_USERNAME_KEY);
-      } catch {
-        /* ignore */
-      }
-    }
-    try {
-      const pending = sessionStorage.getItem(TRADE_START_USERNAME_KEY);
-      if (pending) applyPrefill(pending);
-    } catch {
-      /* ignore */
-    }
-    function onStartTrade(ev: Event) {
-      const detail = (ev as CustomEvent<{ username?: string }>).detail;
-      if (detail?.username) applyPrefill(detail.username);
-    }
-    window.addEventListener(START_TRADE_WITH_EVENT, onStartTrade);
-    return () => window.removeEventListener(START_TRADE_WITH_EVENT, onStartTrade);
-  }, []);
 
   // offer editing
   const [offeredGold, setOfferedGold] = useState(0);
@@ -415,19 +392,26 @@ export function TradePanel() {
       ) : null}
 
       {!tradeId ? (
-        <div className="mt-4 space-y-2">
-          <div className="text-sm text-[var(--game-muted)]">상대 유저명을 입력해 거래 세션을 만듭니다.</div>
-          <div className="flex flex-wrap gap-2">
-            <input
-              className="game-input"
-              placeholder="상대 유저명"
-              value={counterpartyUsername}
-              onChange={(e) => setCounterpartyUsername(e.target.value)}
-            />
-            <GameBtn disabled={!!busy || !counterpartyUsername.trim()} onClick={() => void createTrade()}>
-              거래 요청
-            </GameBtn>
+        <div className="mt-4 space-y-4">
+          <div className="space-y-2">
+            <div className="text-sm text-[var(--game-muted)]">상대 유저명을 입력해 거래 세션을 만듭니다.</div>
+            <div className="flex flex-wrap gap-2">
+              <input
+                className="game-input"
+                placeholder="상대 유저명"
+                value={counterpartyUsername}
+                onChange={(e) => setCounterpartyUsername(e.target.value)}
+              />
+              <GameBtn disabled={!!busy || !counterpartyUsername.trim()} onClick={() => void createTrade()}>
+                거래 요청
+              </GameBtn>
+            </div>
           </div>
+
+          <section className="trade-friends-block">
+            <h3 className="trade-friends-block__title">친구</h3>
+            <FriendsPanel loggedIn />
+          </section>
         </div>
       ) : (
         <div className="mt-4">

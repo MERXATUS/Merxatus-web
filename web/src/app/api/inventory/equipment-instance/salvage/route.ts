@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { prisma } from "@/server/db";
+import { runPrismaTransaction } from "@/server/db";
 import { requireUserId } from "@/server/auth";
+import { prismaKnownErrorResponse } from "@/server/prismaHttp";
 import { attemptBatchEquipmentSalvage, attemptEquipmentSalvage } from "@/server/equipmentSalvage";
-
 export const runtime = "nodejs";
 
 const TargetSchema = z.object({
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
   try {
     if (parsed.data.targets?.length) {
-      const result = await prisma.$transaction(async (tx) =>
+      const result = await runPrismaTransaction(async (tx) =>
         attemptBatchEquipmentSalvage(tx, {
           userId: auth.userId,
           targets: parsed.data.targets!.map((t) => ({
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
       return Response.json(result);
     }
 
-    const result = await prisma.$transaction(async (tx) =>
+    const result = await runPrismaTransaction(async (tx) =>
       attemptEquipmentSalvage(tx, {
         userId: auth.userId,
         kind: parsed.data.targetKind!,
@@ -60,6 +60,8 @@ export async function POST(req: Request) {
     );
     return Response.json(result);
   } catch (e) {
+    const r = prismaKnownErrorResponse(e);
+    if (r) return r;
     const message = e instanceof Error ? e.message : "UNKNOWN";
     return Response.json({ ok: false, error: message }, { status: 400 });
   }

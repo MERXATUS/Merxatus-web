@@ -1,4 +1,5 @@
 import type { GameTabKey } from "@/shared/gameNav";
+import { prefetchPanelChunk } from "@/shared/panelChunkLoad";
 
 const COMBAT_TABS = new Set<GameTabKey>(["dungeon", "raid", "tower"]);
 
@@ -11,13 +12,13 @@ export function prefetchCombatPanelChunk(tab: GameTabKey) {
   if (typeof window === "undefined") return;
   switch (tab) {
     case "dungeon":
-      void import("@/app/_components/DungeonsPanel");
+      prefetchPanelChunk("panel:dungeon", () => import("@/app/_components/DungeonHubPanel"));
       break;
     case "raid":
-      void import("@/app/_components/RaidsPanel");
+      prefetchPanelChunk("panel:raid", () => import("@/app/_components/RaidsPanel"));
       break;
     case "tower":
-      void import("@/app/_components/TowerPanel");
+      prefetchPanelChunk("panel:tower", () => import("@/app/_components/TowerPanel"));
       break;
     default:
       break;

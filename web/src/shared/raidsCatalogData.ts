@@ -44,14 +44,14 @@ function buildRaidCatalogEntry(raid: RaidJson): RaidCatalogEntry {
     raid.id,
     powerForDiff,
     isBoss,
-    raid.maxPartySize ?? 3,
+    raid.maxPartySize ?? 1,
     raid.difficulty as RaidDifficultyMode,
   );
   return {
     id: raid.id,
     name: raid.name,
     maxPhases: raid.maxPhases,
-    maxPartySize: raid.maxPartySize ?? 3,
+    maxPartySize: raid.maxPartySize ?? 1,
     faction: raid.faction as RaidFaction,
     difficulty: raid.difficulty as RaidDifficultyMode,
     isBoss,

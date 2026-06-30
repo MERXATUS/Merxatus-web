@@ -2,12 +2,14 @@ import { z } from "zod";
 import { requireUserId } from "@/server/auth";
 import { jsonApiError } from "@/server/apiRouteError";
 import { startRaidRun } from "@/server/raidRun";
+import { prisma } from "@/server/db";
+import { resolveSoloMinionIds } from "@/server/minionSolo";
 
 export const runtime = "nodejs";
 
 const BodySchema = z.object({
   raidId: z.string().min(1),
-  minionIds: z.array(z.string().min(1)).min(1).max(3),
+  minionIds: z.array(z.string().min(1)).min(1).max(1).optional(),
 });
 
 export async function POST(req: Request) {
@@ -17,7 +19,11 @@ export async function POST(req: Request) {
   const parsed = BodySchema.safeParse(json);
   if (!parsed.success) return Response.json({ ok: false, error: "BAD_REQUEST" }, { status: 400 });
   try {
-    const out = await startRaidRun({ userId: auth.userId, ...parsed.data });
+    const minionIds =
+      parsed.data.minionIds?.length === 1
+        ? parsed.data.minionIds
+        : await resolveSoloMinionIds(prisma, auth.userId, 1);
+    const out = await startRaidRun({ userId: auth.userId, raidId: parsed.data.raidId, minionIds });
     return Response.json(out);
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";

@@ -27,7 +27,25 @@ export type KnightOrderBonusRow = {
   unit: "%";
 };
 
+/** 기사단 비활성 — 보너스 없음 */
+export const ZERO_KNIGHT_ORDER_BONUSES: KnightOrderBonuses = {
+  totalLevel: 0,
+  orderLevel: 0,
+  minionCount: 0,
+  levelsToNextOrderLevel: 0,
+  atkPct: 0,
+  magicPct: 0,
+  finalDamagePct: 0,
+  bossDamagePct: 0,
+  partyPowerMult: 1,
+  finalDamageMult: 1,
+  bossDamageMult: 1,
+};
+
 export const KNIGHT_ORDER_LEVEL_STEP = 20;
+
+/** 서버 `knightOrder` 집계 step — 클라이언트 UI 표시용 */
+export const KNIGHT_ORDER_CP_STEP = 50;
 
 export type KnightOrderRules = {
   levelStep: number;

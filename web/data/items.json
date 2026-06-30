@@ -32,30 +32,6 @@
     "icon": "Icon_Appraisal_Scroll"
   },
   {
-    "id": "item_lesser_recovery_potion",
-    "name": "체력 회복 물약",
-    "category": "물약",
-    "tradable": true,
-    "grade": 1,
-    "icon": "Icon_Lesser_Recovery_Potion"
-  },
-  {
-    "id": "item_recovery_potion",
-    "name": "체력 회복 포션",
-    "category": "물약",
-    "tradable": true,
-    "grade": 3,
-    "icon": "Icon_Recovery_Potion"
-  },
-  {
-    "id": "item_greater_recovery_flask",
-    "name": "체력 회복의 비약",
-    "category": "물약",
-    "tradable": true,
-    "grade": 5,
-    "icon": "Icon_Greater_Recovery_Flask"
-  },
-  {
     "id": "item_raid_shard",
     "name": "레이드 파편",
     "category": "재료",

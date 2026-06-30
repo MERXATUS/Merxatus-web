@@ -53,11 +53,6 @@ export async function POST(req: Request) {
       const fighterRank = (m.traits ?? []).find((t) => t.type === "FIGHTER")?.rank ?? 0;
       const promotion = promotionStateFromRow(m);
       const combatClass = resolveMinionCombatClass(promotion);
-      const promotionInfo = minionPromotionAvailability({
-        level: m.level ?? 1,
-        promotionTier: promotion.promotionTier,
-      });
-
       const combatStats = buildMinionCombatBreakdown({
         level: m.level ?? 1,
         fighterRank,
@@ -73,11 +68,9 @@ export async function POST(req: Request) {
           : null,
         armor: buildArmorLoadoutFromIds(armorIds, armorInstMap),
       });
-
-      const levelProgress = minionLevelProgress({
-        level: m.level ?? 1,
-        experience: m.experience ?? 0,
-        unspentStatPoints: reset.unspentStatPoints,
+      const promotionInfo = minionPromotionAvailability({
+        combatPower: combatStats.combatPower,
+        promotionTier: promotion.promotionTier,
       });
 
       return {
@@ -85,11 +78,12 @@ export async function POST(req: Request) {
         minionId: m.id,
         baseStats: reset.baseStats,
         unspentStatPoints: reset.unspentStatPoints,
-        level: levelProgress.level,
-        experience: levelProgress.experience,
-        xpToNext: levelProgress.xpToNext,
-        xpProgress: levelProgress.xpProgress,
-        isMaxLevel: levelProgress.isMaxLevel,
+        level: m.level ?? 1,
+        experience: 0,
+        xpToNext: 0,
+        xpProgress: 0,
+        isMaxLevel: true,
+        supportsLeveling: false,
         combatClass,
         combatClassLabel: minionRoleLabel({ combatClass }),
         promotionTier: promotion.promotionTier,

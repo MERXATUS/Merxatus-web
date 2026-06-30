@@ -26,7 +26,7 @@ export function leaderboardBoardDefs(): LeaderboardBoardView[] {
       boardKey: PVP_BOARD_KEY,
       seasonKey: PVP_SEASON_KEY,
       label: "결투 승수",
-      description: "대표 미니언 결투 승리 횟수",
+      description: "미니언 결투 승리 횟수",
       scoreUnit: "승",
       kind: "pvp",
     });

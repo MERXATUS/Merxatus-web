@@ -17,9 +17,6 @@ export type StackItemTooltipData = {
 
 const POTION_DESCRIPTIONS: Record<string, string> = {
   item_minor_stamina_potion: "제작·작업 시 소모되는 피로도를 회복하는 소모품입니다.",
-  item_lesser_recovery_potion: "던전 탐험 중 파티 HP를 회복합니다. (HP +10)",
-  item_recovery_potion: "던전 탐험 중 파티 HP를 회복합니다. (HP 10% 회복)",
-  item_greater_recovery_flask: "던전 탐험 중 파티 HP를 회복합니다. (HP 30% 회복)",
 };
 
 export function stackItemGradeIndex(it: StackItemTooltipData): number {

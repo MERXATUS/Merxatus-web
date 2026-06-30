@@ -2,39 +2,40 @@ import type { GameTabKey } from "@/shared/gameNav";
 import { API_CACHE_TTL } from "@/shared/apiCache";
 import { prefetchCombatRoster } from "@/shared/combatRosterClient";
 import { prefetchMeEquipmentState } from "@/shared/meEquipmentState";
-import { apiGetJsonCached } from "@/shared/sessionClient";
+import { apiGetJsonCached, BOOTSTRAP_FETCH_TIMEOUT_MS } from "@/shared/sessionClient";
 import { isCombatGameTab, prefetchCombatPanelChunk } from "@/shared/combatTabPrefetch";
+import { prefetchPanelChunk } from "@/shared/panelChunkLoad";
 
-function prefetchPanelChunk(tab: GameTabKey) {
+function prefetchPanelChunkForTab(tab: GameTabKey) {
   if (typeof window === "undefined") return;
   if (isCombatGameTab(tab)) {
     prefetchCombatPanelChunk(tab);
     return;
   }
   switch (tab) {
-    case "home":
-      void import("@/app/_components/HomeOverviewPanel");
-      break;
     case "market":
-      void import("@/app/_components/MarketBoard");
+      prefetchPanelChunk("panel:market", () => import("@/app/_components/MarketBoard"));
+      break;
+    case "shop":
+      prefetchPanelChunk("panel:shop", () => import("@/app/_components/ShopPanel"));
       break;
     case "inventory":
-      void import("@/app/_components/InventoryPanel");
+      prefetchPanelChunk("panel:inventory", () => import("@/app/_components/InventoryPanel"));
       break;
     case "codex":
-      void import("@/app/_components/CodexPanel");
+      prefetchPanelChunk("panel:codex", () => import("@/app/_components/CodexPanel"));
       break;
     case "enhance":
-      void import("@/app/_components/WeaponEnhancePanel");
+      prefetchPanelChunk("panel:enhance", () => import("@/app/_components/WeaponEnhancePanel"));
       break;
     case "pvp":
-      void import("@/app/_components/PvpPanel");
+      prefetchPanelChunk("panel:pvp", () => import("@/app/_components/PvpPanel"));
       break;
     case "ranking":
-      void import("@/app/_components/RankingPanel");
+      prefetchPanelChunk("panel:ranking", () => import("@/app/_components/RankingPanel"));
       break;
     case "minions":
-      void import("@/app/_components/MinionManagementPanel");
+      prefetchPanelChunk("panel:minions", () => import("@/app/_components/MinionManagementPanel"));
       break;
     default:
       break;
@@ -73,12 +74,18 @@ function prefetchPanelData(tab: GameTabKey, userId: string | null) {
         () => {},
       );
       break;
+    case "shop":
+      void apiGetJsonCached("/api/shop/gacha", { ttlMs: API_CACHE_TTL.meState }).catch(() => {});
+      break;
     case "pvp":
       void apiGetJsonCached("/api/pvp/opponents", { ttlMs: API_CACHE_TTL.pvpState }).catch(() => {});
       void apiGetJsonCached("/api/pvp/history", { ttlMs: API_CACHE_TTL.pvpHistory }).catch(() => {});
       break;
     case "minions":
-      void apiGetJsonCached("/api/minions/panel", { ttlMs: API_CACHE_TTL.minionPanel }).catch(() => {});
+      void apiGetJsonCached("/api/minions/panel", {
+        ttlMs: API_CACHE_TTL.minionPanel,
+        timeoutMs: BOOTSTRAP_FETCH_TIMEOUT_MS,
+      }).catch(() => {});
       break;
     default:
       break;
@@ -86,6 +93,6 @@ function prefetchPanelData(tab: GameTabKey, userId: string | null) {
 }
 
 export function prefetchGamePanel(tab: GameTabKey, userId: string | null) {
-  prefetchPanelChunk(tab);
+  prefetchPanelChunkForTab(tab);
   prefetchPanelData(tab, userId);
 }

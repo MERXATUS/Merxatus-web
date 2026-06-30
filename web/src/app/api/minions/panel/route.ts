@@ -23,7 +23,9 @@ export async function GET(req: Request) {
     const auth = requireUserId(req, parsed.data.userId ?? null);
     if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
-    const payload = await loadMinionPanelPayload(auth.userId);
+    const payload = await loadMinionPanelPayload(auth.userId, {
+      detailMinionId: parsed.data.selectedId ?? null,
+    });
     return Response.json({ ok: true, ...payload });
   } catch (e) {
     const r = prismaKnownErrorResponse(e);

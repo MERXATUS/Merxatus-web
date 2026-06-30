@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ItemIcon } from "@/app/_components/ItemIcon";
+import { useGameFrameOptional } from "@/app/_components/GameFrameContext";
 import { StackItemTooltipHover } from "@/app/_components/StackItemTooltip";
 import { WeaponTooltipHover } from "@/app/_components/WeaponTooltip";
 import { shouldShowStackItemTooltip } from "@/shared/stackItemTooltip";
@@ -13,8 +13,11 @@ import { MinionRecruitReveal } from "@/app/_components/MinionRecruitReveal";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { loadMeEquipmentState } from "@/shared/meEquipmentState";
 import { apiGetJsonCached, isUnauthorizedError } from "@/shared/sessionClient";
-import { GAME_FRAME_REFRESH_EVENT, routeForGameTab } from "@/shared/gameNav";
+import { notifyGameFramePatch } from "@/shared/gameFramePatch";
 import { notifyOpenForge } from "@/shared/forgeNav";
+import { useGameDataPatch } from "@/shared/useGameDataPatch";
+import { usePlayerEquipmentStore } from "@/shared/stores/playerEquipmentStore";
+import { useWalletStore } from "@/shared/stores/walletStore";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import {
   isMinionRecruitCategory,
@@ -510,7 +513,7 @@ type BoxOpenReveal = {
 
 export function InventoryPanel(props?: { onOpenMinions?: () => void } & EmbeddedPanelProps) {
   const embedded = props?.embedded ?? false;
-  const router = useRouter();
+  const frame = useGameFrameOptional();
   const { user, loading: sessionLoading } = useSessionUser();
   const [me, setMe] = useState<MeState | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -530,9 +533,9 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
   const openForgeForEquip = useCallback(
     (kind: "weapon" | "armor", instanceId: string, mode: "enhance" | "craft" = "enhance") => {
       notifyOpenForge({ kind, instanceId, mode });
-      router.push(routeForGameTab("enhance"));
+      frame?.navigateTab("enhance");
     },
-    [router],
+    [frame],
   );
 
   async function refresh(force?: boolean) {
@@ -551,8 +554,20 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
         weaponInstances: weapons.weaponInstances,
         armorInstances: armor.armorInstances,
       };
-      if (r?.ok) setMe(r);
-      else setMe(null);
+      if (r?.ok) {
+        setMe(r);
+        if (r.wallet) {
+          useWalletStore.getState().setWallet({
+            goldAvailable: r.wallet.goldAvailable,
+            goldLocked: r.wallet.goldLocked,
+          });
+        }
+        usePlayerEquipmentStore.getState().setEquipment({
+          inventory: r.inventory,
+          weaponInstances: r.weaponInstances,
+          armorInstances: r.armorInstances,
+        });
+      } else setMe(null);
     } catch (e) {
       setMe(null);
       if (!isUnauthorizedError(e)) setError(e);
@@ -567,13 +582,9 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, sessionLoading]);
 
-  useEffect(() => {
-    if (!embedded) return;
-    const onFrameRefresh = () => void refresh(true);
-    window.addEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
-    return () => window.removeEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [embedded]);
+  useGameDataPatch(["inventory", "weapons", "armor", "wallet"], useCallback(() => {
+    void refresh(true);
+  }, [refresh]));
 
   useEffect(() => {
     setSortPrefs(readSortPrefs());
@@ -678,7 +689,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
       });
       if (!r?.ok) throw r;
       await refresh(true);
-      window.dispatchEvent(new Event(GAME_FRAME_REFRESH_EVENT));
+      notifyGameFramePatch(["inventory"]);
     } catch (e) {
       setError(e);
     } finally {
@@ -697,7 +708,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
       });
       if (!r?.ok) throw r;
       await refresh(true);
-      window.dispatchEvent(new Event(GAME_FRAME_REFRESH_EVENT));
+      notifyGameFramePatch(["inventory"]);
     } catch (e) {
       setError(e);
     } finally {
@@ -728,7 +739,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
         })),
       });
       await refresh();
-      window.dispatchEvent(new Event(GAME_FRAME_REFRESH_EVENT));
+      notifyGameFramePatch(["inventory"]);
     } catch (e) {
       setError(e);
     } finally {

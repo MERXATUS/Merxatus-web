@@ -2,12 +2,14 @@ import { z } from "zod";
 import { requireUserId } from "@/server/auth";
 import { loadDungeons } from "@/server/dungeonData";
 import { createIdleDungeonRun } from "@/server/dungeonIdleRun";
+import { prisma } from "@/server/db";
+import { resolveSoloMinionIds } from "@/server/minionSolo";
 
 export const runtime = "nodejs";
 
 const BodySchema = z.object({
   dungeonId: z.string().min(1),
-  minionIds: z.array(z.string().min(1)).min(1).max(10),
+  minionIds: z.array(z.string().min(1)).min(1).max(1).optional(),
   userId: z.string().min(1).optional(),
 });
 
@@ -27,10 +29,15 @@ export async function POST(req: Request) {
       return Response.json({ ok: false, error: "NOT_IDLE_DUNGEON" }, { status: 400 });
     }
 
+    const minionIds =
+      parsed.data.minionIds?.length === 1
+        ? parsed.data.minionIds
+        : await resolveSoloMinionIds(prisma, auth.userId, dungeon.maxPartySize ?? 1);
+
     const created = await createIdleDungeonRun({
       userId: auth.userId,
       dungeon,
-      minionIds: parsed.data.minionIds,
+      minionIds,
     });
     return Response.json(created);
   } catch (e) {

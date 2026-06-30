@@ -1,22 +1,5 @@
 import { z } from "zod";
-import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
-import { buildMinionCombatBreakdown } from "@/server/minionCombatBuild";
-import {
-  armorIdsFromRow,
-  buildArmorLoadoutFromIds,
-  loadMinionArmorIdsForUser,
-  loadArmorInstanceMapForIds,
-} from "@/server/minionArmorDb";
-import { resetMinionSkills } from "@/server/minionSkills";
-import { minionRoleLabel } from "@/server/minionJobs";
-import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
-import {
-  minionPromotionAvailability,
-  promotionStateFromRow,
-  resolveMinionCombatClass,
-} from "@/shared/minionPromotion";
-import { serializeMinionSkillLevels, skillViewsForMinion } from "@/shared/minionSkills";
 
 export const runtime = "nodejs";
 
@@ -33,75 +16,5 @@ export async function POST(req: Request) {
   const auth = requireUserId(req, parsed.data.userId ?? null);
   if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
-  try {
-    const result = await prisma.$transaction(async (tx) => {
-      const reset = await resetMinionSkills(tx, auth.userId, parsed.data.minionId);
-
-      const m = await tx.minion.findUnique({
-        where: { id: parsed.data.minionId },
-        include: {
-          traits: true,
-          equippedWeaponInstance: { include: { baseItem: true } },
-        },
-      });
-      if (!m) throw new Error("MINION_NOT_FOUND");
-
-      const armorByMinionId = await loadMinionArmorIdsForUser(tx, auth.userId);
-      const armorIds = armorIdsFromRow(armorByMinionId.get(m.id));
-      const armorInstMap = await loadArmorInstanceMapForIds(tx, auth.userId, armorIds);
-      const fighterRank = (m.traits ?? []).find((t) => t.type === "FIGHTER")?.rank ?? 0;
-      const baseStats = minionBaseStatsFromRow(m);
-      const promotion = promotionStateFromRow(m);
-      const combatClass = reset.combatClass;
-      const promotionInfo = minionPromotionAvailability({
-        level: m.level ?? 1,
-        promotionTier: promotion.promotionTier,
-      });
-
-      const combatStats = buildMinionCombatBreakdown({
-        level: m.level ?? 1,
-        fighterRank,
-        baseStats,
-        combatClass,
-        skillLevelsJson: serializeMinionSkillLevels(reset.skillLevels),
-        weapon: m.equippedWeaponInstance
-          ? {
-              baseItemId: m.equippedWeaponInstance.baseItemId,
-              enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
-              optionsJson: m.equippedWeaponInstance.optionsJson,
-            }
-          : null,
-        armor: buildArmorLoadoutFromIds(armorIds, armorInstMap),
-      });
-
-      return {
-        ok: true as const,
-        minionId: m.id,
-        unspentSkillPoints: reset.unspentSkillPoints,
-        combatClass,
-        combatClassLabel: minionRoleLabel({ combatClass }),
-        promotionTier: promotion.promotionTier,
-        canPromoteFirst: promotionInfo.canPromoteFirst,
-        canPromoteSecond: promotionInfo.canPromoteSecond,
-        canPromoteThird: promotionInfo.canPromoteThird,
-        skills: skillViewsForMinion({
-          combatClass,
-          skillLevelsJson: serializeMinionSkillLevels(reset.skillLevels),
-        }),
-        combatStats,
-        combatPower: combatStats.combatPower,
-      };
-    });
-
-    return Response.json(result);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "UNKNOWN";
-    const status =
-      message === "MINION_NOT_FOUND" || message === "NOTHING_TO_RESET"
-        ? 400
-        : message === "FORBIDDEN"
-          ? 403
-          : 500;
-    return Response.json({ ok: false, error: message }, { status });
-  }
+  return Response.json({ ok: false, error: "SKILLS_DISABLED" }, { status: 400 });
 }

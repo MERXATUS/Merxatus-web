@@ -9,11 +9,16 @@ import {
 import { weaponArchetypeFromBaseItemId } from "@/shared/minionWeaponRules";
 
 /** 1차 전직(모험가 → 검사) */
-export const MINION_FIRST_PROMOTION_LEVEL = 30;
+export const MINION_FIRST_PROMOTION_CP = 80;
 /** 2차 전직(검사 → 특화) */
-export const MINION_SECOND_PROMOTION_LEVEL = 70;
+export const MINION_SECOND_PROMOTION_CP = 200;
 /** 3차 전직(특화 → 마스터) */
-export const MINION_THIRD_PROMOTION_LEVEL = 140;
+export const MINION_THIRD_PROMOTION_CP = 450;
+
+/** @deprecated 레벨 게이트 제거 */
+export const MINION_FIRST_PROMOTION_LEVEL = MINION_FIRST_PROMOTION_CP;
+export const MINION_SECOND_PROMOTION_LEVEL = MINION_SECOND_PROMOTION_CP;
+export const MINION_THIRD_PROMOTION_LEVEL = MINION_THIRD_PROMOTION_CP;
 
 export type MinionPromotionTier = 0 | 1 | 2 | 3;
 
@@ -32,16 +37,16 @@ export function resolveMinionCombatClass(input: MinionPromotionState): MinionCom
   return normalizeMinionCombatClass(input.promotionClass);
 }
 
-export function canAttemptFirstPromotion(level: number, promotionTier: number): boolean {
-  return Math.floor(level) >= MINION_FIRST_PROMOTION_LEVEL && promotionTier === 0;
+export function canAttemptFirstPromotion(combatPower: number, promotionTier: number): boolean {
+  return Math.floor(combatPower) >= MINION_FIRST_PROMOTION_CP && promotionTier === 0;
 }
 
-export function canAttemptSecondPromotion(level: number, promotionTier: number): boolean {
-  return Math.floor(level) >= MINION_SECOND_PROMOTION_LEVEL && promotionTier === 1;
+export function canAttemptSecondPromotion(combatPower: number, promotionTier: number): boolean {
+  return Math.floor(combatPower) >= MINION_SECOND_PROMOTION_CP && promotionTier === 1;
 }
 
-export function canAttemptThirdPromotion(level: number, promotionTier: number): boolean {
-  return Math.floor(level) >= MINION_THIRD_PROMOTION_LEVEL && promotionTier === 2;
+export function canAttemptThirdPromotion(combatPower: number, promotionTier: number): boolean {
+  return Math.floor(combatPower) >= MINION_THIRD_PROMOTION_CP && promotionTier === 2;
 }
 
 export type PromotionAvailability = {
@@ -52,12 +57,12 @@ export type PromotionAvailability = {
 };
 
 export function minionPromotionAvailability(input: {
-  level: number;
+  combatPower: number;
   promotionTier: number;
 }): PromotionAvailability {
-  const canPromoteFirst = canAttemptFirstPromotion(input.level, input.promotionTier);
-  const canPromoteSecond = canAttemptSecondPromotion(input.level, input.promotionTier);
-  const canPromoteThird = canAttemptThirdPromotion(input.level, input.promotionTier);
+  const canPromoteFirst = canAttemptFirstPromotion(input.combatPower, input.promotionTier);
+  const canPromoteSecond = canAttemptSecondPromotion(input.combatPower, input.promotionTier);
+  const canPromoteThird = canAttemptThirdPromotion(input.combatPower, input.promotionTier);
   let nextPromotionLabel: string | null = null;
   if (canPromoteFirst) nextPromotionLabel = "1차 전직 (검사)";
   else if (canPromoteSecond) nextPromotionLabel = "2차 전직";

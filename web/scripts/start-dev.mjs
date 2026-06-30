@@ -18,16 +18,20 @@ function clearStaleDevRouteTypes() {
   }
 }
 
-/** Windows — .next/dev/server 잠금(errno -4094) 시 깨진 산출물 제거 */
-function clearStaleDevServerOutput() {
+/** Windows — .next/dev 잠금(errno -4094) 시 깨진 산출물 제거 */
+function clearStaleDevOutput() {
   if (process.platform !== "win32") return;
-  const devServer = path.join(webRoot, ".next", "dev", "server");
-  if (!existsSync(devServer)) return;
-  try {
-    rmSync(devServer, { recursive: true, force: true });
-    console.log("[dev] cleared stale .next/dev/server (Windows cache lock fix)");
-  } catch {
-    /* ignore — 다른 프로세스가 잡고 있으면 killPort3000 후 재시도 */
+  const devRoot = path.join(webRoot, ".next", "dev");
+  if (!existsSync(devRoot)) return;
+  for (const sub of ["server", "static"]) {
+    const target = path.join(devRoot, sub);
+    if (!existsSync(target)) continue;
+    try {
+      rmSync(target, { recursive: true, force: true });
+      console.log(`[dev] cleared stale .next/dev/${sub} (Windows cache lock fix)`);
+    } catch {
+      /* ignore — 다른 프로세스가 잡고 있으면 killPort3000 후 재시도 */
+    }
   }
 }
 
@@ -55,7 +59,7 @@ function killPort3000() {
 
 if (process.platform === "win32") {
   killPort3000();
-  clearStaleDevServerOutput();
+  clearStaleDevOutput();
 }
 
 clearStaleDevRouteTypes();

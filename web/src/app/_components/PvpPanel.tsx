@@ -148,9 +148,9 @@ export function PvpPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       <header className="pvp-panel__head">
         <div>
           <p className="game-label">비동기 결투</p>
-          <h2 className="game-title text-lg">대표 미니언 결투</h2>
+          <h2 className="game-title text-lg">미니언 결투</h2>
           <p className="mt-1 text-xs text-[var(--game-muted)]">
-            상대의 대표 미니언 데이터로 자동 전투 · 실시간 대전 아님
+            상대 미니언 데이터로 자동 전투 · 실시간 대전 아님
           </p>
         </div>
       </header>
@@ -165,14 +165,14 @@ export function PvpPanel({ embedded = false }: EmbeddedPanelProps = {}) {
       ) : !state.hasRepresentative ? (
         <div className="mt-4 game-subpanel-inset">
           <p className="text-sm text-[var(--game-muted)]">
-            홈 또는 미니언 관리에서 <strong className="text-[var(--game-text)]">대표 미니언</strong>을 먼저 지정해 주세요.
+            미니언을 먼저 생성해 주세요.
           </p>
         </div>
       ) : (
         <div className="mt-4 space-y-4">
           <div className="pvp-panel__status game-subpanel-inset">
             <div className="pvp-panel__status-row">
-              <span className="text-xs text-[var(--game-muted)]">내 대표</span>
+              <span className="text-xs text-[var(--game-muted)]">내 미니언</span>
               <span className="text-sm font-semibold">
                 {state.myCombat?.combatClassLabel} Lv{state.myCombat?.level}
               </span>

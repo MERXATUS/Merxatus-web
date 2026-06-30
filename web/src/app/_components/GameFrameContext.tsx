@@ -2,7 +2,6 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import type { GameTabKey, MinionPanelTab } from "@/shared/gameNav";
-import type { MeDashboardLight } from "@/shared/meDashboard";
 import type { DungeonRunState, MeSummary } from "@/shared/meSummary";
 
 export type GameFrameContextValue = {
@@ -11,10 +10,8 @@ export type GameFrameContextValue = {
   minionPanelTab: MinionPanelTab;
   summary: MeSummary | null;
   summaryLoading: boolean;
-  dashboardLoading: boolean;
-  dashboardLight: MeDashboardLight | null;
   runState: DungeonRunState | null;
-  refreshSummary: (opts?: { force?: boolean }) => Promise<void>;
+  refreshSummary: (opts?: { force?: boolean; silent?: boolean }) => Promise<void>;
   gold: number | null;
   loggedIn: boolean;
   sessionLoading: boolean;

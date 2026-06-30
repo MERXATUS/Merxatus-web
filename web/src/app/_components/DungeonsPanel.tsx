@@ -23,10 +23,9 @@ import { DungeonRunSettlementModal } from "@/app/_components/DungeonRunSettlemen
 import {
   DungeonPartyHpList,
   type PartyRosterRow,
-  type RecoveryPotion,
 } from "@/app/_components/DungeonPartyHpList";
-import { DungeonPotionModal } from "@/app/_components/DungeonPotionModal";
 import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
+import { notifyGameFramePatch } from "@/shared/gameFramePatch";
 import type {
   DungeonLootRow,
   DungeonSettlement,
@@ -64,9 +63,9 @@ type DungeonDef = {
     realm?: "마계" | "천계" | "이계";
     recommendedLevel: number;
     recommendedLevelMax: number;
-    recommendedLevelLabel: string;
+    recommendedPowerLabel?: string;
     recommendedPartyPower?: number;
-    minPartyLevel?: number;
+    minPartyPower?: number;
     journeyXpPool: number;
     fullClearXp: number;
   };
@@ -93,7 +92,6 @@ type RunState = {
   pendingLoot?: string;
   pendingLootItems?: Array<{ itemId: string; qty: number; name: string; grade: number }>;
   pendingGold?: number;
-  recoveryPotions?: RecoveryPotion[];
 };
 
 type AdvanceResult = {
@@ -151,6 +149,7 @@ const DUNGEON_SELECT_KEY = "dungeon_selected_id_v1";
 const SPECIAL_DUNGEON_SELECT_KEY = "special_dungeon_selected_id_v1";
 const DUNGEON_STAGE_SELECT_KEY = "dungeon_selected_stage_v1";
 const SPECIAL_DUNGEON_STAGE_SELECT_KEY = "special_dungeon_selected_stage_v1";
+const IDLE_COLLECT_SUBTITLE = "방치 탐험 보상을 수령했습니다.";
 
 type DungeonContentMode = "idle" | "special";
 
@@ -177,26 +176,10 @@ function specialListEntryToDef(entry: {
   };
 }
 
-function dungeonMinionLabel(m: Pick<DungeonMinionRow, "displayName" | "combatClassLabel" | "level">) {
+function dungeonMinionLabel(m: Pick<DungeonMinionRow, "displayName" | "combatClassLabel" | "combatStats">) {
   const name = m.displayName ?? m.combatClassLabel;
-  return `${name} Lv${m.level}`;
-}
-
-function potionErrorMessage(code: string): string {
-  switch (code) {
-    case "NO_POTION":
-      return "물약이 부족합니다.";
-    case "MINION_DEAD":
-      return "전투불능 상태에는 사용할 수 없습니다.";
-    case "MINION_FULL_HP":
-      return "이미 HP가 가득합니다.";
-    case "INVALID_POTION":
-      return "던전에서 사용할 수 없는 물약입니다.";
-    case "NO_ACTIVE_RUN":
-      return "진행 중인 던전이 없습니다.";
-    default:
-      return code;
-  }
+  const cp = m.combatStats?.combatPower;
+  return cp != null ? `${name} · ${cp.toLocaleString()} CP` : name;
 }
 
 function resolveDungeonFromList(
@@ -274,6 +257,7 @@ export function DungeonsPanel({
   const [battleFrame, setBattleFrame] = useState<BattleArenaFrame | null>(null);
   const pendingPartyHpRef = useRef<AdvanceResult["partyHp"]>(null);
   const pendingAdvanceResultRef = useRef<AdvanceResult | null>(null);
+  const idleCollectInFlightRef = useRef(false);
   const sessionXpRef = useRef<Map<string, MinionXpGrantPayload>>(new Map());
   const [settlement, setSettlement] = useState<DungeonSettlement | null>(null);
   const [lastFloorBonus, setLastFloorBonus] = useState<string | null>(null);
@@ -285,7 +269,6 @@ export function DungeonsPanel({
   const [cashoutConfirmOpen, setCashoutConfirmOpen] = useState(false);
   const [partyOpen, setPartyOpen] = useState(false);
   const [partyBusy, setPartyBusy] = useState(false);
-  const [potionModalOpen, setPotionModalOpen] = useState(false);
   /** 탐험 세션 — run.active 갱신 전·후 UI 깜빡임(스테이지 선택) 방지 */
   const [runSession, setRunSession] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
@@ -451,6 +434,15 @@ export function DungeonsPanel({
     return out;
   }, [partyIds, minions]);
 
+  const partyPower = useMemo(() => {
+    let sum = 0;
+    for (const id of partyIds) {
+      const m = minions.find((row) => row.id === id);
+      sum += m?.combatStats?.combatPower ?? 0;
+    }
+    return sum;
+  }, [minions, partyIds]);
+
   const partyEligibility = useMemo(() => {
     if (!dungeon?.id || partyIds.size === 0) return null;
     try {
@@ -459,16 +451,11 @@ export function DungeonsPanel({
           ? dungeonIdForStageOrder(dungeon.linkedStageOrder) ?? dungeon.id
           : dungeon.id;
       const stage = assertDungeonStage(stageDungeonId);
-      return checkDungeonPartyEligibility({
-        stage,
-        partyLevels: [...partyIds]
-          .map((id) => minions.find((m) => m.id === id)?.level ?? 0)
-          .filter((lv) => lv > 0),
-      });
+      return checkDungeonPartyEligibility({ stage, partyPower });
     } catch {
       return null;
     }
-  }, [dungeon?.id, dungeon?.linkedStageOrder, partyIds, minions]);
+  }, [dungeon?.id, dungeon?.linkedStageOrder, partyIds, partyPower]);
 
   const canStartDungeon =
     !!dungeon && partyIds.size > 0 && (partyEligibility == null || partyEligibility.ok);
@@ -494,63 +481,6 @@ export function DungeonsPanel({
   }, [exploring, run?.party, minions, battleFrame]);
 
   const partyAlive = partyRoster?.filter((m) => !m.dead).length ?? 0;
-  const recoveryPotions = run?.recoveryPotions ?? [];
-
-  async function usePotion(itemId: string, minionId: string) {
-    setBusy(`potion-${minionId}`);
-    setError(null);
-    try {
-      const r = await postJson<{
-        ok: boolean;
-        error?: string;
-        healedAmount?: number;
-        partyHp?: Array<{ minionId: string; hp: number; maxHp: number; label?: string }>;
-      }>("/api/dungeons/run/use-potion", { itemId, minionId });
-      if (r.partyHp?.length) {
-        setRun((prev) => {
-          if (!prev?.active) return prev;
-          const nextPotions = (prev.recoveryPotions ?? [])
-            .map((p) => (p.itemId === itemId ? { ...p, quantity: Math.max(0, p.quantity - 1) } : p))
-            .filter((p) => p.quantity > 0);
-          return {
-            ...prev,
-            party: r.partyHp!.map((h) => ({
-              minionId: h.minionId,
-              hp: h.hp,
-              maxHp: h.maxHp,
-              label: h.label,
-            })),
-            recoveryPotions: nextPotions,
-          };
-        });
-        const healed = r.healedAmount ?? 0;
-        if (healed > 0) {
-          const potionName = recoveryPotions.find((p) => p.itemId === itemId)?.name ?? "물약";
-          const targetLabel = partyRoster?.find((m) => m.id === minionId)?.label ?? "파티원";
-          logId.current += 1;
-          setLogLines((prev) => [
-            ...prev,
-            {
-              id: `potion-${logId.current}`,
-              text: `${targetLabel}에게 ${potionName} 사용 — HP +${healed.toLocaleString()}`,
-              tone: "system" as const,
-            },
-          ]);
-        }
-      }
-      setPotionModalOpen(false);
-    } catch (e) {
-      const code =
-        typeof e === "object" && e && "error" in e && typeof (e as { error?: string }).error === "string"
-          ? (e as { error: string }).error
-          : e instanceof Error
-            ? e.message
-            : String(e);
-      setError(new Error(potionErrorMessage(code)));
-    } finally {
-      setBusy(null);
-    }
-  }
 
   const dungeonMinions = useMemo(
     () => minions.filter((m) => isDungeonPool(m.pool)),
@@ -670,10 +600,19 @@ export function DungeonsPanel({
   }
 
   function dismissSettlement() {
+    const isIdleCashout =
+      settlement?.kind === "cashout" && settlement.subtitle === IDLE_COLLECT_SUBTITLE;
     setSettlement(null);
     setLastFloorBonus(null);
     resetSessionXp();
-    void refresh();
+    if (isIdleCashout) {
+      if (!idleCollectInFlightRef.current) {
+        void refresh({ runStateOnly: true });
+      }
+      notifyGameFramePatch(["wallet", "inventory", "weapons", "armor"]);
+    } else {
+      void refresh();
+    }
   }
 
   function showSettlementAfterAdvance(adv: AdvanceResult) {
@@ -955,16 +894,18 @@ export function DungeonsPanel({
   useEffect(() => {
     if (exploring) return;
     if (!minions.length) return;
-    setPartyIds((prev) => {
-      const trimmed = resolveSavedPartyIds([...prev], minions, maxParty);
+    setPartyIds(() => {
+      if (isIdleMode || maxParty <= 1) {
+        return new Set([minions[0]!.id]);
+      }
+      const trimmed = resolveSavedPartyIds(readSavedPartyIds(partyStorageKey), minions, maxParty);
       if (trimmed.size > 0) return trimmed;
-      return resolveSavedPartyIds(readSavedPartyIds(partyStorageKey), minions, maxParty);
+      return new Set([minions[0]!.id]);
     });
-  }, [minions, maxParty, exploring, partyStorageKey]);
+  }, [minions, maxParty, exploring, partyStorageKey, isIdleMode]);
 
   useEscapeClose(partyOpen, () => setPartyOpen(false));
   useEscapeClose(!!settlement, dismissSettlement);
-  useEscapeClose(potionModalOpen, () => setPotionModalOpen(false));
 
   async function openParty() {
     setPartyOpen(true);
@@ -1016,27 +957,55 @@ export function DungeonsPanel({
 
   async function executeIdleCollect() {
     if (!dungeon) return;
-    setBusy("collect");
     setError(null);
-    try {
-      const r = await postJson<{ ok: boolean; cashedOut?: DungeonLootRow[]; goldGained?: number }>(
-        "/api/dungeons/idle/collect",
-        { dungeonId: dungeon.id },
-      );
-      openSettlement({
-        kind: "cashout",
-        subtitle: "방치 탐험 보상을 수령했습니다.",
-        xpGrants: [],
-        loot: r.cashedOut ?? [],
-        goldGained: r.goldGained,
-      });
-      setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [], pendingGold: 0 } : prev));
-      endRunSession();
-    } catch (e) {
-      setError(e);
-    } finally {
-      setBusy(null);
-    }
+
+    const previewLoot = run?.pendingLootItems ?? [];
+    const previewGold = run?.pendingGold ?? 0;
+
+    openSettlement({
+      kind: "cashout",
+      subtitle: IDLE_COLLECT_SUBTITLE,
+      xpGrants: [],
+      loot: previewLoot,
+      goldGained: previewGold,
+    });
+    setRun((prev) => (prev ? { ...prev, active: false, pendingLootItems: [], pendingGold: 0 } : prev));
+    endRunSession();
+
+    idleCollectInFlightRef.current = true;
+    void (async () => {
+      try {
+        const r = await postJson<{ ok: boolean; cashedOut?: DungeonLootRow[]; goldGained?: number }>(
+          "/api/dungeons/idle/collect",
+          { dungeonId: dungeon.id },
+        );
+        const serverLoot = r.cashedOut ?? [];
+        const serverGold = r.goldGained ?? 0;
+        const lootKey = (rows: DungeonLootRow[]) =>
+          [...rows]
+            .map((row) => `${row.itemId}\t${row.qty}`)
+            .sort()
+            .join("\n");
+        const previewMatchesServer =
+          previewGold === serverGold &&
+          previewLoot.length === serverLoot.length &&
+          lootKey(previewLoot) === lootKey(serverLoot);
+        if (!previewMatchesServer) {
+          setSettlement((prev) =>
+            prev?.subtitle === IDLE_COLLECT_SUBTITLE
+              ? { ...prev, loot: serverLoot, goldGained: serverGold }
+              : prev,
+          );
+        }
+        notifyGameFramePatch(["wallet", "inventory", "weapons", "armor"]);
+      } catch (e) {
+        setSettlement(null);
+        setError(e);
+        void refresh({ runStateOnly: true });
+      } finally {
+        idleCollectInFlightRef.current = false;
+      }
+    })();
   }
 
   async function startRun(enableAuto = false) {
@@ -1047,7 +1016,6 @@ export function DungeonsPanel({
       try {
         await postJson("/api/dungeons/idle/start", {
           dungeonId: dungeon.id,
-          minionIds: [...partyIds],
         });
         writeSavedPartyIds(partyStorageKey, partyIds);
         setRunSession(true);
@@ -1124,7 +1092,7 @@ export function DungeonsPanel({
               <h2 className="game-title mt-1 text-lg">{dungeon?.name ?? "마계 · 오염의 웅덩이"}</h2>
               <p className="mt-1 text-xs text-[var(--game-muted)]">
                 {isIdleMode
-                  ? "시간에 따라 자동 롤 · XP·골드·재료 위주 (장비 드랍 축소)"
+                  ? "시간에 따라 자동 롤 · 골드·재료 위주 (장비 드랍 축소)"
                   : isSpecialMode
                     ? `층마다 전투 · 티켓 ${dungeon?.ticketCost ?? 1}장 소비 · 패배 시 보상 소멸`
                     : "층마다 전투 진행 · 패배 시 보상 소멸"}
@@ -1132,14 +1100,10 @@ export function DungeonsPanel({
               </p>
               {dungeon?.stage ? (
                 <p className="mt-1 text-[11px] font-semibold text-[var(--game-gold-bright)]">
-                  권장 {dungeon.stage.recommendedLevelLabel}
-                  {dungeon.stage.minPartyLevel != null ? (
-                    <span className="ml-2 font-normal text-[var(--game-muted)]">
-                      · 입장 평균 Lv{dungeon.stage.minPartyLevel}+
-                    </span>
-                  ) : null}
+                  {dungeon.stage.recommendedPowerLabel ??
+                    `전투력 ${(dungeon.stage.minPartyPower ?? 0).toLocaleString()}+`}
                   <span className="ml-2 font-normal text-[var(--game-muted)]">
-                    · 올클 {dungeon.stage.fullClearXp.toLocaleString()} EXP
+                    · 파티 {partyPower.toLocaleString()} CP
                   </span>
                 </p>
               ) : null}
@@ -1150,7 +1114,8 @@ export function DungeonsPanel({
               {dungeon?.stage ? (
                 <p className="mt-0.5 text-[10px] text-[var(--game-muted)]">
                   {dungeon.stage.realm ? `${dungeon.stage.realm} · ` : ""}
-                  스테이지 {dungeon.stage.stageOrder} · 권장 {dungeon.stage.recommendedLevelLabel}
+                  스테이지 {dungeon.stage.stageOrder} ·{" "}
+                  {dungeon.stage.recommendedPowerLabel ?? `전투력 ${(dungeon.stage.minPartyPower ?? 0).toLocaleString()}+`}
                 </p>
               ) : null}
             </div>
@@ -1165,12 +1130,16 @@ export function DungeonsPanel({
                   : "○ 대기"}
           </span>
         </div>
-        <div className="dungeon-floor-track">
-          <div className="dungeon-floor-fill" style={{ width: `${exploring ? floorPct : 0}%` }} />
-        </div>
-        <p className={`text-right text-[11px] font-semibold tabular-nums text-[var(--game-muted)] ${embedded ? "mt-1" : "mt-2"}`}>
-          {floorLabel}
-        </p>
+        {(!isIdleMode || exploring) ? (
+          <div className="dungeon-floor-track">
+            <div className="dungeon-floor-fill" style={{ width: `${exploring ? floorPct : 0}%` }} />
+          </div>
+        ) : null}
+        {!(isIdleMode && !exploring) ? (
+          <p className={`text-right text-[11px] font-semibold tabular-nums text-[var(--game-muted)] ${embedded ? "mt-1" : "mt-2"}`}>
+            {floorLabel}
+          </p>
+        ) : null}
         {exploring ? (
           <p className="text-right text-[10px] text-[var(--game-muted)]">
             {isIdleMode ? (
@@ -1201,7 +1170,7 @@ export function DungeonsPanel({
             입장권 <span className="text-[var(--game-gold-bright)]">{dungeon.ticketCost}장</span> 소비
           </p>
         ) : null}
-        {lastFloorBonus ? (
+        {!isIdleMode && lastFloorBonus ? (
           <p className="text-right text-[11px] font-semibold text-[var(--game-gold-bright)]">{lastFloorBonus}</p>
         ) : null}
         {!exploring && stagePickerRows.length > 0 ? (
@@ -1248,13 +1217,8 @@ export function DungeonsPanel({
                   <div className="dungeon-stage-picker__detail-name">{selectedStageRow.displayName}</div>
                 </div>
                 <div className="dungeon-stage-picker__detail-meta">
-                  권장 {selectedStageRow.recommendedLevelLabel.replace(/^Lv\s*/i, "레벨 ")}
-                  {selectedStageDungeon.maxFloors ? (
-                    <span> · 최대 {selectedStageDungeon.maxFloors}층</span>
-                  ) : null}
-                  {selectedStageDungeon.stage?.fullClearXp ? (
-                    <span> · 올클 {selectedStageDungeon.stage.fullClearXp.toLocaleString()} EXP</span>
-                  ) : null}
+                  {selectedStageRow.recommendedPowerLabel ??
+                    `전투력 ${(selectedStageDungeon.stage?.minPartyPower ?? 0).toLocaleString()}+`}
                 </div>
               </div>
             ) : null}
@@ -1274,7 +1238,12 @@ export function DungeonsPanel({
               </div>
             ) : null}
             {dungeon?.id && !exploring ? (
-              <DungeonDropTable table={dungeonDropTableForId(dungeon.id)} compact={embedded} />
+              <DungeonDropTable
+                table={dungeonDropTableForId(dungeon.id)}
+                compact={embedded}
+                hint={isIdleMode ? "방치 롤마다 추첨 · 확률은 해당 풀 기준" : undefined}
+                hideFloorLabels={isIdleMode}
+              />
             ) : null}
           </div>
         ) : exploring ? (
@@ -1333,6 +1302,7 @@ export function DungeonsPanel({
                 {exploring && partyRoster && partyRoster.length > 0 ? (
                   <DungeonPartyHpList roster={partyRoster} compact />
                 ) : null}
+                {!isIdleMode ? (
                 <GameBtn
                   variant="ghost"
                   className="mt-1.5 h-8 w-full text-[10px]"
@@ -1341,11 +1311,14 @@ export function DungeonsPanel({
                 >
                   파티 편성
                 </GameBtn>
+                ) : (
+                  <p className="mt-1.5 text-[10px] text-[var(--game-muted)]">미니언 자동 출전</p>
+                )}
               </>
             ) : null}
           </GamePanel>
 
-          {!embedded ? (
+          {!embedded && !isIdleMode ? (
           <GamePanel className="!p-3">
             <div className="flex items-center justify-between">
               <GamePanelTitle>파티</GamePanelTitle>
@@ -1401,16 +1374,6 @@ export function DungeonsPanel({
               >
                 정산
               </GameBtn>
-              {recoveryPotions.length > 0 ? (
-                <GameBtn
-                  variant="ghost"
-                  className={embedded ? "h-8 text-xs" : "h-10 text-sm"}
-                  disabled={!!busy || combatActive}
-                  onClick={() => setPotionModalOpen(true)}
-                >
-                  물약
-                </GameBtn>
-              ) : null}
             </div>
           </GamePanel>
           ) : null}
@@ -1519,8 +1482,8 @@ export function DungeonsPanel({
             <div className="mt-2 flex w-full flex-col gap-2">
               {partyEligibility && !partyEligibility.ok ? (
                 <p className="text-center text-xs text-amber-300/90">
-                  평균 레벨 부족 (현재 Lv{partyEligibility.partyLevel} / 필요 Lv
-                  {partyEligibility.minLevel})
+                  파티 전투력 부족 (현재 {partyEligibility.partyPower.toLocaleString()} / 필요{" "}
+                  {partyEligibility.minPower.toLocaleString()})
                 </p>
               ) : null}
               <div className="flex w-full flex-col gap-2 sm:flex-row">
@@ -1568,15 +1531,6 @@ export function DungeonsPanel({
         onClose={() => setPartyOpen(false)}
         onToggle={toggleParty}
         onConfirm={confirmParty}
-      />
-
-      <DungeonPotionModal
-        open={potionModalOpen}
-        roster={partyRoster ?? []}
-        potions={recoveryPotions}
-        busy={!!busy || combatActive}
-        onClose={() => setPotionModalOpen(false)}
-        onUsePotion={(itemId, minionId) => void usePotion(itemId, minionId)}
       />
 
       <DungeonCashoutConfirmModal

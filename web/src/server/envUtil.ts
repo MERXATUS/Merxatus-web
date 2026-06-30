@@ -24,6 +24,19 @@ export function normalizeDatabaseUrl(raw: string | undefined): string {
     );
   }
 
+  if (port === "5432" && url.hostname.includes("pooler.supabase.com")) {
+    const isDev = process.env.NODE_ENV === "development";
+    const limitRaw = url.searchParams.get("connection_limit");
+    const limit = limitRaw ? Number(limitRaw) : NaN;
+    if (isDev && (!Number.isFinite(limit) || limit < 5)) {
+      url.searchParams.set("connection_limit", "10");
+    }
+    if (!url.searchParams.has("pool_timeout")) {
+      url.searchParams.set("pool_timeout", "30");
+    }
+    return url.toString();
+  }
+
   if (port === "6543") {
     url.searchParams.set("pgbouncer", "true");
     const isDev = process.env.NODE_ENV === "development";

@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { getAccessoryCatalogEntry } from "@/shared/accessoryCatalog";
 import { assertMinionCanEquipBaseItem } from "@/server/minionEquipLevelCheck";
+import { minionCombatPowerForEquip } from "@/server/knightOrder";
 import { takeAvailableFromStack } from "@/server/inventoryStackOps";
 import {
   accessorySlotToDbField,
@@ -47,7 +48,6 @@ export async function equipMinionAccessory(input: {
 
   const m = await tx.minion.findUnique({
     where: { id: minionId },
-    select: { id: true, userId: true, level: true },
   });
   if (!m) throw new Error("MINION_NOT_FOUND");
   if (m.userId !== userId) throw new Error("FORBIDDEN");
@@ -70,7 +70,12 @@ export async function equipMinionAccessory(input: {
   if (!item) throw new Error("ITEM_NOT_FOUND");
   if (item.category !== "악세서리" && !itemId.startsWith("acc_")) throw new Error("NOT_ACCESSORY");
 
-  assertMinionCanEquipBaseItem({ minionLevel: m.level, baseItemId: itemId, itemGrade: item.grade });
+  const combatPower = await minionCombatPowerForEquip(tx, userId, m);
+  assertMinionCanEquipBaseItem({
+    minionCombatPower: combatPower,
+    baseItemId: itemId,
+    itemGrade: item.grade,
+  });
 
   const current = getAccessoryFieldValue(accessoryRow, slotId);
   if (current === itemId) return { ok: true as const, slotId, itemId };

@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { requireUserId } from "@/server/auth";
-import { buildMeDashboardLight } from "@/server/meDashboard";
 import { buildMeSummary } from "@/server/meSummary";
 import { prismaKnownErrorResponse } from "@/server/prismaHttp";
 
@@ -19,12 +18,9 @@ export async function GET(req: Request) {
     const auth = requireUserId(req, parsed.data.userId ?? null);
     if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
-    const [summary, dashboard] = await Promise.all([
-      buildMeSummary(auth.userId),
-      buildMeDashboardLight(auth.userId),
-    ]);
+    const summary = await buildMeSummary(auth.userId);
 
-    return Response.json({ ok: true as const, summary, dashboard });
+    return Response.json({ ok: true as const, summary });
   } catch (e) {
     const r = prismaKnownErrorResponse(e);
     if (r) return r;

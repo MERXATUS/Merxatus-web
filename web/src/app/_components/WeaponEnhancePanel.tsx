@@ -28,7 +28,10 @@ import { GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback
 import { loadMeEquipmentState } from "@/shared/meEquipmentState";
 import { formatPanelError } from "@/shared/formatPanelError";
 import { apiGetJsonCached, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
-import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
+import { notifyGameFramePatch } from "@/shared/gameFramePatch";
+import { selectGoldAvailable, useWalletStore } from "@/shared/stores/walletStore";
+import { usePlayerEquipmentStore } from "@/shared/stores/playerEquipmentStore";
+import { useGameDataPatch } from "@/shared/useGameDataPatch";
 import type { EquippedByMinionView } from "@/shared/equipmentEquippedBy";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import {
@@ -76,6 +79,8 @@ type MeState = {
     quantity: number;
     lockedQuantity?: number;
     availableQuantity?: number;
+    icon?: string | null;
+    iconSrc?: string | null;
   }>;
   weaponInstances?: WeaponRow[];
   armorInstances?: ArmorRow[];
@@ -147,6 +152,49 @@ function fmtInt(n: unknown) {
 
 function compareLocaleKo(a: string, b: string) {
   return a.localeCompare(b, "ko", { sensitivity: "base" });
+}
+
+function mergeLootIntoInventory(
+  inventory: MeState["inventory"],
+  loot: Array<{ itemId: string; qty: number }>,
+  nameById: Map<string, string>,
+): MeState["inventory"] {
+  const map = new Map(inventory.map((row) => [row.itemId, { ...row }]));
+  for (const drop of loot) {
+    if (drop.qty <= 0) continue;
+    const prev = map.get(drop.itemId);
+    if (prev) {
+      map.set(drop.itemId, { ...prev, quantity: prev.quantity + drop.qty });
+    } else {
+      map.set(drop.itemId, {
+        itemId: drop.itemId,
+        name: nameById.get(drop.itemId) ?? drop.itemId,
+        quantity: drop.qty,
+      });
+    }
+  }
+  return [...map.values()];
+}
+
+function applySalvageToMeState(
+  prev: MeState,
+  input: {
+    kind: EquipKind;
+    salvagedIds: Set<string>;
+    loot: Array<{ itemId: string; qty: number }>;
+    nameById: Map<string, string>;
+  },
+): MeState {
+  const next: MeState = {
+    ...prev,
+    inventory: mergeLootIntoInventory(prev.inventory, input.loot, input.nameById),
+  };
+  if (input.kind === "weapon") {
+    next.weaponInstances = (prev.weaponInstances ?? []).filter((w) => !input.salvagedIds.has(w.id));
+  } else {
+    next.armorInstances = (prev.armorInstances ?? []).filter((a) => !input.salvagedIds.has(a.id));
+  }
+  return next;
 }
 
 function sortWeapons(rows: WeaponRow[], by: WeaponSortId): WeaponRow[] {
@@ -355,6 +403,7 @@ function validateEnhanceAfford(input: {
 export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}) {
   const { user, loading: sessionLoading } = useSessionUser();
   const isMobile = useIsMobile();
+  const goldAvailable = useWalletStore(selectGoldAvailable);
   const [me, setMe] = useState<MeState | null>(null);
   const [busy, setBusy] = useState(false);
   const [forgeMode, setForgeMode] = useState<ForgeWorkbenchMode>("enhance");
@@ -398,6 +447,17 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
     try {
       const r = await loadEnhanceMeState();
       setMe(r);
+      if (r.wallet) {
+        useWalletStore.getState().setWallet({
+          goldAvailable: r.wallet.goldAvailable,
+          goldLocked: r.wallet.goldLocked,
+        });
+      }
+      usePlayerEquipmentStore.getState().setEquipment({
+        inventory: r.inventory,
+        weaponInstances: r.weaponInstances,
+        armorInstances: r.armorInstances,
+      });
     } catch (e) {
       setMe(null);
       if (!isUnauthorizedError(e)) setError(formatPanelError(e));
@@ -411,12 +471,9 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
     void load();
   }, [load, sessionLoading]);
 
-  useEffect(() => {
-    if (!embedded) return;
-    const onFrameRefresh = () => void load();
-    window.addEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
-    return () => window.removeEventListener(GAME_FRAME_REFRESH_EVENT, onFrameRefresh);
-  }, [embedded, load]);
+  useGameDataPatch(["enhance", "weapons", "armor", "inventory", "wallet"], useCallback(() => {
+    void load();
+  }, [load]));
 
   useEffect(() => {
     setSelectedToolId(null);
@@ -808,7 +865,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
       const affordErr = validateEnhanceAfford({
         enhanceLevel: equip.enhanceLevel ?? 0,
         grade: equip.grade ?? 1,
-        goldAvailable: me?.wallet?.goldAvailable ?? 0,
+        goldAvailable: goldAvailable ?? me?.wallet?.goldAvailable ?? 0,
         materialQty: stackQty,
         itemNames: nameById,
         manaStoneItemId: selectedManaStoneId,
@@ -824,7 +881,20 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
       setEnhanceOutcome(null);
       setEnhanceMotion(null);
 
+      let rollbackGold: (() => void) | null = null;
       try {
+        const cur = Math.max(0, Math.floor(equip.enhanceLevel ?? 0));
+        const cost = weaponUpgradeCostForNextLevel(cur);
+        rollbackGold = useWalletStore.getState().optimisticGoldDelta(-cost.gold);
+        setEnhanceMotion({
+          kind,
+          instanceId: equip.id,
+          baseItemId: equip.baseItemId,
+          fromLevel: cur,
+          toLevel: cur,
+          variant: "success",
+        });
+
         const r = await postJson<UpgradeApiOk>(
           kind === "weapon"
             ? "/api/inventory/weapon-instance/upgrade"
@@ -845,7 +915,9 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
         );
         if (!r?.ok) throw new Error(typeof r === "object" && r && "error" in r ? String((r as { error: unknown }).error) : "UPGRADE_FAILED");
 
+        rollbackGold = null;
         await load();
+        notifyGameFramePatch(["wallet", "enhance", kind === "weapon" ? "weapons" : "armor"]);
 
         const variant: EnhanceBurstVariant = r.success ? "success" : "fail";
         const payload: EnhanceMotionState = {
@@ -865,13 +937,15 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
           protectedOnFail: r.protectedOnFail,
         });
       } catch (e) {
+        rollbackGold?.();
+        setEnhanceMotion(null);
         setError(friendlyForgeError(e, nameById));
       } finally {
         enhanceRunInFlightRef.current = false;
         setBusy(false);
       }
     },
-    [enhanceMotion, load, me?.wallet?.goldAvailable, nameById, selectedManaStoneId, stackQty, useProtectionScroll, useBlessingGem],
+    [enhanceMotion, load, goldAvailable, me?.wallet?.goldAvailable, nameById, selectedManaStoneId, stackQty, useProtectionScroll, useBlessingGem],
   );
 
   const runSalvage = useCallback(async () => {
@@ -898,8 +972,33 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
         })),
       });
       if (!r?.ok) throw new Error(typeof r === "object" && r && "error" in r ? String((r as { error: unknown }).error) : "SALVAGE_FAILED");
+      const salvagedIds = new Set(salvageSelectedItems.map((it) => it.id));
       setSalvageSelectedIds(new Set());
-      await load();
+      setMe((prev) => {
+        if (!prev) return prev;
+        const patched = applySalvageToMeState(prev, {
+          kind: salvageKind,
+          salvagedIds,
+          loot: r.loot ?? [],
+          nameById,
+        });
+        usePlayerEquipmentStore.getState().setEquipment({
+          inventory: patched.inventory,
+          weaponInstances: patched.weaponInstances,
+          armorInstances: patched.armorInstances,
+        });
+        return patched;
+      });
+      void loadEnhanceMeState(true)
+        .then((next) => {
+          setMe(next);
+          usePlayerEquipmentStore.getState().setEquipment({
+            inventory: next.inventory,
+            weaponInstances: next.weaponInstances,
+            armorInstances: next.armorInstances,
+          });
+        })
+        .catch(() => {});
     } catch (e) {
       setError(friendlyForgeError(e, nameById));
     } finally {

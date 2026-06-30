@@ -1,5 +1,5 @@
 import { cumulativeXpToLevel, MINION_EARLY_FAST_LEVEL, MINION_LEVEL_RULES } from "@/shared/minionLevel";
-import { dungeonDifficultyMetaForStage } from "@/shared/dungeonDifficulty";
+import { dungeonDifficultyMetaForStage, formatDungeonPowerLabel } from "@/shared/dungeonDifficulty";
 
 export type DungeonRealm = "마계" | "천계" | "이계";
 
@@ -191,11 +191,13 @@ export function dungeonStageJourneyXpPool(dungeonId: string): number {
 export type DungeonStageMeta = {
   stageOrder: number;
   realm: DungeonRealm;
+  /** @deprecated UI 미사용 — 전투력 라벨 사용 */
   recommendedLevel: number;
   recommendedLevelMax: number;
   recommendedLevelLabel: string;
   recommendedPartyPower: number;
-  minPartyLevel: number;
+  minPartyPower: number;
+  recommendedPowerLabel: string;
   journeyXpPool: number;
   fullClearXp: number;
 };
@@ -218,7 +220,8 @@ export function dungeonStageMetaFor(dungeonId: string, maxFloors: number): Dunge
     recommendedLevelMax: stage.recommendedLevelMax,
     recommendedLevelLabel: formatRecommendedLevelLabel(stage),
     recommendedPartyPower: difficulty.recommendedPartyPower,
-    minPartyLevel: difficulty.minPartyLevel,
+    minPartyPower: difficulty.minPartyPower,
+    recommendedPowerLabel: formatDungeonPowerLabel(difficulty.minPartyPower, difficulty.recommendedPartyPower),
     journeyXpPool: dungeonStageJourneyXpPool(dungeonId),
     fullClearXp: dungeonFullClearXpForStage(dungeonId, maxFloors),
   };
@@ -248,15 +251,19 @@ export function dungeonIdForStageOrder(stageOrder: number): string | null {
 
 /** 스테이지 선택 UI용 — `ACTIVE_DUNGEON_STAGES` 순서 유지 */
 export function listDungeonStagePickerOptions() {
-  return ACTIVE_DUNGEON_STAGES.map((stage) => ({
-    stageOrder: stage.stageOrder,
-    name: stage.name,
-    realm: stage.realm,
-    displayName: dungeonDisplayNameForStage(stage),
-    recommendedLevelLabel: formatRecommendedLevelLabel(stage),
-    dungeonIds: [...stage.dungeonIds],
-    primaryDungeonId: primaryDungeonIdForStage(stage),
-  }));
+  return ACTIVE_DUNGEON_STAGES.map((stage) => {
+    const difficulty = dungeonDifficultyMetaForStage(stage);
+    return {
+      stageOrder: stage.stageOrder,
+      name: stage.name,
+      realm: stage.realm,
+      displayName: dungeonDisplayNameForStage(stage),
+      recommendedLevelLabel: formatRecommendedLevelLabel(stage),
+      recommendedPowerLabel: formatDungeonPowerLabel(difficulty.minPartyPower, difficulty.recommendedPartyPower),
+      dungeonIds: [...stage.dungeonIds],
+      primaryDungeonId: primaryDungeonIdForStage(stage),
+    };
+  });
 }
 
 export function activeStageWeightSum(): number {

@@ -12,8 +12,6 @@ import { API_CACHE_TTL } from "@/shared/apiCache";
 import { apiGetJson, apiGetJsonCached, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import {
   GAME_FRAME_REFRESH_EVENT,
-  START_TRADE_WITH_EVENT,
-  TRADE_START_USERNAME_KEY,
 } from "@/shared/gameNav";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import {
@@ -25,7 +23,6 @@ import {
   type SellInventoryRow,
   type SellWeaponRow,
 } from "@/app/_components/MarketSellTab";
-import { TradePanel } from "@/app/_components/TradePanel";
 import {
   MarketListingEquipmentHover,
   type MarketListingEquipmentView,
@@ -167,7 +164,7 @@ const CATEGORY_ALL = "전체";
 export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
   const { user, loading: sessionLoading } = useSessionUser();
   const userId = user?.id ?? "";
-  const [tab, setTab] = useState<"MARKET" | "SELL" | "MINE" | "TRADE">("MARKET");
+  const [tab, setTab] = useState<"MARKET" | "SELL" | "MINE">("MARKET");
   const [sellCategories, setSellCategories] = useState<string[]>([MARKET_SELL_CATEGORY_ALL]);
   const [q, setQ] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(CATEGORY_ALL);
@@ -211,23 +208,6 @@ export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
     const t = params.get("tab");
     if (t === "sell") setTab("SELL");
     else if (t === "mine") setTab("MINE");
-    else if (t === "trade") setTab("TRADE");
-    else {
-      try {
-        const pending = sessionStorage.getItem(TRADE_START_USERNAME_KEY);
-        if (pending) setTab("TRADE");
-      } catch {
-        /* ignore */
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    function openTradeTab() {
-      setTab("TRADE");
-    }
-    window.addEventListener(START_TRADE_WITH_EVENT, openTradeTab);
-    return () => window.removeEventListener(START_TRADE_WITH_EVENT, openTradeTab);
   }, []);
 
   const tutorialMarketVisitRef = useRef(false);
@@ -284,10 +264,6 @@ export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
     setBusy(true);
     setError(null);
     try {
-      if (tab === "TRADE") {
-        // trade panel handles its own refresh
-        return;
-      }
       if (tab === "MARKET") {
         const r = await getJson<{ ok: boolean; listings: Listing[] }>(queryUrl);
         setListings(r.listings ?? []);
@@ -636,15 +612,6 @@ export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
           <button
             type="button"
             role="tab"
-            aria-selected={tab === "TRADE"}
-            className={`market-board__tab ${tab === "TRADE" ? "market-board__tab--active" : ""}`}
-            onClick={() => setTab("TRADE")}
-          >
-            직거래
-          </button>
-          <button
-            type="button"
-            role="tab"
             aria-selected={tab === "MINE"}
             className={`market-board__tab ${tab === "MINE" ? "market-board__tab--active" : ""}`}
             onClick={() => setTab("MINE")}
@@ -662,8 +629,6 @@ export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
       {error ? (
         <div className="market-alert market-alert--error">{formatPanelError(error)}</div>
       ) : null}
-
-      {tab === "TRADE" ? <TradePanel /> : null}
 
       <div className="market-board__layout">
         {tab === "MARKET" || tab === "SELL" ? (

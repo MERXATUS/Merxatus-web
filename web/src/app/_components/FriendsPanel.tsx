@@ -19,7 +19,6 @@ type FriendsListResponse = {
 
 type FriendsPanelProps = {
   loggedIn: boolean;
-  onStartTrade?: (username: string) => void;
 };
 
 export function FriendsPanel(props: FriendsPanelProps) {
@@ -218,16 +217,6 @@ export function FriendsPanel(props: FriendsPanelProps) {
               <li key={f.userId} className="friends-panel__row">
                 <span className="friends-panel__name">{f.username}</span>
                 <span className="friends-panel__actions">
-                  {props.onStartTrade ? (
-                    <button
-                      type="button"
-                      className="settings-btn settings-btn--primary"
-                      disabled={!!busy}
-                      onClick={() => props.onStartTrade?.(f.username)}
-                    >
-                      직거래
-                    </button>
-                  ) : null}
                   <button
                     type="button"
                     className="settings-btn settings-btn--ghost"

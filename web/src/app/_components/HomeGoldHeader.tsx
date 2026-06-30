@@ -1,5 +1,6 @@
 "use client";
 
+import { selectGoldAvailable, useWalletStore } from "@/shared/stores/walletStore";
 
 function fmtInt(n: unknown) {
   const x = typeof n === "number" ? n : Number(n);
@@ -15,14 +16,14 @@ function fmtSignedGold(n: number | null | undefined) {
 }
 
 type HomeGoldHeaderProps = {
-  gold: number | null;
   todayNetGold?: number | null;
   activeListings?: number | null;
   username?: string | null;
 };
 
 export function HomeGoldHeader(props: HomeGoldHeaderProps) {
-  const goldAmount = props.gold != null ? fmtInt(props.gold) : "—";
+  const gold = useWalletStore(selectGoldAvailable);
+  const goldAmount = gold != null ? fmtInt(gold) : "—";
   const todayLabel = fmtSignedGold(props.todayNetGold ?? null);
   const listingsLabel =
     props.activeListings != null ? `매물 ${fmtInt(props.activeListings)}건` : null;

@@ -1,6 +1,7 @@
 import { prisma } from "@/server/db";
 import { incrementLeaderboardScore } from "@/server/leaderboard";
-import { buildPartyCombatants } from "@/server/dungeonBattler";
+import { resolveSoloMinionId } from "@/server/minionSolo";
+import { buildPartyCombatants, partyMemberToCombatantInput } from "@/server/dungeonBattler";
 import { loadPartyCombatRows, type PartyCombatDb } from "@/server/minionCombatBuild";
 import { resolvePvpAtbCombat } from "@/server/pvpAtbCombat";
 import { buildPvpCombatReplay } from "@/server/pvpReplay";
@@ -40,22 +41,16 @@ type MinionRow = {
   skillLevelsJson: string | null;
 };
 
-async function loadRepresentativeMinionRow(db: PartyCombatDb, userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { representativeMinionId: true },
-  });
-  if (!user?.representativeMinionId) return null;
-
-  const minion = await db.minion.findFirst({
-    where: { id: user.representativeMinionId, userId },
+async function loadSoloMinionRow(db: PartyCombatDb, userId: string) {
+  const minionId = await resolveSoloMinionId(db, userId);
+  return db.minion.findFirst({
+    where: { id: minionId, userId },
     select: minionSelect,
   });
-  return minion;
 }
 
-export async function loadRepresentativeCombat(db: PartyCombatDb, userId: string) {
-  const minion = await loadRepresentativeMinionRow(db, userId);
+export async function loadSoloCombat(db: PartyCombatDb, userId: string) {
+  const minion = await loadSoloMinionRow(db, userId);
   if (!minion) return null;
 
   const { memberInputs } = await loadPartyCombatRows(db, userId, [
@@ -64,23 +59,7 @@ export async function loadRepresentativeCombat(db: PartyCombatDb, userId: string
   const member = memberInputs[0];
   if (!member) return null;
 
-  const [combatant] = buildPartyCombatants([
-    {
-      minionId: member.minionId,
-      combatClassLabel: member.combatClassLabel,
-      power: member.power,
-      bonusHp: member.bonusHp,
-      bonusDef: member.bonusDef,
-      skillDamageMult: member.skillDamageMult,
-      activeSkillName: member.activeSkillName,
-      activeSkillId: member.activeSkillId,
-      activeSkillLevel: member.activeSkillLevel,
-      passiveSkillId: (member as any).passiveSkillId ?? null,
-      passiveSkillLevel: (member as any).passiveSkillLevel ?? 0,
-      passiveLowHpAtkMaxBonusPct: (member as any).passiveLowHpAtkMaxBonusPct ?? 0,
-      combatMods: member.combatMods,
-    },
-  ]);
+  const [combatant] = buildPartyCombatants(memberInputs.map(partyMemberToCombatantInput));
 
   return { minion, member, combatant };
 }
@@ -103,20 +82,22 @@ export type PvpOpponentView = {
   combatPower: number;
 };
 
+/** @deprecated use loadSoloCombat */
+export const loadRepresentativeCombat = loadSoloCombat;
+
 export async function listPvpOpponents(userId: string, limit = 16): Promise<PvpOpponentView[]> {
-  const myCombat = await loadRepresentativeCombat(prisma, userId);
+  const myCombat = await loadSoloCombat(prisma, userId);
   if (!myCombat) return [];
 
   const candidates = await prisma.user.findMany({
     where: {
       id: { not: userId },
-      representativeMinionId: { not: null },
+      minionEntities: { some: {} },
     },
     select: {
       id: true,
       username: true,
       honorTitle: true,
-      representativeMinionId: true,
     },
     take: 80,
     orderBy: { createdAt: "desc" },
@@ -124,11 +105,7 @@ export async function listPvpOpponents(userId: string, limit = 16): Promise<PvpO
 
   const rows: PvpOpponentView[] = [];
   for (const u of candidates) {
-    if (!u.representativeMinionId) continue;
-    const minion = await prisma.minion.findFirst({
-      where: { id: u.representativeMinionId, userId: u.id },
-      select: minionSelect,
-    });
+    const minion = await loadSoloMinionRow(prisma, u.id);
     if (!minion) continue;
 
     const { memberInputs } = await loadPartyCombatRows(prisma, u.id, [
@@ -177,10 +154,10 @@ export async function runPvpAttack(attackerId: string, defenderUserId: string): 
     throw new Error("PVP_DAILY_LIMIT");
   }
 
-  const attacker = await loadRepresentativeCombat(prisma, attackerId);
-  if (!attacker) throw new Error("REPRESENTATIVE_REQUIRED");
+  const attacker = await loadSoloCombat(prisma, attackerId);
+  if (!attacker) throw new Error("MINION_NOT_FOUND");
 
-  const defender = await loadRepresentativeCombat(prisma, defenderUserId);
+  const defender = await loadSoloCombat(prisma, defenderUserId);
   if (!defender) throw new Error("DEFENDER_NOT_READY");
 
   const battle = resolvePvpAtbCombat({

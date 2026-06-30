@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
 import { assertMinionCanEquipBaseItem } from "@/server/minionEquipLevelCheck";
+import { minionCombatPowerForEquip } from "@/server/knightOrder";
 import { canMinionEquipWeaponForClass } from "@/shared/minionWeaponRules";
 import { promotionStateFromRow, resolveMinionCombatClass } from "@/shared/minionPromotion";
 
@@ -48,8 +49,9 @@ export async function POST(req: Request) {
       if (inst.userLocked) throw new Error("ITEM_USER_LOCKED");
       const combatClass = resolveMinionCombatClass(promotionStateFromRow(m));
       if (!canMinionEquipWeaponForClass(combatClass, inst.baseItemId)) throw new Error("WEAPON_JOB_MISMATCH");
+      const combatPower = await minionCombatPowerForEquip(tx, auth.userId, m);
       assertMinionCanEquipBaseItem({
-        minionLevel: m.level,
+        minionCombatPower: combatPower,
         baseItemId: inst.baseItemId,
         instanceItemLevel: inst.itemLevel,
       });

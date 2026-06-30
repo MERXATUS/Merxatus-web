@@ -5,15 +5,10 @@ import { getAccessoryCatalogEntry } from "@/shared/accessoryCatalog";
 import type { MinionAccessorySlotId } from "@/shared/minionEquipSlots";
 import { weaponCombatBonusFromOptions } from "@/server/itemOptions";
 import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
-import { minionLevelProgress } from "@/shared/minionLevel";
 import { itemGradeViewForItem } from "@/server/itemGrade";
 import { minionRoleLabel } from "@/server/minionJobs";
-import {
-  minionPromotionAvailability,
-  promotionStateFromRow,
-  resolveMinionCombatClass,
-} from "@/shared/minionPromotion";
-import { skillViewsForMinion } from "@/shared/minionSkills";
+import type { MinionCombatClass } from "@/shared/minionDerivedClass";
+import { promotionStateFromRow } from "@/shared/minionPromotion";
 import { minionDisplayName } from "@/shared/minionNickname";
 import { getArmorStats } from "@/shared/armorStatsData";
 import {
@@ -80,15 +75,14 @@ export function armorEquippedView(
 }
 
 export function mapMinionToPartyPickRow(m: MinionRow) {
-  const lv = m.level ?? 1;
+  const lv = 1;
   const fighterRank = (m.traits ?? []).find((t) => t.type === "FIGHTER")?.rank ?? 0;
-  const combatClass = resolveMinionCombatClass(promotionStateFromRow(m));
+  const combatClass: MinionCombatClass = "ADVENTURER";
   const combatPower = computeMinionCombatPower({
     level: lv,
     fighterRank,
     baseStats: minionBaseStatsFromRow(m),
     combatClass,
-    skillLevelsJson: m.skillLevelsJson,
     weapon: m.equippedWeaponInstance
       ? {
           baseItemId: m.equippedWeaponInstance.baseItemId,
@@ -142,28 +136,20 @@ export function mapMinionToListRow(
     accessoryByMinionId?: Map<string, ReturnType<typeof accessoryIdsFromRow>>;
   },
 ) {
-  const lv = m.level ?? 1;
+  const lv = 1;
   const fighterRank = (m.traits ?? []).find((t) => t.type === "FIGHTER")?.rank ?? 0;
   const armorIds = armorIdsFromRow(armorByMinionId.get(m.id));
   const accessoryIds = accessoryIdsFromRow(options?.accessoryByMinionId?.get(m.id));
   const armorInstMap = options?.armorInstancesById ?? new Map();
   const baseStats = minionBaseStatsFromRow(m);
   const promotion = promotionStateFromRow(m);
-  const combatClass = resolveMinionCombatClass(promotion);
-  const promotionInfo = minionPromotionAvailability({ level: lv, promotionTier: promotion.promotionTier });
-  const skills = skillViewsForMinion({ combatClass, skillLevelsJson: m.skillLevelsJson });
-  const levelProgress = minionLevelProgress({
-    level: lv,
-    experience: m.experience ?? 0,
-    unspentStatPoints: m.unspentStatPoints ?? 0,
-  });
+  const combatClass: MinionCombatClass = "ADVENTURER";
 
   const combatInput = {
     level: lv,
     fighterRank,
     baseStats,
     combatClass,
-    skillLevelsJson: m.skillLevelsJson,
     weapon: m.equippedWeaponInstance
       ? {
           baseItemId: m.equippedWeaponInstance.baseItemId,
@@ -187,24 +173,24 @@ export function mapMinionToListRow(
   return {
     id: m.id,
     level: lv,
-    supportsLeveling: true,
-    experience: levelProgress.experience,
-    xpToNext: levelProgress.xpToNext,
-    xpProgress: levelProgress.xpProgress,
-    unspentStatPoints: levelProgress.unspentStatPoints,
-    unspentSkillPoints: Math.max(0, Math.floor(m.unspentSkillPoints ?? 0)),
-    isMaxLevel: levelProgress.isMaxLevel,
+    supportsLeveling: false,
+    experience: 0,
+    xpToNext: 0,
+    xpProgress: 0,
+    unspentStatPoints: 0,
+    unspentSkillPoints: 0,
+    isMaxLevel: true,
     jobType: m.jobType,
     baseStats,
     combatClass,
     combatPower,
     promotionTier: promotion.promotionTier,
     promotionClass: promotion.promotionClass,
-    canPromoteFirst: promotionInfo.canPromoteFirst,
-    canPromoteSecond: promotionInfo.canPromoteSecond,
-    canPromoteThird: promotionInfo.canPromoteThird,
-    nextPromotionLabel: promotionInfo.nextPromotionLabel,
-    skills,
+    canPromoteFirst: false,
+    canPromoteSecond: false,
+    canPromoteThird: false,
+    nextPromotionLabel: null,
+    skills: [],
     combatClassLabel,
     nickname: m.nickname ?? null,
     displayName: minionDisplayName(m.nickname, combatClassLabel),

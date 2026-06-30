@@ -122,11 +122,8 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
       // ATB 전투 상태가 남아 있어도 UI는 로그 전투로 통일한다.
       if (!selectedRaidId && RAIDS_CATALOG[0]) setSelectedRaidId(RAIDS_CATALOG[0].id);
       if (!stateR.active) {
-        const cap = Math.max(
-          1,
-          RAIDS_CATALOG.find((r) => r.id === (selectedRaidId || RAIDS_CATALOG[0]?.id))?.maxPartySize ?? 3,
-        );
-        setPartyIds(resolveSavedPartyIds(readSavedPartyIds(RAID_PARTY_KEY), roster, cap));
+        const cap = 1;
+        setPartyIds(new Set(roster[0] ? [roster[0].id] : []));
       }
     } catch (e) {
       setError(e);
@@ -150,7 +147,7 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
 
   useEscapeClose(partyOpen, () => setPartyOpen(false));
 
-  const maxParty = Math.max(1, raids.find((r) => r.id === selectedRaidId)?.maxPartySize ?? 3);
+  const maxParty = 1;
   const partyLootMult = raidPartyLootMultiplier(partyIds.size || 1, maxParty);
   const partyLootMultLabel = formatRaidPartyLootMultiplier(partyIds.size || 1, maxParty);
   const partyChips = useMemo(() => partyPickChips(minions, partyIds), [minions, partyIds]);
@@ -158,12 +155,8 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
   useEffect(() => {
     if (run?.active) return;
     if (!minions.length) return;
-    setPartyIds((prev) => {
-      const trimmed = resolveSavedPartyIds([...prev], minions, maxParty);
-      if (trimmed.size > 0) return trimmed;
-      return resolveSavedPartyIds(readSavedPartyIds(RAID_PARTY_KEY), minions, maxParty);
-    });
-  }, [minions, maxParty, run?.active]);
+    setPartyIds(new Set([minions[0]!.id]));
+  }, [minions, run?.active]);
 
   const selectedRaid = useMemo(
     () => raids.find((r) => r.id === selectedRaidId) ?? null,
@@ -624,7 +617,7 @@ export function RaidsPanel({ embedded = false }: { embedded?: boolean }) {
                 maxPartySize: maxParty,
               });
               try {
-                await apiPostJson("/api/raids/run/start", { raidId: selectedRaidId, minionIds: [...partyIds] });
+                await apiPostJson("/api/raids/run/start", { raidId: selectedRaidId });
                 setLastMsg("레이드 시작");
                 void refresh();
               } catch (e) {

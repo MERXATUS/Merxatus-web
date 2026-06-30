@@ -72,19 +72,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 26.31578947368421,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           }
         ]
       }
@@ -176,19 +163,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 23.52941176470588,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -293,19 +267,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 23.52941176470588,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -449,19 +410,6 @@
             "maxQty": 2,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 16.488046166529266,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -618,19 +566,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 17.6522506619594,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -841,19 +776,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 13.693940431359122,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_gem_destruction",
             "name": "소멸의 보석",
             "grade": 1,
@@ -1034,19 +956,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 14.487504527345166,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_raid_shard",
@@ -1294,19 +1203,6 @@
             "maxQty": 2,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 12.45252474939294,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_destruction",
@@ -1567,19 +1463,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 13.10530109429264,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_raid_shard",
@@ -1892,19 +1775,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 11.263798152737102,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_chaos",
@@ -2243,19 +2113,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 11.79523472517103,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_chaos",
@@ -2622,19 +2479,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 10.866021949364338,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_gem_chaos",
             "name": "혼돈의 보석",
             "grade": 1,
@@ -2971,19 +2815,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 11.359763716914689,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_chaos",
@@ -3350,19 +3181,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 10.866021949364338,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_gem_chaos",
             "name": "혼돈의 보석",
             "grade": 1,
@@ -3569,19 +3387,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 26.31578947368421,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           }
         ]
       }
@@ -3673,19 +3478,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 23.52941176470588,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -3790,19 +3582,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 23.52941176470588,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -3946,19 +3725,6 @@
             "maxQty": 2,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 16.488046166529266,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -4115,19 +3881,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 17.6522506619594,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -4338,19 +4091,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 13.693940431359122,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_gem_destruction",
             "name": "소멸의 보석",
             "grade": 1,
@@ -4531,19 +4271,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 14.487504527345166,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_raid_shard",
@@ -4791,19 +4518,6 @@
             "maxQty": 2,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 12.45252474939294,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_destruction",
@@ -5064,19 +4778,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 13.10530109429264,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_raid_shard",
@@ -5389,19 +5090,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 11.263798152737102,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_chaos",
@@ -5740,19 +5428,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 11.79523472517103,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_chaos",
@@ -6119,19 +5794,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 10.866021949364338,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_gem_chaos",
             "name": "혼돈의 보석",
             "grade": 1,
@@ -6468,19 +6130,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 11.359763716914689,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_chaos",
@@ -6845,19 +6494,6 @@
             "maxQty": 3,
             "floorLabel": "클리어 시 2회 추첨",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 10.866021949364338,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "클리어 시 2회 추첨",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_chaos",

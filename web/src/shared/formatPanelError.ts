@@ -60,7 +60,7 @@ function looksLikeDbMigration(text: string): boolean {
 }
 
 function minionLevelTooLowMessage(requiredLevel: number): string {
-  return `착용하려면 미니언 Lv${requiredLevel} 이상이 필요합니다.`;
+  return `착용 전투력이 부족합니다. (필요 ${requiredLevel.toLocaleString()} CP 이상)`;
 }
 
 function mapErrorCode(code: string): string | null {
@@ -70,6 +70,9 @@ function mapErrorCode(code: string): string | null {
   const exact: Record<string, string> = {
     BAD_REQUEST: "요청 형식이 잘못됐습니다. 새로고침 후 다시 시도해 주세요.",
     REQUEST_TIMEOUT: "서버 응답이 지연되고 있습니다. 잠시 후 새로고침해 주세요.",
+    DB_CONNECTION_FAILED: "데이터베이스에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    DB_POOL_TIMEOUT: "서버가 바빠서 응답이 지연되었습니다. 잠시 후 새로고침해 주세요.",
+    DB_TRANSACTION_BUSY: "데이터 처리가 몰려 있습니다. 잠시 후 다시 시도해 주세요.",
     SESSION_TIMEOUT: "로그인 확인 시간이 초과됐습니다. 새로고침해 주세요.",
     BOOTSTRAP_INCOMPLETE: "대시보드 데이터를 불러오지 못했습니다. 새로고침해 주세요.",
     USER_NOT_FOUND: "유저를 찾을 수 없습니다. 로그인을 확인해 주세요.",
@@ -78,6 +81,9 @@ function mapErrorCode(code: string): string | null {
     NOT_FOUND: "요청한 데이터를 찾을 수 없습니다.",
     TRANSACTION_FAILED: "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
     INSUFFICIENT_GOLD: "골드가 부족합니다.",
+    MINION_STAT_ALLOC_DISABLED: "스탯 배분은 비활성화되었습니다. 전투력은 장비·강화·도감으로 성장합니다.",
+    PROMOTION_DISABLED: "전직 시스템은 비활성화되었습니다.",
+    SKILLS_DISABLED: "스킬 시스템은 비활성화되었습니다.",
     WORKSHOP_TYPE_NOT_FOUND: "시설 종류를 찾을 수 없습니다.",
     SLOT_OCCUPIED: "이 칸에 이미 시설이 있습니다.",
     PLOT_FULL: "시설 개수가 상한에 도달했습니다. 철거 후 다시 설치해 주세요.",
@@ -145,8 +151,9 @@ function mapErrorCode(code: string): string | null {
     GATHER_DISABLED: "수집 시스템이 비활성화됐어요. 던전·삼계의 탑·레이드에서 아이템을 얻을 수 있어요.",
     MAX_EQUIPMENT_OWNED: "무기·방어구 보유 한도(100개)에 도달했어요. 분해하거나 거래소에 올린 뒤 다시 시도해 주세요.",
     SALVAGE_BATCH_TOO_LARGE: "한 번에 분해할 수 있는 장비는 최대 50개까지예요.",
-    REPRESENTATIVE_REQUIRED: "대표 미니언을 먼저 지정해 주세요.",
-    DEFENDER_NOT_READY: "상대가 대표 미니언을 지정하지 않았어요.",
+    SHOP_SELL_BATCH_TOO_LARGE: "한 번에 매입할 수 있는 장비는 최대 50개까지예요.",
+    REPRESENTATIVE_REQUIRED: "미니언이 없어요. 미니언을 먼저 생성해 주세요.",
+    DEFENDER_NOT_READY: "상대에게 미니언이 없어요.",
     CANNOT_ATTACK_SELF: "자기 자신에게는 도전할 수 없어요.",
     PVP_DAILY_LIMIT: "오늘 결투 도전 횟수를 모두 사용했어요.",
   };

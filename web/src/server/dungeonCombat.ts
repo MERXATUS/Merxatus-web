@@ -38,14 +38,11 @@ export function computePartyPower(input: {
   }>;
 }) {
   const base = GAME_RULES.combat.baseMinionPower;
-  const perLevel = GAME_RULES.combat.levelPowerPerLevel;
   const perFighter = GAME_RULES.combat.fighterTraitPowerPerRank;
   const weaponMap = GAME_RULES.combat.weaponPowerByItemId as Record<string, number>;
   let power = 0;
   for (const m of input.members) {
     power += base;
-    const level = Math.max(1, Math.floor(m.level ?? 1));
-    power += Math.max(0, (level - 1) * perLevel);
     const fighterRank = Math.max(0, Math.floor(m.fighterRank ?? 0));
     power += fighterRank * perFighter;
     if (m.weaponBaseItemId) {

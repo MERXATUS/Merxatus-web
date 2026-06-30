@@ -1,30 +1,43 @@
 import type { PrismaClient } from "@prisma/client";
-import { GAME_RULES } from "@/server/gameRules";
+import type { PartyCombatDb } from "@/server/minionCombatBuild";
 import {
   applyKnightOrderPartyPower,
-  knightOrderBonusesFromTotalLevel,
+  ZERO_KNIGHT_ORDER_BONUSES,
   type KnightOrderBonuses,
 } from "@/shared/knightOrder";
 
-type MinionDb = Pick<PrismaClient, "minion">;
+/** @deprecated 기사단 비활성 */
+export const KNIGHT_ORDER_CP_STEP = 50;
+
+type MinionDb = Pick<PrismaClient, "minion"> & PartyCombatDb;
+
+export function invalidateKnightOrderCache(_userId?: string) {
+  /* no-op */
+}
+
+/** 기사단 비활성 — 항상 보너스 0 */
+export async function loadKnightOrderBonuses(_db: MinionDb, _userId: string): Promise<KnightOrderBonuses> {
+  return ZERO_KNIGHT_ORDER_BONUSES;
+}
+
+export async function sumMinionTotalCombatPower(_db: MinionDb, _userId: string) {
+  return { totalCombatPower: 0, minionCount: 1 };
+}
 
 export async function sumMinionTotalLevel(db: MinionDb, userId: string) {
-  const agg = await db.minion.aggregate({
-    where: { userId },
-    _sum: { level: true },
-    _count: { id: true },
-  });
-  return {
-    totalLevel: Math.max(0, Math.floor(agg._sum.level ?? 0)),
-    minionCount: Math.max(0, agg._count.id ?? 0),
-  };
+  const r = await sumMinionTotalCombatPower(db, userId);
+  return { totalLevel: r.totalCombatPower, minionCount: r.minionCount };
 }
 
-export async function loadKnightOrderBonuses(db: MinionDb, userId: string): Promise<KnightOrderBonuses> {
-  const { totalLevel, minionCount } = await sumMinionTotalLevel(db, userId);
-  return knightOrderBonusesFromTotalLevel(totalLevel, minionCount, GAME_RULES.knightOrder);
+export function scalePartyPowerWithKnightOrder(basePartyPower: number, _bonuses: KnightOrderBonuses) {
+  return applyKnightOrderPartyPower(basePartyPower, ZERO_KNIGHT_ORDER_BONUSES);
 }
 
-export function scalePartyPowerWithKnightOrder(basePartyPower: number, bonuses: KnightOrderBonuses) {
-  return applyKnightOrderPartyPower(basePartyPower, bonuses);
+export async function minionCombatPowerForEquip(
+  db: PartyCombatDb,
+  userId: string,
+  minion: { id: string; level: number; jobType: string; equippedWeaponInstanceId: string | null } & Record<string, unknown>,
+): Promise<number> {
+  const { computeMinionCombatPowerForUser } = await import("@/server/minionCombatBuild");
+  return computeMinionCombatPowerForUser(db, userId, minion);
 }

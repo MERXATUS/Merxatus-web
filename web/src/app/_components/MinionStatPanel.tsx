@@ -49,6 +49,7 @@ function SkillContributionBlock(props: { stats: MinionCombatBreakdown }) {
 
 export function MinionStatPanel(props: { stats: MinionCombatBreakdown; compact?: boolean; minimal?: boolean }) {
   const { stats, compact, minimal } = props;
+  const showAttributes = MINION_STAT_KEYS.some((key) => stats.attributes[key] > 0);
 
   if (minimal) {
     return (
@@ -82,14 +83,16 @@ export function MinionStatPanel(props: { stats: MinionCombatBreakdown; compact?:
         ) : null}
       </div>
 
-      <div className="minion-stat-panel__attrs" aria-label="기본 스탯">
-        {MINION_STAT_KEYS.map((key) => (
-          <div key={key} className="minion-stat-panel__attr">
-            <span className="minion-stat-panel__attr-label">{MINION_STAT_LABELS[key]}</span>
-            <span className="minion-stat-panel__attr-val">{stats.attributes[key]}</span>
-          </div>
-        ))}
-      </div>
+      {showAttributes ? (
+        <div className="minion-stat-panel__attrs" aria-label="기본 스탯">
+          {MINION_STAT_KEYS.map((key) => (
+            <div key={key} className="minion-stat-panel__attr">
+              <span className="minion-stat-panel__attr-label">{MINION_STAT_LABELS[key]}</span>
+              <span className="minion-stat-panel__attr-val">{stats.attributes[key]}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <table className="minion-stat-panel__table">
         <thead>

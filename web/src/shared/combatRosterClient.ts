@@ -1,5 +1,5 @@
 import { API_CACHE_TTL, withApiCache } from "@/shared/apiCache";
-import { apiGetJson } from "@/shared/sessionClient";
+import { apiGetJson, BOOTSTRAP_FETCH_TIMEOUT_MS } from "@/shared/sessionClient";
 
 export type CombatRosterMinion = {
   id: string;
@@ -43,7 +43,9 @@ export async function fetchCombatRoster(userId: string, opts?: { force?: boolean
   const minions = await withApiCache(
     url,
     () =>
-      apiGetJson<{ ok: boolean; minions: CombatRosterMinion[] }>(url).then((r) =>
+      apiGetJson<{ ok: boolean; minions: CombatRosterMinion[] }>(url, {
+        timeoutMs: BOOTSTRAP_FETCH_TIMEOUT_MS,
+      }).then((r) =>
         r.ok ? (r.minions ?? []) : [],
       ),
     { ttlMs: ROSTER_TTL_MS, force: opts?.force },

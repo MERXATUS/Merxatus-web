@@ -1,14 +1,7 @@
 import { computePartyPower } from "@/server/dungeonCombat";
 import { partyStatsFromPower } from "@/shared/combatBalance";
-import {
-  aggregateSkillCombatBonuses,
-  normalizeSkillLevelsForClass,
-  parseMinionSkillLevels,
-  primaryCombatSkillForMinion,
-  skillBreakdownForClass,
-  type SkillBreakdown,
-} from "@/shared/minionSkills";
 import type { MinionCombatClass } from "@/shared/minionDerivedClass";
+import type { SkillBreakdown } from "@/shared/minionSkills";
 import { equipmentStatBonusFromOptions, parseOptionsJson } from "@/server/itemOptions";
 import { armorHpDefBonusFromOptionRows, armorUtilPowerBonusFromOptionRows } from "@/shared/itemOptionCatalog";
 import { armorItemCombatPower, getArmorStats } from "@/shared/armorStatsData";
@@ -21,7 +14,6 @@ import {
   emptyVoidSkillBonuses,
   mergeVoidSkillBonuses,
   voidSkillBonusesFromOptionRows,
-  voidSkillDamageMultForSkill,
 } from "@/shared/equipmentVoidOptions";
 import { equipmentInstanceStatMultiplier } from "@/shared/equipmentItemLevel";
 import { clampEquipmentQuality } from "@/shared/equipmentQuality";
@@ -109,7 +101,7 @@ function equipmentStatBonus(input: MinionCombatInput) {
 }
 
 function minionBaseMember(input: Pick<MinionCombatInput, "level" | "fighterRank" | "baseStats">) {
-  const stats = minionBaseStatsFromRow(input.baseStats);
+  void input.baseStats;
   return {
     weaponBaseItemId: null as string | null,
     weaponEnhanceLevel: 0,
@@ -117,22 +109,15 @@ function minionBaseMember(input: Pick<MinionCombatInput, "level" | "fighterRank"
     level: input.level,
     fighterRank: input.fighterRank ?? 0,
     armorPowerBonus: 0,
-    strength: stats.strength,
-    agility: stats.agility,
-    intelligence: stats.intelligence,
-    endurance: stats.endurance,
+    strength: 0,
+    agility: 0,
+    intelligence: 0,
+    endurance: 0,
   };
 }
 
-function skillBonusesForInput(input: MinionCombatInput) {
-  if (!input.combatClass) {
-    return { powerBonus: 0, bonusHp: 0, bonusDef: 0, damageMult: 1 };
-  }
-  const levels = normalizeSkillLevelsForClass(
-    input.combatClass,
-    parseMinionSkillLevels(input.skillLevelsJson),
-  );
-  return aggregateSkillCombatBonuses(input.combatClass, levels);
+function skillBonusesForInput(_input: MinionCombatInput) {
+  return { powerBonus: 0, bonusHp: 0, bonusDef: 0, damageMult: 1 };
 }
 
 function voidBonusesFromInput(input: MinionCombatInput) {
@@ -153,7 +138,6 @@ function instanceScale(quality?: number, itemLevel?: number): number {
 }
 
 function memberWithWeapon(input: MinionCombatInput) {
-  const stats = minionBaseStatsFromRow(input.baseStats);
   const statBonus = equipmentStatBonus(input);
   const skill = skillBonusesForInput(input);
   const voidBonuses = voidBonusesFromInput(input);
@@ -166,11 +150,11 @@ function memberWithWeapon(input: MinionCombatInput) {
     level: input.level,
     fighterRank: input.fighterRank ?? 0,
     armorPowerBonus: sumArmorPower(input.armor),
-    strength: stats.strength + statBonus.strength,
-    agility: stats.agility + statBonus.agility,
-    intelligence: stats.intelligence + statBonus.intelligence,
-    endurance: stats.endurance + statBonus.endurance,
-    skillDamageMult: skill.damageMult,
+    strength: statBonus.strength,
+    agility: statBonus.agility,
+    intelligence: statBonus.intelligence,
+    endurance: statBonus.endurance,
+    skillDamageMult: 1,
     weaponInstanceScale: input.weapon
       ? instanceScale(input.weapon.quality, input.weapon.itemLevel)
       : 1,
@@ -233,7 +217,7 @@ export function computeMinionCombatPower(input: MinionCombatInput): number {
 }
 
 export function computeMinionCombatBreakdown(input: MinionCombatInput): MinionCombatBreakdown {
-  const attributes = minionBaseStatsFromRow(input.baseStats);
+  const attributes = { strength: 0, agility: 0, intelligence: 0, endurance: 0 };
   const basePower = computePartyPower({ members: [minionBaseMember(input)] });
   const weaponScale = input.weapon ? instanceScale(input.weapon.quality, input.weapon.itemLevel) : 1;
   const weaponPower = input.weapon
@@ -248,9 +232,7 @@ export function computeMinionCombatBreakdown(input: MinionCombatInput): MinionCo
   const armorPower = sumArmorPower(input.armor);
 
   const skill = skillBonusesForInput(input);
-  const skillBreakdown = input.combatClass
-    ? skillBreakdownForClass(input.combatClass, input.skillLevelsJson)
-    : null;
+  const skillBreakdown = null;
   const combatPower = computePartyPower({ members: [memberWithWeapon(input)] });
 
   const baseStats = statsFromPower(basePower);
@@ -326,16 +308,10 @@ export function armorSlotsFromMinionRow(m: {
 export function combatMemberFromMinion(input: MinionCombatInput) {
   const armor = sumArmorStats(input.armor);
   const skill = skillBonusesForInput(input);
-  const voidBonuses = voidBonusesFromInput(input);
-  const primarySkillId = input.combatClass
-    ? primaryCombatSkillForMinion(input.combatClass, input.skillLevelsJson)?.id ?? null
-    : null;
-  const voidMult = voidSkillDamageMultForSkill(voidBonuses, primarySkillId);
-  const activeHitMult = 1 + voidBonuses.activeSkillHitPct / 100;
   return {
     member: memberWithWeapon(input),
     bonusHp: armor.hp + skill.bonusHp,
     bonusDef: armor.def + skill.bonusDef,
-    skillDamageMult: skill.damageMult * voidMult * activeHitMult,
+    skillDamageMult: 1,
   };
 }

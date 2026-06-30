@@ -292,19 +292,21 @@ export async function collectIdleDungeonRun(userId: string, dungeon: DungeonDef)
   const pending = safeParsePendingLoot(run.pendingLootJson);
   const gold = Math.max(0, run.pendingGold);
 
-  await prisma.dungeonRun.update({
-    where: { id: run.id },
-    data: {
-      status: "STOPPED",
-      pendingLootJson: "[]",
-      pendingGold: 0,
-    },
-  });
+  await prisma.$transaction(async (tx) => {
+    await tx.dungeonRun.update({
+      where: { id: run.id },
+      data: {
+        status: "STOPPED",
+        pendingLootJson: "[]",
+        pendingGold: 0,
+      },
+    });
 
-  if (pending.length) await grantLootToUser(prisma, userId, pending);
-  if (gold > 0) {
-    await grantDungeonRunGold(prisma, { userId, dungeonId: dungeon.id, amount: gold });
-  }
+    if (pending.length) await grantLootToUser(tx, userId, pending);
+    if (gold > 0) {
+      await grantDungeonRunGold(tx, { userId, dungeonId: dungeon.id, amount: gold });
+    }
+  });
 
   const cashedOut = await enrichLootEntries(prisma, pending);
   return { ok: true as const, cashedOut, goldGained: gold };

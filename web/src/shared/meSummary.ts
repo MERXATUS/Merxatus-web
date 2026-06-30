@@ -1,5 +1,3 @@
-import type { MeDashboardLight } from "@/shared/meDashboard";
-
 export type MeSummary = {
   ok: true;
   username?: string | null;
@@ -21,5 +19,4 @@ export type DungeonRunState = {
 export type MeBootstrap = {
   ok: true;
   summary: MeSummary;
-  dashboard: MeDashboardLight;
 };

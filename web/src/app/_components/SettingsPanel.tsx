@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { GameBtn } from "@/app/_components/gameUi";
+import { GuestLoginButton } from "@/app/_components/GuestLoginButton";
 import { GOOGLE_LOGIN_PATH } from "@/shared/googleLogin";
 import {
   USERNAME_MAX_LEN,
@@ -10,7 +11,7 @@ import {
   validateUsername,
 } from "@/shared/usernameRules";
 import { useEscapeClose } from "@/shared/useEscapeClose";
-import { FriendsPanel } from "@/app/_components/FriendsPanel";
+import { AnnouncementsPanel } from "@/app/_components/AnnouncementsPanel";
 import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
 
 const SHOW_DEV_ACCOUNT_RESET = process.env.NODE_ENV === "development";
@@ -25,7 +26,6 @@ type SettingsPanelProps = {
   logoutBusy?: boolean;
   onRefresh?: () => void | Promise<void>;
   onUsernameChanged?: (username: string) => void;
-  onStartTrade?: (username: string) => void;
 };
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -244,18 +244,19 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   {props.logoutBusy ? "처리 중…" : "로그아웃"}
                 </button>
               ) : (
-                <a className="settings-btn settings-btn--primary" href={GOOGLE_LOGIN_PATH}>
-                  Google 로그인
-                </a>
+                <>
+                  <a className="settings-btn settings-btn--primary" href={GOOGLE_LOGIN_PATH}>
+                    Google 로그인
+                  </a>
+                  <GuestLoginButton className="settings-btn settings-btn--ghost">게스트로 시작</GuestLoginButton>
+                </>
               )}
             </div>
           </section>
 
           <section className="settings-section">
-            <h3 className="settings-section__title">친구</h3>
-            {props.open ? (
-              <FriendsPanel loggedIn={props.loggedIn} onStartTrade={props.onStartTrade} />
-            ) : null}
+            <h3 className="settings-section__title">공지사항</h3>
+            <AnnouncementsPanel compact />
           </section>
 
           <section className="settings-section">

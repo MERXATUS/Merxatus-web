@@ -1,8 +1,14 @@
 import { AUTO_EXPLORE_RULES } from "@/shared/autoExplore";
 import { PARTY_POWER_TO_COMBAT, RAID_ENEMY_STAT_MULT } from "@/shared/combatBalance";
-import { DUNGEON_MIN_PARTY_LEVEL_RATIO } from "@/shared/dungeonDifficulty";
+import { DUNGEON_MIN_PARTY_POWER_RATIO } from "@/shared/dungeonDifficulty";
 import { RAID_MIN_PARTY_POWER_RATIO } from "@/shared/raidDifficulty";
 import { MAX_EQUIPMENT_OWNED } from "@/shared/equipmentCapacity";
+import {
+  EQUIPMENT_SHOP_GOLD_PER_POWER,
+  EQUIPMENT_SHOP_MAX_GOLD,
+  EQUIPMENT_SHOP_MIN_GOLD,
+  MAX_EQUIPMENT_SHOP_SELL_BATCH,
+} from "@/shared/equipmentShopPricing";
 import { DEFAULT_KNIGHT_ORDER_RULES } from "@/shared/knightOrder";
 import { MINION_LEVEL_RULES } from "@/shared/minionLevel";
 import { MINION_SKILL_RULES } from "@/shared/minionSkills";
@@ -22,8 +28,8 @@ export const GAME_RULES = {
     raidEnemyStatMult: RAID_ENEMY_STAT_MULT,
     /** 레이드 입장 최소 파티 전투력 = 권장 × 비율 */
     raidMinPartyPowerRatio: RAID_MIN_PARTY_POWER_RATIO,
-    /** 던전 입장 최소 파티 평균 레벨 = 권장 하한 × 비율 (전투력 제한 없음) */
-    dungeonMinPartyLevelRatio: DUNGEON_MIN_PARTY_LEVEL_RATIO,
+    /** 던전 입장 최소 파티 전투력 = 권장 × 비율 */
+    dungeonMinPartyPowerRatio: 0.85,
     /** 무기 전투력(미니언 개별 장착) */
     weaponPowerByItemId: WEAPON_BASE_POWER_BY_ITEM_ID,
     /** 장착 무기 강화 1단계당 추가 전투력 — 베이스 CP × `WEAPON_ENHANCE_POWER_RATIO` (최소 1) */
@@ -35,8 +41,8 @@ export const GAME_RULES = {
     baseMinionPower: 5,
     /** 승률 하한/상한 */
     winRateClamp: { min: 0.05, max: 0.95 },
-    /** 미니언 레벨 1 증가당 전투력 보너스 */
-    levelPowerPerLevel: 1,
+    /** 미니언 레벨 1 증가당 전투력 보너스 — 레벨 시스템 비활성 */
+    levelPowerPerLevel: 0,
     /** 전투 특성 랭크 1당 전투력 보너스 */
     fighterTraitPowerPerRank: 3,
   },
@@ -49,11 +55,11 @@ export const GAME_RULES = {
       slotsByGrade: LOOT_OPTION_SLOTS_BY_GRADE,
     },
   },
-  /** 기사단(유니온) — 보유 미니언 총 레벨 합산 보너스 */
+  /** 기사단 — 도감 등록·장착 장비 기반 보너스 */
   knightOrder: DEFAULT_KNIGHT_ORDER_RULES,
   /** 미니언 보유 상한 */
   minion: {
-    maxDungeonOwned: 10,
+    maxDungeonOwned: 1,
     /** 레벨·경험치·스탯 배분 — `shared/minionLevel.ts` */
     levelUp: {
       maxLevel: MINION_LEVEL_RULES.maxLevel,
@@ -83,6 +89,19 @@ export const GAME_RULES = {
   },
   /** 자동 탐험(AUTO_WAVES) — 배속 BM, 상세는 `shared/autoExplore.ts` */
   autoExplore: AUTO_EXPLORE_RULES,
+  /** NPC 장비 매입 — 전투력 × goldPerCombatPower (상세는 `shared/equipmentShopPricing.ts`) */
+  equipmentShop: {
+    goldPerCombatPower: EQUIPMENT_SHOP_GOLD_PER_POWER,
+    minBuybackGold: EQUIPMENT_SHOP_MIN_GOLD,
+    maxBuybackGold: EQUIPMENT_SHOP_MAX_GOLD,
+    maxSellBatch: MAX_EQUIPMENT_SHOP_SELL_BATCH,
+  },
+  /** 가챠 상점 — `shared/gachaShop.ts` */
+  gachaShop: {
+    standardPoolId: "standard",
+    singleCostGold: 500,
+    multiCostGold: 4_500,
+  },
   market: {
     feeBps: 500, // 5%
     /** 유저당 동시 ACTIVE 매물 상한 */

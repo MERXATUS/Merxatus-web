@@ -28,12 +28,6 @@
         "maxQty": 2
       },
       {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 1500,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
         "itemId": "weapon_wood_sword",
         "weight": 520,
         "minQty": 1,
@@ -160,12 +154,6 @@
         "weight": 8000,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "weapon_wood_sword",
@@ -327,12 +315,6 @@
         "maxQty": 1
       },
       {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 1500,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
         "itemId": "weapon_red_gold_sword",
         "weight": 480,
         "minQty": 1,
@@ -423,12 +405,6 @@
       {
         "itemId": "item_lesser_mana_stone",
         "weight": 3000,
-        "minQty": 1,
-        "maxQty": 2
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 1500,
         "minQty": 1,
         "maxQty": 2
       },
@@ -568,18 +544,6 @@
         "maxQty": 2
       },
       {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 1000,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_recovery_potion",
-        "weight": 800,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
         "itemId": "weapon_steel_sword",
         "weight": 420,
         "minQty": 1,
@@ -666,12 +630,6 @@
         "weight": 8000,
         "minQty": 2,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "weapon_steel_sword",
@@ -801,18 +759,6 @@
         "maxQty": 1
       },
       {
-        "itemId": "item_recovery_potion",
-        "weight": 1500,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_lesser_recovery_potion",
-        "weight": 500,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
         "itemId": "weapon_gold_sword",
         "weight": 360,
         "minQty": 1,
@@ -859,12 +805,6 @@
         "weight": 8000,
         "minQty": 2,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_recovery_potion",
-        "weight": 2000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "weapon_gold_sword",
@@ -946,18 +886,6 @@
         "maxQty": 1
       },
       {
-        "itemId": "item_recovery_potion",
-        "weight": 1200,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_greater_recovery_flask",
-        "weight": 300,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
         "itemId": "weapon_diamond_sword",
         "weight": 340,
         "minQty": 1,
@@ -1002,12 +930,6 @@
       {
         "itemId": "item_greater_mana_stone",
         "weight": 8500,
-        "minQty": 1,
-        "maxQty": 2
-      },
-      {
-        "itemId": "item_greater_recovery_flask",
-        "weight": 1500,
         "minQty": 1,
         "maxQty": 2
       },
@@ -1091,18 +1013,6 @@
         "maxQty": 1
       },
       {
-        "itemId": "item_recovery_potion",
-        "weight": 1000,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_greater_recovery_flask",
-        "weight": 500,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
         "itemId": "weapon_diamond_sword",
         "weight": 320,
         "minQty": 1,
@@ -1149,12 +1059,6 @@
         "weight": 9000,
         "minQty": 2,
         "maxQty": 3
-      },
-      {
-        "itemId": "item_greater_recovery_flask",
-        "weight": 1000,
-        "minQty": 1,
-        "maxQty": 2
       },
       {
         "itemId": "weapon_diamond_sword",
@@ -1236,18 +1140,6 @@
         "maxQty": 1
       },
       {
-        "itemId": "item_greater_recovery_flask",
-        "weight": 800,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_recovery_potion",
-        "weight": 700,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
         "itemId": "weapon_gold_sword",
         "weight": 300,
         "minQty": 1,
@@ -1294,12 +1186,6 @@
         "weight": 9000,
         "minQty": 2,
         "maxQty": 4
-      },
-      {
-        "itemId": "item_greater_recovery_flask",
-        "weight": 1000,
-        "minQty": 2,
-        "maxQty": 3
       },
       {
         "itemId": "weapon_gold_sword",
@@ -1387,18 +1273,6 @@
         "maxQty": 1
       },
       {
-        "itemId": "item_greater_recovery_flask",
-        "weight": 1000,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
-        "itemId": "item_recovery_potion",
-        "weight": 800,
-        "minQty": 1,
-        "maxQty": 1
-      },
-      {
         "itemId": "weapon_gold_sword",
         "weight": 280,
         "minQty": 1,
@@ -1475,12 +1349,6 @@
         "weight": 3000,
         "minQty": 1,
         "maxQty": 2
-      },
-      {
-        "itemId": "item_greater_recovery_flask",
-        "weight": 1500,
-        "minQty": 2,
-        "maxQty": 3
       },
       {
         "itemId": "weapon_gold_sword",

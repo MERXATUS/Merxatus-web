@@ -1,54 +1,63 @@
 import type { DungeonStageDef } from "@/shared/dungeonStageProgression";
 
-/** 입장 최소 파티 평균 레벨 = 권장 하한 × 비율 */
-export const DUNGEON_MIN_PARTY_LEVEL_RATIO = 0.85;
+/** 입장 최소 파티 전투력 = 권장 × 비율 (레이드와 동일 척도) */
+export const DUNGEON_MIN_PARTY_POWER_RATIO = 0.85;
 
 /**
- * 스테이지 권장 레벨 구간 기준 참고 파티 전투력 (UI·밸런스 참고용, 입장 제한 없음).
+ * 스테이지 권장 파티 전투력 — 장비·강화 중심 성장(미니언 레벨 미반영).
  */
 export function recommendedPartyPowerForDungeonStage(
-  stage: Pick<DungeonStageDef, "recommendedLevel" | "recommendedLevelMax" | "stageOrder">,
+  stage: Pick<DungeonStageDef, "stageOrder">,
 ): number {
-  const midLevel = Math.floor((stage.recommendedLevel + stage.recommendedLevelMax) / 2);
-  const lv = Math.max(1, midLevel);
-  const levelPart = 5 + (lv - 1);
-  const statPart = Math.floor(lv * 3.2);
-  const gearPart = Math.floor(10 + stage.stageOrder * 20 + lv * 0.4);
-  return Math.max(1, levelPart + statPart + gearPart);
+  const order = Math.max(1, Math.min(8, Math.floor(stage.stageOrder)));
+  const base = 8 + order * 22;
+  const gear = Math.floor(12 + order * order * 4);
+  return Math.max(5, base + gear);
 }
 
-export function minimumPartyLevelForDungeonStage(
-  stage: Pick<DungeonStageDef, "recommendedLevel">,
+export function minimumPartyPowerForDungeonStage(
+  stage: Pick<DungeonStageDef, "stageOrder">,
 ): number {
-  return Math.ceil(Math.max(1, stage.recommendedLevel) * DUNGEON_MIN_PARTY_LEVEL_RATIO);
+  return minimumPartyPowerForDungeon(recommendedPartyPowerForDungeonStage(stage));
 }
 
-export function averagePartyLevel(levels: number[]): number {
-  if (!levels.length) return 0;
-  const sum = levels.reduce((a, l) => a + Math.max(1, Math.floor(l)), 0);
-  return sum / levels.length;
+export function minimumPartyPowerForDungeon(recommendedPartyPower: number): number {
+  const r = Math.max(1, Math.floor(recommendedPartyPower));
+  return Math.ceil(r * DUNGEON_MIN_PARTY_POWER_RATIO);
 }
 
 export type DungeonPartyEligibility =
   | { ok: true }
-  | { ok: false; code: "DUNGEON_PARTY_LEVEL_TOO_LOW"; minLevel: number; partyLevel: number };
+  | { ok: false; code: "DUNGEON_PARTY_POWER_TOO_LOW"; minPower: number; partyPower: number };
 
-/** 던전 입장 — 파티 평균 레벨만 검사 (전투력 제한 없음) */
+/** 던전 입장 — 파티 합산 전투력 검사 */
 export function checkDungeonPartyEligibility(input: {
-  stage: DungeonStageDef;
-  partyLevels: number[];
+  stage: Pick<DungeonStageDef, "stageOrder">;
+  partyPower: number;
 }): DungeonPartyEligibility {
-  const minLevel = minimumPartyLevelForDungeonStage(input.stage);
-  const partyLevel = averagePartyLevel(input.partyLevels);
-  if (partyLevel < minLevel) {
+  const minPower = minimumPartyPowerForDungeonStage(input.stage);
+  const partyPower = Math.max(0, Math.floor(input.partyPower));
+  if (partyPower < minPower) {
     return {
       ok: false,
-      code: "DUNGEON_PARTY_LEVEL_TOO_LOW",
-      minLevel,
-      partyLevel: Math.floor(partyLevel * 10) / 10,
+      code: "DUNGEON_PARTY_POWER_TOO_LOW",
+      minPower,
+      partyPower,
     };
   }
   return { ok: true };
+}
+
+export function partyPowerAdequacyForDungeon(
+  partyPower: number,
+  recommendedPartyPower: number,
+): "low" | "ok" | "high" {
+  const p = Math.max(0, Math.floor(partyPower));
+  const r = Math.max(1, Math.floor(recommendedPartyPower));
+  const minRequired = minimumPartyPowerForDungeon(r);
+  if (p < minRequired) return "low";
+  if (p >= r * 1.15) return "high";
+  return "ok";
 }
 
 export type DungeonEnemyCombatMults = {
@@ -121,12 +130,31 @@ export function dungeonEnemyStatMult(input: {
 
 export type DungeonDifficultyMeta = {
   recommendedPartyPower: number;
-  minPartyLevel: number;
+  minPartyPower: number;
 };
 
 export function dungeonDifficultyMetaForStage(stage: DungeonStageDef): DungeonDifficultyMeta {
+  const recommendedPartyPower = recommendedPartyPowerForDungeonStage(stage);
   return {
-    recommendedPartyPower: recommendedPartyPowerForDungeonStage(stage),
-    minPartyLevel: minimumPartyLevelForDungeonStage(stage),
+    recommendedPartyPower,
+    minPartyPower: minimumPartyPowerForDungeon(recommendedPartyPower),
   };
+}
+
+export function formatDungeonPowerLabel(minPartyPower: number, recommendedPartyPower: number): string {
+  return `전투력 ${minPartyPower.toLocaleString()}+ (권장 ${recommendedPartyPower.toLocaleString()})`;
+}
+
+/** @deprecated 레벨 게이트 제거 — 하위 호환용 스텁 */
+export function minimumPartyLevelForDungeonStage(
+  stage: Pick<DungeonStageDef, "stageOrder">,
+): number {
+  return minimumPartyPowerForDungeonStage(stage);
+}
+
+/** @deprecated */
+export function averagePartyLevel(levels: number[]): number {
+  if (!levels.length) return 0;
+  const sum = levels.reduce((a, l) => a + Math.max(1, Math.floor(l)), 0);
+  return sum / levels.length;
 }

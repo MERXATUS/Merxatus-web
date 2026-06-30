@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { GuestLoginButton } from "@/app/_components/GuestLoginButton";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { googleAuthErrorMessage } from "@/shared/googleAuthErrors";
 import { GOOGLE_LOGIN_PATH } from "@/shared/googleLogin";
@@ -32,6 +33,7 @@ export function AuthTopBar() {
       <a className="auth-corner-link" href={GOOGLE_LOGIN_PATH}>
         Google 로그인
       </a>
+      <GuestLoginButton onError={setAuthError}>게스트로 시작</GuestLoginButton>
     </div>
   );
 }

@@ -20,6 +20,7 @@ export function DungeonDropTable(props: {
   table: DungeonDropTablePayloadView | null | undefined;
   compact?: boolean;
   hint?: string;
+  hideFloorLabels?: boolean;
   ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -104,7 +105,11 @@ export function DungeonDropTable(props: {
                   <h4
                     className={`dungeon-drop-table__section-title ${section.kind === "boss" ? "dungeon-drop-table__section-title--boss" : ""}`}
                   >
-                    {section.label}
+                    {props.hideFloorLabels
+                      ? section.kind === "boss"
+                        ? "보스 드랍"
+                        : "드랍"
+                      : section.label}
                   </h4>
                   <span className="dungeon-drop-table__section-count">{section.rows.length}종</span>
                 </header>
@@ -130,7 +135,7 @@ export function DungeonDropTable(props: {
                           </span>
                           <span className="dungeon-drop-table__item-meta">
                             {row.gradeLabel}
-                            {row.category === "equipment" ? ` · ${row.floorLabel}` : ""}
+                            {!props.hideFloorLabels && row.category === "equipment" ? ` · ${row.floorLabel}` : ""}
                           </span>
                         </div>
                       </div>

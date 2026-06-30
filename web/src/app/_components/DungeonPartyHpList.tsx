@@ -1,14 +1,5 @@
 "use client";
 
-export type RecoveryPotion = {
-  itemId: string;
-  name: string;
-  quantity: number;
-  grade: number;
-  healLabel: string;
-  effectValue: string;
-};
-
 export type PartyRosterRow = {
   id: string;
   label: string;

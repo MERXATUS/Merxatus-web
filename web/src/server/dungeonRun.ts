@@ -2,9 +2,7 @@ import { prisma, assertRowsUpdated } from "@/server/db";
 import { loadDungeons, type DungeonDef } from "@/server/dungeonData";
 import { findDungeonById, isSpecialDungeonDef, type SpecialDungeonDef } from "@/server/specialDungeonData";
 import { SPECIAL_DUNGEON_TICKET_ITEM_ID, specialDungeonTicketCost } from "@/shared/specialDungeon";
-import { getPotionEffect } from "@/server/potionEffectsData";
 import { buildCombatReplay } from "@/server/combatReplay";
-import { computeHpRecoveryAmount } from "@/shared/potionEffects";
 import {
   buildPartyCombatants,
   buildFullPartyHp,
@@ -22,7 +20,10 @@ import { grantLootToUser } from "@/server/grantLootToUser";
 import { takeAvailableFromStack } from "@/server/inventoryStackOps";
 import { grantDungeonRunGold } from "@/server/dungeonGoldEarn";
 import { grantDungeonFloorXp, grantMinionsExperience } from "@/server/minionLevelUp";
-import { checkDungeonPartyEligibility, dungeonEnemyCombatMults } from "@/shared/dungeonDifficulty";
+import {
+  checkDungeonPartyEligibility,
+  dungeonEnemyCombatMults,
+} from "@/shared/dungeonDifficulty";
 import {
   assertDungeonStage,
   dungeonAutoWaveXpForStage,
@@ -157,17 +158,22 @@ export async function assertDungeonPartyEligible(
   const stage = assertDungeonStage(stageDungeonId);
   const minions = await prisma.minion.findMany({
     where: { id: { in: minionIds }, userId },
-    select: { id: true, level: true },
   });
   if (minions.length !== minionIds.length) throw new Error("MINION_NOT_FOUND");
 
-  const eligibility = checkDungeonPartyEligibility({
-    stage,
-    partyLevels: minions.map((m) => m.level),
-  });
+  const { partyPower } = await loadPartyCombatRows(
+    prisma,
+    userId,
+    minionIds.map((minionId) => ({
+      minionId,
+      minion: minions.find((m) => m.id === minionId)!,
+    })),
+  );
+
+  const eligibility = checkDungeonPartyEligibility({ stage, partyPower });
   if (!eligibility.ok) {
     throw new Error(
-      `DUNGEON_PARTY_LEVEL_TOO_LOW:${eligibility.minLevel}:${eligibility.partyLevel}`,
+      `DUNGEON_PARTY_POWER_TOO_LOW:${eligibility.minPower}:${eligibility.partyPower}`,
     );
   }
 }
@@ -920,74 +926,5 @@ export async function cashoutPushLuckRun(input: { userId: string; dungeon: Dunge
   }
   const cashedOut = await enrichLootEntries(prisma, pending);
   return { ok: true as const, cashedOut, goldGained: pendingGold };
-}
-
-/** PUSH_LUCK 층간 — 인벤 물약 1개 소모, 파티원 HP 회복 */
-export async function usePotionOnActiveRun(input: {
-  userId: string;
-  itemId: string;
-  minionId: string;
-}) {
-  const itemId = normalizeItemId(input.itemId);
-  const minionId = input.minionId.trim();
-  if (!itemId || !minionId) throw new Error("BAD_REQUEST");
-
-  const effect = await getPotionEffect(itemId);
-  if (!effect || effect.effectType !== "HP_Recovery") throw new Error("INVALID_POTION");
-
-  const run = await prisma.dungeonRun.findFirst({
-    where: { userId: input.userId, status: "RUNNING" },
-    include: { party: { include: { minion: true } } },
-    orderBy: { startedAt: "desc" },
-  });
-  if (!run) throw new Error("NO_ACTIVE_RUN");
-
-  const { dungeons } = await loadDungeons();
-  const dungeon = dungeons.find((d) => d.id === run.dungeonId);
-  if (!dungeon || dungeon.mode !== "PUSH_LUCK") throw new Error("NOT_PUSH_LUCK_DUNGEON");
-
-  if (!run.party.some((p) => p.minionId === minionId)) throw new Error("MINION_NOT_IN_PARTY");
-
-  const stack = await prisma.inventoryStack.findUnique({
-    where: { userId_itemId: { userId: input.userId, itemId } },
-  });
-  const potionAvailable = stack ? stack.quantity - Math.max(0, stack.lockedQuantity) : 0;
-  if (potionAvailable < 1) throw new Error(stack && (stack.quantity ?? 0) >= 1 ? "ITEM_LOCKED" : "NO_POTION");
-
-  const { combatants } = await loadRunPartyCombat(prisma, input.userId, run);
-  const { entries } = resolvePartyHpForRun(run.partyHpJson, combatants);
-  const idx = entries.findIndex((e) => e.minionId === minionId);
-  if (idx < 0) throw new Error("MINION_NOT_IN_PARTY");
-
-  const target = entries[idx]!;
-  if (target.hp <= 0) throw new Error("MINION_DEAD");
-  if (target.hp >= target.maxHp) throw new Error("MINION_FULL_HP");
-
-  const healAmount = computeHpRecoveryAmount(target.maxHp, effect.effectValue);
-  const afterHp = Math.min(target.maxHp, target.hp + healAmount);
-  const healedAmount = afterHp - target.hp;
-  if (healedAmount <= 0) throw new Error("MINION_FULL_HP");
-
-  entries[idx] = { ...target, hp: afterHp };
-
-  await prisma.$transaction(async (tx) => {
-    await takeAvailableFromStack(tx, input.userId, itemId, 1);
-    assertRowsUpdated(
-      await tx.dungeonRun
-        .updateMany({
-          where: { id: run.id, status: "RUNNING" },
-          data: { partyHpJson: serializePartyHp(entries) },
-        })
-        .then((r) => r.count),
-    );
-  });
-
-  return {
-    ok: true as const,
-    itemId,
-    minionId,
-    healedAmount,
-    partyHp: entries,
-  };
 }
 

@@ -5,7 +5,6 @@ import { loadDungeons, type DungeonDef } from "@/server/dungeonData";
 import { findDungeonById } from "@/server/specialDungeonData";
 import { getIdleDungeonState } from "@/server/dungeonIdleRun";
 import { resolvePendingLootDisplay } from "@/server/dungeonRun";
-import { loadUserRecoveryPotions } from "@/server/dungeonRecoveryPotions";
 import { parsePartyHpJson } from "@/shared/dungeonPartyHp";
 
 export const runtime = "nodejs";
@@ -55,7 +54,6 @@ export async function GET(req: Request) {
       const now = Date.now();
       const elapsedSec = Math.max(0, Math.floor((now - new Date(run.lastTickAt).getTime()) / 1000));
       const availableWaves = Math.floor(elapsedSec / dungeon.baseWaveSeconds);
-      const recoveryPotions = await loadUserRecoveryPotions(prisma, auth.userId, dungeon.mode);
       return Response.json({
         ok: true,
         active: true,
@@ -87,7 +85,6 @@ export async function GET(req: Request) {
         pendingLoot: run.pendingLootJson ?? "[]",
         pendingLootItems: [],
         pendingGold: Math.max(0, Math.floor(run.pendingGold ?? 0)),
-        recoveryPotions,
       });
     }
 
@@ -111,7 +108,6 @@ export async function GET(req: Request) {
     const elapsedSec = Math.max(0, Math.floor((now - new Date(run.lastTickAt).getTime()) / 1000));
     const availableWaves = Math.floor(elapsedSec / dungeon.baseWaveSeconds);
     const pendingLootItems = await resolvePendingLootDisplay(prisma, run.pendingLootJson ?? "[]");
-    const recoveryPotions = await loadUserRecoveryPotions(prisma, auth.userId, dungeon.mode);
 
     return Response.json({
       ok: true,
@@ -144,7 +140,6 @@ export async function GET(req: Request) {
       pendingLoot: run.pendingLootJson ?? "[]",
       pendingLootItems,
       pendingGold: Math.max(0, Math.floor(run.pendingGold ?? 0)),
-      recoveryPotions,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";

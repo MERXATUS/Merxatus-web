@@ -1,7 +1,7 @@
 "use client";
 
 import type { KnightOrderView } from "@/shared/meDashboard";
-import { KNIGHT_ORDER_LEVEL_STEP } from "@/shared/knightOrder";
+import { KNIGHT_ORDER_CP_STEP } from "@/shared/knightOrder";
 
 function fmtPct(n: number) {
   const v = Math.round(n * 10) / 10;
@@ -32,17 +32,17 @@ export function KnightOrderPanel(props: {
         </div>
         <div className="knight-order-panel__meta">
           <span className="tabular-nums">
-            총 레벨 {ko.totalLevel.toLocaleString()}
+            기사단 점수 {ko.totalLevel.toLocaleString()}
           </span>
           <span className="knight-order-panel__meta-sub">
-            미니언 {ko.minionCount}명 · {KNIGHT_ORDER_LEVEL_STEP}레벨마다 기사단 +1
+            도감·장착 장비 기반 · {KNIGHT_ORDER_CP_STEP}점마다 기사단 +1
           </span>
         </div>
       </div>
 
       {ko.levelsToNextOrderLevel > 0 ? (
         <p className="knight-order-panel__next tabular-nums">
-          다음 기사단 Lv까지 총 레벨 +{ko.levelsToNextOrderLevel}
+          다음 기사단 Lv까지 점수 +{ko.levelsToNextOrderLevel}
         </p>
       ) : (
         <p className="knight-order-panel__next">기사단 레벨 상승 조건 충족</p>

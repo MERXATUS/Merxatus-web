@@ -14,22 +14,28 @@ export function notifySessionChanged() {
   window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
 }
 
-const DEFAULT_FETCH_TIMEOUT_MS = 25_000;
+const DEFAULT_FETCH_TIMEOUT_MS = 45_000;
+export const BOOTSTRAP_FETCH_TIMEOUT_MS = 60_000;
 
-export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+export type ApiFetchInit = RequestInit & { timeoutMs?: number | null };
+
+export async function apiFetch(input: RequestInfo | URL, init?: ApiFetchInit): Promise<Response> {
+  const { timeoutMs: timeoutOverride, ...rest } = init ?? {};
   const timeoutMs =
-    typeof window === "undefined" || (typeof init?.signal === "object" && init.signal != null)
-      ? null
-      : DEFAULT_FETCH_TIMEOUT_MS;
+    timeoutOverride !== undefined
+      ? timeoutOverride
+      : typeof window === "undefined" || (typeof rest.signal === "object" && rest.signal != null)
+        ? null
+        : DEFAULT_FETCH_TIMEOUT_MS;
   if (!timeoutMs) {
-    return fetch(input, { credentials: "include", ...init });
+    return fetch(input, { credentials: "include", ...rest });
   }
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(input, {
       credentials: "include",
-      ...init,
+      ...rest,
       signal: controller.signal,
     });
   } catch (e) {
@@ -50,8 +56,8 @@ function throwApiError(json: unknown, status: number): never {
   throw err;
 }
 
-export async function apiGetJson<T>(url: string): Promise<T> {
-  const res = await apiFetch(url, { method: "GET" });
+export async function apiGetJson<T>(url: string, opts?: { timeoutMs?: number }): Promise<T> {
+  const res = await apiFetch(url, { method: "GET", timeoutMs: opts?.timeoutMs });
   const json = (await res.json().catch(() => ({}))) as T;
   if (!res.ok) throwApiError(json, res.status);
   return json;
@@ -59,16 +65,16 @@ export async function apiGetJson<T>(url: string): Promise<T> {
 
 export async function apiGetJsonCached<T>(
   url: string,
-  opts?: { ttlMs?: number; force?: boolean },
+  opts?: { ttlMs?: number; force?: boolean; timeoutMs?: number },
 ): Promise<T> {
-  return withApiCache(url, () => apiGetJson<T>(url), opts);
+  return withApiCache(url, () => apiGetJson<T>(url, { timeoutMs: opts?.timeoutMs }), opts);
 }
 
 export async function apiGetJsonCachedSwr<T>(
   url: string,
-  opts?: { ttlMs?: number; force?: boolean; onRevalidate?: (data: T) => void },
+  opts?: { ttlMs?: number; force?: boolean; timeoutMs?: number; onRevalidate?: (data: T) => void },
 ): Promise<T> {
-  return withApiCacheSwr(url, () => apiGetJson<T>(url), opts);
+  return withApiCacheSwr(url, () => apiGetJson<T>(url, { timeoutMs: opts?.timeoutMs }), opts);
 }
 
 export async function apiPostJson<T>(url: string, body: unknown): Promise<T> {

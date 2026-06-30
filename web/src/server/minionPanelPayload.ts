@@ -1,14 +1,14 @@
 import { prisma } from "@/server/db";
 import { ensureMinionEntitiesForUser } from "@/server/ensureMinionEntitiesForUser";
 import { attachIcons, getItemIconMap } from "@/server/itemCatalog";
-import { itemGradeLabel, itemGradeViewForItem } from "@/server/itemGrade";
+import { itemGradeViewForItem } from "@/server/itemGrade";
 import { loadMinionArmorIdsForUser } from "@/server/minionArmorDb";
 import { loadMinionAccessoryIdsForUser } from "@/server/minionAccessoryDb";
 import { MAX_DUNGEON_MINIONS } from "@/server/minionCapacity";
 import { mapMinionToListRow } from "@/server/minionListBuild";
 import { formatEquipmentOptionDisplay, parseEquipmentOptionsPayload } from "@/server/equipmentOptions";
-import { loadKnightOrderBonuses } from "@/server/knightOrder";
 import { knightOrderToView } from "@/server/knightOrderView";
+import { ZERO_KNIGHT_ORDER_BONUSES } from "@/shared/knightOrder";
 import { getMinionCreateEligibility } from "@/server/minionCreate";
 
 const minionInclude = {
@@ -16,12 +16,12 @@ const minionInclude = {
   equippedWeaponInstance: { include: { baseItem: true } },
 } as const;
 
-export async function loadMinionPanelPayload(userId: string) {
+export async function loadMinionPanelPayload(userId: string, opts?: { detailMinionId?: string | null }) {
   await ensureMinionEntitiesForUser(userId).catch((e) => {
     console.warn("[minionPanelPayload] ensureMinionEntitiesForUser", e);
   });
 
-  const [armorByMinionId, accessoryByMinionId, minions, weaponInstances, armorInstances, iconMap, knightOrderRaw, userRow, minionCreate] =
+  const [armorByMinionId, accessoryByMinionId, minions, weaponInstances, armorInstances, iconMap, minionCreate] =
     await Promise.all([
     loadMinionArmorIdsForUser(prisma, userId),
     loadMinionAccessoryIdsForUser(prisma, userId),
@@ -29,7 +29,7 @@ export async function loadMinionPanelPayload(userId: string) {
       where: { userId },
       include: minionInclude,
       orderBy: [{ createdAt: "asc" }],
-      take: 200,
+      take: MAX_DUNGEON_MINIONS,
     }),
     prisma.weaponInstance.findMany({
       where: { userId, status: "OWNED" },
@@ -44,11 +44,6 @@ export async function loadMinionPanelPayload(userId: string) {
       take: 200,
     }),
     getItemIconMap(),
-    loadKnightOrderBonuses(prisma, userId),
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { representativeMinionId: true },
-    }),
     getMinionCreateEligibility(prisma, userId),
   ]);
 
@@ -56,15 +51,21 @@ export async function loadMinionPanelPayload(userId: string) {
     armorInstances.map((a) => [a.id, { baseItemId: a.baseItemId, optionsJson: a.optionsJson }]),
   );
 
+  const detailMinionId = opts?.detailMinionId ?? null;
+  const minionRows = minions.map((m) =>
+    mapMinionToListRow(m, armorByMinionId, {
+      detailMinionId,
+      armorInstancesById: armorInstById,
+      accessoryByMinionId,
+    }),
+  );
+
   return {
     maxDungeonOwned: MAX_DUNGEON_MINIONS,
     maxOwned: MAX_DUNGEON_MINIONS,
-    representativeMinionId: userRow?.representativeMinionId ?? null,
     minionCreate,
-    knightOrder: knightOrderToView(knightOrderRaw),
-    minions: minions.map((m) =>
-      mapMinionToListRow(m, armorByMinionId, { armorInstancesById: armorInstById, accessoryByMinionId }),
-    ),
+    knightOrder: knightOrderToView(ZERO_KNIGHT_ORDER_BONUSES),
+    minions: minionRows,
     weaponInstances: attachIcons(
       weaponInstances.map((w) => ({
         id: w.id,

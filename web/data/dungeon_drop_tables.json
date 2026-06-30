@@ -39,19 +39,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 13.416815742397137,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~10층",
-            "category": "consumable"
-          },
-          {
             "itemId": "weapon_stone_sword",
             "name": "돌 검",
             "grade": 1,
@@ -215,19 +202,6 @@
             "maxQty": 2,
             "floorLabel": "1~10층",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 13.297872340425531,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~10층",
-            "category": "consumable"
           },
           {
             "itemId": "weapon_stone_sword",
@@ -406,19 +380,6 @@
             "maxQty": 2,
             "floorLabel": "1~10층",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 12.964563526361278,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~10층",
-            "category": "consumable"
           },
           {
             "itemId": "weapon_stone_sword",
@@ -662,19 +623,6 @@
             "maxQty": 3,
             "floorLabel": "10층 보스",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 12.391573729863694,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "10층 보스",
-            "category": "consumable"
           },
           {
             "itemId": "weapon_stone_sword",
@@ -928,19 +876,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 16.778523489932887,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~14층",
-            "category": "consumable"
-          },
-          {
             "itemId": "weapon_red_gold_sword",
             "name": "적빛 검",
             "grade": 2,
@@ -1039,19 +974,6 @@
             "maxQty": 2,
             "floorLabel": "1~14층",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 16.5929203539823,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~14층",
-            "category": "consumable"
           },
           {
             "itemId": "weapon_red_gold_sword",
@@ -1165,19 +1087,6 @@
             "maxQty": 2,
             "floorLabel": "1~14층",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 16.077170418006432,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~14층",
-            "category": "consumable"
           },
           {
             "itemId": "weapon_red_gold_sword",
@@ -1356,19 +1265,6 @@
             "maxQty": 3,
             "floorLabel": "14층 보스",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 11.801730920535011,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "14층 보스",
-            "category": "consumable"
           },
           {
             "itemId": "weapon_red_gold_sword",
@@ -1583,32 +1479,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 13.123359580052494,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~16층",
-            "category": "consumable"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 10.498687664041995,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~16층",
-            "category": "consumable"
-          },
-          {
             "itemId": "weapon_steel_sword",
             "name": "철 검",
             "grade": 3,
@@ -1722,32 +1592,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 10.080645161290322,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~16층",
-            "category": "consumable"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 8.064516129032258,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~16층",
-            "category": "consumable"
-          },
-          {
             "itemId": "weapon_steel_sword",
             "name": "철 검",
             "grade": 3,
@@ -1859,32 +1703,6 @@
             "maxQty": 2,
             "floorLabel": "1~16층",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 9.900990099009901,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~16층",
-            "category": "consumable"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 7.920792079207921,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~16층",
-            "category": "consumable"
           },
           {
             "itemId": "weapon_steel_sword",
@@ -2011,32 +1829,6 @@
             "maxQty": 2,
             "floorLabel": "1~16층",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 9.624639076034649,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~16층",
-            "category": "consumable"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 7.699711260827718,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~16층",
-            "category": "consumable"
           },
           {
             "itemId": "weapon_steel_sword",
@@ -2215,19 +2007,6 @@
             "maxQty": 3,
             "floorLabel": "16층 보스",
             "category": "material"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 14.04494382022472,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "16층 보스",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -2429,19 +2208,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 19.736842105263158,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~18층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_lesser_mana_stone",
             "name": "하급 마석",
             "grade": 1,
@@ -2453,19 +2219,6 @@
             "maxQty": 2,
             "floorLabel": "1~18층",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 6.578947368421052,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~18층",
-            "category": "consumable"
           },
           {
             "itemId": "weapon_gold_sword",
@@ -2568,19 +2321,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 14.880952380952381,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~18층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_lesser_mana_stone",
             "name": "하급 마석",
             "grade": 1,
@@ -2592,19 +2332,6 @@
             "maxQty": 2,
             "floorLabel": "1~18층",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 4.9603174603174605,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~18층",
-            "category": "consumable"
           },
           {
             "itemId": "weapon_gold_sword",
@@ -2720,19 +2447,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 13.416815742397137,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~18층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_lesser_mana_stone",
             "name": "하급 마석",
             "grade": 1,
@@ -2770,19 +2484,6 @@
             "maxQty": 1,
             "floorLabel": "7~18층",
             "category": "material"
-          },
-          {
-            "itemId": "item_lesser_recovery_potion",
-            "name": "체력 회복 물약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Lesser_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Lesser_Recovery_Potion.png",
-            "chancePct": 4.47227191413238,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~18층",
-            "category": "consumable"
           },
           {
             "itemId": "weapon_gold_sword",
@@ -2896,19 +2597,6 @@
             "maxQty": 3,
             "floorLabel": "18층 보스",
             "category": "material"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 13.86001386001386,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "18층 보스",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -3058,19 +2746,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 21.052631578947366,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~20층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_lesser_mana_stone",
             "name": "하급 마석",
             "grade": 1,
@@ -3095,19 +2770,6 @@
             "maxQty": 1,
             "floorLabel": "1~19층",
             "category": "equipment"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 5.263157894736842,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~20층",
-            "category": "consumable"
           },
           {
             "itemId": "armor_diamond_armor",
@@ -3197,19 +2859,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 14.150943396226415,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~20층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_lesser_mana_stone",
             "name": "하급 마석",
             "grade": 1,
@@ -3234,19 +2883,6 @@
             "maxQty": 1,
             "floorLabel": "1~19층",
             "category": "equipment"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 3.5377358490566038,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~20층",
-            "category": "consumable"
           },
           {
             "itemId": "item_raid_ticket",
@@ -3349,19 +2985,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 11.730205278592376,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~20층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_gem_destruction",
             "name": "소멸의 보석",
             "grade": 1,
@@ -3412,19 +3035,6 @@
             "maxQty": 1,
             "floorLabel": "1~19층",
             "category": "equipment"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 2.932551319648094,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~20층",
-            "category": "consumable"
           },
           {
             "itemId": "item_raid_ticket",
@@ -3540,19 +3150,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 9.732360097323602,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~20층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_gem_destruction",
             "name": "소멸의 보석",
             "grade": 1,
@@ -3603,19 +3200,6 @@
             "maxQty": 1,
             "floorLabel": "1~19층",
             "category": "equipment"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 2.4330900243309004,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~20층",
-            "category": "consumable"
           },
           {
             "itemId": "item_raid_ticket",
@@ -3729,19 +3313,6 @@
             "maxQty": 3,
             "floorLabel": "20층 보스",
             "category": "material"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 8.979347500748279,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "20층 보스",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_destruction",
@@ -3891,32 +3462,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 17.857142857142858,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~22층",
-            "category": "consumable"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 8.928571428571429,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~22층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_lesser_mana_stone",
             "name": "하급 마석",
             "grade": 1,
@@ -4028,32 +3573,6 @@
             "maxQty": 2,
             "floorLabel": "1~22층",
             "category": "material"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 11.933174224343675,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~22층",
-            "category": "consumable"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 5.966587112171838,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~22층",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -4182,19 +3701,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 9.871668311944719,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~22층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_gem_destruction",
             "name": "소멸의 보석",
             "grade": 1,
@@ -4219,19 +3725,6 @@
             "maxQty": 1,
             "floorLabel": "8~22층",
             "category": "material"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 4.935834155972359,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~22층",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -4373,19 +3866,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 7.490636704119851,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~22층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_gem_destruction",
             "name": "소멸의 보석",
             "grade": 1,
@@ -4423,19 +3903,6 @@
             "maxQty": 1,
             "floorLabel": "11~22층",
             "category": "material"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 3.7453183520599254,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~22층",
-            "category": "consumable"
           },
           {
             "itemId": "item_lesser_mana_stone",
@@ -4629,19 +4096,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 5.6621935337749845,
-            "minQty": 1,
-            "maxQty": 2,
-            "floorLabel": "22층 보스",
-            "category": "consumable"
-          },
-          {
             "itemId": "weapon_diamond_sword",
             "name": "천광 검",
             "grade": 5,
@@ -4802,32 +4256,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 17.24137931034483,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~24층",
-            "category": "consumable"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 15.086206896551724,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~24층",
-            "category": "consumable"
-          },
-          {
             "itemId": "weapon_gold_sword",
             "name": "심판 검",
             "grade": 4,
@@ -4926,32 +4354,6 @@
             "maxQty": 2,
             "floorLabel": "5~24층",
             "category": "material"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 13.2890365448505,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~24층",
-            "category": "consumable"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 11.627906976744185,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~24층",
-            "category": "consumable"
           },
           {
             "itemId": "item_raid_ticket",
@@ -5091,32 +4493,6 @@
             "maxQty": 1,
             "floorLabel": "9~24층",
             "category": "material"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 10.037641154328734,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~24층",
-            "category": "consumable"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 8.782936010037641,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~24층",
-            "category": "consumable"
           },
           {
             "itemId": "item_raid_ticket",
@@ -5284,19 +4660,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 5.657708628005658,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~24층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_gem_expansion",
             "name": "확장의 보석",
             "grade": 1,
@@ -5308,19 +4671,6 @@
             "maxQty": 1,
             "floorLabel": "12~24층",
             "category": "material"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 4.9504950495049505,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~24층",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_seal",
@@ -5553,19 +4903,6 @@
             "category": "other"
           },
           {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 5.100479445067836,
-            "minQty": 2,
-            "maxQty": 3,
-            "floorLabel": "24층 보스",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_mana_stone",
             "name": "중급 마석",
             "grade": 1,
@@ -5765,32 +5102,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 16.447368421052634,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~26층",
-            "category": "consumable"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 13.157894736842104,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~26층",
-            "category": "consumable"
-          },
-          {
             "itemId": "weapon_gold_sword",
             "name": "심판 검",
             "grade": 4,
@@ -5891,19 +5202,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 13.404825737265416,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~26층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_mana_stone",
             "name": "중급 마석",
             "grade": 1,
@@ -5915,19 +5213,6 @@
             "maxQty": 2,
             "floorLabel": "6~26층",
             "category": "material"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 10.723860589812332,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~26층",
-            "category": "consumable"
           },
           {
             "itemId": "item_raid_ticket",
@@ -6056,19 +5341,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 10.626992561105206,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~26층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_mana_stone",
             "name": "중급 마석",
             "grade": 1,
@@ -6093,19 +5365,6 @@
             "maxQty": 1,
             "floorLabel": "10~26층",
             "category": "material"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 8.501594048884167,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~26층",
-            "category": "consumable"
           },
           {
             "itemId": "item_raid_ticket",
@@ -6260,19 +5519,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 6.218905472636816,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~26층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_mana_stone",
             "name": "중급 마석",
             "grade": 1,
@@ -6297,19 +5543,6 @@
             "maxQty": 1,
             "floorLabel": "10~26층",
             "category": "material"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 4.975124378109453,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~26층",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_expansion",
@@ -6542,19 +5775,6 @@
             "category": "material"
           },
           {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 6.105006105006105,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~26층",
-            "category": "consumable"
-          },
-          {
             "itemId": "item_mana_stone",
             "name": "중급 마석",
             "grade": 1,
@@ -6579,19 +5799,6 @@
             "maxQty": 1,
             "floorLabel": "10~26층",
             "category": "material"
-          },
-          {
-            "itemId": "item_recovery_potion",
-            "name": "체력 회복 포션",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Recovery_Potion",
-            "iconSrc": "/Icon/Icon_Recovery_Potion.png",
-            "chancePct": 4.884004884004884,
-            "minQty": 1,
-            "maxQty": 1,
-            "floorLabel": "1~26층",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_expansion",
@@ -6835,19 +6042,6 @@
             "maxQty": 3,
             "floorLabel": "26층 보스",
             "category": "material"
-          },
-          {
-            "itemId": "item_greater_recovery_flask",
-            "name": "체력 회복의 비약",
-            "grade": 1,
-            "gradeLabel": "일반",
-            "icon": "Icon_Greater_Recovery_Flask",
-            "iconSrc": "/Icon/Icon_Greater_Recovery_Flask.png",
-            "chancePct": 6.314194308806196,
-            "minQty": 2,
-            "maxQty": 3,
-            "floorLabel": "26층 보스",
-            "category": "consumable"
           },
           {
             "itemId": "item_gem_chaos",

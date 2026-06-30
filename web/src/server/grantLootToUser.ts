@@ -14,6 +14,8 @@ type ItemDb = Pick<
 
 type LootEntry = { itemId: string; qty: number };
 
+const CREATE_MANY_CHUNK = 100;
+
 let itemDefById: Map<
   string,
   { id: string; name: string; category: string; tradable: boolean; grade?: number }
@@ -90,29 +92,57 @@ export async function grantLootToUser(db: ItemDb, userId: string, loot: LootEntr
   const equipToAdd = countEquipmentPiecesInLoot(loot, defs);
   await assertCanGrantEquipment(db, userId, equipToAdd);
 
+  const uniqueItemIds = [
+    ...new Set(
+      loot
+        .filter((x) => x.qty > 0)
+        .map((x) => normalizeItemIdLower(x.itemId))
+        .filter((id): id is string => !!id),
+    ),
+  ];
+  if (uniqueItemIds.length > 0) {
+    const existing = await db.item.findMany({
+      where: { id: { in: uniqueItemIds } },
+      select: { id: true },
+    });
+    const existingIds = new Set(existing.map((row) => row.id));
+    for (const itemId of uniqueItemIds) {
+      if (existingIds.has(itemId)) continue;
+      await ensureItemInDb(db, itemId);
+    }
+  }
+
+  const weaponRows: Array<{
+    userId: string;
+    baseItemId: string;
+    enhanceLevel: number;
+    optionsJson: string;
+  }> = [];
+  const armorRows: Array<{
+    userId: string;
+    baseItemId: string;
+    enhanceLevel: number;
+    optionsJson: string;
+  }> = [];
+
   for (const x of loot) {
     if (x.qty <= 0) continue;
     const itemId = normalizeItemIdLower(x.itemId);
     if (!itemId) continue;
-    await ensureItemInDb(db, itemId);
 
-    const item =
-      (await db.item.findUnique({ where: { id: itemId } })) ??
-      defs.get(itemId);
-    if (!item) continue;
+    const def = defs.get(itemId);
+    if (!def) continue;
 
-    const grade = clampItemGrade(item.grade ?? defaultItemGradeForItemId(itemId));
-    const equip = equipmentCategory(itemId, item.category);
+    const grade = clampItemGrade(def.grade ?? defaultItemGradeForItemId(itemId));
+    const equip = equipmentCategory(itemId, def.category);
 
     if (equip === "weapon") {
       for (let i = 0; i < x.qty; i++) {
-        await db.weaponInstance.create({
-          data: {
-            userId,
-            baseItemId: itemId,
-            enhanceLevel: 0,
-            optionsJson: lootOptionsJson("weapon", grade),
-          },
+        weaponRows.push({
+          userId,
+          baseItemId: itemId,
+          enhanceLevel: 0,
+          optionsJson: lootOptionsJson("weapon", grade),
         });
       }
       continue;
@@ -120,13 +150,11 @@ export async function grantLootToUser(db: ItemDb, userId: string, loot: LootEntr
 
     if (equip === "armor") {
       for (let i = 0; i < x.qty; i++) {
-        await db.armorInstance.create({
-          data: {
-            userId,
-            baseItemId: itemId,
-            enhanceLevel: 0,
-            optionsJson: lootOptionsJson("armor", grade),
-          },
+        armorRows.push({
+          userId,
+          baseItemId: itemId,
+          enhanceLevel: 0,
+          optionsJson: lootOptionsJson("armor", grade),
         });
       }
       continue;
@@ -137,5 +165,12 @@ export async function grantLootToUser(db: ItemDb, userId: string, loot: LootEntr
       create: { userId, itemId, quantity: x.qty },
       update: { quantity: { increment: x.qty } },
     });
+  }
+
+  for (let i = 0; i < weaponRows.length; i += CREATE_MANY_CHUNK) {
+    await db.weaponInstance.createMany({ data: weaponRows.slice(i, i + CREATE_MANY_CHUNK) });
+  }
+  for (let i = 0; i < armorRows.length; i += CREATE_MANY_CHUNK) {
+    await db.armorInstance.createMany({ data: armorRows.slice(i, i + CREATE_MANY_CHUNK) });
   }
 }

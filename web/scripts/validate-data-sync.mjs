@@ -54,8 +54,6 @@ async function main() {
 
   const armor = await readJson("armor_stats.json");
 
-  const potions = await readJson("potion_effects.json");
-
   const enhance = await readJson("weapon_enhance_levels.json");
 
   const options = await readJson("weapon_option_tiers.json");
@@ -86,8 +84,6 @@ async function main() {
   assert(Object.keys(weapons).length >= 5, "weapon_stats.json");
 
   assert(Object.keys(armor).length >= 16, "armor_stats.json");
-
-  assert(Object.keys(potions).length >= 3, "potion_effects.json");
 
   assert(enhance.length >= 30, "weapon_enhance_levels.json");
 

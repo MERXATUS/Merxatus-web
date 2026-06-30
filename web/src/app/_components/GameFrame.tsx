@@ -1,94 +1,53 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { AuthTopBar } from "@/app/_components/AuthTopBar";
 import { LoginWelcomePanel } from "@/app/_components/LoginWelcomePanel";
 import { ChatPanel } from "@/app/_components/ChatPanel";
+import { GameFrameKeepAlive } from "@/app/_components/GameFrameKeepAlive";
 import { GameFrameMobileDock } from "@/app/_components/GameFrameMobileDock";
 import { GameFrameProvider } from "@/app/_components/GameFrameContext";
-import { HomeOverviewPanel } from "@/app/_components/HomeOverviewPanel";
 import { HomeGoldHeader } from "@/app/_components/HomeGoldHeader";
 import { HomeSettingsButton } from "@/app/_components/HomeSettingsButton";
 import { SettingsPanel } from "@/app/_components/SettingsPanel";
 import { UsernameSetupModal } from "@/app/_components/UsernameSetupModal";
 import { TutorialPanel } from "@/app/_components/TutorialPanel";
 import { GameBtn } from "@/app/_components/gameUi";
-import { GameBootSplash, type GameBootSplashPhase } from "@/app/_components/GameBootSplash";
-import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
+import { GameFrameAnnouncements } from "@/app/_components/GameFrameAnnouncements";
+import { GamePanelError, GamePanelLoading } from "@/app/_components/panelFeedback";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import {
   DEFAULT_GAME_TAB,
-  GAME_FRAME_REFRESH_EVENT,
-  isScrollableGameTab,
   isVisibleGameTab,
-  notifyGameFrameRefresh,
-  notifyStartTradeWith,
   readStoredGameTab,
   resolveGameTab,
-  routeForGameTab,
   writeStoredGameTab,
   type GameTabKey,
   type MinionPanelTab,
   visibleGameTabs,
 } from "@/shared/gameNav";
+import { GAME_FRAME_PATCH_EVENT, notifyGameFramePatch, type GameFramePatchDetail } from "@/shared/gameFramePatch";
 import { prefetchCombatRoster } from "@/shared/combatRosterClient";
 import { prefetchGamePanel } from "@/shared/panelTabPrefetch";
 import { googleAuthErrorMessage } from "@/shared/googleAuthErrors";
 import { API_CACHE_TTL } from "@/shared/apiCache";
-import type { MeDashboardLight } from "@/shared/meDashboard";
-import type { DungeonRunState, MeBootstrap, MeSummary } from "@/shared/meSummary";
+import type { DungeonRunState, MeSummary } from "@/shared/meSummary";
 import { useEscapeClose } from "@/shared/useEscapeClose";
-import { apiGetJsonCachedSwr, apiPostJson, notifySessionChanged } from "@/shared/sessionClient";
-
-const panelLoading = (label: string) => <GamePanelLoading label={label} />;
-
-const MarketBoard = dynamic(
-  () => import("@/app/_components/MarketBoard").then((m) => m.MarketBoard),
-  { loading: () => panelLoading("거래소 불러오는 중…") },
-);
-const CodexPanel = dynamic(
-  () => import("@/app/_components/CodexPanel").then((m) => m.CodexPanel),
-  { loading: () => panelLoading("도감 불러오는 중…") },
-);
-const InventoryPanel = dynamic(
-  () => import("@/app/_components/InventoryPanel").then((m) => m.InventoryPanel),
-  { loading: () => panelLoading("인벤토리 불러오는 중…") },
-);
-const WeaponEnhancePanel = dynamic(
-  () => import("@/app/_components/WeaponEnhancePanel").then((m) => m.WeaponEnhancePanel),
-  { loading: () => panelLoading("대장간 불러오는 중…") },
-);
-const DungeonHubPanel = dynamic(
-  () => import("@/app/_components/DungeonHubPanel").then((m) => m.DungeonHubPanel),
-  { loading: () => panelLoading("던전 불러오는 중…") },
-);
-const RaidsPanel = dynamic(
-  () => import("@/app/_components/RaidsPanel").then((m) => m.RaidsPanel),
-  { loading: () => panelLoading("레이드 불러오는 중…") },
-);
-const TowerPanel = dynamic(
-  () => import("@/app/_components/TowerPanel").then((m) => m.TowerPanel),
-  { loading: () => panelLoading("무한의 탑 불러오는 중…") },
-);
-const RankingPanel = dynamic(
-  () => import("@/app/_components/RankingPanel").then((m) => m.RankingPanel),
-  { loading: () => panelLoading("랭킹 불러오는 중…") },
-);
-const PvpPanel = dynamic(
-  () => import("@/app/_components/PvpPanel").then((m) => m.PvpPanel),
-  { loading: () => panelLoading("결투장 불러오는 중…") },
-);
-const MinionManagementPanel = dynamic(
-  () => import("@/app/_components/MinionManagementPanel").then((m) => m.MinionManagementPanel),
-  { loading: () => panelLoading("미니언 불러오는 중…") },
-);
+import { apiGetJsonCachedSwr, apiPostJson, notifySessionChanged, BOOTSTRAP_FETCH_TIMEOUT_MS } from "@/shared/sessionClient";
+import { readGameTabFromWindow, syncGameTabUrl } from "@/shared/gameTabUrl";
+import { refreshGameDataScopes } from "@/shared/gameDataRefresh";
+import { selectGoldAvailable, useWalletStore } from "@/shared/stores/walletStore";
+import { GameBootSplash, type GameBootSplashPhase } from "@/app/_components/GameBootSplash";
 
 function fmtInt(n: unknown) {
   const x = typeof n === "number" ? n : Number(n);
   if (!Number.isFinite(x)) return "—";
   return Math.floor(x).toLocaleString();
+}
+
+function normalizeTab(tab: GameTabKey): GameTabKey {
+  return isVisibleGameTab(tab) ? tab : DEFAULT_GAME_TAB;
 }
 
 function GameFrameNav(props: {
@@ -157,76 +116,45 @@ function GameFrameStatusBar(props: {
   );
 }
 
-function GameFrameContent(props: {
-  activeTab: GameTabKey;
-  minionPanelTab: MinionPanelTab;
-  onOpenMinions: () => void;
-  onNavigate: (tab: GameTabKey) => void;
-}) {
-  const { activeTab, minionPanelTab, onOpenMinions, onNavigate } = props;
-
-  switch (activeTab) {
-    case "home":
-      return <HomeOverviewPanel embedded onNavigate={onNavigate} />;
-    case "market":
-      return <MarketBoard embedded />;
-    case "inventory":
-      return <InventoryPanel embedded onOpenMinions={onOpenMinions} />;
-    case "codex":
-      return <CodexPanel />;
-    case "enhance":
-      return <WeaponEnhancePanel embedded />;
-    case "dungeon":
-      return <DungeonHubPanel embedded />;
-    case "raid":
-      return <RaidsPanel embedded />;
-    case "tower":
-      return <TowerPanel embedded />;
-    case "pvp":
-      return <PvpPanel embedded />;
-    case "ranking":
-      return <RankingPanel embedded />;
-    case "minions":
-      return <MinionManagementPanel embedded />;
-    default:
-      return null;
-  }
-}
-
 export function GameFrame() {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user: sessionUser, loading: sessionLoading } = useSessionUser();
   const needUsername = !!sessionUser && sessionUser.usernameChosen === false;
 
-  const activeTab = useMemo(
-    () => resolveGameTab(pathname, searchParams),
+  const urlTab = useMemo(
+    () => normalizeTab(resolveGameTab(pathname, searchParams)),
     [pathname, searchParams],
   );
 
+  const [activeTab, setActiveTab] = useState<GameTabKey>(() => urlTab);
+  const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<GameTabKey>>(() => new Set([urlTab]));
+  const tabInitializedRef = useRef(false);
   const [minionPanelTab, setMinionPanelTab] = useState<MinionPanelTab>("dungeon");
   const lastSummaryRefreshRef = useRef(0);
+  const patchInflightRef = useRef(false);
+  const summaryLoadPromiseRef = useRef<Promise<void> | null>(null);
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
   const [error, setError] = useState<unknown>(null);
   const [summaryError, setSummaryError] = useState<unknown>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
-  const [dashboardLoading, setDashboardLoading] = useState(false);
   const [summary, setSummary] = useState<MeSummary | null>(null);
-  const [dashboardLight, setDashboardLight] = useState<MeDashboardLight | null>(null);
   const [runState, setRunState] = useState<DungeonRunState | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
-  const [contentKey, setContentKey] = useState(0);
   const [bootMinDone, setBootMinDone] = useState(false);
   const [splashFading, setSplashFading] = useState(false);
   const [splashMounted, setSplashMounted] = useState(true);
 
-  const bootDataReady = !sessionLoading && (!sessionUser || !summaryLoading);
+  const gold = useWalletStore(selectGoldAvailable);
+
+  const bootDataReady = !sessionLoading && (!sessionUser || summary != null || !summaryLoading);
   const bootSplashPhase: GameBootSplashPhase = sessionLoading
     ? "session"
-    : sessionUser && summaryLoading
+    : sessionUser && summary == null && summaryLoading
       ? "world"
       : "default";
 
@@ -242,104 +170,166 @@ export function GameFrame() {
     return () => window.clearTimeout(t);
   }, [bootDataReady, bootMinDone, splashMounted]);
 
-  const navigateTab = useCallback(
-    (tab: GameTabKey, opts?: { minionTab?: MinionPanelTab }) => {
-      if (opts?.minionTab) setMinionPanelTab(opts.minionTab);
-      setMobileMoreOpen(false);
-      writeStoredGameTab(tab);
-      router.push(routeForGameTab(tab));
-    },
-    [router],
-  );
+  const markVisited = useCallback((tab: GameTabKey) => {
+    setVisitedTabs((prev) => {
+      if (prev.has(tab)) return prev;
+      const next = new Set(prev);
+      next.add(tab);
+      return next;
+    });
+  }, []);
+
+  const navigateTab = useCallback((tab: GameTabKey, opts?: { minionTab?: MinionPanelTab }) => {
+    const next = normalizeTab(tab);
+    if (opts?.minionTab) setMinionPanelTab(opts.minionTab);
+    setMobileMoreOpen(false);
+    setActiveTab(next);
+    markVisited(next);
+    writeStoredGameTab(next);
+    syncGameTabUrl(next);
+  }, [markVisited]);
 
   useEffect(() => {
-    if (!isVisibleGameTab(activeTab)) {
-      router.replace(routeForGameTab(DEFAULT_GAME_TAB));
+    if (tabInitializedRef.current) return;
+    tabInitializedRef.current = true;
+    let next = urlTab;
+    if (pathname === "/" && !searchParams.get("tab") && !searchParams.get("panel")) {
+      const stored = readStoredGameTab();
+      if (stored) next = normalizeTab(stored);
     }
-  }, [activeTab, router]);
+    setActiveTab(next);
+    markVisited(next);
+    writeStoredGameTab(next);
+    syncGameTabUrl(next, { replace: true });
+  }, [urlTab, pathname, searchParams, markVisited]);
 
   useEffect(() => {
-    writeStoredGameTab(activeTab);
-  }, [activeTab]);
+    const onPopState = () => {
+      const tab = normalizeTab(readGameTabFromWindow());
+      setActiveTab(tab);
+      markVisited(tab);
+      writeStoredGameTab(tab);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [markVisited]);
 
-  useEffect(() => {
-    if (pathname !== "/") return;
-    if (searchParams.get("tab") || searchParams.get("panel")) return;
-    const target = readStoredGameTab() ?? DEFAULT_GAME_TAB;
-    router.replace(routeForGameTab(target));
-  }, [pathname, router, searchParams]);
+  const applySummary = useCallback((next: MeSummary) => {
+    setSummary(next);
+    setSummaryError(null);
+    useWalletStore.getState().setWallet({
+      goldAvailable: next.wallet.goldAvailable,
+      goldLocked: next.wallet.goldLocked,
+      todayNetGold: next.todayNetGold,
+    });
+  }, []);
 
   const refreshSummary = useCallback(
-    async (opts?: { force?: boolean }) => {
-      setError(null);
-      setSummaryError(null);
-      if (!sessionUser) {
-        setSummary(null);
-        setDashboardLight(null);
-        setRunState(null);
-        setSummaryLoading(false);
-        setDashboardLoading(false);
-        return;
+    async (opts?: { force?: boolean; silent?: boolean }) => {
+      if (summaryLoadPromiseRef.current && !opts?.force) {
+        return summaryLoadPromiseRef.current;
       }
-      setSummaryLoading(true);
-      setDashboardLoading(true);
-      try {
-        const bootstrap = await apiGetJsonCachedSwr<MeBootstrap>("/api/me/bootstrap", {
-          ttlMs: API_CACHE_TTL.bootstrap,
-          force: opts?.force,
-          onRevalidate: (data) => {
-            if (!data?.ok) return;
-            setSummary(data.summary);
-            setDashboardLight(data.dashboard);
-            setSummaryError(null);
-          },
-        });
-        if (!bootstrap?.ok) throw new Error("BOOTSTRAP_INCOMPLETE");
-        setSummary(bootstrap.summary);
-        setDashboardLight(bootstrap.dashboard);
-        setSummaryError(null);
 
-        if (bootstrap.summary.dungeon?.active && activeTab !== "dungeon") {
-          void apiGetJsonCachedSwr<DungeonRunState>("/api/dungeons/run/state?lite=1", {
-            ttlMs: API_CACHE_TTL.runState,
-            force: opts?.force,
-            onRevalidate: (rs) => {
-              if (rs?.active) setRunState(rs);
-              else setRunState(null);
-            },
-          })
-            .then((rs) => {
-              if (rs?.active) setRunState(rs);
-              else setRunState(null);
-            })
-            .catch(() => setRunState(null));
-        } else {
+      const work = (async () => {
+        setError(null);
+        setSummaryError(null);
+        if (!sessionUser) {
+          setSummary(null);
           setRunState(null);
+          useWalletStore.getState().setWallet(null);
+          setSummaryLoading(false);
+          return;
         }
-      } catch (e) {
-        setSummaryError(e);
-        setError(e);
-        setDashboardLight(null);
+
+        const blockSummary = !opts?.silent && (opts?.force || summary == null);
+        if (blockSummary) setSummaryLoading(true);
+
+        try {
+          const summaryRes = await apiGetJsonCachedSwr<MeSummary>("/api/me/summary", {
+            ttlMs: API_CACHE_TTL.summary,
+            timeoutMs: BOOTSTRAP_FETCH_TIMEOUT_MS,
+            force: opts?.force,
+          });
+          if (!summaryRes?.ok) throw new Error("BOOTSTRAP_INCOMPLETE");
+          applySummary(summaryRes);
+          setSummaryLoading(false);
+
+          if (summaryRes.dungeon?.active && activeTabRef.current !== "dungeon") {
+            void apiGetJsonCachedSwr<DungeonRunState>("/api/dungeons/run/state?lite=1", {
+              ttlMs: API_CACHE_TTL.runState,
+              force: opts?.force,
+              onRevalidate: (rs) => {
+                if (rs?.active) setRunState(rs);
+                else setRunState(null);
+              },
+            })
+              .then((rs) => {
+                if (rs?.active) setRunState(rs);
+                else setRunState(null);
+              })
+              .catch(() => setRunState(null));
+          } else {
+            setRunState(null);
+          }
+        } catch (e) {
+          setSummaryError(e);
+          setError(e);
+          setSummary(null);
+          setSummaryLoading(false);
+        }
+      })();
+
+      summaryLoadPromiseRef.current = work;
+      try {
+        await work;
       } finally {
-        setSummaryLoading(false);
-        setDashboardLoading(false);
+        if (summaryLoadPromiseRef.current === work) {
+          summaryLoadPromiseRef.current = null;
+        }
       }
     },
-    [sessionUser, activeTab],
+    [sessionUser, applySummary, summary],
+  );
+
+  const refreshSummaryRef = useRef(refreshSummary);
+  refreshSummaryRef.current = refreshSummary;
+
+  const handleDataPatch = useCallback(
+    async (detail: GameFramePatchDetail) => {
+      if (!sessionUser || patchInflightRef.current) return;
+      patchInflightRef.current = true;
+      try {
+        await refreshGameDataScopes(detail.scopes, {
+          force: detail.scopes.includes("all"),
+          onBootstrap: (data) => {
+            setSummary(data.summary);
+          },
+        });
+      } finally {
+        patchInflightRef.current = false;
+      }
+    },
+    [sessionUser],
   );
 
   useEffect(() => {
-    if (sessionUser?.id) prefetchCombatRoster(sessionUser.id);
-  }, [sessionUser?.id]);
-
-  useEffect(() => {
-    if (sessionUser?.id) prefetchGamePanel(activeTab, sessionUser.id);
-  }, [activeTab, sessionUser?.id]);
+    if (!sessionUser?.id || summary == null || summaryLoading) return;
+    const t = window.setTimeout(() => {
+      prefetchCombatRoster(sessionUser.id);
+      prefetchGamePanel(activeTab, sessionUser.id);
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [sessionUser?.id, activeTab, summary, summaryLoading]);
 
   const handleGlobalRefresh = useCallback(async () => {
-    setContentKey((k) => k + 1);
     await refreshSummary({ force: true });
-    notifyGameFrameRefresh();
+    await refreshGameDataScopes(["all"], {
+      force: true,
+      onBootstrap: (data) => {
+        setSummary(data.summary);
+      },
+    });
+    notifyGameFramePatch(["inventory", "weapons", "armor", "market", "enhance"]);
   }, [refreshSummary]);
 
   useEffect(() => {
@@ -350,33 +340,43 @@ export function GameFrame() {
       params.delete("auth_error");
       const qs = params.toString();
       const base = pathname === "/" ? "/" : pathname;
-      window.history.replaceState(null, "", qs ? `${base}?${qs}` : base);
+      window.history.replaceState(window.history.state, "", qs ? `${base}?${qs}` : base);
     }
   }, [pathname, searchParams]);
+
+  useEffect(() => {
+    if (!sessionUser?.id) {
+      setSummary(null);
+      setSummaryLoading(false);
+      return;
+    }
+    void refreshSummaryRef.current();
+  }, [sessionUser?.id]);
 
   useEffect(() => {
     function onChanged() {
       const now = Date.now();
       if (now - lastSummaryRefreshRef.current < 8000) return;
       lastSummaryRefreshRef.current = now;
-      void refreshSummary();
+      void refreshSummaryRef.current({ silent: true });
+    }
+    function onPatch(event: Event) {
+      const detail = (event as CustomEvent<GameFramePatchDetail>).detail;
+      if (!detail) return;
+      void handleDataPatch(detail);
     }
     window.addEventListener("auth_session_changed", onChanged);
     window.addEventListener("focus", onChanged);
     window.addEventListener("pageshow", onChanged);
-    window.addEventListener(GAME_FRAME_REFRESH_EVENT, onChanged);
-    lastSummaryRefreshRef.current = Date.now();
-    setSummaryLoading(true);
-    void refreshSummary();
+    window.addEventListener(GAME_FRAME_PATCH_EVENT, onPatch);
     return () => {
       window.removeEventListener("auth_session_changed", onChanged);
       window.removeEventListener("focus", onChanged);
       window.removeEventListener("pageshow", onChanged);
-      window.removeEventListener(GAME_FRAME_REFRESH_EVENT, onChanged);
+      window.removeEventListener(GAME_FRAME_PATCH_EVENT, onPatch);
     };
-  }, [refreshSummary, sessionUser?.id]);
+  }, [handleDataPatch]);
 
-  const gold = summary?.wallet?.goldAvailable ?? null;
   useEscapeClose(chatOpen, () => setChatOpen(false));
   useEscapeClose(settingsOpen, () => setSettingsOpen(false));
 
@@ -386,7 +386,7 @@ export function GameFrame() {
     try {
       await apiPostJson("/api/auth/logout", {});
       setSummary(null);
-      setDashboardLight(null);
+      useWalletStore.getState().setWallet(null);
       notifySessionChanged();
       setSettingsOpen(false);
     } finally {
@@ -401,8 +401,6 @@ export function GameFrame() {
       minionPanelTab,
       summary,
       summaryLoading,
-      dashboardLoading,
-      dashboardLight,
       runState,
       refreshSummary,
       gold,
@@ -416,8 +414,6 @@ export function GameFrame() {
       minionPanelTab,
       summary,
       summaryLoading,
-      dashboardLoading,
-      dashboardLight,
       runState,
       refreshSummary,
       gold,
@@ -428,17 +424,15 @@ export function GameFrame() {
   );
 
   const showSessionGate = sessionLoading || !sessionUser;
-  const contentScrollable = isScrollableGameTab(activeTab);
 
   return (
     <GameFrameProvider value={frameContext}>
-      <div className="game-shell game-frame">
+      <div className="game-shell game-frame" style={{ backgroundColor: "#080a0f", color: "#e8ebf2" }}>
         <UsernameSetupModal open={needUsername} currentUsername={sessionUser?.username ?? summary?.username ?? null} />
         <main className="game-frame__main mx-auto w-full max-w-[1800px] px-2 py-1.5 sm:px-2.5">
           <header className="game-frame__hud">
             <div className="game-frame__hud-row">
               <HomeGoldHeader
-                gold={gold}
                 todayNetGold={summary?.todayNetGold}
                 activeListings={summary?.market.activeListingCount}
                 username={sessionUser?.username ?? summary?.username ?? null}
@@ -467,37 +461,29 @@ export function GameFrame() {
             />
           </header>
 
-          <TutorialPanel
-            compact
-            loggedIn={!!sessionUser}
-            onOpenDungeon={() => navigateTab("dungeon")}
-          />
+          {sessionUser ? <GameFrameAnnouncements /> : null}
+
+          <TutorialPanel compact loggedIn={!!sessionUser} onOpenDungeon={() => navigateTab("dungeon")} />
 
           {error ? <GamePanelError error={error} className="mt-1" /> : null}
 
           <section className="game-frame__section" aria-label={activeTab}>
-            <div
-              key={`${activeTab}-${contentKey}`}
-              className={[
-                "game-frame__content game-frame__content--enter",
-                contentScrollable ? "game-frame__content--scroll" : "game-frame__content--fit",
-              ].join(" ")}
-            >
-              {showSessionGate ? (
-                sessionLoading ? (
+            {showSessionGate ? (
+              <div className="game-frame__content game-frame__content--enter game-frame__content--fit">
+                {sessionLoading ? (
                   <GamePanelLoading label="세션 확인 중…" />
                 ) : (
                   <LoginWelcomePanel />
-                )
-              ) : (
-                <GameFrameContent
-                  activeTab={activeTab}
-                  minionPanelTab={minionPanelTab}
-                  onOpenMinions={() => navigateTab("minions")}
-                  onNavigate={navigateTab}
-                />
-              )}
-            </div>
+                )}
+              </div>
+            ) : (
+              <GameFrameKeepAlive
+                activeTab={activeTab}
+                visitedTabs={visitedTabs}
+                onOpenMinions={() => navigateTab("minions")}
+                onNavigate={navigateTab}
+              />
+            )}
           </section>
 
           <GameFrameMobileDock
@@ -541,11 +527,6 @@ export function GameFrame() {
           onRefresh={refreshSummary}
           onUsernameChanged={(username) => {
             setSummary((prev) => (prev ? { ...prev, username } : prev));
-          }}
-          onStartTrade={(username) => {
-            setSettingsOpen(false);
-            navigateTab("market");
-            notifyStartTradeWith(username);
           }}
         />
       </div>

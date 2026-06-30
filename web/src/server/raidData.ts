@@ -23,7 +23,7 @@ const RaidSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   maxPhases: z.number().int().min(1).max(12),
-  maxPartySize: z.number().int().min(1).max(10).default(3),
+  maxPartySize: z.number().int().min(1).max(10).default(1),
   faction: z.enum(["demon", "angel"]),
   difficulty: z.enum(["normal", "hard"]).default("normal"),
   encounters: z.array(EncounterSchema).min(1),

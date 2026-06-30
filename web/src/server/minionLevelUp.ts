@@ -94,40 +94,22 @@ function applyXpToRow(row: {
 export async function grantMinionExperience(
   db: Db,
   minionId: string,
-  xpAmount: number,
+  _xpAmount: number,
 ): Promise<MinionXpGrantResult | null> {
   const row = await db.minion.findUnique({
     where: { id: minionId },
     select: { id: true, level: true, experience: true, unspentStatPoints: true },
   });
   if (!row) return null;
-
-  const mult = minionXpGrantMultiplier(row.level);
-  const adjustedXp = Math.max(0, Math.floor(xpAmount * mult));
-  const next = applyXpToRow(row, adjustedXp);
-  if (next.xpGained <= 0) return next;
-
-  await db.minion.update({
-    where: { id: minionId },
-    data: {
-      level: next.level,
-      experience: next.experience,
-      unspentStatPoints: next.unspentStatPoints,
-    },
-  });
-
-  if (next.levelsGained > 0) {
-    await db.minion.update({
-      where: { id: minionId },
-      data: {
-        unspentSkillPoints: {
-          increment: next.levelsGained * MINION_SKILL_RULES.pointsPerLevel,
-        },
-      },
-    });
-  }
-
-  return next;
+  return {
+    minionId: row.id,
+    xpGained: 0,
+    levelsGained: 0,
+    statPointsGained: 0,
+    level: row.level ?? 1,
+    experience: row.experience ?? 0,
+    unspentStatPoints: row.unspentStatPoints ?? 0,
+  };
 }
 
 async function persistMinionXpPlans(
@@ -160,46 +142,11 @@ async function persistMinionXpPlans(
 }
 
 export async function grantMinionsExperience(
-  db: Db,
-  minionIds: string[],
-  xpPerMinion: number,
+  _db: Db,
+  _minionIds: string[],
+  _xpPerMinion: number,
 ): Promise<MinionXpGrantResult[]> {
-  const xp = Math.max(0, Math.floor(xpPerMinion));
-  if (xp <= 0 || minionIds.length === 0) return [];
-
-  const uniqueIds = [...new Set(minionIds)];
-  const rows = await db.minion.findMany({
-    where: { id: { in: uniqueIds } },
-    select: {
-      id: true,
-      level: true,
-      experience: true,
-      unspentStatPoints: true,
-      unspentSkillPoints: true,
-    },
-  });
-  const rowById = new Map(rows.map((r) => [r.id, r]));
-
-  const plans = minionIds
-    .map((minionId) => {
-      const row = rowById.get(minionId);
-      if (!row) return null;
-      const mult = minionXpGrantMultiplier(row.level);
-      const adjustedXp = Math.max(0, Math.floor(xp * mult));
-      return { row, next: applyXpToRow(row, adjustedXp) };
-    })
-    .filter((plan): plan is { row: MinionXpRow; next: MinionXpGrantResult } => plan != null);
-
-  const writes = plans.filter(({ next }) => next.xpGained > 0);
-  if (writes.length > 0) {
-    if ("$transaction" in db && typeof db.$transaction === "function") {
-      await db.$transaction(async (tx) => persistMinionXpPlans(tx, rows, writes));
-    } else {
-      await persistMinionXpPlans(db, rows, writes);
-    }
-  }
-
-  return plans.map(({ next }) => next);
+  return [];
 }
 
 export async function grantDungeonFloorXp(
@@ -230,117 +177,18 @@ export type MinionStatAllocateResult = {
 };
 
 export async function allocateMinionStats(
-  db: Db,
-  userId: string,
-  minionId: string,
-  allocation: MinionStatAllocation,
+  _db: Db,
+  _userId: string,
+  _minionId: string,
+  _allocation: MinionStatAllocation,
 ): Promise<MinionStatAllocateResult> {
-  const spend = sumStatAllocation(allocation);
-  if (spend <= 0) throw new Error("NO_STAT_POINTS_TO_ALLOCATE");
-
-  for (const key of MINION_STAT_KEYS) {
-    const v = allocation[key];
-    if (v == null) continue;
-    if (!Number.isFinite(v) || v < 0 || !Number.isInteger(v)) throw new Error("INVALID_STAT_ALLOCATION");
-  }
-
-  const row = await db.minion.findUnique({ where: { id: minionId } });
-  if (!row) throw new Error("MINION_NOT_FOUND");
-  if (row.userId !== userId) throw new Error("FORBIDDEN");
-  const unspent = Math.max(0, Math.floor(row.unspentStatPoints));
-  if (spend > unspent) throw new Error("INSUFFICIENT_STAT_POINTS");
-
-  const nextStats: Record<MinionStatKey, number> = {
-    strength: row.strength,
-    agility: row.agility,
-    intelligence: row.intelligence,
-    endurance: row.endurance,
-  };
-
-  for (const key of MINION_STAT_KEYS) {
-    const add = Math.floor(allocation[key] ?? 0);
-    if (add <= 0) continue;
-    const cap = MINION_LEVEL_RULES.maxStatPerAttribute;
-    const cur = nextStats[key];
-    if (cur + add > cap) throw new Error(`STAT_CAP_EXCEEDED:${key}`);
-    nextStats[key] = cur + add;
-  }
-
-  const updated = await db.minion.update({
-    where: { id: minionId },
-    data: {
-      strength: nextStats.strength,
-      agility: nextStats.agility,
-      intelligence: nextStats.intelligence,
-      endurance: nextStats.endurance,
-      unspentStatPoints: unspent - spend,
-    },
-    select: {
-      id: true,
-      strength: true,
-      agility: true,
-      intelligence: true,
-      endurance: true,
-      unspentStatPoints: true,
-    },
-  });
-
-  return {
-    minionId: updated.id,
-    baseStats: {
-      strength: updated.strength,
-      agility: updated.agility,
-      intelligence: updated.intelligence,
-      endurance: updated.endurance,
-    },
-    unspentStatPoints: updated.unspentStatPoints,
-  };
+  throw new Error("MINION_STAT_ALLOC_DISABLED");
 }
 
 export async function resetMinionStats(
-  db: Db,
-  userId: string,
-  minionId: string,
+  _db: Db,
+  _userId: string,
+  _minionId: string,
 ): Promise<MinionStatAllocateResult> {
-  const row = await db.minion.findUnique({ where: { id: minionId } });
-  if (!row) throw new Error("MINION_NOT_FOUND");
-  if (row.userId !== userId) throw new Error("FORBIDDEN");
-
-  const spent =
-    Math.max(0, row.strength) +
-    Math.max(0, row.agility) +
-    Math.max(0, row.intelligence) +
-    Math.max(0, row.endurance);
-  if (spent <= 0) throw new Error("NOTHING_TO_RESET");
-
-  const unspentStatPoints = totalEarnedStatPoints(row.level ?? 1);
-  const updated = await db.minion.update({
-    where: { id: minionId },
-    data: {
-      strength: 0,
-      agility: 0,
-      intelligence: 0,
-      endurance: 0,
-      unspentStatPoints,
-    },
-    select: {
-      id: true,
-      strength: true,
-      agility: true,
-      intelligence: true,
-      endurance: true,
-      unspentStatPoints: true,
-    },
-  });
-
-  return {
-    minionId: updated.id,
-    baseStats: {
-      strength: updated.strength,
-      agility: updated.agility,
-      intelligence: updated.intelligence,
-      endurance: updated.endurance,
-    },
-    unspentStatPoints: updated.unspentStatPoints,
-  };
+  throw new Error("MINION_STAT_ALLOC_DISABLED");
 }

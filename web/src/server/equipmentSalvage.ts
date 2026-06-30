@@ -24,61 +24,19 @@ export type BatchEquipmentSalvageResult = {
   loot: Array<{ itemId: string; qty: number }>;
 };
 
-async function assertSalvageAllowed(tx: SalvageTx, userId: string, kind: EquipKind, instanceId: string) {
-  if (kind === "weapon") {
-    const w = await tx.weaponInstance.findUnique({
-      where: { id: instanceId },
-      include: { baseItem: true, listing: { select: { id: true } } },
-    });
-    if (!w) throw new Error("NOT_FOUND");
-    if (w.userId !== userId) throw new Error("FORBIDDEN");
-    if (w.status !== "OWNED" || w.listing) throw new Error("EQUIPMENT_LOCKED");
-    assertEquipmentNotUserLocked(w);
-    const equipped = await tx.minion.findFirst({
-      where: { userId, equippedWeaponInstanceId: instanceId },
-      select: { id: true },
-    });
-    if (equipped) throw new Error("EQUIPMENT_EQUIPPED");
-    return {
-      kind: "weapon" as const,
-      grade: resolveDisplayItemGrade(w.baseItemId, w.baseItem.grade),
-      enhanceLevel: w.enhanceLevel ?? 0,
-      row: w,
-    };
-  }
+type LoadedSalvageRow = {
+  kind: EquipKind;
+  grade: number;
+  enhanceLevel: number;
+  instanceId: string;
+};
 
-  const a = await tx.armorInstance.findUnique({
-    where: { id: instanceId },
-    include: { baseItem: true },
-  });
-  if (!a) throw new Error("NOT_FOUND");
-  if (a.userId !== userId) throw new Error("FORBIDDEN");
-  if (a.status !== "OWNED") throw new Error("EQUIPMENT_LOCKED");
-  assertEquipmentNotUserLocked(a);
-  const equipped = await tx.minion.findFirst({
-    where: {
-      userId,
-      OR: [
-        { equippedHelmetInstanceId: instanceId },
-        { equippedChestInstanceId: instanceId },
-        { equippedPantsInstanceId: instanceId },
-        { equippedBootsInstanceId: instanceId },
-      ],
-    },
-    select: { id: true },
-  });
-  if (equipped) throw new Error("EQUIPMENT_EQUIPPED");
-  return {
-    kind: "armor" as const,
-    grade: resolveDisplayItemGrade(a.baseItemId, a.baseItem.grade),
-    enhanceLevel: a.enhanceLevel ?? 0,
-    row: a,
-  };
-}
-
-export function salvageLootForEquipment(grade: number, enhanceLevel: number, rnd = Math.random()) {
-  return mergeSalvageRows(previewSalvageLoot({ grade, enhanceLevel, rnd }));
-}
+const ARMOR_EQUIP_FIELDS = [
+  "equippedHelmetInstanceId",
+  "equippedChestInstanceId",
+  "equippedPantsInstanceId",
+  "equippedBootsInstanceId",
+] as const;
 
 function dedupeSalvageTargets(targets: BatchSalvageTarget[]): BatchSalvageTarget[] {
   const seen = new Set<string>();
@@ -92,6 +50,126 @@ function dedupeSalvageTargets(targets: BatchSalvageTarget[]): BatchSalvageTarget
   return out;
 }
 
+async function loadEquippedInstanceIds(
+  tx: SalvageTx,
+  userId: string,
+  weaponIds: string[],
+  armorIds: string[],
+) {
+  const equippedWeaponIds = new Set<string>();
+  const equippedArmorIds = new Set<string>();
+
+  if (weaponIds.length > 0) {
+    const rows = await tx.minion.findMany({
+      where: { userId, equippedWeaponInstanceId: { in: weaponIds } },
+      select: { equippedWeaponInstanceId: true },
+    });
+    for (const row of rows) {
+      if (row.equippedWeaponInstanceId) equippedWeaponIds.add(row.equippedWeaponInstanceId);
+    }
+  }
+
+  if (armorIds.length > 0) {
+    const rows = await tx.minion.findMany({
+      where: {
+        userId,
+        OR: [
+          { equippedHelmetInstanceId: { in: armorIds } },
+          { equippedChestInstanceId: { in: armorIds } },
+          { equippedPantsInstanceId: { in: armorIds } },
+          { equippedBootsInstanceId: { in: armorIds } },
+        ],
+      },
+      select: {
+        equippedHelmetInstanceId: true,
+        equippedChestInstanceId: true,
+        equippedPantsInstanceId: true,
+        equippedBootsInstanceId: true,
+      },
+    });
+    const armorIdSet = new Set(armorIds);
+    for (const row of rows) {
+      for (const field of ARMOR_EQUIP_FIELDS) {
+        const id = row[field];
+        if (id && armorIdSet.has(id)) equippedArmorIds.add(id);
+      }
+    }
+  }
+
+  return { equippedWeaponIds, equippedArmorIds };
+}
+
+/** N건 분해도 DB 왕복은 고정(무기·방어구 일괄 조회 + 착용 확인 + deleteMany) */
+async function loadAndValidateSalvageTargets(
+  tx: SalvageTx,
+  userId: string,
+  targets: BatchSalvageTarget[],
+): Promise<LoadedSalvageRow[]> {
+  const weaponIds = targets.filter((t) => t.kind === "weapon").map((t) => t.instanceId);
+  const armorIds = targets.filter((t) => t.kind === "armor").map((t) => t.instanceId);
+
+  const weapons =
+    weaponIds.length > 0
+      ? await tx.weaponInstance.findMany({
+          where: { id: { in: weaponIds }, userId },
+          include: { baseItem: true, listing: { select: { id: true } } },
+        })
+      : [];
+  const armors =
+    armorIds.length > 0
+      ? await tx.armorInstance.findMany({
+          where: { id: { in: armorIds }, userId },
+          include: { baseItem: true },
+        })
+      : [];
+
+  const weaponById = new Map(weapons.map((w) => [w.id, w]));
+  const armorById = new Map(armors.map((a) => [a.id, a]));
+
+  const { equippedWeaponIds, equippedArmorIds } = await loadEquippedInstanceIds(
+    tx,
+    userId,
+    weaponIds,
+    armorIds,
+  );
+
+  const loaded: LoadedSalvageRow[] = [];
+  for (const t of targets) {
+    if (t.kind === "weapon") {
+      const w = weaponById.get(t.instanceId);
+      if (!w) throw new Error("NOT_FOUND");
+      if (w.status !== "OWNED" || w.listing) throw new Error("EQUIPMENT_LOCKED");
+      assertEquipmentNotUserLocked(w);
+      if (equippedWeaponIds.has(t.instanceId)) throw new Error("EQUIPMENT_EQUIPPED");
+      loaded.push({
+        kind: "weapon",
+        grade: resolveDisplayItemGrade(w.baseItemId, w.baseItem.grade),
+        enhanceLevel: w.enhanceLevel ?? 0,
+        instanceId: w.id,
+      });
+      continue;
+    }
+
+    const a = armorById.get(t.instanceId);
+    if (!a) throw new Error("NOT_FOUND");
+    if (a.status !== "OWNED") throw new Error("EQUIPMENT_LOCKED");
+    assertEquipmentNotUserLocked(a);
+    if (equippedArmorIds.has(t.instanceId)) throw new Error("EQUIPMENT_EQUIPPED");
+    loaded.push({
+      kind: "armor",
+      grade: resolveDisplayItemGrade(a.baseItemId, a.baseItem.grade),
+      enhanceLevel: a.enhanceLevel ?? 0,
+      instanceId: a.id,
+    });
+  }
+
+  return loaded;
+}
+
+export function salvageLootForEquipment(grade: number, enhanceLevel: number, rnd = Math.random()) {
+  return mergeSalvageRows(previewSalvageLoot({ grade, enhanceLevel, rnd }));
+}
+
 export async function attemptBatchEquipmentSalvage(
   tx: SalvageTx,
   input: { userId: string; targets: BatchSalvageTarget[] },
@@ -100,20 +178,24 @@ export async function attemptBatchEquipmentSalvage(
   if (targets.length === 0) throw new Error("BAD_REQUEST");
   if (targets.length > MAX_SALVAGE_BATCH) throw new Error("SALVAGE_BATCH_TOO_LARGE");
 
-  const loaded = await Promise.all(
-    targets.map((t) => assertSalvageAllowed(tx, input.userId, t.kind, t.instanceId)),
-  );
+  const loaded = await loadAndValidateSalvageTargets(tx, input.userId, targets);
 
   const loot = mergeSalvageRows(
     loaded.flatMap((row) => salvageLootForEquipment(row.grade, row.enhanceLevel)),
   );
 
-  for (const row of loaded) {
-    if (row.kind === "weapon") {
-      await tx.weaponInstance.delete({ where: { id: row.row.id } });
-    } else {
-      await tx.armorInstance.delete({ where: { id: row.row.id } });
-    }
+  const weaponIds = loaded.filter((r) => r.kind === "weapon").map((r) => r.instanceId);
+  const armorIds = loaded.filter((r) => r.kind === "armor").map((r) => r.instanceId);
+
+  if (weaponIds.length > 0) {
+    await tx.weaponInstance.deleteMany({
+      where: { id: { in: weaponIds }, userId: input.userId },
+    });
+  }
+  if (armorIds.length > 0) {
+    await tx.armorInstance.deleteMany({
+      where: { id: { in: armorIds }, userId: input.userId },
+    });
   }
 
   await grantLootToUser(tx, input.userId, loot);

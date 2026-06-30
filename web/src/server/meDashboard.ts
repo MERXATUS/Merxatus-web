@@ -11,19 +11,18 @@ import {
 import { armorEquippedView } from "@/server/minionListBuild";
 import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
 import { minionRoleLabel } from "@/server/minionJobs";
-import { promotionStateFromRow, resolveMinionCombatClass } from "@/shared/minionPromotion";
-import { skillViewsForMinion } from "@/shared/minionSkills";
+import type { MinionCombatClass } from "@/shared/minionDerivedClass";
 import { minionDisplayName } from "@/shared/minionNickname";
 import { itemGradeViewForItem } from "@/server/itemGrade";
-import { loadKnightOrderBonuses } from "@/server/knightOrder";
 import { knightOrderToView } from "@/server/knightOrderView";
+import { ZERO_KNIGHT_ORDER_BONUSES } from "@/shared/knightOrder";
 import {
   feeBpsForSeller,
   sellerAuctionPendingSettlementWhere,
 } from "@/server/market";
-import { buildLeaderboardHighlights } from "@/server/leaderboardHighlights";
 import type {
   MeDashboardLight,
+  MeDashboardLeaderboardHighlight,
   MeDashboardPendingSale,
   MeDashboardRepresentativeMinion,
 } from "@/shared/meDashboard";
@@ -49,13 +48,12 @@ function buildRepresentativeMinionView(
 ): MeDashboardRepresentativeMinion {
   const fighterRank = (m.traits ?? []).find((tr) => tr.type === "FIGHTER")?.rank ?? 0;
   const armorIds = armorIdsFromRow(m);
-  const combatClass = resolveMinionCombatClass(promotionStateFromRow(m));
+  const combatClass: MinionCombatClass = "ADVENTURER";
   const combatStats = buildMinionCombatBreakdown({
-    level: m.level ?? 1,
+    level: 1,
     fighterRank,
     baseStats: minionBaseStatsFromRow(m),
     combatClass,
-    skillLevelsJson: m.skillLevelsJson,
     weapon: m.equippedWeaponInstance
       ? {
           baseItemId: m.equippedWeaponInstance.baseItemId,
@@ -70,9 +68,9 @@ function buildRepresentativeMinionView(
     combatClassLabel: minionRoleLabel({ combatClass }),
     displayName: minionDisplayName(m.nickname, minionRoleLabel({ combatClass })),
     nickname: m.nickname ?? null,
-    level: m.level ?? 1,
-    unspentSkillPoints: Math.max(0, Math.floor(m.unspentSkillPoints ?? 0)),
-    skills: skillViewsForMinion({ combatClass, skillLevelsJson: m.skillLevelsJson }),
+    level: 1,
+    unspentSkillPoints: 0,
+    skills: [],
     equippedWeapon: m.equippedWeaponInstance?.baseItem
       ? {
           baseItemId: m.equippedWeaponInstance.baseItemId,
@@ -90,16 +88,88 @@ function buildRepresentativeMinionView(
   };
 }
 
-export async function buildMeDashboardLight(userId: string): Promise<MeDashboardLight> {
+async function loadSoloRepresentativeMinion(userId: string): Promise<MeDashboardRepresentativeMinion | null> {
+  const m = await prisma.minion.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    include: minionInclude,
+  });
+  if (!m) return null;
+  const armorByMinionId = new Map([[m.id, armorIdsFromRow(m)]]);
+  const armorInstById = await loadArmorInstanceMapForUser(prisma, userId, armorByMinionId);
+  return buildRepresentativeMinionView(m, armorInstById);
+}
+
+export async function buildMeDashboardLight(
+  userId: string,
+  opts?: { lite?: boolean },
+): Promise<MeDashboardLight> {
+  const lite = opts?.lite ?? false;
+
+  if (lite) {
+    const [wallet, invAgg, weaponCount, pendingListingsRaw, representativeMinion] = await Promise.all([
+      prisma.wallet.findUnique({ where: { userId } }),
+      prisma.inventoryStack.aggregate({
+        where: { userId, quantity: { gt: 0 } },
+        _sum: { quantity: true },
+        _count: { _all: true },
+      }),
+      prisma.weaponInstance.count({ where: { userId, status: "OWNED" } }),
+      prisma.listing.findMany({
+        where: sellerAuctionPendingSettlementWhere(userId),
+        orderBy: [{ endsAt: "asc" }, { createdAt: "asc" }],
+        take: 5,
+        include: { item: true, weaponInstance: { include: { baseItem: true } } },
+      }),
+      loadSoloRepresentativeMinion(userId),
+    ]);
+
+    const goldAvailable = wallet?.goldAvailable ?? 0;
+    const goldLocked = wallet?.goldLocked ?? 0;
+    const knightOrder = knightOrderToView(ZERO_KNIGHT_ORDER_BONUSES);
+
+    const pendingSales: MeDashboardPendingSale[] = pendingListingsRaw.map((l) => {
+      const weapon = l.weaponInstance;
+      const highestBid = l.highestBid ?? 0;
+      return {
+        listingId: l.id,
+        itemId: l.itemId,
+        itemName: weapon?.baseItem.name ?? l.item.name,
+        quantity: l.quantity,
+        highestBid,
+        expectedNetGold: highestBid,
+        endsAt: l.endsAt?.toISOString() ?? null,
+        enhanceLevel: weapon?.enhanceLevel ?? null,
+      };
+    });
+
+    return {
+      ok: true,
+      assets: {
+        goldAvailable,
+        goldLocked,
+        inventoryEstimatedGold: 0,
+        weaponsEstimatedGold: 0,
+        totalEstimatedGold: goldAvailable + goldLocked,
+        inventoryKindCount: invAgg._count._all,
+        inventoryTotalQty: invAgg._sum.quantity ?? 0,
+        weaponCount,
+      },
+      pendingSales,
+      representativeMinion,
+      totalUnspentSkillPoints: 0,
+      knightOrder,
+      leaderboardHighlights: [],
+    };
+  }
+
   const catalogIds = await loadCatalogItemIdSet();
   const [
     wallet,
     stacks,
     weaponInstances,
     pendingListingsRaw,
-    knightOrderRaw,
-    userRow,
-    skillAgg,
+    representativeMinion,
   ] = await Promise.all([
     prisma.wallet.findUnique({ where: { userId } }),
     prisma.inventoryStack.findMany({
@@ -119,32 +189,10 @@ export async function buildMeDashboardLight(userId: string): Promise<MeDashboard
         weaponInstance: { include: { baseItem: true } },
       },
     }),
-    loadKnightOrderBonuses(prisma, userId),
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { representativeMinionId: true },
-    }),
-    prisma.minion.aggregate({
-      where: { userId },
-      _sum: { unspentSkillPoints: true },
-    }),
+    loadSoloRepresentativeMinion(userId),
   ]);
 
-  const knightOrder = knightOrderToView(knightOrderRaw);
-  const repId = userRow?.representativeMinionId ?? null;
-
-  let representativeMinion: MeDashboardRepresentativeMinion | null = null;
-  if (repId) {
-    const m = await prisma.minion.findFirst({
-      where: { id: repId, userId },
-      include: minionInclude,
-    });
-    if (m) {
-      const armorByMinionId = new Map([[m.id, armorIdsFromRow(m)]]);
-      const armorInstById = await loadArmorInstanceMapForUser(prisma, userId, armorByMinionId);
-      representativeMinion = buildRepresentativeMinionView(m, armorInstById);
-    }
-  }
+  const knightOrder = knightOrderToView(ZERO_KNIGHT_ORDER_BONUSES);
 
   const catalogStacks = stacks.filter((s) => isCatalogItemId(s.itemId, catalogIds));
   const catalogWeapons = weaponInstances.filter((w) => isCatalogItemId(w.baseItemId, catalogIds));
@@ -184,8 +232,9 @@ export async function buildMeDashboardLight(userId: string): Promise<MeDashboard
     });
   })();
 
-  const totalUnspentSkillPoints = Math.max(0, Math.floor(skillAgg._sum.unspentSkillPoints ?? 0));
-  const leaderboardHighlights = await buildLeaderboardHighlights(userId);
+  const totalUnspentSkillPoints = 0;
+  // 랭킹 하이라이트는 bootstrap에서 제외 — 초기 로딩·DB 부하 완화
+  const leaderboardHighlights: MeDashboardLeaderboardHighlight[] = [];
 
   return {
     ok: true,

@@ -7,6 +7,7 @@ import {
   setMinionArmorSlot,
 } from "@/server/minionArmorDb";
 import { assertMinionCanEquipBaseItem } from "@/server/minionEquipLevelCheck";
+import { minionCombatPowerForEquip } from "@/server/knightOrder";
 import { getArmorStats } from "@/shared/armorStatsData";
 import { assertEquipmentNotUserLocked } from "@/server/inventoryEquipmentLock";
 import { takeAvailableFromStack } from "@/server/inventoryStackOps";
@@ -64,7 +65,6 @@ export async function equipMinionArmor(input: {
 
   const m = await tx.minion.findUnique({
     where: { id: minionId },
-    select: { id: true, userId: true, level: true },
   });
   if (!m) throw new Error("MINION_NOT_FOUND");
   if (m.userId !== userId) throw new Error("FORBIDDEN");
@@ -86,8 +86,9 @@ export async function equipMinionArmor(input: {
     assertEquipmentNotUserLocked(inst);
     if (!armorStackMatchesSlot(slotId, inst.baseItemId)) throw new Error("ARMOR_SLOT_MISMATCH");
     if (!getArmorStats(inst.baseItemId)) throw new Error("ARMOR_STATS_NOT_FOUND");
+    const combatPower = await minionCombatPowerForEquip(tx, userId, m);
     assertMinionCanEquipBaseItem({
-      minionLevel: m.level,
+      minionCombatPower: combatPower,
       baseItemId: inst.baseItemId,
       instanceItemLevel: inst.itemLevel,
     });
@@ -104,7 +105,8 @@ export async function equipMinionArmor(input: {
 
   if (!armorStackMatchesSlot(slotId, itemId!)) throw new Error("ARMOR_SLOT_MISMATCH");
   if (!getArmorStats(itemId!)) throw new Error("ARMOR_STATS_NOT_FOUND");
-  assertMinionCanEquipBaseItem({ minionLevel: m.level, baseItemId: itemId! });
+  const combatPower = await minionCombatPowerForEquip(tx, userId, m);
+  assertMinionCanEquipBaseItem({ minionCombatPower: combatPower, baseItemId: itemId! });
 
   const item = await tx.item.findUnique({ where: { id: itemId! } });
   if (!item) throw new Error("ITEM_NOT_FOUND");
