@@ -82,12 +82,14 @@ export function StackItemTooltipHover(props: {
   children: ReactNode;
   delayMs?: number;
   detailsOnly?: boolean;
+  clickToToggle?: boolean;
 }) {
-  const { item, children, delayMs, detailsOnly } = props;
+  const { item, children, delayMs, detailsOnly, clickToToggle } = props;
   return (
     <ItemTooltipHover
       content={<StackItemTooltipContent item={item} detailsOnly={detailsOnly} />}
       delayMs={delayMs}
+      clickToToggle={clickToToggle}
     >
       {children}
     </ItemTooltipHover>

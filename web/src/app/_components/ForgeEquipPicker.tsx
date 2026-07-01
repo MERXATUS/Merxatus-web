@@ -58,7 +58,7 @@ function isWeapon(item: ForgePickerItem, kind: "weapon" | "armor"): item is Weap
 
 export function ForgeEquipPicker(props: Props) {
   const isMobile = useIsMobile();
-  const modeLabel = props.mode === "enhance" ? "제련" : "가공";
+  const modeLabel = props.mode === "enhance" ? "강화" : "가공";
   const empty =
     props.emptyMessage ??
     (props.equipKind === "weapon" ? `${modeLabel}할 무기가 없어요.` : `${modeLabel}할 방어구가 없어요.`);
@@ -93,16 +93,16 @@ export function ForgeEquipPicker(props: Props) {
         <h2 className="forge-lobby__title">
           {isMobile
             ? props.mode === "enhance"
-              ? "제련할 장비"
+              ? "강화할 장비"
               : "가공할 장비"
             : props.mode === "enhance"
-              ? "제련할 장비를 고르세요"
+              ? "강화할 장비를 고르세요"
               : "가공할 장비를 고르세요"}
         </h2>
         {!isMobile ? (
           <p className="forge-lobby__lead">
             {props.mode === "enhance"
-              ? "장비를 선택하면 제련 작업대가 열립니다. 마석·골드를 모아 단계를 올려 보세요."
+              ? "장비를 선택하면 강화 작업대가 열립니다. 마석·골드를 모아 단계를 올려 보세요."
               : "감정·보석 가공은 장비를 고른 뒤 작업대에서 진행합니다."}
           </p>
         ) : null}
@@ -217,7 +217,7 @@ export function ForgeEquipPicker(props: Props) {
                       <span className="forge-lobby__card-meta-sep">/</span>
                       <span>+{maxLv}</span>
                       {props.mode === "enhance" ? (
-                        <span className="forge-lobby__card-meta-hint">제련 단계</span>
+                        <span className="forge-lobby__card-meta-hint">강화 단계</span>
                       ) : item.identified === false ? (
                         <span className="forge-lobby__card-meta-hint">미감정</span>
                       ) : null}
@@ -234,7 +234,7 @@ export function ForgeEquipPicker(props: Props) {
                   </div>
 
                   <span className="forge-lobby__card-cta" aria-hidden>
-                    {props.mode === "enhance" ? "제련" : "가공"}
+                    {props.mode === "enhance" ? "강화" : "가공"}
                     <span className="forge-lobby__card-cta-arrow">→</span>
                   </span>
                 </button>

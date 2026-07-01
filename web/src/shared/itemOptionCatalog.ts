@@ -1,3 +1,6 @@
+import {
+  pctOptionFlatBonus,
+} from "@/shared/equipmentItemBaseStats";
 import armorOptionTiers from "../../data/armor_option_tiers.json";
 import weaponOptionTiers from "../../data/weapon_option_tiers.json";
 import { isMechanizedWeaponOptionId } from "@/shared/equipmentCombatModifiers";
@@ -122,7 +125,6 @@ export function statBonusFromOptionRows(
 }
 
 const FLAT_ATK_OPTION_IDS = new Set(["PHY_ATK_ADD", "MAG_ATK_ADD"]);
-const PCT_ATK_OPTION_IDS = new Set(["PHY_ATK_PCT", "MAG_ATK_PCT", "FINAL_DMG_PCT"]);
 
 /**
  * % 옵션 → CP 환산 (표시값 1당). 깡스탯만 유지.
@@ -150,7 +152,11 @@ export function armorUtilPowerBonusFromOptionRows(rows: Array<{ optionId: string
   return Math.round(sum * 100) / 100;
 }
 
-export function weaponPowerBonusFromOptionRows(rows: Array<{ optionId: string; tier: number }>): number {
+export function weaponPowerBonusFromOptionRows(
+  rows: Array<{ optionId: string; tier: number }>,
+  baseAtk = 0,
+  baseMagic = 0,
+): number {
   let sum = 0;
   for (const row of rows) {
     const id = normalizeOptionId(row.optionId);
@@ -161,7 +167,9 @@ export function weaponPowerBonusFromOptionRows(rows: Array<{ optionId: string; t
       continue;
     }
     if (FLAT_ATK_OPTION_IDS.has(id)) sum += v * 0.1;
-    else if (PCT_ATK_OPTION_IDS.has(id)) sum += v * 0.4;
+    else if (id === "PHY_ATK_PCT") sum += pctOptionFlatBonus(baseAtk, v) * 0.1;
+    else if (id === "MAG_ATK_PCT") sum += pctOptionFlatBonus(baseMagic, v) * 0.1;
+    else if (id === "FINAL_DMG_PCT") sum += v * 0.4;
     else if (LEGACY_OPTION_LABEL_KO[id]) sum += v;
   }
   return Math.round(sum * 100) / 100;

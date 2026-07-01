@@ -1,4 +1,4 @@
-/** 가챠 상점 — 풀 정의·비용·롤 로직 (클라이언트 표시 + 서버 검증 공유) */
+/** 상점 뽑기 — 풀 정의·비용·롤 로직 (클라이언트 표시 + 서버 검증 공유) */
 
 export type GachaEntryKind = "gold" | "item" | "equipment";
 
@@ -14,7 +14,7 @@ export type GachaPoolDef = {
   singleCostGold: number;
   multiCount: number;
   multiCostGold: number;
-  /** 10연차 시 장비 1개 이상 보장 */
+  /** 10연차 시 장비 1개 이상 보장 (장비 풀 전용) */
   multiGuaranteeEquipment: boolean;
   entries: GachaPoolEntryDef[];
 };
@@ -24,27 +24,21 @@ export type GachaRoll =
   | { kind: "item"; itemId: string; qty: number }
   | { kind: "equipment"; itemId: string; qty: 1 };
 
-export const GACHA_STANDARD_POOL_ID = "standard";
+export const GACHA_EQUIPMENT_POOL_ID = "equipment";
+export const GACHA_MATERIALS_POOL_ID = "materials";
 
-export const GACHA_STANDARD_POOL: GachaPoolDef = {
-  id: GACHA_STANDARD_POOL_ID,
-  name: "모험가 보급 상자",
-  description:
-    "크래프팅 재료·골드·입문 장비를 뽑습니다. 던전 방치는 꺼 둔 동안 쌓이는 보너스, 가챠는 즉시 플레이용 보급입니다.",
+/** @deprecated 레거시 ID — equipment 풀로 매핑 */
+export const GACHA_STANDARD_POOL_ID = GACHA_EQUIPMENT_POOL_ID;
+
+export const GACHA_EQUIPMENT_POOL: GachaPoolDef = {
+  id: GACHA_EQUIPMENT_POOL_ID,
+  name: "장비 상자",
+  description: "무기·방어구를 골드로 뽑습니다. 입문용 장비를 빠르게 확보하세요.",
   singleCostGold: 500,
   multiCount: 10,
   multiCostGold: 4_500,
   multiGuaranteeEquipment: true,
   entries: [
-    { kind: "gold", weight: 90, minGold: 60, maxGold: 140 },
-    { kind: "gold", weight: 40, minGold: 140, maxGold: 280 },
-    { kind: "gold", weight: 12, minGold: 280, maxGold: 520 },
-
-    { kind: "item", itemId: "item_lesser_mana_stone", weight: 130, minQty: 1, maxQty: 3 },
-    { kind: "item", itemId: "item_appraisal_scroll", weight: 95, minQty: 1, maxQty: 2 },
-    { kind: "item", itemId: "item_mana_stone", weight: 42, minQty: 1, maxQty: 1 },
-    { kind: "item", itemId: "item_enhance_scroll_protect", weight: 14, minQty: 1, maxQty: 1 },
-
     { kind: "equipment", itemId: "weapon_wood_sword", weight: 48 },
     { kind: "equipment", itemId: "weapon_stone_sword", weight: 44 },
     { kind: "equipment", itemId: "weapon_red_gold_sword", weight: 10 },
@@ -59,8 +53,30 @@ export const GACHA_STANDARD_POOL: GachaPoolDef = {
   ],
 };
 
+export const GACHA_MATERIALS_POOL: GachaPoolDef = {
+  id: GACHA_MATERIALS_POOL_ID,
+  name: "재료 상자",
+  description: "강화·가공에 쓰는 재료와 골드를 뽑습니다.",
+  singleCostGold: 400,
+  multiCount: 10,
+  multiCostGold: 3_600,
+  multiGuaranteeEquipment: false,
+  entries: [
+    { kind: "gold", weight: 90, minGold: 60, maxGold: 140 },
+    { kind: "gold", weight: 40, minGold: 140, maxGold: 280 },
+    { kind: "gold", weight: 12, minGold: 280, maxGold: 520 },
+    { kind: "item", itemId: "item_lesser_mana_stone", weight: 130, minQty: 1, maxQty: 3 },
+    { kind: "item", itemId: "item_appraisal_scroll", weight: 95, minQty: 1, maxQty: 2 },
+    { kind: "item", itemId: "item_mana_stone", weight: 42, minQty: 1, maxQty: 1 },
+    { kind: "item", itemId: "item_enhance_scroll_protect", weight: 14, minQty: 1, maxQty: 1 },
+  ],
+};
+
 const GACHA_POOLS: Record<string, GachaPoolDef> = {
-  [GACHA_STANDARD_POOL_ID]: GACHA_STANDARD_POOL,
+  [GACHA_EQUIPMENT_POOL_ID]: GACHA_EQUIPMENT_POOL,
+  [GACHA_MATERIALS_POOL_ID]: GACHA_MATERIALS_POOL,
+  /** 레거시 API poolId */
+  standard: GACHA_EQUIPMENT_POOL,
 };
 
 export function getGachaPool(poolId: string): GachaPoolDef | null {
@@ -68,7 +84,7 @@ export function getGachaPool(poolId: string): GachaPoolDef | null {
 }
 
 export function listGachaPools(): GachaPoolDef[] {
-  return Object.values(GACHA_POOLS);
+  return [GACHA_EQUIPMENT_POOL, GACHA_MATERIALS_POOL];
 }
 
 function pickWeightedIndex(weights: number[], rnd = Math.random): number {

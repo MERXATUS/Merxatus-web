@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { requireUserId } from "@/server/auth";
+import { prisma } from "@/server/db";
 import { sellEquipmentToShopTransaction } from "@/server/equipmentShop";
+import { tryTutorialSellEquipment } from "@/server/tutorialProgress";
 
 export const runtime = "nodejs";
 
@@ -45,7 +47,8 @@ export async function POST(req: Request) {
       userId: auth.userId,
       targets,
     });
-    return Response.json(result);
+    const tutorial = await tryTutorialSellEquipment(prisma, auth.userId);
+    return Response.json({ ...result, tutorialAdvanced: tutorial.advanced });
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";
     return Response.json({ ok: false, error: message }, { status: 400 });

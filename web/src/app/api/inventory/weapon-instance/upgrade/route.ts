@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
 import { attemptWeaponInstanceUpgrade } from "@/server/weaponInstanceUpgrade";
+import { tryTutorialEnhanceEquipment } from "@/server/tutorialProgress";
 import { ENHANCE_MANA_STONE_ITEM_IDS } from "@/server/weaponUpgradeRules";
 
 export const runtime = "nodejs";
@@ -33,7 +34,8 @@ export async function POST(req: Request) {
         manaStoneItemId: parsed.data.manaStoneItemId,
       }),
     );
-    return Response.json(result);
+    const tutorial = await tryTutorialEnhanceEquipment(prisma, auth.userId);
+    return Response.json({ ...result, tutorialAdvanced: tutorial.advanced });
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";
     return Response.json({ ok: false, error: message }, { status: 400 });

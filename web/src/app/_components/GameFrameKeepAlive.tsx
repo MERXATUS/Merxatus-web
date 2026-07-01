@@ -52,7 +52,7 @@ const MinionManagementPanel = dynamic(
     loadPanelChunk(() =>
       import("@/app/_components/MinionManagementPanel").then((m) => m.MinionManagementPanel),
     ),
-  { loading: () => panelLoading("미니언 불러오는 중…") },
+  { loading: () => panelLoading("장비 불러오는 중…") },
 );
 
 const KEEP_ALIVE_TABS: GameTabKey[] = [

@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { GameBtn, GamePanel } from "@/app/_components/gameUi";
 import { itemGradeNameClassName } from "@/server/itemGrade";
@@ -208,23 +207,6 @@ export function MarketBoard({ embedded = false }: EmbeddedPanelProps = {}) {
     const t = params.get("tab");
     if (t === "sell") setTab("SELL");
     else if (t === "mine") setTab("MINE");
-  }, []);
-
-  const tutorialMarketVisitRef = useRef(false);
-  useEffect(() => {
-    if (tutorialMarketVisitRef.current) return;
-    tutorialMarketVisitRef.current = true;
-    void (async () => {
-      try {
-        const res = await fetch("/api/tutorial/visit-market", {
-          method: "POST",
-          credentials: "same-origin",
-        });
-        if (res.ok) notifyTutorialRefresh();
-      } catch {
-        /* ignore */
-      }
-    })();
   }, []);
 
   const queryUrl = useMemo(() => {

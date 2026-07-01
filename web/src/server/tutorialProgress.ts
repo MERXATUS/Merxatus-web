@@ -62,30 +62,51 @@ export async function tryTutorialGatherVisit(db: RawDb, userId: string, _worksho
   return { advanced: false as const, step: cur };
 }
 
+/** @deprecated 던전 정산 튜토리얼 제거 */
 export async function tryTutorialDungeonCashout(db: RawDb, userId: string) {
   const cur = await getTutorialStep(db, userId);
-  if (tutorialCurrentStep(cur)?.id !== "dungeon_first_cashout") {
-    return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
-  }
-  return advanceTutorial(db, userId);
+  return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
 }
 
+/** @deprecated 제작 튜토리얼 제거 */
 export async function tryTutorialFirstCraft(db: RawDb, userId: string) {
   const cur = await getTutorialStep(db, userId);
   return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
 }
 
+/** @deprecated 거래소 등록 튜토리얼 제거 */
 export async function tryTutorialListOnMarket(db: RawDb, userId: string) {
   const cur = await getTutorialStep(db, userId);
-  if (tutorialCurrentStep(cur)?.id !== "list_on_market") {
+  return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
+}
+
+/** @deprecated 거래소 방문 튜토리얼 제거 */
+export async function tryTutorialVisitMarket(db: RawDb, userId: string) {
+  const cur = await getTutorialStep(db, userId);
+  return { advanced: false as const, step: cur };
+}
+
+export async function tryTutorialGachaPull(db: RawDb, userId: string) {
+  const cur = await getTutorialStep(db, userId);
+  if (tutorialCurrentStep(cur)?.id !== "gacha_pull") {
     return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
   }
   return advanceTutorial(db, userId);
 }
 
-export async function tryTutorialVisitMarket(db: RawDb, userId: string) {
+export async function tryTutorialEnhanceEquipment(db: RawDb, userId: string) {
   const cur = await getTutorialStep(db, userId);
-  if (tutorialCurrentStep(cur)?.id !== "visit_market") return { advanced: false as const, step: cur };
+  if (tutorialCurrentStep(cur)?.id !== "enhance_equipment") {
+    return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
+  }
+  return advanceTutorial(db, userId);
+}
+
+export async function tryTutorialSellEquipment(db: RawDb, userId: string) {
+  const cur = await getTutorialStep(db, userId);
+  if (tutorialCurrentStep(cur)?.id !== "sell_equipment") {
+    return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
+  }
   return advanceTutorial(db, userId);
 }
 

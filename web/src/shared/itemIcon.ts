@@ -52,19 +52,11 @@ export function resolveIconStem(raw: string | null | undefined): string {
   return ICON_STEM_ALIASES[stem] ?? stem;
 }
 
-/** items.json icon stem — itemId 추론 파일이 없거나 다른 아이콘을 쓸 때 */
+/** items.json icon stem — public/Icon에 파일이 없을 때 placeholder */
 const ITEM_ID_ICON_STEMS: Record<string, string> = {
   item_tome_celestial: "Icon_Appraisal_Scroll",
   item_tome_abyss: "Icon_Appraisal_Scroll",
-  item_gem_destruction: "Icon_Mana_Stone",
-  item_gem_chaos: "Icon_Greater_Mana_Stone",
-  item_gem_seal: "Icon_Greater_Mana_Stone",
-  item_gem_ascension: "Icon_Greater_Mana_Stone",
-  item_gem_primordial: "Icon_Greater_Mana_Stone",
-  item_gem_void: "Icon_Greater_Mana_Stone",
-  item_gem_transfer: "Icon_Greater_Mana_Stone",
-  item_gem_expansion: "Icon_Mana_Stone",
-  item_gem_blessing: "Icon_Greater_Mana_Stone",
+  item_gem_metamorph: "Icon_Gem_Expansion",
   item_craft_quality_stone: "Icon_Gem_Ascension",
   item_craft_level_tier1: "Icon_Appraisal_Scroll",
   item_craft_level_tier2: "Icon_Appraisal_Scroll",

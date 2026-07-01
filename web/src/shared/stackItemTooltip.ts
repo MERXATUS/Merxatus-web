@@ -4,6 +4,8 @@ import { isMinionRecruitCategory, isMinionRecruitItemId } from "@/shared/minionR
 import { isRaidEntryTicketItemId } from "@/shared/raidEntry";
 import { getArmorStats, isArmorInventoryItem, armorSlotLabelKo } from "@/shared/armorStatsData";
 import { isEquipmentCraftConsumableItemId } from "@/shared/equipmentCraftConsumables";
+import { isEnhanceProtectScrollItemId, isBlessingGemItemId } from "@/shared/enhanceConsumables";
+import { isForgeEnhanceMaterialItemId } from "@/shared/forgeWorkbench";
 import { isOptionConsumableItemId } from "@/shared/optionConsumables";
 
 export type StackItemTooltipData = {
@@ -35,6 +37,7 @@ export function shouldShowStackItemTooltip(it: StackItemTooltipData): boolean {
   if (isRaidEntryTicketItemId(it.itemId) || it.category === "레이드입장권") return true;
   if (isOptionConsumableItemId(it.itemId)) return true;
   if (isEquipmentCraftConsumableItemId(it.itemId)) return true;
+  if (isForgeEnhanceMaterialItemId(it.itemId)) return true;
   return false;
 }
 
@@ -73,7 +76,7 @@ export function stackItemTooltipBodyLines(it: StackItemTooltipData): string[] {
     const stats = getArmorStats(it.itemId);
     if (stats) {
       lines.push(`HP +${stats.hp} · DEF +${stats.def}`);
-      lines.push("미니언 관리 → 장비 착용에서 슬롯에 장착할 수 있습니다.");
+      lines.push("장비 → 장비 착용에서 슬롯에 장착할 수 있습니다.");
     } else {
       lines.push("미니언 장비로 착용할 수 있는 방어구입니다.");
     }
@@ -85,7 +88,7 @@ export function stackItemTooltipBodyLines(it: StackItemTooltipData): string[] {
     const modLines = accessoryModDescriptionLines(it.itemId);
     if (meta) lines.push(`${meta.setLabel} 세트 (${meta.factionLabel})`);
     for (const line of modLines) lines.push(line);
-    lines.push("미니언 관리 → 장비 착용에서 악세서리 슬롯에 장착할 수 있습니다.");
+    lines.push("장비 → 장비 착용에서 악세서리 슬롯에 장착할 수 있습니다.");
     lines.push("세트 보너스: 2/4/7피스 착용 시 추가 효과 (천사/악마 혼용 불가)");
     return lines;
   }
@@ -192,8 +195,30 @@ export function stackItemTooltipBodyLines(it: StackItemTooltipData): string[] {
     return lines;
   }
   if (it.itemId === "item_gem_blessing") {
-    lines.push("제련 성공 시 +2 상승. 대신 성공 확률이 크게 감소합니다.");
-    lines.push("대장간 → 제련 탭에서 체크 후 제련하세요.");
+    lines.push("강화 성공 시 +2 상승. 대신 성공 확률이 크게 감소합니다.");
+    lines.push("대장간 → 강화 탭에서 체크 후 강화하세요.");
+    return lines;
+  }
+
+  if (isEnhanceProtectScrollItemId(it.itemId)) {
+    lines.push("강화 실패 시 골드와 마석을 돌려받습니다. (주문서 1장은 소모)");
+    lines.push("대장간 → 강화 탭에서 체크 후 강화하세요.");
+    return lines;
+  }
+
+  if (it.itemId === "item_lesser_mana_stone") {
+    lines.push("장비 강화에 소모되는 하급 마석입니다.");
+    lines.push("저·중등급 장비 강화 비용으로 주로 사용됩니다.");
+    return lines;
+  }
+  if (it.itemId === "item_mana_stone") {
+    lines.push("장비 강화에 소모되는 중급 마석입니다.");
+    lines.push("중·고등급 장비 강화 비용으로 사용됩니다.");
+    return lines;
+  }
+  if (it.itemId === "item_greater_mana_stone") {
+    lines.push("장비 강화에 소모되는 상급 마석입니다.");
+    lines.push("고등급·고강화 구간 비용으로 사용됩니다.");
     return lines;
   }
 

@@ -30,7 +30,7 @@ export const GAME_RULES = {
     raidMinPartyPowerRatio: RAID_MIN_PARTY_POWER_RATIO,
     /** 던전 입장 최소 파티 전투력 = 권장 × 비율 */
     dungeonMinPartyPowerRatio: 0.85,
-    /** 무기 전투력(미니언 개별 장착) */
+    /** 무기 전투력(미니언 개별 장착) — `weapon_stats.json` 없을 때 폴백 */
     weaponPowerByItemId: WEAPON_BASE_POWER_BY_ITEM_ID,
     /** 장착 무기 강화 1단계당 추가 전투력 — 베이스 CP × `WEAPON_ENHANCE_POWER_RATIO` (최소 1) */
     weaponLevelPowerPerLevel: WEAPON_LEVEL_POWER_PER_LEVEL,
@@ -98,9 +98,12 @@ export const GAME_RULES = {
   },
   /** 가챠 상점 — `shared/gachaShop.ts` */
   gachaShop: {
-    standardPoolId: "standard",
-    singleCostGold: 500,
-    multiCostGold: 4_500,
+    equipmentPoolId: "equipment",
+    materialsPoolId: "materials",
+    equipmentSingleCostGold: 500,
+    equipmentMultiCostGold: 4_500,
+    materialsSingleCostGold: 400,
+    materialsMultiCostGold: 3_600,
   },
   market: {
     feeBps: 500, // 5%

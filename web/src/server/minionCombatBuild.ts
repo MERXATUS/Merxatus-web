@@ -28,6 +28,7 @@ import type { StatusApplySpec } from "@/shared/combatStatus";
 import { minionDisplayName } from "@/shared/minionNickname";
 import { ZERO_KNIGHT_ORDER_BONUSES } from "@/shared/knightOrder";
 import { scalePartyPowerWithKnightOrder } from "@/server/knightOrder";
+import { displayCombatPower } from "@/shared/combatPowerScale";
 import { loadArmorCodexTotals } from "@/server/armorCodex";
 import { loadSetCodexTotals } from "@/server/setCodex";
 import { loadWeaponCodexTotals } from "@/server/weaponCodex";
@@ -89,7 +90,7 @@ function toCombatInput(input: MinionCombatEquipInput) {
       ? {
           baseItemId: input.weapon.baseItemId,
           enhanceLevel: input.weapon.enhanceLevel,
-          optionBonus: weaponCombatBonusFromOptions(input.weapon.optionsJson),
+          optionBonus: weaponCombatBonusFromOptions(input.weapon.optionsJson, input.weapon.baseItemId),
           optionsJson: input.weapon.optionsJson,
           quality: input.weapon.quality,
           itemLevel: input.weapon.itemLevel,
@@ -447,7 +448,10 @@ export async function sumAllMinionCombatPower(
     codexMeta ? Promise.resolve(codexMeta) : loadUserCodexMeta(tx, userId),
   ]);
   const memberInputs = buildMemberInputsForParty(party, batch, codexBonusesFromMeta(meta));
-  const totalCombatPower = memberInputs.reduce((sum, row) => sum + Math.max(0, Math.floor(row.power)), 0);
+  const totalCombatPower = memberInputs.reduce(
+    (sum, row) => sum + displayCombatPower(Math.max(0, Math.floor(row.power))),
+    0,
+  );
   return { totalCombatPower, minionCount: minions.length };
 }
 
@@ -463,7 +467,7 @@ export async function computeMinionCombatPowerForUser(
     loadUserCodexMeta(tx, userId),
   ]);
   const memberInputs = buildMemberInputsForParty(party, batch, codexBonusesFromMeta(meta));
-  return Math.max(0, Math.floor(memberInputs[0]?.power ?? 0));
+  return displayCombatPower(Math.max(0, Math.floor(memberInputs[0]?.power ?? 0)));
 }
 
 type PanelMinionRow = PartyMinionRow["minion"] & {

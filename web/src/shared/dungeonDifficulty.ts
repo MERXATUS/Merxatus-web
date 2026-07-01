@@ -1,3 +1,4 @@
+import { displayCombatPower } from "@/shared/combatPowerScale";
 import type { DungeonStageDef } from "@/shared/dungeonStageProgression";
 
 /** 입장 최소 파티 전투력 = 권장 × 비율 (레이드와 동일 척도) */
@@ -10,9 +11,11 @@ export function recommendedPartyPowerForDungeonStage(
   stage: Pick<DungeonStageDef, "stageOrder">,
 ): number {
   const order = Math.max(1, Math.min(8, Math.floor(stage.stageOrder)));
+  // 스테이지 1: 나무 검 지급 직후 입장 가능 (base 5 + 무기 2 ≈ 7 raw → ×50)
+  if (order === 1) return displayCombatPower(7);
   const base = 8 + order * 22;
   const gear = Math.floor(12 + order * order * 4);
-  return Math.max(5, base + gear);
+  return displayCombatPower(Math.max(5, base + gear));
 }
 
 export function minimumPartyPowerForDungeonStage(
@@ -30,7 +33,7 @@ export type DungeonPartyEligibility =
   | { ok: true }
   | { ok: false; code: "DUNGEON_PARTY_POWER_TOO_LOW"; minPower: number; partyPower: number };
 
-/** 던전 입장 — 파티 합산 전투력 검사 */
+/** 던전 입장 — 파티 합산 전투력 검사 (표시 CP 척도) */
 export function checkDungeonPartyEligibility(input: {
   stage: Pick<DungeonStageDef, "stageOrder">;
   partyPower: number;

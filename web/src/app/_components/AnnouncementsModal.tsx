@@ -4,10 +4,16 @@ import { createPortal } from "react-dom";
 import { GameBtn } from "@/app/_components/gameUi";
 import { AnnouncementsPanel } from "@/app/_components/AnnouncementsPanel";
 import { useEscapeClose } from "@/shared/useEscapeClose";
+import { markAllAnnouncementsRead } from "@/shared/announcements";
 
 export function AnnouncementsModal(props: { open: boolean; onClose: () => void }) {
   useEscapeClose(props.open, props.onClose);
   if (!props.open) return null;
+
+  function confirmAll() {
+    markAllAnnouncementsRead();
+    props.onClose();
+  }
 
   const modal = (
     <div className="game-overlay" role="dialog" aria-modal="true" aria-labelledby="announcements-title">
@@ -28,6 +34,11 @@ export function AnnouncementsModal(props: { open: boolean; onClose: () => void }
         </div>
         <div className="settings-modal__body overflow-y-auto px-5 py-4">
           <AnnouncementsPanel />
+        </div>
+        <div className="settings-modal__footer px-5 py-3 border-t border-[var(--game-border)]">
+          <GameBtn variant="primary" className="w-full" onClick={confirmAll}>
+            확인
+          </GameBtn>
         </div>
       </div>
     </div>

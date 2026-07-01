@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { GameBtn } from "@/app/_components/gameUi";
+import type { GameTabKey } from "@/shared/gameNav";
+import type { ShopSubTab } from "@/shared/shopSubTab";
 import { TUTORIAL_STEPS, type TutorialStepDef } from "@/shared/tutorial";
 
 type TutorialMinionGrant = {
@@ -29,20 +30,24 @@ async function getJson<T>(url: string): Promise<T> {
 
 function actionButtonLabel(current: TutorialStepDef): string {
   if (!current.action) return "진행";
-  if (current.action.kind === "route") {
-    return current.id === "list_on_market" ? "판매 탭" : "거래소";
+  if (current.action.kind === "tab") {
+    if (current.action.tab === "shop") {
+      if (current.action.shopSub === "equipment") return "장비 매입";
+      if (current.action.shopSub === "materials") return "재료";
+      return "장비";
+    }
+    if (current.action.tab === "enhance") return "대장간";
   }
-  return "던전";
+  return "이동";
 }
 
 type TutorialPanelProps = {
   loggedIn: boolean;
   compact?: boolean;
-  onOpenDungeon?: () => void;
+  onNavigateTab?: (tab: GameTabKey, opts?: { shopSub?: ShopSubTab }) => void;
 };
 
 export function TutorialPanel(props: TutorialPanelProps) {
-  const router = useRouter();
   const [state, setState] = useState<TutorialStateResp | null>(null);
   const [grantBanner, setGrantBanner] = useState<string | null>(null);
 
@@ -80,13 +85,9 @@ export function TutorialPanel(props: TutorialPanelProps) {
   const current = state.current;
   const stepIndex = state.step;
 
-  async function goCurrent() {
-    if (!current?.action) return;
-    if (current.action.kind === "panel") {
-      props.onOpenDungeon?.();
-    } else if (current.action.kind === "route") {
-      router.push(current.action.path);
-    }
+  function goCurrent() {
+    if (!current?.action || current.action.kind !== "tab") return;
+    props.onNavigateTab?.(current.action.tab, { shopSub: current.action.shopSub });
   }
 
   return (
@@ -101,7 +102,7 @@ export function TutorialPanel(props: TutorialPanelProps) {
         {grantBanner ? <span className="tutorial-strip__grant">{grantBanner}</span> : null}
       </div>
       {current?.action ? (
-        <GameBtn className="tutorial-strip__btn h-7 px-2.5 text-[11px]" onClick={() => void goCurrent()}>
+        <GameBtn className="tutorial-strip__btn h-7 px-2.5 text-[11px]" onClick={() => goCurrent()}>
           {actionButtonLabel(current)}
         </GameBtn>
       ) : null}

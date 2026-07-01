@@ -40,6 +40,7 @@ import {
   stageOrderForDungeonId,
 } from "@/shared/dungeonStageProgression";
 import { checkDungeonPartyEligibility } from "@/shared/dungeonDifficulty";
+import { displayCombatPower } from "@/shared/combatPowerScale";
 import { pushLuckFloorGoldReward, pushLuckLootMultiplier } from "@/shared/dungeonPushLuck";
 import { assertDungeonStage } from "@/shared/dungeonStageProgression";
 import { dungeonDropTableForId } from "@/shared/dungeonDropTablesData";
@@ -1267,9 +1268,19 @@ export function DungeonsPanel({
           <GamePanel className={embedded ? "!p-2" : "!p-3"}>
             <GamePanelTitle>{embedded ? "전투·파티" : "전투"}</GamePanelTitle>
             <div className={embedded ? "mt-1.5" : "mt-2"}>
-              <GameStat label="전투력" value={run?.combat?.partyPower ?? "—"} highlight />
+              <GameStat
+                label="전투력"
+                value={
+                  run?.combat?.partyPower != null
+                    ? displayCombatPower(run.combat.partyPower).toLocaleString()
+                    : "—"
+                }
+                highlight
+              />
             </div>
-            {run?.combat?.partyPower != null && run.combat.partyPower < 120 && !embedded ? (
+            {run?.combat?.partyPower != null &&
+            displayCombatPower(run.combat.partyPower) < displayCombatPower(120) &&
+            !embedded ? (
               <p className="mt-2 text-[11px] leading-snug text-[var(--game-muted)]">
                 더 깊은 층은 더 높은 전투력이 필요해요.{" "}
                 <Link href="/market" className="font-semibold text-[var(--game-gold-bright)] underline-offset-2 hover:underline">

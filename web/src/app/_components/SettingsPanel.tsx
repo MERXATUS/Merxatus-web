@@ -11,7 +11,6 @@ import {
   validateUsername,
 } from "@/shared/usernameRules";
 import { useEscapeClose } from "@/shared/useEscapeClose";
-import { AnnouncementsPanel } from "@/app/_components/AnnouncementsPanel";
 import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
 
 const SHOW_DEV_ACCOUNT_RESET = process.env.NODE_ENV === "development";
@@ -252,11 +251,6 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 </>
               )}
             </div>
-          </section>
-
-          <section className="settings-section">
-            <h3 className="settings-section__title">공지사항</h3>
-            <AnnouncementsPanel compact />
           </section>
 
           <section className="settings-section">

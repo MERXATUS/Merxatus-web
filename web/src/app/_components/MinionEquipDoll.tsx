@@ -71,6 +71,8 @@ export function MinionEquipDoll(props: {
         const slotProps = {
           slotId: slot.id,
           label: slot.label,
+          shortLabel: slot.shortLabel,
+          strip: props.strip,
           item,
           filled,
           enabled,
@@ -113,6 +115,8 @@ function slotClass(
 function SlotContents(props: {
   slotId: MinionEquipSlotId;
   label: string;
+  shortLabel?: string;
+  strip?: boolean;
   item: MinionEquippedItemView | null;
   filled: boolean;
   enabled: boolean;
@@ -136,9 +140,10 @@ function SlotContents(props: {
       </MinionEquippedItemTooltip>
     );
   }
+  const emptyLabel = props.strip ? (props.shortLabel ?? props.label.slice(0, 2)) : props.label;
   return (
     <span className="minion-equip-slot__empty">
-      {props.label}
+      {emptyLabel}
       {!props.enabled ? <span className="minion-equip-slot__locked">잠김</span> : null}
     </span>
   );
@@ -147,6 +152,8 @@ function SlotContents(props: {
 type SlotCommon = {
   slotId: MinionEquipSlotId;
   label: string;
+  shortLabel?: string;
+  strip?: boolean;
   item: MinionEquippedItemView | null;
   filled: boolean;
   enabled: boolean;

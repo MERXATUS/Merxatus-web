@@ -191,7 +191,7 @@ export async function listEquipmentShop(userId: string): Promise<EquipmentShopPa
   for (const w of weaponRows) {
     if (!isCatalogItemId(w.baseItemId, catalogIds)) continue;
     const gradeView = itemGradeViewForItem(w.baseItemId, w.baseItem.grade);
-    const options = formatEquipmentOptionDisplay(w.optionsJson, "weapon");
+    const options = formatEquipmentOptionDisplay(w.optionsJson, "weapon", w.baseItemId);
     const combatPower = weaponCombatPowerFromRow({
       baseItemId: w.baseItemId,
       enhanceLevel: w.enhanceLevel ?? 0,
@@ -233,7 +233,7 @@ export async function listEquipmentShop(userId: string): Promise<EquipmentShopPa
   for (const a of armorRows) {
     if (!isCatalogItemId(a.baseItemId, catalogIds)) continue;
     const gradeView = itemGradeViewForItem(a.baseItemId, a.baseItem.grade);
-    const options = formatEquipmentOptionDisplay(a.optionsJson, "armor");
+    const options = formatEquipmentOptionDisplay(a.optionsJson, "armor", a.baseItemId);
     const combatPower = armorCombatPowerFromRow({
       baseItemId: a.baseItemId,
       enhanceLevel: a.enhanceLevel ?? 0,
@@ -315,7 +315,7 @@ export async function sellEquipmentToShop(
         include: { baseItem: true },
       });
       if (!w) throw new Error("NOT_FOUND");
-      const options = formatEquipmentOptionDisplay(w.optionsJson, "weapon");
+      const options = formatEquipmentOptionDisplay(w.optionsJson, "weapon", w.baseItemId);
       const combatPower = weaponCombatPowerFromRow({
         baseItemId: w.baseItemId,
         enhanceLevel: w.enhanceLevel ?? 0,
@@ -331,7 +331,7 @@ export async function sellEquipmentToShop(
         include: { baseItem: true },
       });
       if (!a) throw new Error("NOT_FOUND");
-      const options = formatEquipmentOptionDisplay(a.optionsJson, "armor");
+      const options = formatEquipmentOptionDisplay(a.optionsJson, "armor", a.baseItemId);
       const combatPower = armorCombatPowerFromRow({
         baseItemId: a.baseItemId,
         enhanceLevel: a.enhanceLevel ?? 0,

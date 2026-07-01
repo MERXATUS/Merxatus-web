@@ -39,7 +39,7 @@ export const GAME_TABS: GameTabDef[] = [
   { key: "shop", label: "상점", shortLabel: "상점", glyph: "◇", group: "trade" },
   { key: "inventory", label: "인벤토리", shortLabel: "인벤", glyph: "◆", group: "other" },
   { key: "codex", label: "도감", shortLabel: "도감", glyph: "☰", group: "other" },
-  { key: "minions", label: "미니언", shortLabel: "미니언", glyph: "●", group: "other" },
+  { key: "minions", label: "장비", shortLabel: "장비", glyph: "●", group: "other" },
   { key: "enhance", label: "대장간", shortLabel: "대장간", glyph: "⚒", group: "other" },
 ];
 
@@ -150,18 +150,18 @@ export function isVisibleGameTab(tab: GameTabKey): boolean {
 
 /** 하단 독에 고정 표시할 주요 탭 (모바일) */
 export const MOBILE_DOCK_TAB_KEYS: GameTabKey[] = [
+  "enhance",
+  "shop",
   "dungeon",
   "inventory",
-  "enhance",
-  "market",
 ];
 
 const MOBILE_MORE_TAB_KEYS: GameTabKey[] = [
+  "market",
   "raid",
   "tower",
   "pvp",
   "ranking",
-  "shop",
   "codex",
   "minions",
 ];

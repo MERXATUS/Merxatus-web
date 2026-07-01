@@ -10,10 +10,11 @@ import { GameFrameMobileDock } from "@/app/_components/GameFrameMobileDock";
 import { GameFrameProvider } from "@/app/_components/GameFrameContext";
 import { HomeGoldHeader } from "@/app/_components/HomeGoldHeader";
 import { HomeSettingsButton } from "@/app/_components/HomeSettingsButton";
+import { HomeAnnouncementsButton } from "@/app/_components/HomeAnnouncementsButton";
+import { AnnouncementsModal } from "@/app/_components/AnnouncementsModal";
 import { SettingsPanel } from "@/app/_components/SettingsPanel";
 import { UsernameSetupModal } from "@/app/_components/UsernameSetupModal";
 import { TutorialPanel } from "@/app/_components/TutorialPanel";
-import { GameBtn } from "@/app/_components/gameUi";
 import { GameFrameAnnouncements } from "@/app/_components/GameFrameAnnouncements";
 import { GamePanelError, GamePanelLoading } from "@/app/_components/panelFeedback";
 import { useSessionUser } from "@/app/_components/SessionProvider";
@@ -36,7 +37,9 @@ import type { DungeonRunState, MeSummary } from "@/shared/meSummary";
 import { useEscapeClose } from "@/shared/useEscapeClose";
 import { apiGetJsonCachedSwr, apiPostJson, notifySessionChanged, BOOTSTRAP_FETCH_TIMEOUT_MS } from "@/shared/sessionClient";
 import { readGameTabFromWindow, syncGameTabUrl } from "@/shared/gameTabUrl";
+import { notifyShopSubTab, type ShopSubTab } from "@/shared/shopSubTab";
 import { refreshGameDataScopes } from "@/shared/gameDataRefresh";
+import { ANNOUNCEMENTS_READ_CHANGED_EVENT, hasUnreadAnnouncements } from "@/shared/announcements";
 import { selectGoldAvailable, useWalletStore } from "@/shared/stores/walletStore";
 import { GameBootSplash, type GameBootSplashPhase } from "@/app/_components/GameBootSplash";
 
@@ -143,6 +146,8 @@ export function GameFrame() {
   const [runState, setRunState] = useState<DungeonRunState | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [announcementsOpen, setAnnouncementsOpen] = useState(false);
+  const [announcementsUnread, setAnnouncementsUnread] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
   const [bootMinDone, setBootMinDone] = useState(false);
@@ -157,6 +162,15 @@ export function GameFrame() {
     : sessionUser && summary == null && summaryLoading
       ? "world"
       : "default";
+
+  useEffect(() => {
+    function syncUnread() {
+      setAnnouncementsUnread(hasUnreadAnnouncements());
+    }
+    syncUnread();
+    window.addEventListener(ANNOUNCEMENTS_READ_CHANGED_EVENT, syncUnread);
+    return () => window.removeEventListener(ANNOUNCEMENTS_READ_CHANGED_EVENT, syncUnread);
+  }, []);
 
   useEffect(() => {
     const t = window.setTimeout(() => setBootMinDone(true), 650);
@@ -179,9 +193,10 @@ export function GameFrame() {
     });
   }, []);
 
-  const navigateTab = useCallback((tab: GameTabKey, opts?: { minionTab?: MinionPanelTab }) => {
+  const navigateTab = useCallback((tab: GameTabKey, opts?: { minionTab?: MinionPanelTab; shopSub?: ShopSubTab }) => {
     const next = normalizeTab(tab);
     if (opts?.minionTab) setMinionPanelTab(opts.minionTab);
+    if (opts?.shopSub) notifyShopSubTab(opts.shopSub);
     setMobileMoreOpen(false);
     setActiveTab(next);
     markVisited(next);
@@ -321,17 +336,6 @@ export function GameFrame() {
     return () => window.clearTimeout(t);
   }, [sessionUser?.id, activeTab, summary, summaryLoading]);
 
-  const handleGlobalRefresh = useCallback(async () => {
-    await refreshSummary({ force: true });
-    await refreshGameDataScopes(["all"], {
-      force: true,
-      onBootstrap: (data) => {
-        setSummary(data.summary);
-      },
-    });
-    notifyGameFramePatch(["inventory", "weapons", "armor", "market", "enhance"]);
-  }, [refreshSummary]);
-
   useEffect(() => {
     const authError = searchParams.get("auth_error");
     if (authError) {
@@ -438,15 +442,12 @@ export function GameFrame() {
                 username={sessionUser?.username ?? summary?.username ?? null}
               />
               <div className="game-frame__hud-tools">
+                <HomeAnnouncementsButton
+                  unread={announcementsUnread}
+                  active={announcementsOpen}
+                  onClick={() => setAnnouncementsOpen(true)}
+                />
                 <HomeSettingsButton active={settingsOpen} onClick={() => setSettingsOpen((v) => !v)} />
-                <GameBtn
-                  variant="ghost"
-                  className="h-8 px-2.5 text-xs"
-                  disabled={summaryLoading}
-                  onClick={() => void handleGlobalRefresh()}
-                >
-                  {summaryLoading ? "…" : "새로고침"}
-                </GameBtn>
                 <AuthTopBar />
               </div>
             </div>
@@ -461,9 +462,9 @@ export function GameFrame() {
             />
           </header>
 
-          {sessionUser ? <GameFrameAnnouncements /> : null}
+          {sessionUser ? <GameFrameAnnouncements onOpen={() => setAnnouncementsOpen(true)} /> : null}
 
-          <TutorialPanel compact loggedIn={!!sessionUser} onOpenDungeon={() => navigateTab("dungeon")} />
+          <TutorialPanel compact loggedIn={!!sessionUser} onNavigateTab={navigateTab} />
 
           {error ? <GamePanelError error={error} className="mt-1" /> : null}
 
@@ -515,6 +516,8 @@ export function GameFrame() {
         >
           {chatOpen ? "축소" : "채팅"}
         </button>
+
+        <AnnouncementsModal open={announcementsOpen} onClose={() => setAnnouncementsOpen(false)} />
 
         <SettingsPanel
           open={settingsOpen}

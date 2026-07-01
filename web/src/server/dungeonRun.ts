@@ -24,6 +24,7 @@ import {
   checkDungeonPartyEligibility,
   dungeonEnemyCombatMults,
 } from "@/shared/dungeonDifficulty";
+import { displayCombatPower } from "@/shared/combatPowerScale";
 import {
   assertDungeonStage,
   dungeonAutoWaveXpForStage,
@@ -170,7 +171,10 @@ export async function assertDungeonPartyEligible(
     })),
   );
 
-  const eligibility = checkDungeonPartyEligibility({ stage, partyPower });
+  const eligibility = checkDungeonPartyEligibility({
+    stage,
+    partyPower: displayCombatPower(partyPower),
+  });
   if (!eligibility.ok) {
     throw new Error(
       `DUNGEON_PARTY_POWER_TOO_LOW:${eligibility.minPower}:${eligibility.partyPower}`,

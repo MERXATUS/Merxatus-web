@@ -77,7 +77,7 @@
     "category": "재료",
     "tradable": true,
     "grade": 4,
-    "icon": "Icon_Mana_Stone"
+    "icon": "Icon_Gem_Destruction"
   },
   {
     "id": "item_gem_chaos",
@@ -85,7 +85,7 @@
     "category": "재료",
     "tradable": true,
     "grade": 5,
-    "icon": "Icon_Greater_Mana_Stone"
+    "icon": "Icon_Gem_Chaos"
   },
   {
     "id": "item_gem_seal",
@@ -93,7 +93,7 @@
     "category": "재료",
     "tradable": true,
     "grade": 5,
-    "icon": "Icon_Greater_Mana_Stone"
+    "icon": "Icon_Gem_Seal"
   },
   {
     "id": "item_tome_celestial",
@@ -117,7 +117,7 @@
     "category": "재료",
     "tradable": true,
     "grade": 6,
-    "icon": "Icon_Greater_Mana_Stone"
+    "icon": "Icon_Gem_Ascension"
   },
   {
     "id": "item_gem_primordial",
@@ -125,7 +125,7 @@
     "category": "재료",
     "tradable": true,
     "grade": 6,
-    "icon": "Icon_Greater_Mana_Stone"
+    "icon": "Icon_Gem_Primordial"
   },
   {
     "id": "item_gem_void",
@@ -133,7 +133,7 @@
     "category": "재료",
     "tradable": true,
     "grade": 7,
-    "icon": "Icon_Greater_Mana_Stone"
+    "icon": "Icon_Gem_Void"
   },
   {
     "id": "item_gem_transfer",
@@ -141,7 +141,7 @@
     "category": "재료",
     "tradable": true,
     "grade": 7,
-    "icon": "Icon_Greater_Mana_Stone"
+    "icon": "Icon_Gem_Transfer"
   },
   {
     "id": "item_gem_expansion",
@@ -149,7 +149,7 @@
     "category": "재료",
     "tradable": true,
     "grade": 5,
-    "icon": "Icon_Mana_Stone"
+    "icon": "Icon_Gem_Expansion"
   },
   {
     "id": "item_gem_blessing",
@@ -157,7 +157,7 @@
     "category": "재료",
     "tradable": true,
     "grade": 7,
-    "icon": "Icon_Greater_Mana_Stone"
+    "icon": "Icon_Gem_Blessing"
   },
   {
     "id": "item_gem_metamorph",

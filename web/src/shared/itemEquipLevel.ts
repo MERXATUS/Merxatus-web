@@ -4,16 +4,18 @@ import { normalizeItemLevel } from "@/shared/equipmentItemLevel";
 import { normalizeItemIdLower } from "@/shared/itemId";
 import { getWeaponStats } from "@/shared/weaponStatsData";
 
-/** 등급별 미니언 최소 착용 전투력 */
+import { displayCombatPower } from "@/shared/combatPowerScale";
+
+/** 등급별 미니언 최소 착용 전투력 (표시 CP 척도) */
 export const EQUIP_MIN_COMBAT_POWER_BY_GRADE: Record<ItemGradeIndex, number> = {
   1: 0,
-  2: 15,
-  3: 40,
-  4: 65,
-  5: 90,
-  6: 115,
-  7: 145,
-  8: 175,
+  2: displayCombatPower(15),
+  3: displayCombatPower(40),
+  4: displayCombatPower(65),
+  5: displayCombatPower(90),
+  6: displayCombatPower(115),
+  7: displayCombatPower(145),
+  8: displayCombatPower(175),
 };
 
 /** @deprecated 레벨 게이트 → 전투력으로 대체 */
@@ -57,7 +59,7 @@ export function requiredEquipCombatPowerForInstance(
 ): number {
   const gradeReq = minEquipCombatPowerForItem(baseItemId, gradeOverride);
   const il = normalizeItemLevel(instanceItemLevel ?? 10);
-  const ilReq = Math.max(0, il - 10);
+  const ilReq = displayCombatPower(Math.max(0, il - 10));
   return Math.max(gradeReq, ilReq);
 }
 

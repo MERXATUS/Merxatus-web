@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  ANNOUNCEMENTS_READ_CHANGED_EVENT,
   announcementCategoryLabel,
   formatAnnouncementDate,
   isAnnouncementUnread,
@@ -20,6 +21,14 @@ export function AnnouncementsPanel(props: { compact?: boolean; onReadChange?: ()
     setReadTick((n) => n + 1);
     props.onReadChange?.();
   }, [props]);
+
+  useEffect(() => {
+    function onReadChanged() {
+      bumpRead();
+    }
+    window.addEventListener(ANNOUNCEMENTS_READ_CHANGED_EVENT, onReadChanged);
+    return () => window.removeEventListener(ANNOUNCEMENTS_READ_CHANGED_EVENT, onReadChanged);
+  }, [bumpRead]);
 
   useEffect(() => {
     if (!openId) return;

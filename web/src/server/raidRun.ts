@@ -13,6 +13,7 @@ import { getMonster } from "@/server/monsterData";
 import { loadRaids, raidEncounterForPhase, type RaidDef } from "@/server/raidData";
 import { loadMonsters } from "@/server/monsterData";
 import { raidBossCombatDisplayName } from "@/shared/raidBossDisplay";
+import { displayCombatPower } from "@/shared/combatPowerScale";
 import { combatPowerFromMonster } from "@/server/monsterCombat";
 import { raidEnemyStatMult } from "@/shared/combatBalance";
 import {
@@ -117,7 +118,7 @@ export async function startRaidRun(input: { userId: string; raidId: string; mini
     enemyPowerById,
     raid.maxPartySize ?? 3,
   );
-  const minPartyPower = minimumPartyPowerForRaid(maxRecommended);
+  const minPartyPower = minimumPartyPowerForRaid(displayCombatPower(maxRecommended));
   const { partyPower } = await loadPartyCombatRows(
     prisma,
     input.userId,
@@ -126,8 +127,9 @@ export async function startRaidRun(input: { userId: string; raidId: string; mini
       minion: minions.find((m) => m.id === minionId)!,
     })),
   );
-  if (partyPower < minPartyPower) {
-    throw new Error(`RAID_PARTY_POWER_TOO_LOW:${minPartyPower}:${partyPower}`);
+  const partyPowerDisplay = displayCombatPower(partyPower);
+  if (partyPowerDisplay < minPartyPower) {
+    throw new Error(`RAID_PARTY_POWER_TOO_LOW:${minPartyPower}:${partyPowerDisplay}`);
   }
 
   const ticketCost = raidEntryTicketCost(raid.difficulty);

@@ -9,6 +9,8 @@ import {
   weaponOptionIds,
   weaponPowerBonusFromOptionRows,
 } from "@/shared/itemOptionCatalog";
+import { enrichOptionDisplayFields } from "@/shared/equipmentItemBaseStats";
+import { getWeaponStats } from "@/shared/weaponStatsData";
 import {
   blessingOptionIdsForRealm,
   realmLabelKo,
@@ -323,7 +325,11 @@ export function rollOptionIdsKeepingTiers(
 
 
 
-export function formatOptionRows(opts: RolledOption[], category: "weapon" | "armor" = "weapon") {
+export function formatOptionRows(
+  opts: RolledOption[],
+  category: "weapon" | "armor" = "weapon",
+  baseItemId?: string,
+) {
 
   return opts.map((o) => {
 
@@ -331,13 +337,17 @@ export function formatOptionRows(opts: RolledOption[], category: "weapon" | "arm
 
     const tier = Math.max(1, Math.min(9, Math.floor(o.tier)));
 
+    const display = enrichOptionDisplayFields({ optionId, tier, pool: category, baseItemId });
+
     return {
       kind: optionId,
       optionId,
       label: optionDisplayName(optionId, category),
       tier,
       tierLabel: `T${tier}`,
-      displayValue: formatOptionValueForDisplay(optionId, tier, category),
+      displayValue: display.displayValue,
+      isPercent: display.isPercent,
+      flatBonus: display.flatBonus,
       realm: o.realm,
       affix: o.affix ?? null,
       realmLabel: o.realm ? realmLabelKo(o.realm) : undefined,
@@ -349,10 +359,18 @@ export function formatOptionRows(opts: RolledOption[], category: "weapon" | "arm
 
 
 
-export function weaponCombatBonusFromOptions(json: string | null | undefined): number {
-
-  return weaponPowerBonusFromOptionRows(parseOptionsJson(json));
-
+export function weaponCombatBonusFromOptions(json: string | null | undefined, baseItemId?: string): number {
+  const rows = parseOptionsJson(json);
+  let baseAtk = 0;
+  let baseMagic = 0;
+  if (baseItemId) {
+    const stats = getWeaponStats(baseItemId);
+    if (stats) {
+      baseAtk = stats.atk;
+      baseMagic = stats.magic;
+    }
+  }
+  return weaponPowerBonusFromOptionRows(rows, baseAtk, baseMagic);
 }
 
 

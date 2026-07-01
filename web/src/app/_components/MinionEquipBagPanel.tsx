@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArmorTooltipHover } from "@/app/_components/ArmorTooltip";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { StackItemTooltipHover } from "@/app/_components/StackItemTooltip";
 import { WeaponTooltipHover } from "@/app/_components/WeaponTooltip";
+import { GameBtn } from "@/app/_components/gameUi";
 import { itemGradeFrameClassName, itemGradeNameClassName } from "@/server/itemGrade";
 import type { ArmorTooltipData } from "@/shared/armorTooltip";
 import type { StackItemTooltipData } from "@/shared/stackItemTooltip";
@@ -164,7 +165,12 @@ export function MinionEquipBagPanel(props: {
   } = props;
 
   const isMobile = useIsMobile();
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const categoryTabs = EQUIP_BAG_CATEGORIES_ACTIVE.filter((c) => bagCategories.includes(c.id));
+
+  useEffect(() => {
+    setSelectedKey(null);
+  }, [category, activeSlot]);
 
   const cells = useMemo((): BagCell[] => {
     const out: BagCell[] = [];
@@ -375,6 +381,32 @@ export function MinionEquipBagPanel(props: {
     return requiredEquipCombatPowerForInstance(baseItemId, cell.grade, instanceItemLevel);
   }
 
+  function cellAlreadyEquipped(cell: Exclude<BagCell, { kind: "unequip" }>): boolean {
+    if (cell.kind === "weapon") return cell.equipped;
+    if (cell.kind === "armor") return equippedArmorInstanceId === cell.armorInstanceId;
+    if (cell.kind === "stack") return equippedStackItemId === cell.itemId;
+    return false;
+  }
+
+  const selectedCell = useMemo(
+    () => cells.find((c) => c.key === selectedKey && c.kind !== "unequip") ?? null,
+    [cells, selectedKey],
+  );
+
+  const canEquipSelected =
+    selectedCell != null &&
+    selectedCell.kind !== "unequip" &&
+    !cellLevelBlocked(selectedCell) &&
+    !cellAlreadyEquipped(selectedCell);
+
+  function equipSelected() {
+    if (!selectedCell || selectedCell.kind === "unequip") return;
+    const payload = dragPayload(selectedCell);
+    if (!payload || cellLevelBlocked(selectedCell) || cellAlreadyEquipped(selectedCell)) return;
+    onPick(payload);
+    setSelectedKey(null);
+  }
+
   return (
     <div className={`minion-equip-bag-panel ${compact ? "minion-equip-bag-panel--compact" : ""}`}>
       <div className="minion-equip-bag-panel__head">
@@ -382,10 +414,10 @@ export function MinionEquipBagPanel(props: {
           <h3 className="minion-equip-bag-panel__title">장비 가방</h3>
           {!compact ? (
             <p className="minion-equip-bag-panel__subtitle">
-              {isMobile ? "탭하여 선택한 슬롯에 착용" : "클릭 또는 드래그로 오른쪽 슬롯에 착용"}
+              {isMobile ? "아이템을 고른 뒤 착용 버튼을 누르세요" : "아이템 선택 후 착용 — 드래그로 슬롯에 놓을 수도 있습니다"}
             </p>
           ) : isMobile ? (
-            <p className="minion-equip-bag-panel__subtitle">탭하여 착용</p>
+            <p className="minion-equip-bag-panel__subtitle">선택 후 착용</p>
           ) : null}
         </div>
         <button type="button" className="minion-equip-bag-panel__back" disabled={busy} onClick={onBack}>
@@ -438,9 +470,10 @@ export function MinionEquipBagPanel(props: {
 
             const payload = dragPayload(cell);
             const isWeapon = cell.kind === "weapon";
-            const isArmor = cell.kind === "armor";
             const levelBlocked = cellLevelBlocked(cell);
             const requiredLevel = cellRequiredLevel(cell);
+            const alreadyEquipped = cellAlreadyEquipped(cell);
+            const isSelected = selectedKey === cell.key;
             const iconItemId =
               cell.kind === "weapon" || cell.kind === "armor" ? cell.baseItemId : cell.itemId;
 
@@ -457,10 +490,14 @@ export function MinionEquipBagPanel(props: {
                     : "",
                   isWeapon && cell.equipped ? "minion-equip-bag-panel__cell--equipped" : "",
                   levelBlocked ? "minion-equip-bag-panel__cell--blocked" : "",
+                  isSelected ? "minion-equip-bag-panel__cell--selected" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                onClick={() => payload && !levelBlocked && onPick(payload)}
+                onClick={() => {
+                  if (levelBlocked) return;
+                  setSelectedKey((prev) => (prev === cell.key ? null : cell.key));
+                }}
                 onDragStart={(e) => {
                   if (!payload) return;
                   e.dataTransfer.setData(EQUIP_DRAG_MIME, payload);
@@ -477,10 +514,10 @@ export function MinionEquipBagPanel(props: {
                     <span className="inventory-item-card__meta">×{cell.quantity}</span>
                   ) : levelBlocked ? (
                     <span className="minion-equip-bag-panel__level-tag">CP {requiredLevel.toLocaleString()} 필요</span>
-                  ) : isWeapon && cell.equipped ? (
+                  ) : alreadyEquipped ? (
                     <span className="minion-equip-bag-panel__equipped-tag">착용 중</span>
-                  ) : isArmor && equippedArmorInstanceId === cell.armorInstanceId ? (
-                    <span className="minion-equip-bag-panel__equipped-tag">착용 중</span>
+                  ) : isSelected ? (
+                    <span className="minion-equip-bag-panel__selected-tag">선택됨</span>
                   ) : null}
                 </div>
               </button>
@@ -488,6 +525,17 @@ export function MinionEquipBagPanel(props: {
           })}
         </div>
       )}
+
+      <div className="minion-equip-bag-panel__actions">
+        <GameBtn
+          variant="primary"
+          className="minion-equip-bag-panel__equip-btn"
+          disabled={busy || !canEquipSelected}
+          onClick={equipSelected}
+        >
+          착용
+        </GameBtn>
+      </div>
     </div>
   );
 }

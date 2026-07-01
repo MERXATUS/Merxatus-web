@@ -31,7 +31,7 @@ export function marketListingWeaponView(inst: EquipmentInstanceRow): MarketListi
     grade: gradeView.grade,
     gradeLabel: gradeView.gradeLabel,
     identified: parseEquipmentOptionsPayload(inst.optionsJson).identified,
-    options: formatEquipmentOptionDisplay(inst.optionsJson, "weapon"),
+    options: formatEquipmentOptionDisplay(inst.optionsJson, "weapon", inst.baseItemId),
   };
 }
 
@@ -45,6 +45,6 @@ export function marketListingArmorView(inst: EquipmentInstanceRow): MarketListin
     grade: gradeView.grade,
     gradeLabel: gradeView.gradeLabel,
     identified: parseEquipmentOptionsPayload(inst.optionsJson).identified,
-    options: formatEquipmentOptionDisplay(inst.optionsJson, "armor"),
+    options: formatEquipmentOptionDisplay(inst.optionsJson, "armor", inst.baseItemId),
   };
 }

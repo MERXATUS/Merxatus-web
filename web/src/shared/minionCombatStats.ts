@@ -9,7 +9,8 @@ import type { MinionBaseStats } from "@/shared/minionBaseStats";
 import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
 import type { MinionEquipSlotId } from "@/shared/minionEquipSlots";
 import { armorEnhanceHpDefBonus, armorEnhancePowerBonus } from "@/shared/armorTooltip";
-import { weaponBasePower, weaponEnhancePowerBonus } from "@/shared/weaponTooltip";
+import { weaponBasePowerRaw, weaponEnhancePowerBonus } from "@/shared/weaponTooltip";
+import { displayCombatPower } from "@/shared/combatPowerScale";
 import {
   emptyVoidSkillBonuses,
   mergeVoidSkillBonuses,
@@ -213,27 +214,29 @@ function sumArmorPower(armor?: MinionArmorLoadout) {
 }
 
 export function computeMinionCombatPower(input: MinionCombatInput): number {
-  return computePartyPower({ members: [memberWithWeapon(input)] });
+  return displayCombatPower(computePartyPower({ members: [memberWithWeapon(input)] }));
 }
 
 export function computeMinionCombatBreakdown(input: MinionCombatInput): MinionCombatBreakdown {
   const attributes = { strength: 0, agility: 0, intelligence: 0, endurance: 0 };
-  const basePower = computePartyPower({ members: [minionBaseMember(input)] });
+  const basePower = displayCombatPower(computePartyPower({ members: [minionBaseMember(input)] }));
   const weaponScale = input.weapon ? instanceScale(input.weapon.quality, input.weapon.itemLevel) : 1;
   const weaponPower = input.weapon
-    ? Math.floor(
-        (weaponBasePower(input.weapon.baseItemId) +
-          weaponEnhancePowerBonus(input.weapon.baseItemId, input.weapon.enhanceLevel) +
-          (input.weapon.optionBonus ?? 0)) *
-          weaponScale,
+    ? displayCombatPower(
+        Math.floor(
+          (weaponBasePowerRaw(input.weapon.baseItemId) +
+            weaponEnhancePowerBonus(input.weapon.baseItemId, input.weapon.enhanceLevel) +
+            (input.weapon.optionBonus ?? 0)) *
+            weaponScale,
+        ),
       )
     : 0;
   const { hp: armorHp, def: armorDef, pieces } = sumArmorStats(input.armor);
-  const armorPower = sumArmorPower(input.armor);
+  const armorPower = displayCombatPower(sumArmorPower(input.armor));
 
   const skill = skillBonusesForInput(input);
   const skillBreakdown = null;
-  const combatPower = computePartyPower({ members: [memberWithWeapon(input)] });
+  const combatPower = displayCombatPower(computePartyPower({ members: [memberWithWeapon(input)] }));
 
   const baseStats = statsFromPower(basePower);
   const totalStats = statsFromPower(combatPower);

@@ -87,7 +87,10 @@ export function mapMinionToPartyPickRow(m: MinionRow) {
       ? {
           baseItemId: m.equippedWeaponInstance.baseItemId,
           enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
-          optionBonus: weaponCombatBonusFromOptions(m.equippedWeaponInstance.optionsJson),
+          optionBonus: weaponCombatBonusFromOptions(
+            m.equippedWeaponInstance.optionsJson,
+            m.equippedWeaponInstance.baseItemId,
+          ),
         }
       : null,
     armor: {},
@@ -154,7 +157,10 @@ export function mapMinionToListRow(
       ? {
           baseItemId: m.equippedWeaponInstance.baseItemId,
           enhanceLevel: m.equippedWeaponInstance.enhanceLevel,
-          optionBonus: weaponCombatBonusFromOptions(m.equippedWeaponInstance.optionsJson),
+          optionBonus: weaponCombatBonusFromOptions(
+            m.equippedWeaponInstance.optionsJson,
+            m.equippedWeaponInstance.baseItemId,
+          ),
           optionsJson: m.equippedWeaponInstance.optionsJson,
         }
       : null,

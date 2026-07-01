@@ -36,6 +36,8 @@ export function renderEquipOptionChips(
     label: string;
     tierLabel: string;
     displayValue: number;
+    isPercent?: boolean;
+    flatBonus?: number;
     hidden?: boolean;
     locked?: boolean;
   }>,

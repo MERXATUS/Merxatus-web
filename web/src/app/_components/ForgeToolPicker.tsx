@@ -3,7 +3,9 @@
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { StackItemTooltipHover } from "@/app/_components/StackItemTooltip";
 import { GameBtn } from "@/app/_components/gameUi";
+import { itemGradeNameClassName } from "@/server/itemGrade";
 import { CRAFTING_ITEM_GRADE } from "@/shared/craftingItemDrops";
+import { formatOptionValueText } from "@/shared/equipmentItemBaseStats";
 import type { ForgeToolDef } from "@/shared/forgeWorkbench";
 import { shouldShowStackItemTooltip, type StackItemTooltipData } from "@/shared/stackItemTooltip";
 
@@ -22,6 +24,9 @@ export function ForgeToolPicker(props: {
   onSelectTool: (itemId: string | null) => void;
   selectedEquip: ForgeEquipTarget | null;
   targetLabel: string | null;
+  targetBaseItemId?: string | null;
+  targetEnhanceLevel?: number;
+  targetGrade?: number;
   transferTargetLabel?: string | null;
   needsTransferTarget?: boolean;
   onApply: () => void;
@@ -30,16 +35,37 @@ export function ForgeToolPicker(props: {
   appraisalScrollQty?: number;
   busy: boolean;
   compact?: boolean;
+  /** 상단에 장비 정보가 이미 있을 때 중복 카드 숨김 */
+  hideTargetCard?: boolean;
   layout?: "inline" | "rail";
 }) {
   const qtyById = new Map(props.inventory.map((x) => [x.itemId, x.quantity]));
   const activeTool = props.tools.find((t) => t.itemId === props.selectedToolId) ?? null;
   const isRail = props.layout === "rail";
+  const showTargetCard =
+    !props.hideTargetCard && Boolean(props.selectedEquip && props.targetBaseItemId);
 
   return (
     <aside
       className={`forge-tool-picker ${props.compact ? "forge-tool-picker--compact" : ""} ${isRail ? "forge-tool-picker--rail forge-material-rail" : ""}`}
     >
+      {showTargetCard ? (
+        <div className="forge-tool-picker__target-card">
+          <ItemIcon
+            itemId={props.targetBaseItemId!}
+            size={isRail ? 40 : 44}
+            className="item-icon forge-tool-picker__target-card-icon"
+          />
+          <div className="forge-tool-picker__target-card-text">
+            <p className="forge-tool-picker__target-card-label">가공 대상</p>
+            <p
+              className={`forge-tool-picker__target-card-name ${itemGradeNameClassName(props.targetGrade ?? 1)}`}
+            >
+              {props.targetLabel ?? props.selectedEquip!.id}
+            </p>
+          </div>
+        </div>
+      ) : null}
       <div className={isRail ? "forge-rail__head" : undefined}>
         <p className={isRail ? "forge-rail__title" : "forge-tool-picker__title"}>가공 도구</p>
       </div>
@@ -105,13 +131,15 @@ export function ForgeToolPicker(props: {
         <p className="forge-tool-picker__hint">사용할 도구를 선택하세요.</p>
       )}
 
-      <p className="forge-tool-picker__target">
-        {props.selectedEquip
-          ? `원본: ${props.targetLabel ?? props.selectedEquip.id}`
-          : isRail
-            ? "오른쪽에서 가공 도구를 선택하세요."
-            : "목록에서 무기·방어구를 먼저 선택하세요."}
-      </p>
+      {!showTargetCard ? (
+        <p className="forge-tool-picker__target">
+          {props.selectedEquip
+            ? `원본: ${props.targetLabel ?? props.selectedEquip.id}`
+            : isRail
+              ? "가공 도구를 선택하세요."
+              : "목록에서 무기·방어구를 먼저 선택하세요."}
+        </p>
+      ) : null}
       {props.needsTransferTarget ? (
         <p className="forge-tool-picker__target">
           {props.transferTargetLabel
@@ -160,6 +188,8 @@ export function renderForgeOptionChips(
     label: string;
     tierLabel: string;
     displayValue: number;
+    isPercent?: boolean;
+    flatBonus?: number;
     hidden?: boolean;
     locked?: boolean;
   }>,
@@ -177,7 +207,11 @@ export function renderForgeOptionChips(
     hiddenCount > 0
       ? options
           .slice(visible.length)
-          .map((op) => (op.hidden ? "미감정" : `${op.label} ${op.displayValue >= 0 ? "+" : ""}${op.displayValue} (${op.tierLabel})${op.locked ? " · 봉인" : ""}`))
+          .map((op) =>
+            op.hidden
+              ? "미감정"
+              : `${op.label} ${formatOptionValueText(op)} (${op.tierLabel})${op.locked ? " · 봉인" : ""}`,
+          )
           .join("\n")
       : "";
   return (
@@ -192,8 +226,7 @@ export function renderForgeOptionChips(
           <span className="forge-option-chip__label">{op.hidden ? "???" : op.label}</span>
           {!op.hidden ? (
             <span className="forge-option-chip__val">
-              {op.displayValue >= 0 ? "+" : ""}
-              {op.displayValue}
+              {formatOptionValueText(op)}
             </span>
           ) : null}
           {op.locked ? <span className="forge-option-chip__lock" aria-hidden>🔒</span> : null}

@@ -1,19 +1,7 @@
 import { prisma } from "@/server/db";
-import { minionRoleLabel } from "@/server/minionJobs";
 import type { EquippedByMinionView } from "@/shared/equipmentEquippedBy";
-import { promotionStateFromRow, resolveMinionCombatClass } from "@/shared/minionPromotion";
-import { minionDisplayName } from "@/shared/minionNickname";
 
-function minionEquipLabel(row: {
-  level: number;
-  promotionTier: number;
-  promotionClass: string;
-  nickname?: string | null;
-}): string {
-  const combatClass = resolveMinionCombatClass(promotionStateFromRow(row));
-  const classLabel = minionRoleLabel({ combatClass });
-  return `${minionDisplayName(row.nickname, classLabel)} Lv${row.level}`;
-}
+const EQUIPPED_LABEL = "착용 중";
 
 export async function loadEquippedMinionByInstanceMaps(userId: string): Promise<{
   weaponByInstanceId: Map<string, EquippedByMinionView>;
@@ -23,10 +11,6 @@ export async function loadEquippedMinionByInstanceMaps(userId: string): Promise<
     where: { userId },
     select: {
       id: true,
-      level: true,
-      nickname: true,
-      promotionTier: true,
-      promotionClass: true,
       equippedWeaponInstanceId: true,
       equippedHelmetInstanceId: true,
       equippedChestInstanceId: true,
@@ -39,7 +23,7 @@ export async function loadEquippedMinionByInstanceMaps(userId: string): Promise<
   const armorByInstanceId = new Map<string, EquippedByMinionView>();
 
   for (const m of minions) {
-    const ref: EquippedByMinionView = { id: m.id, label: minionEquipLabel(m) };
+    const ref: EquippedByMinionView = { id: m.id, label: EQUIPPED_LABEL };
     if (m.equippedWeaponInstanceId) weaponByInstanceId.set(m.equippedWeaponInstanceId, ref);
     for (const instId of [
       m.equippedHelmetInstanceId,

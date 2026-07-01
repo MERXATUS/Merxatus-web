@@ -6,6 +6,7 @@ import { armorHpDefBonusFromOptionRows, armorUtilPowerBonusFromOptionRows } from
 import { normalizeOptionId } from "@/shared/itemOptionCatalog";
 import { ARMOR_LEVEL_STAT_PCT_PER_LEVEL } from "@/shared/armorEnhanceRules";
 import { equipmentInstanceStatMultiplier } from "@/shared/equipmentItemLevel";
+import { scaleCombatPower } from "@/shared/combatPowerScale";
 import {
   armorItemCombatPower,
   armorSlotLabelKo,
@@ -20,6 +21,8 @@ export type ArmorTooltipOption = {
   tier: number;
   tierLabel: string;
   displayValue: number;
+  isPercent?: boolean;
+  flatBonus?: number;
   hidden?: boolean;
   locked?: boolean;
   realm?: OptionRealm;
@@ -107,7 +110,7 @@ export function armorTotalPower(a: ArmorTooltipData): number {
     const opt = armorOptionHpDefBonus(a.options, base.hp, base.def);
     raw = armorItemCombatPower(a.baseItemId) + hpDefToArmorCombatPower(opt.hp, opt.def) + enhance + utilPower;
   }
-  return Math.floor(raw * equipmentInstanceStatMultiplier(a.quality ?? 0, a.itemLevel ?? 10));
+  return scaleCombatPower(Math.floor(raw * equipmentInstanceStatMultiplier(a.quality ?? 0, a.itemLevel ?? 10)));
 }
 
 export function armorGradeLabel(a: ArmorTooltipData): string {

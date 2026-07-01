@@ -29,6 +29,7 @@ import {
   renderEquipOptionChips,
 } from "@/app/_components/EquipmentConsumableBar";
 import {
+  armorBaseStatLine,
   armorSlotLabelKo,
   getArmorStats,
   isArmorInventoryItem,
@@ -1078,7 +1079,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
             <div>
               <div className="inventory-section-title">보유 방어구</div>
               <div className="inventory-section-hint">
-                방어구 옵션 가공은 <strong>대장간</strong> → 「장비 가공」. 착용은 미니언 관리 → 「장비 착용」.
+                방어구 옵션 가공은 <strong>대장간</strong> → 「장비 가공」. 착용은 장비 → 「장비 착용」.
               </div>
             </div>
 
@@ -1092,6 +1093,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
               <div className={inventoryListClassName(viewMode, "mt-3")}>
                 {filteredArmorInstances.map((a) => {
                   const stats = getArmorStats(a.baseItemId);
+                  const armorStatLine = armorBaseStatLine(a.baseItemId);
                   const slotLabel = stats ? armorSlotLabelKo(stats.slot) : null;
                   const iconEl = (
                     <ItemIcon
@@ -1139,10 +1141,8 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                             <div className="inventory-item-card__meta">베이스: {a.baseItemId}</div>
                           </>
                         ) : null}
-                        {stats ? (
-                          <div className="inventory-item-card__meta">
-                            HP +{stats.hp} · DEF +{stats.def}
-                          </div>
+                        {armorStatLine ? (
+                          <div className="inventory-item-card__meta">{armorStatLine}</div>
                         ) : null}
                         {viewMode === "list" ? renderEquipOptionChips(a.options ?? [], "armor") : null}
                         {viewMode === "list" ? (
@@ -1352,7 +1352,7 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
           <div className="game-panel w-full max-w-md p-5">
             <div className="text-lg font-semibold text-[var(--game-text)]">미니언 선택</div>
             <p className="mt-2 text-sm text-[var(--game-muted)]">
-              {recruitFlow.name} — 스탯에 따라 검술 클래스가 정해집니다. (나무 검 지급) Lv30·70 전직은 미니언 관리에서
+              {recruitFlow.name} — 스탯에 따라 검술 클래스가 정해집니다. (나무 검 지급) Lv30·70 전직은 장비에서
               진행합니다.
             </p>
             <div className="mt-4 flex flex-col gap-2">

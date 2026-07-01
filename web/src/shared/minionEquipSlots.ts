@@ -25,25 +25,27 @@ export type MinionAccessorySlotId = "ring1" | "ring2" | "necklace" | "necklace2"
 export type MinionEquipSlotDef = {
   id: MinionEquipSlotId;
   label: string;
+  /** 좁은 슬롯(모바일 스트립)용 짧은 라벨 */
+  shortLabel?: string;
   gridArea: string;
 };
 
 export const MINION_EQUIP_SLOTS: MinionEquipSlotDef[] = [
-  { id: "helmet", label: "투구", gridArea: "helmet" },
-  { id: "cape", label: "망토", gridArea: "cape" },
-  { id: "ring1", label: "반지", gridArea: "ring1" },
-  { id: "gloves", label: "장갑", gridArea: "gloves" },
-  { id: "armor", label: "갑옷", gridArea: "armor" },
-  { id: "necklace", label: "목걸이", gridArea: "necklace" },
-  { id: "ring2", label: "반지2", gridArea: "ring2" },
-  { id: "weapon", label: "무기", gridArea: "weapon" },
-  { id: "relic", label: "유물", gridArea: "relic" },
-  { id: "necklace2", label: "목걸이2", gridArea: "necklace2" },
-  { id: "pants", label: "하의", gridArea: "pants" },
-  { id: "relic2", label: "유물2", gridArea: "relic2" },
-  { id: "belt", label: "벨트", gridArea: "belt" },
-  { id: "relic3", label: "유물3", gridArea: "relic3" },
-  { id: "shoes", label: "신발", gridArea: "shoes" },
+  { id: "helmet", label: "투구", shortLabel: "투", gridArea: "helmet" },
+  { id: "cape", label: "망토", shortLabel: "망", gridArea: "cape" },
+  { id: "ring1", label: "반지", shortLabel: "반1", gridArea: "ring1" },
+  { id: "gloves", label: "장갑", shortLabel: "갑", gridArea: "gloves" },
+  { id: "armor", label: "갑옷", shortLabel: "옷", gridArea: "armor" },
+  { id: "necklace", label: "목걸이", shortLabel: "목1", gridArea: "necklace" },
+  { id: "ring2", label: "반지2", shortLabel: "반2", gridArea: "ring2" },
+  { id: "weapon", label: "무기", shortLabel: "무", gridArea: "weapon" },
+  { id: "relic", label: "유물", shortLabel: "유1", gridArea: "relic" },
+  { id: "necklace2", label: "목걸이2", shortLabel: "목2", gridArea: "necklace2" },
+  { id: "pants", label: "하의", shortLabel: "하", gridArea: "pants" },
+  { id: "relic2", label: "유물2", shortLabel: "유2", gridArea: "relic2" },
+  { id: "belt", label: "벨트", shortLabel: "벨", gridArea: "belt" },
+  { id: "relic3", label: "유물3", shortLabel: "유3", gridArea: "relic3" },
+  { id: "shoes", label: "신발", shortLabel: "신", gridArea: "shoes" },
 ];
 
 export type MinionEquippedItemView = {
@@ -65,6 +67,8 @@ export type MinionEquippedItemView = {
     tier: number;
     tierLabel: string;
     displayValue: number;
+    isPercent?: boolean;
+    flatBonus?: number;
     hidden?: boolean;
     locked?: boolean;
   }>;

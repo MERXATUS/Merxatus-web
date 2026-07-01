@@ -641,6 +641,65 @@ body:has(.game-frame) {
   box-shadow: 0 0 12px rgba(212, 168, 83, 0.15);
 }
 
+.home-announcements-btn {
+  position: relative;
+  display: flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.55rem;
+  border: 1px solid var(--game-border);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--game-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.home-announcements-btn:hover {
+  border-color: var(--game-border-hover);
+  color: var(--game-gold-bright);
+  background: rgba(212, 168, 83, 0.1);
+}
+
+.home-announcements-btn--active,
+.home-announcements-btn--unread {
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #7dd3fc;
+  background: rgba(14, 116, 144, 0.18);
+}
+
+.home-announcements-btn__dot {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: #f87171;
+  box-shadow: 0 0 0 1px rgba(8, 10, 16, 0.9);
+}
+
+.settings-btn--announcements {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.settings-btn__badge {
+  padding: 0.06rem 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.52rem;
+  font-weight: 800;
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.18);
+}
+
+.settings-modal__footer {
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.2);
+}
+
 .home-gold-header {
   display: flex;
   align-items: center;
@@ -660,15 +719,15 @@ body:has(.game-frame) {
 
 .home-gold-header__glyph {
   display: flex;
-  height: 2.35rem;
-  width: 2.35rem;
+  height: 2rem;
+  width: 2rem;
   shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 0.5rem;
+  border-radius: 0.45rem;
   border: 1px solid rgba(212, 168, 83, 0.45);
   background: rgba(212, 168, 83, 0.15);
-  font-size: 1rem;
+  font-size: 0.85rem;
   color: var(--game-gold-bright);
   box-shadow: 0 0 12px rgba(212, 168, 83, 0.1);
 }
@@ -723,7 +782,7 @@ body:has(.game-frame) {
 }
 
 .home-gold-header__value {
-  font-size: clamp(1.25rem, 3.2vw, 1.65rem);
+  font-size: clamp(1.05rem, 2.8vw, 1.4rem);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1.02;
@@ -920,7 +979,7 @@ body:has(.game-frame) {
   flex-direction: column;
   height: 100%;
   max-height: 100dvh;
-  gap: 0.3rem;
+  gap: 0.2rem;
   overflow: hidden;
 }
 
@@ -928,7 +987,7 @@ body:has(.game-frame) {
   display: flex;
   flex-shrink: 0;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.2rem;
 }
 
 .game-frame__hud-row {
@@ -976,18 +1035,19 @@ body:has(.game-frame) {
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
+  gap: 0.2rem;
   min-width: 0;
-  height: 2rem;
+  height: 1.85rem;
   flex-shrink: 0;
-  border-radius: 0.5rem;
+  border-radius: 0.45rem;
   border: 1px solid var(--game-border);
   background: rgba(0, 0, 0, 0.28);
   color: var(--game-muted);
-  padding: 0 0.55rem;
-  font-size: 0.625rem;
+  padding: 0 0.45rem;
+  font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+  white-space: nowrap;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 
@@ -1019,7 +1079,7 @@ body:has(.game-frame) {
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  padding-bottom: 2.35rem;
+  padding-bottom: 2.15rem;
 }
 
 /* ── Mobile bottom dock (hidden on desktop) ── */
@@ -1040,10 +1100,10 @@ body:has(.game-frame) {
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  border-radius: 0.65rem;
+  border-radius: 0.55rem;
   border: 1px solid var(--game-border);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.32) 100%);
-  padding: 0.4rem;
+  padding: 0.3rem;
   overflow: hidden;
 }
 
@@ -1092,7 +1152,7 @@ body:has(.game-frame) {
   flex: 1;
   flex-direction: column;
   overflow: hidden;
-  gap: 0.35rem;
+  gap: 0.28rem;
 }
 
 .panel-scroll-region {
@@ -1420,17 +1480,20 @@ body:has(.game-frame) {
 }
 
 .minion-equip-doll--strip .minion-equip-slot {
-  min-height: 2rem;
-  min-width: 2rem;
-  width: 2rem;
-  height: 2rem;
+  min-height: 2.15rem;
+  min-width: 2.15rem;
+  width: 2.15rem;
+  height: 2.15rem;
   flex-shrink: 0;
   border-radius: 0.4rem;
 }
 
 .minion-equip-doll--strip .minion-equip-slot__empty {
-  font-size: 0.5rem;
+  font-size: 0.52rem;
   line-height: 1.1;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+  word-break: keep-all;
 }
 
 .minion-stat-panel--minimal {
@@ -2165,28 +2228,39 @@ body:has(.game-frame) {
 
 .enhance-forge--fit .enhance-forge__hero-icon,
 .enhance-forge--fit .enhance-bench__icon {
+  width: 3rem;
+  height: 3rem;
+}
+
+.enhance-forge--fit .enhance-item-burst {
   width: 3.5rem;
   height: 3.5rem;
 }
 
-.enhance-forge--fit .enhance-item-burst {
-  width: 4.25rem;
-  height: 4.25rem;
-}
-
-.enhance-forge--fit .enhance-forge__detail {
+.enhance-forge--fit .enhance-forge__detail:not(.enhance-forge__detail--enhance-bench) {
   overflow-x: hidden;
   overflow-y: auto;
 }
 
+.enhance-forge--fit .enhance-forge__detail--enhance-bench {
+  overflow: visible !important;
+}
+
 .enhance-forge--fit .enhance-bench__focus {
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: 0.4rem;
+  margin-top: 0;
+  padding: 0.45rem 0.5rem;
 }
 
 .enhance-forge--fit .enhance-bench__options {
   max-height: 5rem;
   overflow-y: auto;
+}
+
+.enhance-forge--fit .enhance-forge__detail--enhance-bench .enhance-bench__options {
+  max-height: none;
+  overflow: visible;
 }
 
 .market-board--fit {
@@ -3808,19 +3882,15 @@ body:has(.game-frame) {
 
 /* 공지사항 */
 .announcement-banner {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas:
-    "label title cta"
-    "label summary cta";
+  display: flex;
   align-items: center;
-  gap: 0.15rem 0.55rem;
+  gap: 0.35rem;
   width: 100%;
-  margin-bottom: 0.55rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.65rem;
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  background: linear-gradient(135deg, rgba(14, 116, 144, 0.16) 0%, rgba(0, 0, 0, 0.35) 100%);
+  margin-bottom: 0.35rem;
+  padding: 0.32rem 0.5rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: linear-gradient(135deg, rgba(14, 116, 144, 0.12) 0%, rgba(0, 0, 0, 0.32) 100%);
   color: var(--game-text);
   text-align: left;
   cursor: pointer;
@@ -3838,13 +3908,13 @@ body:has(.game-frame) {
 }
 
 .announcement-banner__label {
-  grid-area: label;
-  align-self: start;
-  padding: 0.12rem 0.4rem;
-  border-radius: 0.35rem;
-  font-size: 0.58rem;
+  flex-shrink: 0;
+  padding: 0.08rem 0.32rem;
+  border-radius: 0.25rem;
+  font-size: 0.52rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
   color: #7dd3fc;
   background: rgba(14, 116, 144, 0.35);
 }
@@ -3855,32 +3925,27 @@ body:has(.game-frame) {
 }
 
 .announcement-banner__title {
-  grid-area: title;
-  font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1.35;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .announcement-banner__summary {
-  grid-area: summary;
-  font-size: 0.68rem;
-  line-height: 1.4;
-  color: var(--game-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: none;
 }
 
 .announcement-banner__cta {
-  grid-area: cta;
-  font-size: 0.65rem;
+  flex-shrink: 0;
+  font-size: 0.85rem;
   font-weight: 700;
+  line-height: 1;
   color: var(--game-gold-bright);
-  white-space: nowrap;
+  opacity: 0.85;
 }
 
 .announcements-panel__list {
@@ -3889,7 +3954,7 @@ body:has(.game-frame) {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
 .announcements-panel--compact .announcements-panel__list {
@@ -3918,9 +3983,9 @@ body:has(.game-frame) {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.2rem;
+  gap: 0.15rem;
   width: 100%;
-  padding: 0.65rem 0.7rem;
+  padding: 0.45rem 0.55rem;
   border: none;
   background: transparent;
   color: inherit;
@@ -3960,9 +4025,9 @@ body:has(.game-frame) {
 }
 
 .announcements-panel__title {
-  font-size: 0.86rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .announcements-panel__date {
@@ -6869,10 +6934,10 @@ body:has(.game-frame) {
 
 .minion-equip-bag-panel--compact .minion-equip-bag-panel__cell .inventory-item-card__name {
   font-size: 0.62rem;
-  word-break: keep-all;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  word-break: normal;
 }
 
 .minion-equip-bag-panel__head {
@@ -6965,12 +7030,12 @@ body:has(.game-frame) {
 }
 
 .minion-equip-bag-panel__cell .inventory-item-card__name {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   overflow: hidden;
-  word-break: keep-all;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: normal;
   line-height: 1.25;
+  font-size: 0.68rem;
 }
 
 .minion-equip-bag-panel__cell .inventory-item-card__meta {
@@ -6985,6 +7050,12 @@ body:has(.game-frame) {
 .minion-equip-bag-panel__cell--equipped {
   border-color: rgba(212, 168, 83, 0.55);
   background: rgba(212, 168, 83, 0.08);
+}
+
+.minion-equip-bag-panel__cell--selected {
+  border-color: rgba(125, 211, 252, 0.85);
+  background: rgba(56, 189, 248, 0.12);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
 }
 
 .minion-equip-bag-panel__cell--blocked {
@@ -7030,6 +7101,27 @@ body:has(.game-frame) {
   font-size: 0.625rem;
   font-weight: 700;
   color: var(--game-gold-bright);
+}
+
+.minion-equip-bag-panel__selected-tag {
+  display: inline-block;
+  margin-top: 0.2rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #7dd3fc;
+}
+
+.minion-equip-bag-panel__actions {
+  display: flex;
+  justify-content: stretch;
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.minion-equip-bag-panel__equip-btn {
+  width: 100%;
+  min-height: 2.25rem;
 }
 
 .minion-equip-detail-panel {
@@ -8195,6 +8287,9 @@ body:has(.game-frame) {
   text-align: center;
   line-height: 1.15;
   padding: 0 2px;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+  word-break: keep-all;
 }
 
 .minion-equip-slot__soon {
@@ -8954,6 +9049,11 @@ body:has(.game-frame) {
 .item-tooltip-trigger {
   cursor: default;
   outline: none;
+}
+
+.item-tooltip-trigger--click {
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .item-tooltip-portal {
@@ -10438,9 +10538,10 @@ body:has(.game-frame) {
 
 .market-board__tabs {
   display: inline-flex;
-  gap: 0.35rem;
-  padding: 0.25rem;
-  border-radius: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.18rem;
+  border-radius: 0.55rem;
   border: 1px solid var(--game-border);
   background: rgba(0, 0, 0, 0.35);
 }
@@ -10449,14 +10550,15 @@ body:has(.game-frame) {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  height: 2.25rem;
-  padding: 0 1rem;
-  border-radius: 0.55rem;
+  gap: 0.3rem;
+  height: 1.9rem;
+  padding: 0 0.65rem;
+  border-radius: 0.45rem;
   border: 1px solid transparent;
   background: transparent;
-  font-size: 0.8125rem;
+  font-size: 0.72rem;
   font-weight: 700;
+  white-space: nowrap;
   color: var(--game-muted);
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
@@ -11618,21 +11720,209 @@ body:has(.game-frame) {
 
 /* 강화소 — 작업대 (장비 선택 후) */
 .enhance-forge__layout--bench {
-  grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 10.5rem);
+  grid-template-columns: 1fr;
   min-height: min(30rem, calc(100dvh - 13rem));
 }
 
-.enhance-forge__layout--bench .enhance-forge__detail {
-  padding-top: 0.75rem;
+.enhance-forge__layout--bench .enhance-forge__detail:not(.forge-hub__craft-detail) {
+  gap: 0.4rem;
+  padding: 0.55rem 0.7rem;
+}
+
+.enhance-forge__detail--enhance-bench {
+  gap: 0.28rem !important;
+  padding: 0.38rem 0.5rem 0.32rem !important;
+  overflow: visible !important;
+}
+
+.enhance-forge__layout--bench:has(.enhance-forge__detail--enhance-bench) {
+  min-height: 0;
+}
+
+.enhance-forge__detail--enhance-bench .forge-bench__topbar--minimal {
+  margin: 0;
+  padding-bottom: 0.2rem;
+  gap: 0.3rem 0.4rem;
+  border-bottom: none;
+}
+
+.enhance-forge__detail--enhance-bench .forge-bench__back {
+  padding: 0.25rem 0.45rem !important;
+  font-size: 0.72rem !important;
+  min-height: 0;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__focus {
+  gap: 0.4rem;
+  margin-top: 0;
+  padding: 0.38rem 0.45rem;
+  border-radius: 0.55rem;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__head {
+  gap: 0.1rem;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__grade {
+  font-size: 0.6rem;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__name {
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__level {
+  font-size: 0.95rem;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__level-next {
+  min-width: 2rem;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__status {
+  min-height: 0;
+  margin: 0;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__status:has(.enhance-bench__status-msg--visible) {
+  margin-top: 0.08rem;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__status-msg {
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.12rem;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__progress .enhance-bench__track {
+  flex: 1;
+  margin: 0;
+  height: 3px;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__progress .enhance-bench__meta {
+  margin: 0;
+  font-size: 0.6rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__options {
+  margin-top: 0.12rem;
+  max-height: none;
+  overflow: visible;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__sheet--compact {
+  gap: 0.28rem;
+  margin-top: 0.15rem;
+  padding: 0.38rem 0.45rem;
+  border-radius: 0.5rem;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__rate-inline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__rate-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--game-muted);
+}
+
+.enhance-forge__detail--enhance-bench .enhance-bench__rate-val {
+  font-size: 0.88rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.enhance-forge__detail--enhance-bench .forge-mana-picker--compact {
+  gap: 0.25rem;
+}
+
+.enhance-forge__detail--enhance-bench .forge-mana-picker--compact .forge-mana-picker__title {
+  font-size: 0.62rem;
+}
+
+.enhance-forge__detail--enhance-bench .forge-mana-picker__grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.28rem;
+}
+
+.enhance-forge__detail--enhance-bench .forge-mana-picker--compact .forge-mana-picker__cell {
+  min-height: 0;
+  padding: 0.28rem 0.2rem;
+}
+
+.enhance-forge__detail--enhance-bench .forge-mana-picker--compact .forge-mana-picker__hint {
+  font-size: 0.58rem;
+  line-height: 1.3;
+}
+
+.enhance-forge__detail--enhance-bench .forge-protect-toggle--inline {
+  font-size: 0.66rem;
+  padding-top: 0;
+  min-height: 0;
+}
+
+.enhance-forge__detail--enhance-bench .enhance-forge__action {
+  margin-top: 0.15rem;
+  padding: 0.48rem 0.65rem;
+  font-size: 0.88rem;
+  min-height: 2.35rem;
+  border-radius: 0.5rem;
+}
+
+.enhance-forge__detail--enhance-bench .forge-material-rail--bench-inline .forge-rail__head {
+  padding: 0.28rem 0 0.12rem;
+}
+
+.enhance-forge__detail--enhance-bench .forge-material-rail--bench-inline .forge-rail__title {
+  font-size: 0.6rem;
+}
+
+.enhance-forge__detail--enhance-bench .forge-material-rail--bench-inline .forge-material-grid {
+  gap: 0.28rem;
+  padding: 0.12rem 0 0;
+}
+
+.enhance-forge__detail--enhance-bench .forge-material-rail--bench-inline .item-tooltip-trigger {
+  width: 3.85rem;
+}
+
+.enhance-forge__detail--enhance-bench .forge-material-rail--bench-inline .forge-material-cell {
+  width: 3.85rem;
+  min-height: 3.85rem;
+  padding: 0.22rem 0.2rem;
+  border-radius: 0.45rem;
+}
+
+.enhance-forge__detail--enhance-bench .forge-material-rail--bench-inline .forge-material-cell__label {
+  font-size: 0.52rem;
+  -webkit-line-clamp: 1;
+}
+
+.enhance-forge__detail--enhance-bench .forge-material-rail--bench-inline .forge-material-cell__qty {
+  font-size: 0.58rem;
 }
 
 .forge-bench__topbar {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.5rem 0.75rem;
-  margin: -0.25rem 0 0.35rem;
-  padding-bottom: 0.65rem;
+  gap: 0.4rem 0.55rem;
+  margin: 0 0 0.2rem;
+  padding-bottom: 0.4rem;
   border-bottom: 1px solid rgba(212, 168, 83, 0.2);
 }
 
@@ -11747,9 +12037,9 @@ body:has(.game-frame) {
 .enhance-bench__focus {
   display: flex;
   align-items: flex-start;
-  gap: 0.85rem;
-  margin-top: 0.5rem;
-  padding: 0.85rem 0.9rem;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+  padding: 0.55rem 0.65rem;
   border-radius: 0.75rem;
   border: 1px solid rgba(212, 168, 83, 0.28);
   background: linear-gradient(165deg, rgba(212, 168, 83, 0.08) 0%, rgba(0, 0, 0, 0.45) 55%);
@@ -11792,6 +12082,15 @@ body:has(.game-frame) {
   width: 100%;
 }
 
+.enhance-bench__title-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  min-width: 0;
+  width: 100%;
+}
+
 .enhance-bench__grade {
   font-size: 0.68rem;
   font-weight: 600;
@@ -11808,18 +12107,20 @@ body:has(.game-frame) {
   word-break: keep-all;
   overflow-wrap: anywhere;
   min-width: 0;
-  width: 100%;
+  flex: 1 1 auto;
 }
 
 .enhance-bench__level {
   display: flex;
   align-items: baseline;
-  gap: 0.45rem;
-  margin: 0.35rem 0 0;
-  min-height: 1.85rem;
-  font-size: 1.45rem;
+  gap: 0.3rem;
+  margin: 0;
+  min-height: 0;
+  font-size: 1.1rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .enhance-bench__level-now {
@@ -11853,8 +12154,8 @@ body:has(.game-frame) {
 }
 
 .enhance-bench__status {
-  min-height: calc(0.8125rem * 1.45 * 3);
-  margin-top: 0.2rem;
+  min-height: calc(0.8125rem * 1.45 * 2);
+  margin-top: 0.1rem;
   display: flex;
   align-items: flex-start;
 }
@@ -11883,8 +12184,8 @@ body:has(.game-frame) {
 }
 
 .enhance-bench__track {
-  margin-top: 0.45rem;
-  height: 5px;
+  margin-top: 0.25rem;
+  height: 4px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.1);
   overflow: hidden;
@@ -11898,18 +12199,18 @@ body:has(.game-frame) {
 }
 
 .enhance-bench__meta {
-  margin: 0.3rem 0 0;
-  font-size: 0.72rem;
+  margin: 0.15rem 0 0;
+  font-size: 0.68rem;
   color: var(--game-muted);
 }
 
 .enhance-bench__options {
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .enhance-bench__max-hint {
-  margin: 0.65rem 0 0;
-  padding: 0.55rem 0.7rem;
+  margin: 0.4rem 0 0;
+  padding: 0.4rem 0.55rem;
   border-radius: 0.55rem;
   border: 1px solid var(--game-border);
   background: rgba(0, 0, 0, 0.28);
@@ -11918,12 +12219,79 @@ body:has(.game-frame) {
   text-align: center;
 }
 
+.enhance-forge__detail .forge-material-rail--bench-inline {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  margin-top: 0;
+}
+
+.enhance-forge__detail .forge-material-rail--bench-inline .forge-rail__head {
+  padding: 0.4rem 0 0.2rem;
+  border-bottom: none;
+  border-top: 1px solid rgba(212, 168, 83, 0.2);
+}
+
+.enhance-forge__detail .forge-material-rail--bench-inline .forge-material-grid {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  gap: 0.35rem;
+  padding: 0.25rem 0;
+  max-height: none;
+  min-height: auto;
+  flex: 0 0 auto;
+}
+
+.enhance-forge__detail .forge-material-rail--bench-inline .forge-material-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.enhance-forge__detail .forge-material-rail--bench-inline .forge-material-cell-wrap,
+.enhance-forge__detail .forge-material-rail--bench-inline .item-tooltip-trigger {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.enhance-forge__detail .forge-material-rail--bench-inline .item-tooltip-trigger {
+  width: 4.75rem;
+}
+
+.enhance-forge__detail .forge-material-rail--bench-inline .forge-material-cell--tooltip {
+  cursor: pointer;
+}
+
+.enhance-forge__detail .forge-material-rail--bench-inline .forge-material-cell {
+  width: 4.75rem;
+  min-height: 4.75rem;
+  height: 100%;
+  padding: 0.3rem 0.3rem;
+}
+
+.enhance-forge__detail .forge-material-rail--bench-inline .forge-material-cell__label {
+  font-size: 0.58rem;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 .enhance-bench__sheet {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  margin-top: 0.55rem;
-  padding: 0.7rem 0.75rem;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+  padding: 0.5rem 0.6rem;
   border-radius: 0.65rem;
   border: 1px solid rgba(212, 168, 83, 0.28);
   background: rgba(0, 0, 0, 0.28);
@@ -11945,8 +12313,8 @@ body:has(.game-frame) {
 .enhance-bench__stat {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  padding: 0.45rem 0.55rem;
+  gap: 0.05rem;
+  padding: 0.35rem 0.45rem;
   border-radius: 0.5rem;
   border: 1px solid var(--game-border);
   background: rgba(0, 0, 0, 0.25);
@@ -12132,7 +12500,7 @@ body:has(.game-frame) {
     grid-template-columns: 1fr;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.35rem;
   }
 
   .enhance-forge__layout--bench .enhance-forge__detail {
@@ -12140,9 +12508,34 @@ body:has(.game-frame) {
     min-height: 0;
   }
 
+  .enhance-forge__layout--bench.forge-hub__craft-layout .enhance-forge__detail.forge-hub__craft-detail {
+    flex: 0 0 auto;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .enhance-forge__layout--bench.forge-hub__craft-layout .forge-tool-picker {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .enhance-forge__layout--bench.forge-hub__craft-layout .forge-hub__craft-detail .forge-bench__topbar,
+  .enhance-forge__layout--bench.forge-hub__craft-layout .forge-hub__craft-detail .enhance-forge__hero {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--game-panel-bg, rgba(12, 14, 20, 0.96));
+  }
+
   .enhance-forge__layout--bench .forge-material-rail {
     max-height: none;
     flex-shrink: 0;
+  }
+
+  .enhance-forge__layout--bench.forge-hub__craft-layout .forge-tool-picker--rail.forge-material-rail {
+    flex-shrink: 1;
   }
 }
 
@@ -12179,10 +12572,8 @@ body:has(.game-frame) {
   }
 
   .forge-bench__topbar--minimal {
-    grid-template-columns: auto 1fr;
-    grid-template-areas:
-      "back gold"
-      "title title";
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "back end";
     gap: 0.35rem 0.5rem;
   }
 
@@ -12191,13 +12582,7 @@ body:has(.game-frame) {
   }
 
   .forge-bench__topbar--minimal .forge-bench__topbar-end {
-    grid-area: gold;
-  }
-
-  .forge-bench__topbar--minimal .forge-bench__title {
-    grid-area: title;
-    text-align: left;
-    font-size: 0.84rem;
+    grid-area: end;
   }
 
   /* 작업대 재료 — 가로 스크롤 칩 */
@@ -12233,13 +12618,15 @@ body:has(.game-frame) {
   }
 
   .enhance-forge__layout--bench .forge-material-cell__label {
-    font-size: 0.62rem;
+    font-size: 0.58rem;
     line-height: 1.2;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    word-break: keep-all;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 
   .forge-bench__back {
@@ -12547,13 +12934,14 @@ button.forge-material-cell--active {
 }
 
 .forge-material-cell__label {
-  font-size: 0.58rem;
+  font-size: 0.55rem;
   line-height: 1.2;
   color: var(--game-muted);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  writing-mode: horizontal-tb;
 }
 
 .forge-material-cell__qty {
@@ -12641,6 +13029,48 @@ button.forge-material-cell--active {
   background: rgba(212, 168, 83, 0.08);
 }
 
+.enhance-forge__layout--bench.forge-hub__craft-layout {
+  display: flex;
+  flex-direction: column;
+  grid-template-columns: unset;
+  min-height: min(30rem, calc(100dvh - 13rem));
+}
+
+.enhance-forge__layout--bench.forge-hub__craft-layout .forge-hub__craft-detail {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.forge-hub__craft-equip-panel {
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(212, 168, 83, 0.22);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.forge-hub__craft-base-stats {
+  margin-bottom: 0.35rem;
+}
+
+.forge-hub__craft-base-stats .game-label {
+  margin-bottom: 0.35rem;
+}
+
+.forge-hub__craft-options .item-tooltip__divider:first-child {
+  margin-top: 0;
+}
+
+.enhance-forge__layout--bench.forge-hub__craft-layout .forge-tool-picker {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.enhance-forge__layout--bench.forge-hub__craft-layout .forge-tool-picker__grid {
+  grid-template-columns: repeat(auto-fill, minmax(4.75rem, 1fr));
+}
+
 .forge-hub__craft-detail {
   display: flex;
   flex-direction: column;
@@ -12660,6 +13090,47 @@ button.forge-material-cell--active {
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--game-text);
+}
+
+.forge-tool-picker__target-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.55rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(212, 168, 83, 0.28);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.forge-tool-picker--rail .forge-tool-picker__target-card {
+  margin: 0.45rem 0.45rem 0.35rem;
+}
+
+.forge-tool-picker__target-card-icon {
+  flex-shrink: 0;
+}
+
+.forge-tool-picker__target-card-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.forge-tool-picker__target-card-label {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--game-muted);
+}
+
+.forge-tool-picker__target-card-name {
+  margin: 0.1rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--game-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .forge-tool-picker__grid {
@@ -13255,11 +13726,11 @@ button.forge-material-cell--active {
   }
 
   .game-frame__section {
-    padding-bottom: calc(3.85rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(3.35rem + env(safe-area-inset-bottom, 0px));
   }
 
   .game-frame__content {
-    padding: 0.35rem;
+    padding: 0.28rem;
   }
 
   .game-frame__dock {
@@ -13271,8 +13742,8 @@ button.forge-material-cell--active {
     z-index: 36;
     align-items: stretch;
     justify-content: space-around;
-    gap: 0.15rem;
-    padding: 0.35rem 0.4rem calc(0.35rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.1rem;
+    padding: 0.28rem 0.3rem calc(0.28rem + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--game-border);
     background: rgba(8, 10, 16, 0.96);
     backdrop-filter: blur(12px);
@@ -13284,14 +13755,14 @@ button.forge-material-cell--active {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.12rem;
+    gap: 0.08rem;
     min-width: 0;
-    min-height: 2.75rem;
-    border-radius: 0.55rem;
+    min-height: 2.45rem;
+    border-radius: 0.45rem;
     border: 1px solid transparent;
     background: transparent;
     color: var(--game-muted);
-    padding: 0.2rem 0.15rem;
+    padding: 0.15rem 0.1rem;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
@@ -13303,12 +13774,12 @@ button.forge-material-cell--active {
   }
 
   .game-frame__dock-glyph {
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     line-height: 1;
   }
 
   .game-frame__dock-label {
-    font-size: 0.58rem;
+    font-size: 0.54rem;
     font-weight: 700;
     line-height: 1.1;
     white-space: nowrap;
@@ -13627,23 +14098,37 @@ button.forge-material-cell--active {
     flex: 1;
   }
 
-  .enhance-forge__layout--bench .enhance-forge__detail {
+  .enhance-forge__layout--bench .enhance-forge__detail:not(.forge-hub__craft-detail):not(.enhance-forge__detail--enhance-bench) {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding-top: 0.5rem;
-    padding-bottom: 0.25rem;
+    padding: 0.45rem 0.6rem 0.15rem;
   }
 
-  .enhance-forge--fit .enhance-forge__layout--bench .enhance-forge__detail {
+  .enhance-forge__layout--bench .enhance-forge__detail--enhance-bench {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    padding: 0.35rem 0.45rem 0.2rem;
+  }
+
+  .enhance-forge--fit .enhance-forge__layout--bench .enhance-forge__detail:not(.forge-hub__craft-detail):not(.enhance-forge__detail--enhance-bench) {
     overflow-y: auto;
     overflow-x: hidden;
   }
 
-  .enhance-forge--fit .enhance-forge__layout--bench.enhance-forge__layout--fit .enhance-forge__detail {
+  .enhance-forge--fit .enhance-forge__layout--bench .enhance-forge__detail--enhance-bench {
+    overflow: visible;
+  }
+
+  .enhance-forge--fit .enhance-forge__layout--bench.enhance-forge__layout--fit .enhance-forge__detail:not(.forge-hub__craft-detail):not(.enhance-forge__detail--enhance-bench) {
     overflow-y: auto;
     overflow-x: hidden;
+  }
+
+  .enhance-forge--fit .enhance-forge__layout--bench.enhance-forge__layout--fit .enhance-forge__detail--enhance-bench {
+    overflow: visible;
   }
 
   .enhance-forge__hero {
@@ -13727,46 +14212,58 @@ button.forge-material-cell--active {
     z-index: 4;
     flex-shrink: 0;
     margin-top: auto;
-    padding: 0.85rem 1rem;
-    font-size: 0.95rem;
-    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.55);
+    padding: 0.65rem 0.85rem;
+    font-size: 0.9rem;
+    box-shadow:
+      0 -10px 0 6px var(--game-bg-card),
+      0 -6px 20px rgba(0, 0, 0, 0.55);
     border-radius: 0.65rem 0.65rem 0 0;
   }
 
+  .enhance-forge--fit .enhance-forge__detail--enhance-bench .enhance-forge__action {
+    position: static;
+    margin-top: 0.12rem;
+    box-shadow: none;
+    border-radius: 0.5rem;
+  }
+
   .enhance-bench__focus {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 0.75rem 0.65rem;
-    gap: 0.65rem;
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    padding: 0.5rem 0.45rem;
+    gap: 0.45rem;
   }
 
   .enhance-bench__body {
-    align-items: center;
-    text-align: center;
-    width: 100%;
+    align-items: stretch;
+    text-align: left;
+    width: auto;
   }
 
   .enhance-bench__head {
-    align-items: center;
+    align-items: flex-start;
+  }
+
+  .enhance-bench__title-row {
+    align-items: baseline;
   }
 
   .enhance-bench__level {
-    justify-content: center;
-    font-size: 1.35rem;
+    font-size: 1rem;
   }
 
   .enhance-bench__stats {
-    gap: 0.35rem;
+    gap: 0.25rem;
   }
 
   .enhance-bench__stat {
-    padding: 0.55rem;
+    padding: 0.35rem 0.4rem;
   }
 
   .enhance-bench__sheet {
-    padding: 0.65rem;
-    gap: 0.45rem;
+    padding: 0.45rem 0.5rem;
+    gap: 0.3rem;
   }
 
   .forge-mana-picker__grid {
@@ -14357,15 +14854,15 @@ button.forge-material-cell--active {
 .enhance-forge__action {
   margin-top: auto;
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 0.85rem;
   border-radius: 0.65rem;
   border: 1px solid rgba(212, 168, 83, 0.5);
-  background: linear-gradient(180deg, rgba(212, 168, 83, 0.35) 0%, rgba(139, 105, 20, 0.5) 100%);
+  background: linear-gradient(180deg, #d4a853 0%, #8b6914 100%);
   color: #1a1208;
   font-size: 1rem;
   font-weight: 800;
   cursor: pointer;
-  transition: filter 0.15s, opacity 0.15s;
+  transition: filter 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .enhance-forge__action:hover:not(:disabled) {
@@ -14373,7 +14870,9 @@ button.forge-material-cell--active {
 }
 
 .enhance-forge__action:disabled {
-  opacity: 0.45;
+  background: linear-gradient(180deg, #6e5628 0%, #4a3810 100%);
+  border-color: rgba(212, 168, 83, 0.25);
+  color: rgba(26, 18, 8, 0.55);
   cursor: not-allowed;
 }
 
@@ -15453,16 +15952,17 @@ button.forge-material-cell--active {
 .royal-trade__max {
   grid-row: span 2;
   align-self: stretch;
-  min-width: 2rem;
+  min-width: 1.85rem;
+  padding: 0 0.2rem;
   border-radius: 0.35rem;
   border: 1px dashed var(--game-border);
   background: transparent;
-  font-size: 0.625rem;
+  font-size: 0.58rem;
   font-weight: 700;
   color: var(--game-muted);
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  letter-spacing: 0.08em;
+  writing-mode: horizontal-tb;
+  white-space: nowrap;
+  letter-spacing: 0;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
 
@@ -15864,16 +16364,17 @@ button.forge-material-cell--active {
 .black-trade__max {
   grid-row: span 2;
   align-self: stretch;
-  min-width: 2rem;
+  min-width: 1.85rem;
+  padding: 0 0.2rem;
   border-radius: 0.35rem;
   border: 1px dashed rgba(82, 82, 91, 0.8);
   background: transparent;
-  font-size: 0.625rem;
+  font-size: 0.58rem;
   font-weight: 700;
   color: #71717a;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  letter-spacing: 0.08em;
+  writing-mode: horizontal-tb;
+  white-space: nowrap;
+  letter-spacing: 0;
   transition: color 0.12s, border-color 0.12s, background 0.12s;
 }
 

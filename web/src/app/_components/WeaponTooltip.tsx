@@ -6,13 +6,16 @@ import {
   weaponBaseAtkMagic,
   weaponBasePower,
   weaponDisplayName,
-  weaponEnhancePowerBonus,
+  weaponEnhancePowerDisplay,
   weaponGradeIndex,
   weaponGradeLabel,
   weaponOptionPowerBonus,
   weaponTotalPower,
   type WeaponTooltipData,
 } from "@/shared/weaponTooltip";
+import { scaleCombatPower } from "@/shared/combatPowerScale";
+import { weaponItemBaseStats } from "@/shared/equipmentItemBaseStats";
+import { MINION_STAT_KEYS, MINION_STAT_LABELS } from "@/shared/minionBaseStats";
 import { requiredEquipLevelForInstance } from "@/shared/itemEquipLevel";
 import { MAX_QUALITY_CRAFT_USES } from "@/shared/equipmentQuality";
 import { ITEM_LEVEL_DEFAULT } from "@/shared/equipmentItemLevel";
@@ -22,9 +25,10 @@ import type { ReactNode } from "react";
 export function WeaponTooltipContent({ weapon }: { weapon: WeaponTooltipData }) {
   const grade = weaponGradeIndex(weapon);
   const baseAtkMagic = weaponBaseAtkMagic(weapon.baseItemId);
+  const itemBases = weaponItemBaseStats(weapon.baseItemId);
   const base = weaponBasePower(weapon.baseItemId);
-  const enhance = weaponEnhancePowerBonus(weapon.baseItemId, weapon.enhanceLevel);
-  const optBonus = weaponOptionPowerBonus(weapon.options);
+  const enhance = weaponEnhancePowerDisplay(weapon.baseItemId, weapon.enhanceLevel);
+  const optBonus = scaleCombatPower(weaponOptionPowerBonus(weapon.options, weapon.baseItemId));
   const total = weaponTotalPower(weapon);
   const weaponOpts = weapon.options ?? [];
   const equipReq = requiredEquipLevelForInstance(weapon.baseItemId, grade, weapon.itemLevel);
@@ -75,6 +79,14 @@ export function WeaponTooltipContent({ weapon }: { weapon: WeaponTooltipData }) 
               <span className="item-tooltip__stat-val">{baseAtkMagic.magic}</span>
             </div>
           ) : null}
+          {itemBases
+            ? MINION_STAT_KEYS.filter((key) => itemBases[key] > 0).map((key) => (
+                <div key={key} className="item-tooltip__stat-row">
+                  <span>{MINION_STAT_LABELS[key]}</span>
+                  <span className="item-tooltip__stat-val">{itemBases[key]}</span>
+                </div>
+              ))
+            : null}
           <div className="item-tooltip__divider" />
         </>
       ) : null}

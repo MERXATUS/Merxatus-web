@@ -222,7 +222,7 @@ export async function applyEquipmentConsumable(
         targetKind,
         targetInstanceId: targetId,
         optionsJson: sourceJson,
-        options: formatEquipmentOptionDisplay(sourceJson, target.category),
+        options: formatEquipmentOptionDisplay(sourceJson, target.category, target.row.baseItemId),
         identified: moved.source.identified,
         lockedIndices: moved.source.lockedIndices,
         transferTargetInstanceId: transferId,
@@ -253,7 +253,7 @@ export async function applyEquipmentConsumable(
       targetKind,
       targetInstanceId: targetId,
       optionsJson,
-      options: formatEquipmentOptionDisplay(optionsJson, target.category),
+      options: formatEquipmentOptionDisplay(optionsJson, target.category, target.row.baseItemId),
       identified: nextPayload.identified,
       lockedIndices: nextPayload.lockedIndices,
     };

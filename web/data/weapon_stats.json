@@ -2,7 +2,7 @@
   "weapon_wood_sword": {
     "name": "나무 검",
     "grade": 1,
-    "atk": 1,
+    "atk": 2,
     "magic": 0,
     "icon": "Icon_Wood_Sword"
   },

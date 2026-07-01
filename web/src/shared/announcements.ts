@@ -14,6 +14,13 @@ export type Announcement = {
 
 const READ_STORAGE_KEY = "merxatus_announcements_read_v1";
 
+export const ANNOUNCEMENTS_READ_CHANGED_EVENT = "merxatus_announcements_read_changed";
+
+function notifyAnnouncementsReadChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(ANNOUNCEMENTS_READ_CHANGED_EVENT));
+}
+
 const CATEGORY_LABEL: Record<AnnouncementCategory, string> = {
   update: "업데이트",
   event: "이벤트",
@@ -58,11 +65,29 @@ export function markAnnouncementRead(id: string) {
   if (typeof window === "undefined") return;
   try {
     const next = readAnnouncementIds();
+    if (next.has(id)) return;
     next.add(id);
     localStorage.setItem(READ_STORAGE_KEY, JSON.stringify([...next]));
+    notifyAnnouncementsReadChanged();
   } catch {
     /* ignore */
   }
+}
+
+export function markAllAnnouncementsRead() {
+  if (typeof window === "undefined") return;
+  try {
+    const ids = listAnnouncements().map((a) => a.id);
+    localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(ids));
+    notifyAnnouncementsReadChanged();
+  } catch {
+    /* ignore */
+  }
+}
+
+export function latestUnreadAnnouncement(): Announcement | null {
+  const read = readAnnouncementIds();
+  return listAnnouncements().find((a) => !read.has(a.id)) ?? null;
 }
 
 export function latestPinnedAnnouncement(): Announcement | null {

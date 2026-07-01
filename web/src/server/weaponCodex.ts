@@ -158,7 +158,7 @@ async function loadRegisterableWeaponClaims(userId: string) {
       optionsJson: w.optionsJson,
       optionPool: "weapon" as const,
     };
-    const optionBonus = weaponCombatBonusFromOptions(w.optionsJson);
+    const optionBonus = weaponCombatBonusFromOptions(w.optionsJson, baseItemId);
     for (const milestone of codexMilestonesForPool("weapon")) {
       if (claimed.has(`${baseItemId}:${milestone.id}`)) continue;
       if (!instanceMeetsCodexMilestone(snapshot, milestone)) continue;
@@ -233,7 +233,7 @@ export async function registerWeaponToCodex(
       baseItemId,
       milestoneId: milestone.id,
       enhanceLevel: w.enhanceLevel,
-      optionPowerBonus: weaponCombatBonusFromOptions(w.optionsJson),
+      optionPowerBonus: weaponCombatBonusFromOptions(w.optionsJson, baseItemId),
     });
 
     await tx.weaponCodexEntry.create({

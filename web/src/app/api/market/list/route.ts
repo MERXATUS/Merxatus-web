@@ -1,8 +1,6 @@
 import { z } from "zod";
 import { createListing } from "@/server/market";
 import { requireUserId } from "@/server/auth";
-import { prisma } from "@/server/db";
-import { tryTutorialListOnMarket } from "@/server/tutorialProgress";
 
 export const runtime = "nodejs";
 
@@ -57,8 +55,7 @@ export async function POST(req: Request) {
       fixedPriceTotal: data.saleType === "FIXED" ? data.fixedPriceTotal : undefined,
       startPrice: data.saleType === "AUCTION" ? data.startPrice : undefined,
     });
-    const tutorial = await tryTutorialListOnMarket(prisma, auth.userId);
-    return Response.json({ ...result, tutorialAdvanced: tutorial.advanced });
+    return Response.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";
     return Response.json({ ok: false, error: message }, { status: 400 });

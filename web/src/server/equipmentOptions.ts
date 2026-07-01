@@ -100,6 +100,7 @@ export function lockedIndexSet(payload: EquipmentOptionsPayload): ReadonlySet<nu
 export function formatEquipmentOptionDisplay(
   json: string | null | undefined,
   category: "weapon" | "armor",
+  baseItemId?: string,
 ): EquipmentOptionDisplayRow[] {
   const payload = parseEquipmentOptionsPayload(json);
   const locked = lockedIndexSet(payload);
@@ -111,6 +112,8 @@ export function formatEquipmentOptionDisplay(
       tier: 0,
       tierLabel: "?",
       displayValue: 0,
+      isPercent: false,
+      flatBonus: undefined,
       hidden: true,
       locked: locked.has(i),
       realm: opt.realm,
@@ -118,7 +121,7 @@ export function formatEquipmentOptionDisplay(
       realmLabel: opt.realm ? realmLabelKo(opt.realm) : undefined,
     }));
   }
-  const rows = formatOptionRows(payload.options, category);
+  const rows = formatOptionRows(payload.options, category, baseItemId);
   return rows.map((r, i) => ({
     ...r,
     hidden: false,

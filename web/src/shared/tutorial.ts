@@ -1,33 +1,39 @@
+import type { GameTabKey } from "@/shared/gameNav";
+import type { ShopSubTab } from "@/shared/shopSubTab";
+
 /** 튜토리얼 완료 표시값 (`User.tutorialStep`) */
 export const TUTORIAL_DONE = 100;
 
-export type TutorialStepId = "dungeon_first_cashout" | "list_on_market" | "visit_market";
+export type TutorialStepId = "gacha_pull" | "enhance_equipment" | "sell_equipment";
+
+export type TutorialStepAction =
+  | { kind: "tab"; tab: Extract<GameTabKey, "shop" | "enhance">; shopSub?: ShopSubTab };
 
 export type TutorialStepDef = {
   id: TutorialStepId;
   title: string;
   hint: string;
-  action?: { kind: "panel"; panel: "dungeon" } | { kind: "route"; path: string };
+  action?: TutorialStepAction;
 };
 
 export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
-    id: "dungeon_first_cashout",
-    title: "던전 첫 정산",
-    hint: "던전 → 방치 탐험 → 「방치 시작」 후 「보상 수확」으로 재료·골드를 받아 보세요.",
-    action: { kind: "panel", panel: "dungeon" },
+    id: "gacha_pull",
+    title: "골드로 장비 뽑기",
+    hint: "상점 → 장비에서 「1회 뽑기」로 무기·방어구를 받아 보세요.",
+    action: { kind: "tab", tab: "shop", shopSub: "equipment_pull" },
   },
   {
-    id: "list_on_market",
-    title: "거래소에 올리기",
-    hint: "던전·무탑·레이드에서 얻은 재료나 무기를 거래소 판매 탭에서 등록해 보세요.",
-    action: { kind: "route", path: "/market?tab=sell" },
+    id: "enhance_equipment",
+    title: "장비 강화하기",
+    hint: "대장간에서 무기나 방어구를 고른 뒤 「강화하기」로 강화를 시도해 보세요.",
+    action: { kind: "tab", tab: "enhance" },
   },
   {
-    id: "visit_market",
-    title: "거래소 둘러보기",
-    hint: "다른 매물과 시세를 확인해 보세요.",
-    action: { kind: "route", path: "/market" },
+    id: "sell_equipment",
+    title: "장비 판매하기",
+    hint: "상점 → 장비 매입에서 보유 장비를 NPC에게 팔아 골드를 회수해 보세요.",
+    action: { kind: "tab", tab: "shop", shopSub: "equipment" },
   },
 ];
 
@@ -54,7 +60,7 @@ export function tutorialProgressPercent(step: number) {
   return Math.round((step / TUTORIAL_STEPS.length) * 100);
 }
 
-/** 예전 단계(수집·전문직·제작) → 던전·거래 3단계로 보정 */
+/** 예전 단계(던전·거래소) → 상점·대장간 3단계로 보정 */
 export function migrateLegacyTutorialStep(step: number): number {
   if (step >= TUTORIAL_DONE) return step;
   if (step <= 0) return 0;

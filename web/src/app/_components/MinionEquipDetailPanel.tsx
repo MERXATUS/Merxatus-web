@@ -84,8 +84,8 @@ export function MinionEquipDetailPanel(props: {
 
           <p className="minion-equip-detail-panel__hint text-xs text-[var(--game-muted)]">
             {isMobile
-              ? "슬롯을 탭한 뒤 아래 가방에서 장비를 선택하세요."
-              : "슬롯을 선택한 뒤 왼쪽 가방에서 장비를 고르세요. 드래그해서 슬롯에 놓을 수도 있습니다."}
+              ? "슬롯을 탭한 뒤 가방에서 장비를 고르고 착용 버튼을 누르세요."
+              : "슬롯을 선택한 뒤 가방에서 장비를 고르고 착용 버튼을 누르세요. 드래그해서 슬롯에 놓을 수도 있습니다."}
           </p>
 
           <p className="minion-equip-detail-panel__slot-label">

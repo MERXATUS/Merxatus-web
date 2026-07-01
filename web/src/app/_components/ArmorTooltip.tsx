@@ -17,6 +17,8 @@ import {
 import { requiredEquipLevelForInstance } from "@/shared/itemEquipLevel";
 import { MAX_QUALITY_CRAFT_USES } from "@/shared/equipmentQuality";
 import { ITEM_LEVEL_DEFAULT } from "@/shared/equipmentItemLevel";
+import { armorItemBaseStats } from "@/shared/equipmentItemBaseStats";
+import { MINION_STAT_KEYS, MINION_STAT_LABELS } from "@/shared/minionBaseStats";
 import { equipmentSetSubtitle } from "@/shared/equipmentSets";
 import type { ReactNode } from "react";
 
@@ -33,6 +35,7 @@ export function ArmorTooltipContent({ armor }: { armor: ArmorTooltipData }) {
   const quality = armor.quality ?? 0;
   const itemLevel = armor.itemLevel ?? ITEM_LEVEL_DEFAULT;
   const slotLabel = base ? armorSlotLabelKo(base.slot) : null;
+  const itemBases = armorItemBaseStats(armor.baseItemId);
   const setLine = equipmentSetSubtitle(armor.baseItemId);
 
   return (
@@ -75,6 +78,14 @@ export function ArmorTooltipContent({ armor }: { armor: ArmorTooltipData }) {
             <span>DEF</span>
             <span className="item-tooltip__stat-val">{base.def + enhanceHpDef.def}</span>
           </div>
+          {itemBases
+            ? MINION_STAT_KEYS.filter((key) => itemBases[key] > 0).map((key) => (
+                <div key={key} className="item-tooltip__stat-row">
+                  <span>{MINION_STAT_LABELS[key]}</span>
+                  <span className="item-tooltip__stat-val">{itemBases[key]}</span>
+                </div>
+              ))
+            : null}
           {enhanceLv > 0 ? (
             <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
               <span>제련 (+{enhanceLv})</span>

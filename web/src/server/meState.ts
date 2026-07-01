@@ -8,6 +8,7 @@ import { inventoryAvailableQty } from "@/shared/inventoryLock";
 import { attachIcons, getItemIconMap, itemIconFieldsFromMap } from "@/server/itemCatalog";
 import { loadEquippedMinionByInstanceMaps } from "@/server/equipmentEquippedByMinion";
 import { formatEquipmentOptionDisplay, parseEquipmentOptionsPayload } from "@/server/equipmentOptions";
+import { equipmentBaseStatsView } from "@/shared/equipmentItemBaseStats";
 import { GAME_RULES } from "@/server/gameRules";
 import { countOwnedEquipment } from "@/server/equipmentCapacity";
 import { MAX_EQUIPMENT_OWNED } from "@/shared/equipmentCapacity";
@@ -50,7 +51,8 @@ function mapWeaponRows(
         equippedByMinion: equippedByInstanceId.get(w.id) ?? null,
         ...itemGradeViewForItem(w.baseItemId, w.baseItem.grade),
         identified: parseEquipmentOptionsPayload(w.optionsJson).identified,
-        options: formatEquipmentOptionDisplay(w.optionsJson, "weapon"),
+        options: formatEquipmentOptionDisplay(w.optionsJson, "weapon", w.baseItemId),
+        baseStats: equipmentBaseStatsView(w.baseItemId, "weapon"),
       })),
     iconMap,
     "baseItemId",
@@ -91,7 +93,8 @@ function mapArmorRows(
         equippedByMinion: equippedByInstanceId.get(a.id) ?? null,
         ...itemGradeViewForItem(a.baseItemId, a.baseItem.grade),
         identified: parseEquipmentOptionsPayload(a.optionsJson).identified,
-        options: formatEquipmentOptionDisplay(a.optionsJson, "armor"),
+        options: formatEquipmentOptionDisplay(a.optionsJson, "armor", a.baseItemId),
+        baseStats: equipmentBaseStatsView(a.baseItemId, "armor"),
       })),
     iconMap,
     "baseItemId",

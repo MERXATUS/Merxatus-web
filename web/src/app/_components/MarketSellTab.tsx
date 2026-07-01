@@ -7,7 +7,6 @@ import { itemGradeNameClassName } from "@/server/itemGrade";
 import { itemIconSrc } from "@/shared/itemIcon";
 import { useEscapeClose } from "@/shared/useEscapeClose";
 import { formatPanelError } from "@/shared/formatPanelError";
-import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
 import { API_CACHE_TTL } from "@/shared/apiCache";
 import { apiGetJson, apiGetJsonCached, apiPostJson } from "@/shared/sessionClient";
 import { MarketListingEquipmentHover } from "@/app/_components/MarketListingEquipmentHover";
@@ -292,7 +291,7 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
         : Math.max(1, Math.floor(sellStartPrice));
 
     if (sellType === "FIXED") {
-      const r = await postJson<{ tutorialAdvanced?: boolean }>("/api/market/list", {
+      await postJson("/api/market/list", {
         ...(sellWeapon
           ? { weaponInstanceId: sellWeapon.id }
           : sellArmor
@@ -304,9 +303,8 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
           ? { fixedPricePerUnit: Math.max(1, Math.floor(sellUnitPrice)) }
           : { fixedPriceTotal: Math.max(1, Math.floor(sellTotalPrice)) }),
       });
-      if (r.tutorialAdvanced) notifyTutorialRefresh();
     } else {
-      const r = await postJson<{ tutorialAdvanced?: boolean }>("/api/market/list", {
+      await postJson("/api/market/list", {
         ...(sellWeapon
           ? { weaponInstanceId: sellWeapon.id }
           : sellArmor
@@ -315,7 +313,6 @@ export function MarketSellTab({ userId, busy, setBusy, onError, onListed, onInve
         saleType: "AUCTION",
         startPrice: Math.max(1, Math.floor(sellStartPrice)),
       });
-      if (r.tutorialAdvanced) notifyTutorialRefresh();
     }
 
     closeSellModal();

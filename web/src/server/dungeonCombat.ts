@@ -1,6 +1,6 @@
 import { GAME_RULES } from "@/server/gameRules";
 import { minionBaseStatsFromRow, type MinionBaseStats } from "@/shared/minionBaseStats";
-import { weaponBasePower, weaponEnhancePowerBonus } from "@/shared/weaponTooltip";
+import { weaponBasePowerRaw, weaponEnhancePowerBonus } from "@/shared/weaponTooltip";
 
 export function statPowerFromBaseStats(stats: MinionBaseStats) {
   const w = GAME_RULES.minion.baseStats;
@@ -47,7 +47,7 @@ export function computePartyPower(input: {
     power += fighterRank * perFighter;
     if (m.weaponBaseItemId) {
       const wScale = Math.max(0.01, Number(m.weaponInstanceScale ?? 1) || 1);
-      const wBase = Math.max(0, Math.floor(weaponMap[m.weaponBaseItemId] ?? weaponBasePower(m.weaponBaseItemId)));
+      const wBase = Math.max(0, Math.floor(weaponMap[m.weaponBaseItemId] ?? weaponBasePowerRaw(m.weaponBaseItemId)));
       const wLv = Math.max(0, Math.floor(m.weaponEnhanceLevel ?? 0));
       const wPart = wBase + weaponEnhancePowerBonus(m.weaponBaseItemId, wLv);
       const ob = m.weaponOptionBonus;

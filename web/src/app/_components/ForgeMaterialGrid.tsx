@@ -21,9 +21,12 @@ export function ForgeMaterialGrid(props: {
   cells: ForgeMaterialCell[];
   footer?: ReactNode;
   emptyMessage?: string;
+  className?: string;
+  clickToToggle?: boolean;
 }) {
+  const railClassName = ["forge-material-rail", props.className].filter(Boolean).join(" ");
   return (
-    <aside className="forge-material-rail">
+    <aside className={railClassName}>
       <div className="forge-rail__head">
         <p className="forge-rail__title">{props.title}</p>
       </div>
@@ -46,7 +49,7 @@ export function ForgeMaterialGrid(props: {
             );
             const cellBody = (
               <div
-                className={`forge-material-cell ${cell.isGold ? "forge-material-cell--gold" : ""} ${short ? "forge-material-cell--short" : ""}`}
+                className={`forge-material-cell ${cell.isGold ? "forge-material-cell--gold" : ""} ${short ? "forge-material-cell--short" : ""}${showTooltip ? " forge-material-cell--tooltip" : ""}`}
                 title={showTooltip ? undefined : (cell.hint ?? cell.label)}
                 aria-label={cell.label}
               >
@@ -55,7 +58,7 @@ export function ForgeMaterialGrid(props: {
                     G
                   </span>
                 ) : cell.itemId ? (
-                  <ItemIcon itemId={cell.itemId} size={40} className="item-icon forge-material-cell__icon" />
+                  <ItemIcon itemId={cell.itemId} size={32} className="item-icon forge-material-cell__icon" />
                 ) : null}
                 <span className="forge-material-cell__label">{cell.label}</span>
                 <span className="forge-material-cell__qty">
@@ -83,7 +86,12 @@ export function ForgeMaterialGrid(props: {
               };
               if (shouldShowStackItemTooltip(tooltipItem)) {
                 return (
-                  <StackItemTooltipHover key={cell.key} item={tooltipItem} detailsOnly>
+                  <StackItemTooltipHover
+                    key={cell.key}
+                    item={tooltipItem}
+                    detailsOnly
+                    clickToToggle={props.clickToToggle}
+                  >
                     {cellBody}
                   </StackItemTooltipHover>
                 );

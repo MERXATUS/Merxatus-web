@@ -7,6 +7,7 @@ import { ItemIcon } from "@/app/_components/ItemIcon";
 import { WeaponTooltipHover } from "@/app/_components/WeaponTooltip";
 import { GameBtn } from "@/app/_components/gameUi";
 import { GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
+import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { itemGradeNameClassName } from "@/server/itemGrade";
 import { armorDisplayName } from "@/shared/armorTooltip";
@@ -17,6 +18,7 @@ import { useWalletStore, selectGoldAvailable } from "@/shared/stores/walletStore
 import { usePlayerEquipmentStore } from "@/shared/stores/playerEquipmentStore";
 import { useGameDataPatch } from "@/shared/useGameDataPatch";
 import { weaponDisplayName } from "@/shared/weaponTooltip";
+import { EQUIPMENT_SHOP_GOLD_PER_POWER } from "@/shared/equipmentShopPricing";
 import { MAX_EQUIPMENT_SHOP_SELL_BATCH } from "@/shared/equipmentShopPricing";
 
 type ShopKindFilter = "all" | "weapon" | "armor";
@@ -202,14 +204,17 @@ export function EquipmentShopPanel() {
         soldCount: number;
         goldGained: number;
         honorDelta: number;
+        tutorialAdvanced?: boolean;
       }>("/api/shop/equipment/sell", {
         targets: rows.map((row) => ({ kind: row.kind, instanceId: row.instanceId })),
       });
-      useWalletStore.getState().setWallet({ goldAvailable: (goldAvailable ?? 0) + result.goldGained });
+      const wallet = useWalletStore.getState();
+      wallet.setWallet({ goldAvailable: wallet.goldAvailable + result.goldGained });
       setNotice(
         `${result.soldCount}개 매입 · +${fmtGold(result.goldGained)} G` +
           (result.honorDelta > 0 ? ` · 명예 +${result.honorDelta}` : ""),
       );
+      if (result.tutorialAdvanced) notifyTutorialRefresh();
       notifyGameFramePatch(["wallet", "summary"]);
     } catch (e) {
       rollback();
@@ -218,7 +223,7 @@ export function EquipmentShopPanel() {
     } finally {
       setBusy(false);
     }
-  }, [userId, selectedRows, busy, applySellOptimistic, goldAvailable, load]);
+  }, [userId, selectedRows, busy, applySellOptimistic, load]);
 
   const sellOne = useCallback(
     async (row: ShopRow) => {
@@ -233,12 +238,15 @@ export function EquipmentShopPanel() {
           soldCount: number;
           goldGained: number;
           honorDelta: number;
+          tutorialAdvanced?: boolean;
         }>("/api/shop/equipment/sell", {
           kind: row.kind,
           instanceId: row.instanceId,
         });
-        useWalletStore.getState().setWallet({ goldAvailable: (goldAvailable ?? 0) + result.goldGained });
+        const wallet = useWalletStore.getState();
+        wallet.setWallet({ goldAvailable: wallet.goldAvailable + result.goldGained });
         setNotice(`매입 완료 · +${fmtGold(result.goldGained)} G`);
+        if (result.tutorialAdvanced) notifyTutorialRefresh();
         notifyGameFramePatch(["wallet", "summary"]);
       } catch (e) {
         rollback();
@@ -248,7 +256,7 @@ export function EquipmentShopPanel() {
         setBusy(false);
       }
     },
-    [userId, busy, applySellOptimistic, goldAvailable, load],
+    [userId, busy, applySellOptimistic, load],
   );
 
   if (sessionLoading || loading) {
@@ -259,7 +267,7 @@ export function EquipmentShopPanel() {
     return <GamePanelInfo>로그인 후 이용할 수 있습니다.</GamePanelInfo>;
   }
 
-  const goldPerPower = payload?.goldPerCombatPower ?? 10;
+  const goldPerPower = payload?.goldPerCombatPower ?? EQUIPMENT_SHOP_GOLD_PER_POWER;
 
   return (
     <div className="equipment-shop">

@@ -7,10 +7,9 @@ import { loadMinionAccessoryIdsForUser } from "@/server/minionAccessoryDb";
 import { MAX_DUNGEON_MINIONS } from "@/server/minionCapacity";
 import { mapMinionToListRow } from "@/server/minionListBuild";
 import { formatEquipmentOptionDisplay, parseEquipmentOptionsPayload } from "@/server/equipmentOptions";
+import { equipmentBaseStatsView } from "@/shared/equipmentItemBaseStats";
 import { knightOrderToView } from "@/server/knightOrderView";
 import { ZERO_KNIGHT_ORDER_BONUSES } from "@/shared/knightOrder";
-import { getMinionCreateEligibility } from "@/server/minionCreate";
-
 const minionInclude = {
   traits: true,
   equippedWeaponInstance: { include: { baseItem: true } },
@@ -21,7 +20,7 @@ export async function loadMinionPanelPayload(userId: string, opts?: { detailMini
     console.warn("[minionPanelPayload] ensureMinionEntitiesForUser", e);
   });
 
-  const [armorByMinionId, accessoryByMinionId, minions, weaponInstances, armorInstances, iconMap, minionCreate] =
+  const [armorByMinionId, accessoryByMinionId, minions, weaponInstances, armorInstances, iconMap] =
     await Promise.all([
     loadMinionArmorIdsForUser(prisma, userId),
     loadMinionAccessoryIdsForUser(prisma, userId),
@@ -44,7 +43,6 @@ export async function loadMinionPanelPayload(userId: string, opts?: { detailMini
       take: 200,
     }),
     getItemIconMap(),
-    getMinionCreateEligibility(prisma, userId),
   ]);
 
   const armorInstById = new Map(
@@ -63,7 +61,6 @@ export async function loadMinionPanelPayload(userId: string, opts?: { detailMini
   return {
     maxDungeonOwned: MAX_DUNGEON_MINIONS,
     maxOwned: MAX_DUNGEON_MINIONS,
-    minionCreate,
     knightOrder: knightOrderToView(ZERO_KNIGHT_ORDER_BONUSES),
     minions: minionRows,
     weaponInstances: attachIcons(
@@ -77,7 +74,8 @@ export async function loadMinionPanelPayload(userId: string, opts?: { detailMini
         itemLevel: w.itemLevel,
         ...itemGradeViewForItem(w.baseItemId, w.baseItem.grade),
         identified: parseEquipmentOptionsPayload(w.optionsJson).identified,
-        options: formatEquipmentOptionDisplay(w.optionsJson, "weapon"),
+        options: formatEquipmentOptionDisplay(w.optionsJson, "weapon", w.baseItemId),
+        baseStats: equipmentBaseStatsView(w.baseItemId, "weapon"),
       })),
       iconMap,
       "baseItemId",
@@ -94,7 +92,8 @@ export async function loadMinionPanelPayload(userId: string, opts?: { detailMini
         createdAt: a.createdAt,
         ...itemGradeViewForItem(a.baseItemId, a.baseItem.grade),
         identified: parseEquipmentOptionsPayload(a.optionsJson).identified,
-        options: formatEquipmentOptionDisplay(a.optionsJson, "armor"),
+        options: formatEquipmentOptionDisplay(a.optionsJson, "armor", a.baseItemId),
+        baseStats: equipmentBaseStatsView(a.baseItemId, "armor"),
       })),
       iconMap,
       "baseItemId",

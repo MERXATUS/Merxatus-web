@@ -1,12 +1,15 @@
 "use client";
 
 import type { OptionRealm } from "@/shared/equipmentBlessings";
+import { formatOptionValueText } from "@/shared/equipmentItemBaseStats";
 
 export type BlessingOptionRow = {
   kind: string;
   label: string;
   tierLabel: string;
   displayValue: number;
+  isPercent?: boolean;
+  flatBonus?: number;
   hidden?: boolean;
   locked?: boolean;
   realm?: OptionRealm;
@@ -69,8 +72,11 @@ export function EquipmentBlessingOptionRows(props: {
               {op.label}
             </span>
             <span className="item-tooltip__option-val">
-              {op.displayValue >= 0 ? "+" : ""}
-              {op.displayValue}
+              {formatOptionValueText({
+                displayValue: op.displayValue,
+                isPercent: op.isPercent,
+                flatBonus: op.flatBonus,
+              })}
             </span>
           </div>
         );

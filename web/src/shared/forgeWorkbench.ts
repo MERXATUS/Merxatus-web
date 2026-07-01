@@ -65,7 +65,10 @@ export const FORGE_ENHANCE_MATERIAL_IDS = [
 
 ] as const;
 
-
+export function isForgeEnhanceMaterialItemId(itemId: string): boolean {
+  const id = itemId.trim().toLowerCase();
+  return (FORGE_ENHANCE_MATERIAL_IDS as readonly string[]).includes(id);
+}
 
 export type ForgeWorkbenchMode = "enhance" | "craft" | "salvage";
 
@@ -503,9 +506,9 @@ export function enhanceProtectScrollDef(): ForgeToolDef {
 
     shortLabel: "보호",
 
-    description: "제련 시 함께 사용하면 실패해도 골드·마석이 반환됩니다. 보호서 1장은 소모됩니다.",
+    description: "강화 시 함께 사용하면 실패해도 골드·마석이 반환됩니다. 보호서 1장은 소모됩니다.",
 
-    hint: "제련 탭에서 체크 후 제련",
+    hint: "강화 탭에서 체크 후 강화",
 
     category: "craft",
 
@@ -529,9 +532,9 @@ export function enhanceBlessingGemDef(): ForgeToolDef {
 
     shortLabel: "축복",
 
-    description: "제련 성공 시 +2 상승. 대신 성공 확률이 크게 감소합니다.",
+    description: "강화 성공 시 +2 상승. 대신 성공 확률이 크게 감소합니다.",
 
-    hint: "제련 탭에서 체크 후 제련 · 보석 1개 소모",
+    hint: "강화 탭에서 체크 후 강화 · 보석 1개 소모",
 
     category: "craft",
 

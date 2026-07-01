@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { GameBtn } from "@/app/_components/gameUi";
 import { GamePanelError, GamePanelInfo, GamePanelLoading } from "@/app/_components/panelFeedback";
+import { notifyTutorialRefresh } from "@/app/_components/TutorialPanel";
 import { useSessionUser } from "@/app/_components/SessionProvider";
 import { itemGradeNameClassName } from "@/server/itemGrade";
-import { formatPanelError } from "@/shared/formatPanelError";
 import { notifyGameFramePatch } from "@/shared/gameFramePatch";
-import { GACHA_STANDARD_POOL_ID } from "@/shared/gachaShop";
+import type { GachaPoolDef } from "@/shared/gachaShop";
 import { apiGetJson, apiPostJson, isUnauthorizedError } from "@/shared/sessionClient";
 import { useWalletStore, selectGoldAvailable } from "@/shared/stores/walletStore";
 import { useGameDataPatch } from "@/shared/useGameDataPatch";
@@ -48,7 +48,15 @@ function rewardLabel(row: GachaRewardRow) {
   return `${row.name} ×${row.qty}`;
 }
 
-export function GachaShopPanel() {
+export type ShopPullPanelProps = {
+  poolId: GachaPoolDef["id"];
+  eyebrow: string;
+  rateHints: string[];
+  loopHint?: string;
+  multiBadge?: string;
+};
+
+export function ShopPullPanel(props: ShopPullPanelProps) {
   const { user, loading: sessionLoading } = useSessionUser();
   const userId = user?.id ?? "";
   const [loading, setLoading] = useState(true);
@@ -60,8 +68,8 @@ export function GachaShopPanel() {
 
   const goldAvailable = useWalletStore(selectGoldAvailable);
   const pool = useMemo(
-    () => state?.pools.find((p) => p.id === GACHA_STANDARD_POOL_ID) ?? state?.pools[0] ?? null,
-    [state],
+    () => state?.pools.find((p) => p.id === props.poolId) ?? null,
+    [state, props.poolId],
   );
 
   const load = useCallback(async () => {
@@ -118,6 +126,7 @@ export function GachaShopPanel() {
           goldGained: number;
           goldAvailable: number;
           rewards: GachaRewardRow[];
+          tutorialAdvanced?: boolean;
         }>("/api/shop/gacha/pull", { poolId: pool.id, count });
 
         useWalletStore.getState().setWallet({ goldAvailable: result.goldAvailable });
@@ -127,6 +136,7 @@ export function GachaShopPanel() {
           `${result.pulls}회 · -${fmtGold(result.goldSpent)} G` +
             (result.goldGained > 0 ? ` · 보상 골드 +${fmtGold(result.goldGained)} G` : ""),
         );
+        if (result.tutorialAdvanced) notifyTutorialRefresh();
         notifyGameFramePatch(["wallet", "inventory", "weapons", "armor"]);
       } catch (e) {
         rollback();
@@ -138,18 +148,18 @@ export function GachaShopPanel() {
     [userId, pool, busy, goldAvailable, state?.goldAvailable],
   );
 
-  if (sessionLoading || loading) return <GamePanelLoading label="가챠 상점 불러오는 중…" />;
+  if (sessionLoading || loading) return <GamePanelLoading label="상점 불러오는 중…" />;
   if (!userId) return <GamePanelInfo>로그인 후 이용할 수 있습니다.</GamePanelInfo>;
-  if (!pool) return <GamePanelInfo>가챠 풀이 없습니다.</GamePanelInfo>;
+  if (!pool) return <GamePanelInfo>뽑기 풀을 찾을 수 없습니다.</GamePanelInfo>;
 
   const gold = goldAvailable ?? state?.goldAvailable ?? 0;
   const canSingle = gold >= pool.singleCostGold && !busy;
   const canMulti = gold >= pool.multiCostGold && !busy;
 
   return (
-    <div className="gacha-shop">
+    <div className="gacha-shop shop-pull">
       <header className="gacha-shop__hero">
-        <p className="gacha-shop__eyebrow">거래소 · 가챠</p>
+        <p className="gacha-shop__eyebrow">{props.eyebrow}</p>
         <h2 className="gacha-shop__title">{pool.name}</h2>
         <p className="gacha-shop__desc">{pool.description}</p>
         <p className="gacha-shop__gold">
@@ -166,23 +176,18 @@ export function GachaShopPanel() {
         </GameBtn>
         <GameBtn type="button" disabled={!canMulti} onClick={() => void pull(10)}>
           {pool.multiCount}회 뽑기 · {fmtGold(pool.multiCostGold)} G
-          {pool.multiGuaranteeEquipment ? (
-            <span className="gacha-shop__badge">장비 1+</span>
-          ) : null}
+          {props.multiBadge ? <span className="gacha-shop__badge">{props.multiBadge}</span> : null}
         </GameBtn>
       </div>
 
       <section className="gacha-shop__rates" aria-label="구성 안내">
         <h3 className="gacha-shop__rates-title">주요 구성</h3>
         <ul className="gacha-shop__rates-list">
-          <li>크래프팅 재료 — 하급 마석, 감정서, 마석, 강화 보호 주문서 등</li>
-          <li>골드 — 60~520 G (일부 환급)</li>
-          <li>입문 장비 — 나무·돌 검, 가죽·사슬 방어구 (낮은 확률)</li>
+          {props.rateHints.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
         </ul>
-        <p className="gacha-shop__loop-hint">
-          뽑기 → 대장간 강화·가공 → 「장비 매입」탭에서 골드 회수 → 다시 뽑기. 던전 방치는 앱을 꺼 둔 동안 쌓이는
-          추가 보상입니다.
-        </p>
+        {props.loopHint ? <p className="gacha-shop__loop-hint">{props.loopHint}</p> : null}
       </section>
 
       {lastRewards && lastRewards.length > 0 ? (

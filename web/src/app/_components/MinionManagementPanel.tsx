@@ -41,11 +41,6 @@ import { apiGetJson, apiGetJsonCachedSwr, apiPostJson, isUnauthorizedError, BOOT
 import { GAME_FRAME_REFRESH_EVENT } from "@/shared/gameNav";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
 import { MinionStatPanel } from "@/app/_components/MinionStatPanel";
-import { MinionCreateFlow } from "@/app/_components/MinionCreateFlow";
-import {
-  MINION_ALT_CREATE_LEVEL,
-  type MinionCreateEligibility,
-} from "@/shared/minionCreate";
 import type { MinionBaseStats } from "@/shared/minionBaseStats";
 import type { MinionCombatClass } from "@/shared/minionDerivedClass";
 
@@ -461,7 +456,6 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
   const [activeSlot, setActiveSlot] = useState<MinionEquipSlotId>("weapon");
   const [notice, setNotice] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [minionCreate, setMinionCreate] = useState<MinionCreateEligibility | null>(null);
   const frame = useGameFrameOptional();
   const equipInFlightRef = useRef(false);
 
@@ -478,14 +472,12 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
         weaponInstances?: WeaponInstanceRow[];
         armorInstances?: ArmorInstanceRow[];
         inventory?: Array<StackRow & { category?: string }>;
-        minionCreate?: MinionCreateEligibility;
       }>("/api/minions/panel", {
         ttlMs: API_CACHE_TTL.minionPanel,
         force: opts?.force,
         timeoutMs: BOOTSTRAP_FETCH_TIMEOUT_MS,
       });
       if (r?.ok) {
-        if (r.minionCreate) setMinionCreate(r.minionCreate);
         setMinions(r.minions ?? []);
         setMaxDungeonOwned(r.maxDungeonOwned ?? 10);
         setWeaponInstances(r.weaponInstances ?? []);
@@ -892,7 +884,7 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <GamePanelTitle hint={equipMode ? "왼쪽 가방 · 오른쪽 착용 슬롯" : `전투 미니언 ${roster.length}/${maxDungeonOwned}명`}>
-                {equipMode ? "장비 착용" : "미니언 관리"}
+                {equipMode ? "장비 착용" : "장비"}
               </GamePanelTitle>
               <p className="mt-1 text-xs text-[var(--game-muted)]">
                 {equipMode
@@ -918,32 +910,9 @@ export function MinionManagementPanel(props: EmbeddedPanelProps = {}) {
       ) : !embedded && !user ? (
         <GamePanelInfo>로그인이 필요합니다. 화면 오른쪽 위에서 Google 로그인을 진행해 주세요.</GamePanelInfo>
       ) : initialLoading ? (
-        <GamePanelLoading label="미니언 정보를 불러오는 중…" />
+        <GamePanelLoading label="장비 정보를 불러오는 중…" />
       ) : !user ? null : (
         <>
-      {!equipMode ? (
-        <MinionCreateFlow
-          eligibility={
-            minionCreate ?? {
-              canCreate: false,
-              minionCount: minions.length,
-              maxOwned: maxDungeonOwned,
-              highestLevel: 0,
-              requiredLevel: MINION_ALT_CREATE_LEVEL,
-              isFirstSlot: minions.length === 0,
-            }
-          }
-          busyId={busy}
-          setBusy={setBusy}
-          onError={setError}
-          onNotice={setNotice}
-          onCreated={async () => {
-            await refresh();
-            void frame?.refreshSummary({ force: true });
-          }}
-          compact={embedded}
-        />
-      ) : null}
       <div className={`minion-layout ${equipMode ? "minion-layout--equip" : ""} ${embedded ? "minion-layout--fit" : ""}`}>
         <aside
           className={equipMode ? "minion-equip-bag-aside" : "minion-roster"}

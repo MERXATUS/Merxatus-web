@@ -1,5 +1,6 @@
 import raidsJson from "../../data/raids.json";
 import monstersJson from "../../data/monsters.json";
+import { displayCombatPower } from "@/shared/combatPowerScale";
 import { combatPowerFromMonster } from "@/shared/monsterCombatPower";
 import { minimumPartyPowerForRaid, raidDifficultyMeta } from "@/shared/raidDifficulty";
 import type { RaidFaction } from "@/shared/raidFaction";
@@ -38,8 +39,8 @@ function buildRaidCatalogEntry(raid: RaidJson): RaidCatalogEntry {
   const enc = raidEncounterForPhase(raid, 1);
   const monster = monstersJson[enc.monsterId.trim().toLowerCase() as keyof typeof monstersJson];
   const isBoss = String(enc?.category ?? "").toUpperCase() === "BOSS";
-  const enemyPower = monster ? combatPowerFromMonster(monster) : 0;
-  const powerForDiff = Math.floor(enemyPower * raidModeStatMult(raid.difficulty));
+  const enemyPowerRaw = monster ? combatPowerFromMonster(monster) : 0;
+  const powerForDiff = Math.floor(enemyPowerRaw * raidModeStatMult(raid.difficulty));
   const diff = raidDifficultyMeta(
     raid.id,
     powerForDiff,
@@ -47,18 +48,20 @@ function buildRaidCatalogEntry(raid: RaidJson): RaidCatalogEntry {
     raid.maxPartySize ?? 1,
     raid.difficulty as RaidDifficultyMode,
   );
+  const recommendedPartyPower = displayCombatPower(diff.recommendedPartyPower);
+  const maxPartySize = raid.maxPartySize ?? 1;
   return {
     id: raid.id,
     name: raid.name,
     maxPhases: raid.maxPhases,
-    maxPartySize: raid.maxPartySize ?? 1,
+    maxPartySize,
     faction: raid.faction as RaidFaction,
     difficulty: raid.difficulty as RaidDifficultyMode,
     isBoss,
-    enemyPower,
-    recommendedPartyPower: diff.recommendedPartyPower,
-    minPartyPower: minimumPartyPowerForRaid(diff.recommendedPartyPower),
-    recommendedPerMinion: diff.recommendedPerMinion,
+    enemyPower: displayCombatPower(enemyPowerRaw),
+    recommendedPartyPower,
+    minPartyPower: minimumPartyPowerForRaid(recommendedPartyPower),
+    recommendedPerMinion: Math.ceil(recommendedPartyPower / Math.max(1, maxPartySize)),
     difficultyLabel: diff.label,
     difficultyStars: diff.stars,
     entryTicketCost: raidEntryTicketCost(raid.difficulty),

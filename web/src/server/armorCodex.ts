@@ -119,8 +119,8 @@ async function prismaArmorCodexEntries(userId: string): Promise<CodexEntryRow[]>
   });
 }
 
-function armorOptionsFromJson(optionsJson: string) {
-  return formatEquipmentOptionDisplay(optionsJson, "armor");
+function armorOptionsFromJson(optionsJson: string, baseItemId: string) {
+  return formatEquipmentOptionDisplay(optionsJson, "armor", baseItemId);
 }
 
 async function loadRegisterableArmorClaims(userId: string) {
@@ -175,7 +175,7 @@ async function loadRegisterableArmorClaims(userId: string) {
     if (a.userLocked || equippedIds.has(a.id)) continue;
     const baseItemId = normalizeItemId(a.baseItemId);
     if (!baseItemId) continue;
-    const options = armorOptionsFromJson(a.optionsJson);
+    const options = armorOptionsFromJson(a.optionsJson, baseItemId);
     const snapshot = {
       enhanceLevel: a.enhanceLevel,
       quality: a.quality,
@@ -243,7 +243,7 @@ export async function registerArmorToCodex(
     });
     if (equipped) throw new Error("EQUIPMENT_EQUIPPED");
 
-    const options = armorOptionsFromJson(a.optionsJson);
+    const options = armorOptionsFromJson(a.optionsJson, baseItemId);
     const snapshot = {
       enhanceLevel: a.enhanceLevel,
       quality: a.quality,

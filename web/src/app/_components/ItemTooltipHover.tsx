@@ -66,13 +66,16 @@ export function ItemTooltipHover(props: {
   content: ReactNode;
   children: ReactNode;
   delayMs?: number;
+  /** 모바일 등 — 클릭(탭)으로 설명 표시·닫기 */
+  clickToToggle?: boolean;
 }) {
-  const { content, children, delayMs = 280 } = props;
+  const { content, children, delayMs = 280, clickToToggle = false } = props;
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLSpanElement | null>(null);
   const anchorRef = useRef<DOMRect | null>(null);
   const pointerRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -142,6 +145,33 @@ export function ItemTooltipHover(props: {
     [visible, reposition],
   );
 
+  useEffect(() => {
+    if (!clickToToggle || !visible) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (tooltipRef.current?.contains(target)) return;
+      hide();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [clickToToggle, visible, hide]);
+
+  const onTriggerClick = useCallback(
+    (e: React.MouseEvent<HTMLSpanElement>) => {
+      if (!clickToToggle) return;
+      e.stopPropagation();
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (visible) {
+        hide();
+        return;
+      }
+      const rect = e.currentTarget.getBoundingClientRect();
+      showAt(e.clientX, e.clientY, rect);
+    },
+    [clickToToggle, visible, hide, showAt],
+  );
+
   const portal =
     visible && mounted ? (
       <div
@@ -159,10 +189,12 @@ export function ItemTooltipHover(props: {
   return (
     <>
       <span
-        className="item-tooltip-trigger inline-flex shrink-0"
-        onMouseEnter={scheduleShow}
-        onMouseLeave={hide}
-        onMouseMove={onMove}
+        ref={triggerRef}
+        className={`item-tooltip-trigger inline-flex shrink-0${clickToToggle ? " item-tooltip-trigger--click" : ""}`}
+        onMouseEnter={clickToToggle ? undefined : scheduleShow}
+        onMouseLeave={clickToToggle ? undefined : hide}
+        onMouseMove={clickToToggle ? undefined : onMove}
+        onClick={onTriggerClick}
       >
         {children}
       </span>
