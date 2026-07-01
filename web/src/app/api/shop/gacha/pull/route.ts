@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       poolId: pool.id,
       count,
     });
-    const tutorial = await tryTutorialGachaPull(prisma, auth.userId);
+    const tutorial = await tryTutorialGachaPull(prisma, auth.userId, pool.id);
     return Response.json({ ...result, tutorialAdvanced: tutorial.advanced });
   } catch (e) {
     const message = e instanceof Error ? e.message : "UNKNOWN";

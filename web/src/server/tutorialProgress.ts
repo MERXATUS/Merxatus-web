@@ -7,9 +7,13 @@ import {
   tutorialCurrentStep,
   tutorialIsDone,
 } from "@/shared/tutorial";
+import { GACHA_STARTER_POOL_ID } from "@/shared/gachaShop";
 import { type TutorialMinionGrant } from "@/server/tutorialMinionGrants";
+import { grantLootToUser } from "@/server/grantLootToUser";
+import { stackAvailableQty } from "@/server/inventoryStackOps";
 
-type RawDb = Pick<PrismaClient, "$queryRaw" | "$executeRaw" | "minion" | "minionInventory">;
+type RawDb = Pick<PrismaClient, "$queryRaw" | "$executeRaw" | "minion" | "minionInventory" | "wallet" | "inventoryStack">;
+type ItemGrantDb = Parameters<typeof grantLootToUser>[0];
 
 export async function getTutorialStep(db: RawDb, userId: string): Promise<number> {
   const rows = await db.$queryRaw<{ tutorialStep: number }[]>(Prisma.sql`
@@ -86,12 +90,39 @@ export async function tryTutorialVisitMarket(db: RawDb, userId: string) {
   return { advanced: false as const, step: cur };
 }
 
-export async function tryTutorialGachaPull(db: RawDb, userId: string) {
+export async function tryTutorialGachaPull(db: RawDb, userId: string, poolId: string) {
   const cur = await getTutorialStep(db, userId);
   if (tutorialCurrentStep(cur)?.id !== "gacha_pull") {
     return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
   }
+  if (poolId !== GACHA_STARTER_POOL_ID) {
+    return { advanced: false as const, step: cur, minionGrants: [] as TutorialMinionGrant[] };
+  }
   return advanceTutorial(db, userId);
+}
+
+/** 튜토리얼 강화 단계 — 뽑기에 골드를 써도 +1 강화(150G+하급 마석)를 1회 보장 */
+export async function ensureTutorialEnhanceBudget(db: RawDb & ItemGrantDb, userId: string) {
+  const cur = await getTutorialStep(db, userId);
+  if (tutorialCurrentStep(cur)?.id !== "enhance_equipment") return;
+
+  const wallet = await db.wallet.findUnique({
+    where: { userId },
+    select: { goldAvailable: true },
+  });
+  if ((wallet?.goldAvailable ?? 0) < 200) {
+    await db.wallet.update({
+      where: { userId },
+      data: { goldAvailable: { increment: 300 } },
+    });
+  }
+
+  const stack = await db.inventoryStack.findUnique({
+    where: { userId_itemId: { userId, itemId: "item_lesser_mana_stone" } },
+  });
+  if (stackAvailableQty(stack ?? { quantity: 0, lockedQuantity: 0 }) < 1) {
+    await grantLootToUser(db, userId, [{ itemId: "item_lesser_mana_stone", qty: 3 }]);
+  }
 }
 
 export async function tryTutorialEnhanceEquipment(db: RawDb, userId: string) {

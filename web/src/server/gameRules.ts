@@ -96,14 +96,27 @@ export const GAME_RULES = {
     maxBuybackGold: EQUIPMENT_SHOP_MAX_GOLD,
     maxSellBatch: MAX_EQUIPMENT_SHOP_SELL_BATCH,
   },
+  /** 신규 유저 — `ensureUserBootstrap.ts` */
+  starter: {
+    gold: 2_000,
+    /** +1 강화(150G+하급 마석 1) 여유 + 장비·재료 1회 뽑기 후에도 강화 가능 */
+    grantItems: [{ itemId: "item_lesser_mana_stone", qty: 5 }],
+  },
   /** 가챠 상점 — `shared/gachaShop.ts` */
   gachaShop: {
+    starterPoolId: "equipment_starter",
     equipmentPoolId: "equipment",
+    elitePoolId: "equipment_elite",
     materialsPoolId: "materials",
-    equipmentSingleCostGold: 500,
-    equipmentMultiCostGold: 4_500,
-    materialsSingleCostGold: 400,
-    materialsMultiCostGold: 3_600,
+    starterSingleCostGold: 250,
+    starterMultiCostGold: 2_250,
+    equipmentSingleCostGold: 400,
+    equipmentMultiCostGold: 3_600,
+    eliteSingleCostGold: 800,
+    eliteMultiCostGold: 7_200,
+    eliteUnlockMinStageOrder: 3,
+    materialsSingleCostGold: 300,
+    materialsMultiCostGold: 2_700,
   },
   market: {
     feeBps: 500, // 5%

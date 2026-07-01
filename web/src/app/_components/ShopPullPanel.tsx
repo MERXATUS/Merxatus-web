@@ -21,6 +21,9 @@ type GachaPoolView = {
   multiCount: number;
   multiCostGold: number;
   multiGuaranteeEquipment: boolean;
+  multiGuaranteeMinGrade: number | null;
+  unlockMinStageOrder: number;
+  unlocked: boolean;
 };
 
 type GachaRewardRow = {
@@ -36,6 +39,7 @@ type GachaRewardRow = {
 type GachaState = {
   ok: true;
   goldAvailable: number;
+  highestDungeonStageOrder?: number;
   pools: GachaPoolView[];
 };
 
@@ -106,6 +110,10 @@ export function ShopPullPanel(props: ShopPullPanelProps) {
   const pull = useCallback(
     async (count: 1 | 10) => {
       if (!userId || !pool || busy) return;
+      if (!pool.unlocked) {
+        setError(new Error("POOL_LOCKED"));
+        return;
+      }
       const cost = count === 10 ? pool.multiCostGold : pool.singleCostGold;
       const available = goldAvailable ?? state?.goldAvailable ?? 0;
       if (available < cost) {
@@ -153,8 +161,13 @@ export function ShopPullPanel(props: ShopPullPanelProps) {
   if (!pool) return <GamePanelInfo>뽑기 풀을 찾을 수 없습니다.</GamePanelInfo>;
 
   const gold = goldAvailable ?? state?.goldAvailable ?? 0;
-  const canSingle = gold >= pool.singleCostGold && !busy;
-  const canMulti = gold >= pool.multiCostGold && !busy;
+  const canPull = pool.unlocked && !busy;
+  const canSingle = canPull && gold >= pool.singleCostGold;
+  const canMulti = canPull && gold >= pool.multiCostGold;
+  const lockHint =
+    !pool.unlocked && pool.unlockMinStageOrder > 1
+      ? `스테이지 ${pool.unlockMinStageOrder} 이상 던전 플레이 후 해금됩니다.`
+      : null;
 
   return (
     <div className="gacha-shop shop-pull">
@@ -162,6 +175,7 @@ export function ShopPullPanel(props: ShopPullPanelProps) {
         <p className="gacha-shop__eyebrow">{props.eyebrow}</p>
         <h2 className="gacha-shop__title">{pool.name}</h2>
         <p className="gacha-shop__desc">{pool.description}</p>
+        {lockHint ? <p className="gacha-shop__lock">{lockHint}</p> : null}
         <p className="gacha-shop__gold">
           보유 골드 <strong>{fmtGold(gold)} G</strong>
         </p>

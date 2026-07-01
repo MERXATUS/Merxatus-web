@@ -10391,6 +10391,60 @@ body:has(.game-frame) {
   color: var(--game-text-muted, #9ca3af);
 }
 
+.gacha-shop__lock {
+  margin: 0.65rem 0 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.5rem;
+  font-size: 0.82rem;
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.25);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.equipment-pull-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.equipment-pull-panel__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0 0.35rem;
+}
+
+.equipment-pull-panel__tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-width: 5.5rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(168, 139, 250, 0.25);
+  background: rgba(10, 12, 18, 0.65);
+  color: var(--game-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.equipment-pull-panel__tab--active {
+  border-color: rgba(196, 181, 253, 0.65);
+  background: rgba(76, 29, 149, 0.35);
+  color: var(--game-text);
+}
+
+.equipment-pull-panel__tab-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.equipment-pull-panel__tab-sub {
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
 .gacha-shop__gold {
   margin: 0.75rem 0 0;
   font-size: 0.88rem;

@@ -81,6 +81,7 @@ function mapErrorCode(code: string): string | null {
     NOT_FOUND: "요청한 데이터를 찾을 수 없습니다.",
     TRANSACTION_FAILED: "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
     INSUFFICIENT_GOLD: "골드가 부족합니다.",
+    POOL_LOCKED: "아직 이 뽑기 상자를 이용할 수 없습니다. 던전 진행 조건을 확인해 주세요.",
     MINION_STAT_ALLOC_DISABLED: "스탯 배분은 비활성화되었습니다. 전투력은 장비·강화·도감으로 성장합니다.",
     PROMOTION_DISABLED: "전직 시스템은 비활성화되었습니다.",
     SKILLS_DISABLED: "스킬 시스템은 비활성화되었습니다.",

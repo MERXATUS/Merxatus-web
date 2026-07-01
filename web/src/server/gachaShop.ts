@@ -5,9 +5,11 @@ import { mergeLoot } from "@/server/dungeonRun";
 import { assertCanGrantEquipment } from "@/server/equipmentCapacity";
 import { getItemIconMap, itemIconFieldsFromMap } from "@/server/itemCatalog";
 import { readItemsJson } from "@/server/adminData";
+import { getUserHighestDungeonStageOrder } from "@/server/gachaShopUnlock";
 import {
   gachaPullCostGold,
   getGachaPool,
+  isGachaPoolUnlocked,
   listGachaPools,
   rollGachaBatch,
   type GachaPoolDef,
@@ -80,10 +82,14 @@ export async function enrichGachaRolls(rolls: GachaRoll[]): Promise<GachaRewardR
 }
 
 export async function getGachaShopState(userId: string) {
-  const wallet = await prisma.wallet.findUnique({ where: { userId }, select: { goldAvailable: true } });
+  const [wallet, highestDungeonStageOrder] = await Promise.all([
+    prisma.wallet.findUnique({ where: { userId }, select: { goldAvailable: true } }),
+    getUserHighestDungeonStageOrder(userId),
+  ]);
   return {
     ok: true as const,
     goldAvailable: wallet?.goldAvailable ?? 0,
+    highestDungeonStageOrder,
     pools: listGachaPools().map((pool) => ({
       id: pool.id,
       name: pool.name,
@@ -91,7 +97,10 @@ export async function getGachaShopState(userId: string) {
       singleCostGold: pool.singleCostGold,
       multiCount: pool.multiCount,
       multiCostGold: pool.multiCostGold,
-      multiGuaranteeEquipment: pool.multiGuaranteeEquipment,
+      multiGuaranteeEquipment: pool.multiGuaranteeEquipment ?? false,
+      multiGuaranteeMinGrade: pool.multiGuaranteeMinGrade ?? null,
+      unlockMinStageOrder: pool.unlockMinStageOrder ?? 1,
+      unlocked: isGachaPoolUnlocked(pool, highestDungeonStageOrder),
     })),
   };
 }
@@ -113,6 +122,9 @@ export async function pullGachaShop(input: {
 }> {
   const pool = getGachaPool(input.poolId);
   if (!pool) throw new Error("UNKNOWN_POOL");
+
+  const highestStage = await getUserHighestDungeonStageOrder(input.userId);
+  if (!isGachaPoolUnlocked(pool, highestStage)) throw new Error("POOL_LOCKED");
 
   const pulls = input.count === pool.multiCount ? pool.multiCount : 1;
   const goldSpent = gachaPullCostGold(pool, pulls);

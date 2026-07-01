@@ -2,7 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/server/db";
 import { requireUserId } from "@/server/auth";
 import { attemptArmorInstanceUpgrade } from "@/server/armorInstanceUpgrade";
-import { tryTutorialEnhanceEquipment } from "@/server/tutorialProgress";
+import { tryTutorialEnhanceEquipment, ensureTutorialEnhanceBudget } from "@/server/tutorialProgress";
 import { ENHANCE_MANA_STONE_ITEM_IDS } from "@/server/weaponUpgradeRules";
 
 export const runtime = "nodejs";
@@ -24,6 +24,7 @@ export async function POST(req: Request) {
   if (!auth.ok) return Response.json({ ok: false, error: auth.error }, { status: 401 });
 
   try {
+    await ensureTutorialEnhanceBudget(prisma, auth.userId);
     const result = await prisma.$transaction(async (tx) =>
       attemptArmorInstanceUpgrade(tx, {
         userId: auth.userId,

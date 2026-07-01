@@ -20,13 +20,13 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: "gacha_pull",
     title: "골드로 장비 뽑기",
-    hint: "상점 → 장비에서 「1회 뽑기」로 무기·방어구를 받아 보세요.",
+    hint: "상점 → 장비 → 입문 상자에서 「1회 뽑기」만 먼저 하세요. 재료 상자는 강화 후에 뽑아도 됩니다.",
     action: { kind: "tab", tab: "shop", shopSub: "equipment_pull" },
   },
   {
     id: "enhance_equipment",
     title: "장비 강화하기",
-    hint: "대장간에서 무기나 방어구를 고른 뒤 「강화하기」로 강화를 시도해 보세요.",
+    hint: "대장간 → 강화에서 나무 검(또는 뽑은 장비)을 고르고 「강화하기」를 눌러 보세요. 하급 마석은 신규 지급분을 씁니다.",
     action: { kind: "tab", tab: "enhance" },
   },
   {

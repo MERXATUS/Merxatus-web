@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { EquipmentShopPanel } from "@/app/_components/EquipmentShopPanel";
+import { EquipmentPullPanel } from "@/app/_components/EquipmentPullPanel";
 import { ShopPullPanel } from "@/app/_components/ShopPullPanel";
 import { GamePanel } from "@/app/_components/gameUi";
 import {
-  GACHA_EQUIPMENT_POOL_ID,
   GACHA_MATERIALS_POOL_ID,
 } from "@/shared/gachaShop";
 import type { EmbeddedPanelProps } from "@/shared/panelEmbed";
@@ -101,18 +101,7 @@ export function ShopPanel({ embedded = false }: EmbeddedPanelProps = {}) {
         </div>
       </div>
 
-      {tab === "EQUIPMENT_PULL" ? (
-        <ShopPullPanel
-          poolId={GACHA_EQUIPMENT_POOL_ID}
-          eyebrow="상점 · 장비"
-          rateHints={[
-            "나무·돌·적금 검",
-            "가죽·사슬 방어구 (투구·갑옷·바지·신발)",
-          ]}
-          loopHint="뽑은 장비 → 대장간 강화·가공 → 「장비 매입」에서 골드 회수."
-          multiBadge="10% 할인"
-        />
-      ) : null}
+      {tab === "EQUIPMENT_PULL" ? <EquipmentPullPanel /> : null}
       {tab === "MATERIALS" ? (
         <ShopPullPanel
           poolId={GACHA_MATERIALS_POOL_ID}
