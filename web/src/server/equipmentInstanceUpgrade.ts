@@ -2,6 +2,8 @@ import type { Prisma } from "@prisma/client";
 import { resolveDisplayItemGrade } from "@/server/itemGrade";
 import {
   ENHANCE_MANA_STONE_ITEM_IDS,
+  computeEnhanceSuccessRate,
+  isEnhanceManaStoneItemId,
   resolveWeaponUpgradeDeductions,
   rollWeaponEnhanceSuccess,
   weaponEnhanceMaxLevelForWeapon,
@@ -9,7 +11,7 @@ import {
 } from "@/server/weaponUpgradeRules";
 import { assertEquipmentNotUserLocked } from "@/server/inventoryEquipmentLock";
 import { stackAvailableQty, takeAvailableFromStack } from "@/server/inventoryStackOps";
-import { ITEM_ENHANCE_SCROLL_PROTECT, ITEM_GEM_BLESSING, BLESSING_GEM_SUCCESS_LEVEL_GAIN, BLESSING_GEM_SUCCESS_RATE_PENALTY } from "@/shared/enhanceConsumables";
+import { ITEM_ENHANCE_SCROLL_PROTECT, ITEM_GEM_BLESSING, BLESSING_GEM_SUCCESS_LEVEL_GAIN } from "@/shared/enhanceConsumables";
 
 type UpgradeTx = Prisma.TransactionClient;
 type EquipKind = "weapon" | "armor";
@@ -130,22 +132,25 @@ export async function attemptEquipmentInstanceUpgrade(
     throw new Error(`INSUFFICIENT_MATERIAL:${ITEM_GEM_BLESSING}`);
   }
 
-  const manaReq = cost.materials.find((m) => ENHANCE_MANA_STONE_ITEM_IDS.includes(m.itemId as (typeof ENHANCE_MANA_STONE_ITEM_IDS)[number]));
-  if (manaReq && !input.manaStoneItemId?.trim()) {
-    throw new Error("MANA_STONE_NOT_SELECTED");
+  const optionalManaId = input.manaStoneItemId?.trim().toLowerCase() ?? "";
+  if (optionalManaId) {
+    if (!isEnhanceManaStoneItemId(optionalManaId)) throw new Error("INVALID_MANA_STONE_CHOICE");
+    if (stackQty(optionalManaId) < 1) throw new Error(`INSUFFICIENT_MATERIAL:${optionalManaId}`);
   }
 
-  const deductions = resolveWeaponUpgradeDeductions(cost.materials, stackQty, {
-    manaStoneItemId: input.manaStoneItemId,
-  });
-  if (!deductions) {
-    if (input.manaStoneItemId?.trim()) throw new Error("INVALID_MANA_STONE_CHOICE");
+  const deductions = resolveWeaponUpgradeDeductions(cost.materials, stackQty);
+  if (!deductions && cost.materials.length > 0) {
     const missing = cost.materials.find((m) => stackQty(m.itemId) < m.quantity);
     throw new Error(`INSUFFICIENT_MATERIAL:${missing?.itemId ?? cost.materials[0]?.itemId ?? "unknown"}`);
   }
 
+  const materialDeductions = [
+    ...(deductions ?? []),
+    ...(optionalManaId ? [{ itemId: optionalManaId, quantity: 1 }] : []),
+  ];
+
   const allDeductions = [
-    ...deductions,
+    ...materialDeductions,
     ...(useProtect ? [{ itemId: ITEM_ENHANCE_SCROLL_PROTECT, quantity: 1 }] : []),
     ...(useBlessing ? [{ itemId: ITEM_GEM_BLESSING, quantity: 1 }] : []),
   ];
@@ -158,16 +163,18 @@ export async function attemptEquipmentInstanceUpgrade(
     await takeAvailableFromStack(tx, input.userId, m.itemId, m.quantity);
   }
 
-  const effectiveSuccessRate = useBlessing
-    ? Math.max(1, cost.successRate - BLESSING_GEM_SUCCESS_RATE_PENALTY)
-    : cost.successRate;
+  const effectiveSuccessRate = computeEnhanceSuccessRate({
+    baseSuccessRate: cost.successRate,
+    manaStoneItemId: optionalManaId || null,
+    useBlessingGem: useBlessing,
+  });
   const success = rollWeaponEnhanceSuccess(effectiveSuccessRate);
   const levelGain = success && useBlessing ? BLESSING_GEM_SUCCESS_LEVEL_GAIN : 1;
   const nextLevel = success ? Math.min(max, cur + levelGain) : cur;
   let protectedOnFail = false;
 
   if (!success && useProtect) {
-    await refundStacks(tx, input.userId, deductions, cost.gold);
+    await refundStacks(tx, input.userId, materialDeductions, cost.gold);
     protectedOnFail = true;
   }
 

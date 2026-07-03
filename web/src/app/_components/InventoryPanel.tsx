@@ -292,31 +292,8 @@ function friendlyInventoryApiError(e: unknown, itemNameById: Map<string, string>
 }
 
 const INV_SORT_STORAGE_KEY = "inv_sort_prefs_v1";
-const INV_VIEW_MODE_KEY = "inv_view_mode_v1";
 
 type InventoryViewMode = "icons" | "list";
-
-const DEFAULT_VIEW_MODE: InventoryViewMode = "list";
-
-function readViewMode(): InventoryViewMode {
-  if (typeof window === "undefined") return DEFAULT_VIEW_MODE;
-  try {
-    const raw = localStorage.getItem(INV_VIEW_MODE_KEY);
-    if (raw === "grid2") return "list";
-    if (raw === "icons" || raw === "list") return raw;
-    return DEFAULT_VIEW_MODE;
-  } catch {
-    return DEFAULT_VIEW_MODE;
-  }
-}
-
-function writeViewMode(mode: InventoryViewMode) {
-  try {
-    localStorage.setItem(INV_VIEW_MODE_KEY, mode);
-  } catch {
-    /* ignore */
-  }
-}
 
 function inventoryListClassName(mode: InventoryViewMode, extra?: string) {
   return ["inventory-item-list", `inventory-item-list--${mode}`, extra].filter(Boolean).join(" ");
@@ -521,9 +498,9 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
   const [error, setError] = useState<any>(null);
 
   const [tab, setTab] = useState<"WEAPONS" | "ARMOR" | "MATERIALS">("WEAPONS");
-  const [q, setQ] = useState("");
+  const [q] = useState("");
   const [sortPrefs, setSortPrefs] = useState<SortPrefs>(DEFAULT_SORT_PREFS);
-  const [viewMode, setViewMode] = useState<InventoryViewMode>(DEFAULT_VIEW_MODE);
+  const viewMode: InventoryViewMode = "icons";
 
   const [recruitReveal, setRecruitReveal] = useState<MinionHatchResult | null>(null);
   const [recruitFlow, setRecruitFlow] = useState<RecruitFlow | null>(null);
@@ -589,16 +566,11 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
 
   useEffect(() => {
     setSortPrefs(readSortPrefs());
-    setViewMode(readViewMode());
   }, []);
 
   useEffect(() => {
     writeSortPrefs(sortPrefs);
   }, [sortPrefs]);
-
-  useEffect(() => {
-    writeViewMode(viewMode);
-  }, [viewMode]);
 
   useEffect(() => {
     const t = setInterval(() => setNowMs(Date.now()), 1000);
@@ -878,21 +850,6 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
             </div>
               <div className="inventory-filters flex flex-wrap items-end gap-3">
               <>
-              <div className="min-w-[200px] flex-1 md:max-w-[420px]">
-                <label className="inventory-label">검색</label>
-                <input
-                  className="inventory-input mt-2"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder={
-                    tab === "WEAPONS"
-                      ? "무기 이름 / 인스턴스ID / baseItemId"
-                      : tab === "ARMOR"
-                        ? "방어구 이름 / itemId"
-                        : "재료 이름 / itemId"
-                  }
-                />
-              </div>
               <div className="w-full min-w-[200px] md:w-[260px] md:max-w-[320px]">
                 <label className="inventory-label">정렬</label>
                 <select
@@ -935,27 +892,6 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
                   ) : null}
                 </select>
               </div>
-              <div className="w-full min-w-[200px] md:w-auto">
-                <label className="inventory-label">보기</label>
-                <div className="inventory-view-toggle mt-2">
-                  <button
-                    type="button"
-                    className={`inventory-view-btn ${viewMode === "icons" ? "inventory-view-btn--active" : ""}`}
-                    onClick={() => setViewMode("icons")}
-                    title="아이콘만"
-                  >
-                    아이콘
-                  </button>
-                  <button
-                    type="button"
-                    className={`inventory-view-btn ${viewMode === "list" ? "inventory-view-btn--active" : ""}`}
-                    onClick={() => setViewMode("list")}
-                    title="상세 목록"
-                  >
-                    목록
-                  </button>
-                </div>
-              </div>
               </>
             </div>
           </div>
@@ -973,17 +909,6 @@ export function InventoryPanel(props?: { onOpenMinions?: () => void } & Embedded
 
           {tab === "WEAPONS" ? (
           <div className="inventory-section">
-            <div>
-              <div className="inventory-section-title">보유 무기</div>
-              <div className="inventory-section-hint">
-                무기·방어구 제련·감정·보석 가공은 <strong>대장간</strong>에서 할 수 있어요.
-              </div>
-            </div>
-
-            <div className="forge-link-banner">
-              감정 주문서·소멸/혼돈/봉인 보석 → 상단 메뉴 <strong>대장간</strong> → 「장비 가공」
-            </div>
-
             {filteredWeapons.length === 0 ? (
               <div className="mt-3 text-sm text-[var(--game-muted)]">보유 무기가 없어.</div>
             ) : (

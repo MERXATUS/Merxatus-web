@@ -9,7 +9,7 @@ import { itemGradeViewForItem } from "@/server/itemGrade";
 import { minionRoleLabel } from "@/server/minionJobs";
 import type { MinionCombatClass } from "@/shared/minionDerivedClass";
 import { promotionStateFromRow } from "@/shared/minionPromotion";
-import { minionDisplayName } from "@/shared/minionNickname";
+import { playerDisplayName } from "@/shared/minionNickname";
 import { getArmorStats } from "@/shared/armorStatsData";
 import {
   armorSlotsFromMinionRow,
@@ -74,7 +74,7 @@ export function armorEquippedView(
   };
 }
 
-export function mapMinionToPartyPickRow(m: MinionRow) {
+export function mapMinionToPartyPickRow(m: MinionRow, playerUsername?: string | null) {
   const lv = 1;
   const fighterRank = (m.traits ?? []).find((t) => t.type === "FIGHTER")?.rank ?? 0;
   const combatClass: MinionCombatClass = "ADVENTURER";
@@ -102,8 +102,8 @@ export function mapMinionToPartyPickRow(m: MinionRow) {
     id: m.id,
     level: lv,
     pool: "dungeon",
-    nickname: m.nickname ?? null,
-    displayName: minionDisplayName(m.nickname, combatClassLabel),
+    nickname: null,
+    displayName: playerDisplayName(playerUsername, combatClassLabel),
     combatClassLabel,
     combatPower,
     combatStats: { combatPower },
@@ -137,6 +137,7 @@ export function mapMinionToListRow(
     detailMinionId?: string | null;
     armorInstancesById?: Map<string, { baseItemId: string; optionsJson: string }>;
     accessoryByMinionId?: Map<string, ReturnType<typeof accessoryIdsFromRow>>;
+    playerUsername?: string | null;
   },
 ) {
   const lv = 1;
@@ -198,8 +199,8 @@ export function mapMinionToListRow(
     nextPromotionLabel: null,
     skills: [],
     combatClassLabel,
-    nickname: m.nickname ?? null,
-    displayName: minionDisplayName(m.nickname, combatClassLabel),
+    nickname: null,
+    displayName: playerDisplayName(options?.playerUsername, combatClassLabel),
     equippedWeaponInstanceId: m.equippedWeaponInstanceId ?? null,
     equippedHelmetItemId: armorIds.equippedHelmetItemId,
     equippedChestItemId: armorIds.equippedChestItemId,

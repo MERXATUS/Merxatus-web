@@ -9,6 +9,10 @@ export type ArmorStatRow = {
   grade: number;
   hp: number;
   def: number;
+  /** 기본 공격력 — 미지정 시 등급 기반 기본값 (% 공격력 옵션 환산 기준) */
+  atk?: number;
+  /** 기본 마력 — 미지정 시 등급 기반 기본값 */
+  magic?: number;
   str?: number;
   dex?: number;
   int?: number;
@@ -22,6 +26,18 @@ export function getArmorStats(itemId: string): ArmorStatRow | null {
   const id = normalizeItemId(itemId);
   if (!id) return null;
   return ARMOR_STATS_BY_ID[id] ?? null;
+}
+
+/** 방어구 기본 공격력·마력 — 무기와 동일하게 % 옵션 환산 기준으로 사용 */
+export function armorBaseAtkMagicFromRow(row: ArmorStatRow): { atk: number; magic: number } {
+  const g = Math.max(1, Math.floor(row.grade));
+  return { atk: row.atk ?? g, magic: row.magic ?? g };
+}
+
+export function armorBaseAtkMagic(itemId: string): { atk: number; magic: number } {
+  const s = getArmorStats(itemId);
+  if (!s) return { atk: 0, magic: 0 };
+  return armorBaseAtkMagicFromRow(s);
 }
 
 /** HP·DEF → 방어구 전투력 환산 (베이스·강화·옵션 공통) */

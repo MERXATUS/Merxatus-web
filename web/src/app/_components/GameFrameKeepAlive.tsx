@@ -47,12 +47,9 @@ const PvpPanel = dynamic(
   () => loadPanelChunk(() => import("@/app/_components/PvpPanel").then((m) => m.PvpPanel)),
   { loading: () => panelLoading("결투장 불러오는 중…") },
 );
-const MinionManagementPanel = dynamic(
-  () =>
-    loadPanelChunk(() =>
-      import("@/app/_components/MinionManagementPanel").then((m) => m.MinionManagementPanel),
-    ),
-  { loading: () => panelLoading("장비 불러오는 중…") },
+const ProfilePanel = dynamic(
+  () => loadPanelChunk(() => import("@/app/_components/ProfilePanel").then((m) => m.ProfilePanel)),
+  { loading: () => panelLoading("내 정보 불러오는 중…") },
 );
 
 const KEEP_ALIVE_TABS: GameTabKey[] = [
@@ -66,7 +63,7 @@ const KEEP_ALIVE_TABS: GameTabKey[] = [
   "tower",
   "pvp",
   "ranking",
-  "minions",
+  "profile",
 ];
 
 function panelForTab(
@@ -97,8 +94,8 @@ function panelForTab(
       return <PvpPanel embedded />;
     case "ranking":
       return <RankingPanel embedded />;
-    case "minions":
-      return <MinionManagementPanel embedded />;
+    case "profile":
+      return <ProfilePanel embedded />;
     default:
       return null;
   }

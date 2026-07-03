@@ -12,7 +12,7 @@ import { armorEquippedView } from "@/server/minionListBuild";
 import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
 import { minionRoleLabel } from "@/server/minionJobs";
 import type { MinionCombatClass } from "@/shared/minionDerivedClass";
-import { minionDisplayName } from "@/shared/minionNickname";
+import { playerDisplayName } from "@/shared/minionNickname";
 import { itemGradeViewForItem } from "@/server/itemGrade";
 import { knightOrderToView } from "@/server/knightOrderView";
 import { ZERO_KNIGHT_ORDER_BONUSES } from "@/shared/knightOrder";
@@ -45,6 +45,7 @@ type MinionRow = Awaited<
 function buildRepresentativeMinionView(
   m: NonNullable<MinionRow>,
   armorInstById: Awaited<ReturnType<typeof loadArmorInstanceMapForUser>>,
+  playerUsername: string | null,
 ): MeDashboardRepresentativeMinion {
   const fighterRank = (m.traits ?? []).find((tr) => tr.type === "FIGHTER")?.rank ?? 0;
   const armorIds = armorIdsFromRow(m);
@@ -66,8 +67,8 @@ function buildRepresentativeMinionView(
   return {
     id: m.id,
     combatClassLabel: minionRoleLabel({ combatClass }),
-    displayName: minionDisplayName(m.nickname, minionRoleLabel({ combatClass })),
-    nickname: m.nickname ?? null,
+    displayName: playerDisplayName(playerUsername, minionRoleLabel({ combatClass })),
+    nickname: null,
     level: 1,
     unspentSkillPoints: 0,
     skills: [],
@@ -89,15 +90,18 @@ function buildRepresentativeMinionView(
 }
 
 async function loadSoloRepresentativeMinion(userId: string): Promise<MeDashboardRepresentativeMinion | null> {
-  const m = await prisma.minion.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "asc" },
-    include: minionInclude,
-  });
+  const [m, userAccount] = await Promise.all([
+    prisma.minion.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+      include: minionInclude,
+    }),
+    prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
+  ]);
   if (!m) return null;
   const armorByMinionId = new Map([[m.id, armorIdsFromRow(m)]]);
   const armorInstById = await loadArmorInstanceMapForUser(prisma, userId, armorByMinionId);
-  return buildRepresentativeMinionView(m, armorInstById);
+  return buildRepresentativeMinionView(m, armorInstById, userAccount?.username ?? null);
 }
 
 export async function buildMeDashboardLight(

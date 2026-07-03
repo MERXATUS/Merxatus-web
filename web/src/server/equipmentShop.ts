@@ -10,7 +10,7 @@ import { assertEquipmentNotUserLocked } from "@/server/inventoryEquipmentLock";
 import { GAME_RULES } from "@/server/gameRules";
 import { normalizeItemIdLower } from "@/shared/itemId";
 import { armorTotalPower, type ArmorTooltipOption } from "@/shared/armorTooltip";
-import { equipmentShopBuybackGold } from "@/shared/equipmentShopPricing";
+import { equipmentShopBuybackGold, equipmentShopBuybackFormulaLabel } from "@/shared/equipmentShopPricing";
 import { weaponTotalPower, type WeaponTooltipOption } from "@/shared/weaponTooltip";
 import type { EquippedByMinionView } from "@/shared/equipmentEquippedBy";
 
@@ -47,6 +47,9 @@ export type EquipmentShopPayload = {
   ok: true;
   goldAvailable: number;
   goldPerCombatPower: number;
+  enhanceBonusGold: number;
+  unenhancedScrapRatio: number;
+  buybackFormulaLabel: string;
   items: EquipmentShopRow[];
 };
 
@@ -222,7 +225,7 @@ export async function listEquipmentShop(userId: string): Promise<EquipmentShopPa
       ...gradeView,
       identified: parseEquipmentOptionsPayload(w.optionsJson).identified,
       combatPower,
-      buybackGold: equipmentShopBuybackGold(combatPower),
+      buybackGold: equipmentShopBuybackGold(combatPower, w.enhanceLevel ?? 0),
       sellable,
       blockedReason,
       equippedByMinion: equippedMaps.weaponByInstanceId.get(w.id) ?? null,
@@ -261,7 +264,7 @@ export async function listEquipmentShop(userId: string): Promise<EquipmentShopPa
       ...gradeView,
       identified: parseEquipmentOptionsPayload(a.optionsJson).identified,
       combatPower,
-      buybackGold: equipmentShopBuybackGold(combatPower),
+      buybackGold: equipmentShopBuybackGold(combatPower, a.enhanceLevel ?? 0),
       sellable,
       blockedReason,
       equippedByMinion: equippedMaps.armorByInstanceId.get(a.id) ?? null,
@@ -277,6 +280,9 @@ export async function listEquipmentShop(userId: string): Promise<EquipmentShopPa
     ok: true,
     goldAvailable: wallet?.goldAvailable ?? 0,
     goldPerCombatPower: GAME_RULES.equipmentShop.goldPerCombatPower,
+    enhanceBonusGold: GAME_RULES.equipmentShop.enhanceBonusGold,
+    unenhancedScrapRatio: GAME_RULES.equipmentShop.unenhancedScrapRatio,
+    buybackFormulaLabel: equipmentShopBuybackFormulaLabel(),
     items: withIcons,
   };
 }
@@ -323,7 +329,7 @@ export async function sellEquipmentToShop(
         itemLevel: w.itemLevel ?? 10,
         options,
       });
-      goldGained += equipmentShopBuybackGold(combatPower);
+      goldGained += equipmentShopBuybackGold(combatPower, w.enhanceLevel ?? 0);
       await tx.weaponInstance.delete({ where: { id: target.instanceId } });
     } else {
       const a = await tx.armorInstance.findUnique({
@@ -339,7 +345,7 @@ export async function sellEquipmentToShop(
         itemLevel: a.itemLevel ?? 10,
         options,
       });
-      goldGained += equipmentShopBuybackGold(combatPower);
+      goldGained += equipmentShopBuybackGold(combatPower, a.enhanceLevel ?? 0);
       await tx.armorInstance.delete({ where: { id: a.id } });
     }
   }

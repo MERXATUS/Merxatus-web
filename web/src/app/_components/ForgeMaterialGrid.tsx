@@ -14,6 +14,9 @@ export type ForgeMaterialCell = {
   required?: number;
   hint?: string;
   isGold?: boolean;
+  selected?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
 };
 
 export function ForgeMaterialGrid(props: {
@@ -37,6 +40,7 @@ export function ForgeMaterialGrid(props: {
           props.cells.map((cell) => {
             const short =
               cell.required != null && cell.quantity < cell.required;
+            const selectable = Boolean(cell.onClick);
             const showTooltip = Boolean(
               cell.itemId &&
                 shouldShowStackItemTooltip({
@@ -47,12 +51,18 @@ export function ForgeMaterialGrid(props: {
                   quantity: cell.quantity,
                 }),
             );
-            const cellBody = (
-              <div
-                className={`forge-material-cell ${cell.isGold ? "forge-material-cell--gold" : ""} ${short ? "forge-material-cell--short" : ""}${showTooltip ? " forge-material-cell--tooltip" : ""}`}
-                title={showTooltip ? undefined : (cell.hint ?? cell.label)}
-                aria-label={cell.label}
-              >
+            const cellClassName = [
+              "forge-material-cell",
+              cell.isGold ? "forge-material-cell--gold" : "",
+              short ? "forge-material-cell--short" : "",
+              cell.selected ? "forge-material-cell--active" : "",
+              cell.disabled ? "forge-material-cell--disabled" : "",
+              showTooltip ? "forge-material-cell--tooltip" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+            const cellContent = (
+              <>
                 {cell.isGold ? (
                   <span className="forge-material-cell__gold-icon" aria-hidden>
                     G
@@ -74,6 +84,27 @@ export function ForgeMaterialGrid(props: {
                     cell.quantity
                   )}
                 </span>
+              </>
+            );
+            const cellBody = selectable ? (
+              <button
+                type="button"
+                className={cellClassName}
+                onClick={cell.onClick}
+                disabled={cell.disabled}
+                title={showTooltip ? undefined : (cell.hint ?? cell.label)}
+                aria-label={cell.label}
+                aria-pressed={cell.selected ?? false}
+              >
+                {cellContent}
+              </button>
+            ) : (
+              <div
+                className={cellClassName}
+                title={showTooltip ? undefined : (cell.hint ?? cell.label)}
+                aria-label={cell.label}
+              >
+                {cellContent}
               </div>
             );
             if (cell.itemId) {
@@ -90,7 +121,7 @@ export function ForgeMaterialGrid(props: {
                     key={cell.key}
                     item={tooltipItem}
                     detailsOnly
-                    clickToToggle={props.clickToToggle}
+                    clickToToggle={selectable ? false : props.clickToToggle}
                   >
                     {cellBody}
                   </StackItemTooltipHover>

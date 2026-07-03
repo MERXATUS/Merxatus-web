@@ -1,7 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { runPrismaTransaction } from "@/server/db";
 import {
-  appraisePayload,
   ascendRandomOptionTierInPayload,
   clearAllOptionsInPayload,
   convertAllOptionsToRealmInPayload,
@@ -19,7 +18,7 @@ import {
 import { assertEquipmentNotUserLocked } from "@/server/inventoryEquipmentLock";
 import { stackAvailableQty, takeAvailableFromStack } from "@/server/inventoryStackOps";
 import { resolveDisplayItemGrade } from "@/server/itemGrade";
-import { metamorphMinTierForKind, optionConsumableKind, type OptionConsumableKind, ITEM_APPRAISAL_SCROLL } from "@/shared/optionConsumables";
+import { metamorphMinTierForKind, optionConsumableKind, type OptionConsumableKind } from "@/shared/optionConsumables";
 import { normalizeItemIdLower } from "@/shared/itemId";
 import { getArmorStats } from "@/shared/armorStatsData";
 
@@ -94,60 +93,48 @@ function applyKindToPayload(
   itemGrade: number,
 ): ReturnType<typeof parseEquipmentOptionsPayload> {
   switch (kind) {
-    case "appraisal": {
-      const next = appraisePayload(payload);
-      if (!next) throw new Error("ALREADY_IDENTIFIED");
-      return next;
-    }
+    case "appraisal":
+      throw new Error("APPRAISAL_DISABLED");
     case "destruction": {
-      if (!payload.identified) throw new Error("NEEDS_APPRAISAL");
       if (payload.options.length === 0) throw new Error("NO_OPTIONS");
       const next = removeRandomUnlockedOption(payload);
       if (!next) throw new Error("NO_REMOVABLE_OPTION");
       return next;
     }
     case "chaos": {
-      if (!payload.identified) throw new Error("NEEDS_APPRAISAL");
       if (payload.options.length === 0) throw new Error("NO_OPTIONS");
       return rerollOptionIdsKeepingTiersInPayload(payload, category, itemGrade);
     }
     case "seal": {
-      if (!payload.identified) throw new Error("NEEDS_APPRAISAL");
       if (payload.options.length === 0) throw new Error("NO_OPTIONS");
       const next = sealRandomUnlockedSlot(payload);
       if (!next) throw new Error("SEAL_LIMIT_OR_NO_SLOT");
       return next;
     }
     case "celestial_tome": {
-      if (!payload.identified) throw new Error("NEEDS_APPRAISAL");
       if (payload.options.length === 0) throw new Error("NO_OPTIONS");
       return convertAllOptionsToRealmInPayload(payload, category, itemGrade, "celestial");
     }
     case "abyss_tome": {
-      if (!payload.identified) throw new Error("NEEDS_APPRAISAL");
       if (payload.options.length === 0) throw new Error("NO_OPTIONS");
       return convertAllOptionsToRealmInPayload(payload, category, itemGrade, "abyss");
     }
     case "ascension": {
-      if (!payload.identified) throw new Error("NEEDS_APPRAISAL");
       return ascendRandomOptionTierInPayload(payload, itemGrade);
     }
     case "primordial": {
       return clearAllOptionsInPayload(payload);
     }
     case "void_reroll": {
-      if (!payload.identified) throw new Error("NEEDS_APPRAISAL");
       return rerollRandomOptionToVoidInPayload(payload, category, itemGrade);
     }
     case "expansion": {
-      if (!payload.identified) throw new Error("NEEDS_APPRAISAL");
       return expandRandomOptionSlotInPayload(payload, category, itemGrade);
     }
     case "metamorph":
     case "metamorph_3":
     case "metamorph_6":
     case "metamorph_8": {
-      if (!payload.identified) throw new Error("NEEDS_APPRAISAL");
       if (payload.options.length === 0) throw new Error("NO_OPTIONS");
       const minTier = metamorphMinTierForKind(kind);
       return rerollAllOptionsAndTiersInPayload(payload, category, itemGrade, minTier);
@@ -201,7 +188,6 @@ export async function applyEquipmentConsumable(
       assertTransferPairCompatible(target, dest);
       const sourcePayload = parseEquipmentOptionsPayload(target.row.optionsJson);
       const destPayload = parseEquipmentOptionsPayload(dest.row.optionsJson);
-      if (!sourcePayload.identified || !destPayload.identified) throw new Error("NEEDS_APPRAISAL");
       const moved = transferOptionsBetweenPayloads(sourcePayload, destPayload);
       const sourceJson = serializeEquipmentOptionsPayload(moved.source);
       const destJson = serializeEquipmentOptionsPayload(moved.target);
@@ -268,10 +254,8 @@ export type AppraiseAllUnidentifiedResult = {
   armorInstanceIds: string[];
 };
 
-/** 미감정·보유(OWNED) 무기·방어구 일괄 감정 — 감정 주문서 1장/1개 */
+/** @deprecated 감정 시스템 제거 — 레거시 DB JSON만 identified로 정리 */
 export async function appraiseAllUnidentifiedEquipment(userId: string): Promise<AppraiseAllUnidentifiedResult> {
-  const consumableId = ITEM_APPRAISAL_SCROLL;
-
   return runPrismaTransaction(async (tx) => {
     const weapons = await tx.weaponInstance.findMany({
       where: { userId, status: "OWNED" },
@@ -282,56 +266,41 @@ export async function appraiseAllUnidentifiedEquipment(userId: string): Promise<
       select: { id: true, optionsJson: true },
     });
 
-    const targets: Array<{ kind: EquipCategory; id: string; payload: ReturnType<typeof parseEquipmentOptionsPayload> }> =
-      [];
-
-    for (const w of weapons) {
-      const payload = parseEquipmentOptionsPayload(w.optionsJson);
-      if (payload.identified) continue;
-      targets.push({ kind: "weapon", id: w.id, payload });
-    }
-    for (const a of armors) {
-      const payload = parseEquipmentOptionsPayload(a.optionsJson);
-      if (payload.identified) continue;
-      targets.push({ kind: "armor", id: a.id, payload });
-    }
-
-    if (targets.length === 0) throw new Error("NOTHING_TO_APPRAISE");
-
-    const stack = await tx.inventoryStack.findUnique({
-      where: { userId_itemId: { userId, itemId: consumableId } },
-    });
-    if (!stack || stackAvailableQty(stack) < targets.length) {
-      throw new Error(stack && stack.quantity >= targets.length ? "ITEM_LOCKED" : "INSUFFICIENT_SCROLLS");
-    }
-
     const weaponInstanceIds: string[] = [];
     const armorInstanceIds: string[] = [];
 
-    for (const t of targets) {
-      const nextPayload = appraisePayload(t.payload);
-      if (!nextPayload) continue;
-      const optionsJson = serializeEquipmentOptionsPayload(nextPayload);
-      if (t.kind === "weapon") {
-        await tx.weaponInstance.update({ where: { id: t.id }, data: { optionsJson } });
-        weaponInstanceIds.push(t.id);
-      } else {
-        await tx.armorInstance.update({ where: { id: t.id }, data: { optionsJson } });
-        armorInstanceIds.push(t.id);
-      }
+    for (const w of weapons) {
+      if (!legacyOptionsJsonNeedsIdentify(w.optionsJson)) continue;
+      const payload = parseEquipmentOptionsPayload(w.optionsJson);
+      const optionsJson = serializeEquipmentOptionsPayload({ ...payload, identified: true });
+      await tx.weaponInstance.update({ where: { id: w.id }, data: { optionsJson } });
+      weaponInstanceIds.push(w.id);
+    }
+    for (const a of armors) {
+      if (!legacyOptionsJsonNeedsIdentify(a.optionsJson)) continue;
+      const payload = parseEquipmentOptionsPayload(a.optionsJson);
+      const optionsJson = serializeEquipmentOptionsPayload({ ...payload, identified: true });
+      await tx.armorInstance.update({ where: { id: a.id }, data: { optionsJson } });
+      armorInstanceIds.push(a.id);
     }
 
-    const used = weaponInstanceIds.length + armorInstanceIds.length;
-    if (used === 0) throw new Error("NOTHING_TO_APPRAISE");
-
-    await takeAvailableFromStack(tx, userId, consumableId, used);
-
+    const appraisedCount = weaponInstanceIds.length + armorInstanceIds.length;
     return {
       ok: true as const,
-      appraisedCount: used,
-      scrollsUsed: used,
+      appraisedCount,
+      scrollsUsed: 0,
       weaponInstanceIds,
       armorInstanceIds,
     };
   });
+}
+
+function legacyOptionsJsonNeedsIdentify(json: string): boolean {
+  if (!json || json === "[]") return false;
+  try {
+    const v = JSON.parse(json) as { identified?: boolean };
+    return v != null && typeof v === "object" && !Array.isArray(v) && v.identified === false;
+  } catch {
+    return false;
+  }
 }

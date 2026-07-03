@@ -37,15 +37,18 @@ export function MinionEquipDoll(props: {
   activeSlot?: MinionEquipSlotId | null;
   compact?: boolean;
   large?: boolean;
+  /** 전신 종이인형 배치 (모든 슬롯을 3열로 크게) */
+  paperdoll?: boolean;
   /** fit 패널용 — 착용 슬롯만 가로 1줄 */
   strip?: boolean;
 }) {
   const equipment = props.equipment ?? {};
   const visible = props.visibleSlots ? new Set(props.visibleSlots) : null;
   const clickable = new Set(props.clickableSlots ?? (props.onSlotClick ? ["weapon"] : []));
-  const iconSize = props.strip ? 24 : props.large ? 44 : props.compact ? 28 : 36;
+  const iconSize = props.strip ? 24 : props.paperdoll ? 48 : props.large ? 44 : props.compact ? 28 : 36;
   const dollClass = [
     "minion-equip-doll",
+    props.paperdoll ? "minion-equip-doll--paperdoll" : "",
     props.compact ? "minion-equip-doll--compact" : "",
     props.strip ? "minion-equip-doll--strip" : "",
     props.large ? "minion-equip-doll--large" : "",

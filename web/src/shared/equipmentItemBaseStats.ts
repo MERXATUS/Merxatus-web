@@ -1,4 +1,4 @@
-import { armorStatBonuses, getArmorStats } from "@/shared/armorStatsData";
+import { armorBaseAtkMagicFromRow, armorStatBonuses, getArmorStats } from "@/shared/armorStatsData";
 import {
   formatOptionValueForDisplay,
   normalizeOptionId,
@@ -29,7 +29,8 @@ export function armorItemBaseStats(itemId: string): EquipmentItemBaseStats | nul
   const row = getArmorStats(itemId);
   if (!row) return null;
   const stats = armorStatBonuses(row);
-  return { atk: 0, magic: 0, hp: row.hp, def: row.def, ...stats };
+  const { atk, magic } = armorBaseAtkMagicFromRow(row);
+  return { atk, magic, hp: row.hp, def: row.def, ...stats };
 }
 
 export function equipmentBaseStatsView(

@@ -6,12 +6,21 @@ export function normalizeMinionNicknameInput(raw: string) {
   return raw.trim();
 }
 
+/** 로그인 시 정한 플레이어 이름 — 캐릭터·전투 UI 공통 */
+export function playerDisplayName(
+  username: string | null | undefined,
+  fallback = "모험가",
+): string {
+  const name = username?.trim();
+  return name || fallback;
+}
+
+/** @deprecated minion.nickname 대신 user.username 사용 */
 export function minionDisplayName(
   nickname: string | null | undefined,
   combatClassLabel: string,
 ): string {
-  const name = nickname?.trim();
-  return name || combatClassLabel;
+  return playerDisplayName(nickname, combatClassLabel);
 }
 
 export function validateMinionNickname(

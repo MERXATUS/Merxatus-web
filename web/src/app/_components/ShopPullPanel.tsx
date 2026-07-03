@@ -176,9 +176,6 @@ export function ShopPullPanel(props: ShopPullPanelProps) {
         <h2 className="gacha-shop__title">{pool.name}</h2>
         <p className="gacha-shop__desc">{pool.description}</p>
         {lockHint ? <p className="gacha-shop__lock">{lockHint}</p> : null}
-        <p className="gacha-shop__gold">
-          보유 골드 <strong>{fmtGold(gold)} G</strong>
-        </p>
       </header>
 
       {error ? <GamePanelError error={error} /> : null}

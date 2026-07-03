@@ -124,38 +124,38 @@ export function stackItemTooltipBodyLines(it: StackItemTooltipData): string[] {
   }
 
   if (it.itemId === "item_appraisal_scroll") {
-    lines.push("미감정 무기·방어구의 옵션을 확인합니다.");
-    lines.push("인벤토리 무기/방어구 탭에서 대상을 선택한 뒤 사용하세요.");
+    lines.push("감정 시스템이 제거되어 더 이상 사용할 수 없습니다.");
+    lines.push("장비는 획득 시 옵션이 바로 표시됩니다.");
     return lines;
   }
   if (it.itemId === "item_gem_destruction") {
-    lines.push("감정된 장비의 옵션 중 봉인되지 않은 1개를 무작위로 제거합니다.");
+    lines.push("장비의 옵션 중 봉인되지 않은 1개를 무작위로 제거합니다.");
     return lines;
   }
   if (it.itemId === "item_gem_chaos") {
-    lines.push("감정된 장비의 모든 옵션 종류를 변경합니다. 티어(T)는 유지됩니다.");
+    lines.push("장비의 모든 옵션 종류를 변경합니다. 티어(T)는 유지됩니다.");
     lines.push("봉인된 옵션은 변경되지 않습니다.");
     return lines;
   }
   if (it.itemId === "item_gem_seal") {
-    lines.push("감정된 장비의 옵션 중 1개를 봉인합니다. (장비당 최대 1개)");
+    lines.push("장비의 옵션 중 1개를 봉인합니다. (장비당 최대 1개)");
     lines.push("봉인된 옵션은 소멸·혼돈의 영향을 받지 않습니다.");
     return lines;
   }
   if (it.itemId === "item_tome_celestial") {
-    lines.push("감정된 무기·방어구의 모든 옵션을 천계 옵션으로 바꿉니다.");
+    lines.push("무기·방어구의 모든 옵션을 천계 옵션으로 바꿉니다.");
     lines.push("옵션 티어(T)는 유지되고, 종류·천계 접두는 다시 정해집니다.");
     lines.push("대장간 → 장비 가공에서 대상 장비를 고른 뒤 사용하세요.");
     return lines;
   }
   if (it.itemId === "item_tome_abyss") {
-    lines.push("감정된 무기·방어구의 모든 옵션을 마계 옵션으로 바꿉니다.");
+    lines.push("무기·방어구의 모든 옵션을 마계 옵션으로 바꿉니다.");
     lines.push("옵션 티어(T)는 유지되고, 종류·마계 접미는 다시 정해집니다.");
     lines.push("대장간 → 장비 가공에서 대상 장비를 고른 뒤 사용하세요.");
     return lines;
   }
   if (it.itemId === "item_gem_ascension") {
-    lines.push("감정된 장비의 옵션 중 1개 티어(T)를 1단계 올립니다.");
+    lines.push("장비의 옵션 중 1개 티어(T)를 1단계 올립니다.");
     return lines;
   }
   if (it.itemId === "item_gem_primordial") {
@@ -175,22 +175,22 @@ export function stackItemTooltipBodyLines(it: StackItemTooltipData): string[] {
     return lines;
   }
   if (it.itemId === "item_gem_metamorph") {
-    lines.push("감정된 장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
+    lines.push("장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
     lines.push("최소 티어 보장 없음 · 봉인된 옵션은 변경되지 않습니다.");
     return lines;
   }
   if (it.itemId === "item_gem_metamorph_3") {
-    lines.push("감정된 장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
+    lines.push("장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
     lines.push("각 옵션은 최소 T3 · 봉인된 옵션은 변경되지 않습니다.");
     return lines;
   }
   if (it.itemId === "item_gem_metamorph_6") {
-    lines.push("감정된 장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
+    lines.push("장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
     lines.push("각 옵션은 최소 T6 · 봉인된 옵션은 변경되지 않습니다.");
     return lines;
   }
   if (it.itemId === "item_gem_metamorph_8") {
-    lines.push("감정된 장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
+    lines.push("장비의 모든 옵션 종류와 티어(T)를 다시 정합니다.");
     lines.push("각 옵션은 최소 T8 · 봉인된 옵션은 변경되지 않습니다.");
     return lines;
   }
@@ -201,24 +201,24 @@ export function stackItemTooltipBodyLines(it: StackItemTooltipData): string[] {
   }
 
   if (isEnhanceProtectScrollItemId(it.itemId)) {
-    lines.push("강화 실패 시 골드와 마석을 돌려받습니다. (주문서 1장은 소모)");
+    lines.push("강화 실패 시 골드와 사용한 재료를 돌려받습니다. (주문서 1장은 소모)");
     lines.push("대장간 → 강화 탭에서 체크 후 강화하세요.");
     return lines;
   }
 
   if (it.itemId === "item_lesser_mana_stone") {
-    lines.push("장비 강화에 소모되는 하급 마석입니다.");
-    lines.push("저·중등급 장비 강화 비용으로 주로 사용됩니다.");
+    lines.push("강화 보조 재료 — 선택 시 1개 소모, 성공률 +3%");
+    lines.push("대장간 → 강화에서 선택해 사용합니다.");
     return lines;
   }
   if (it.itemId === "item_mana_stone") {
-    lines.push("장비 강화에 소모되는 중급 마석입니다.");
-    lines.push("중·고등급 장비 강화 비용으로 사용됩니다.");
+    lines.push("강화 보조 재료 — 선택 시 1개 소모, 성공률 +6%");
+    lines.push("대장간 → 강화에서 선택해 사용합니다.");
     return lines;
   }
   if (it.itemId === "item_greater_mana_stone") {
-    lines.push("장비 강화에 소모되는 상급 마석입니다.");
-    lines.push("고등급·고강화 구간 비용으로 사용됩니다.");
+    lines.push("강화 보조 재료 — 선택 시 1개 소모, 성공률 +10%");
+    lines.push("대장간 → 강화에서 선택해 사용합니다.");
     return lines;
   }
 

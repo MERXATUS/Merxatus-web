@@ -18,8 +18,10 @@ import { useWalletStore, selectGoldAvailable } from "@/shared/stores/walletStore
 import { usePlayerEquipmentStore } from "@/shared/stores/playerEquipmentStore";
 import { useGameDataPatch } from "@/shared/useGameDataPatch";
 import { weaponDisplayName } from "@/shared/weaponTooltip";
-import { EQUIPMENT_SHOP_GOLD_PER_POWER } from "@/shared/equipmentShopPricing";
-import { MAX_EQUIPMENT_SHOP_SELL_BATCH } from "@/shared/equipmentShopPricing";
+import {
+  equipmentShopBuybackFormulaLabel,
+  MAX_EQUIPMENT_SHOP_SELL_BATCH,
+} from "@/shared/equipmentShopPricing";
 
 type ShopKindFilter = "all" | "weapon" | "armor";
 
@@ -56,6 +58,9 @@ type ShopPayload = {
   ok: true;
   goldAvailable: number;
   goldPerCombatPower: number;
+  enhanceBonusGold?: number;
+  unenhancedScrapRatio?: number;
+  buybackFormulaLabel?: string;
   items: ShopRow[];
 };
 
@@ -267,17 +272,17 @@ export function EquipmentShopPanel() {
     return <GamePanelInfo>로그인 후 이용할 수 있습니다.</GamePanelInfo>;
   }
 
-  const goldPerPower = payload?.goldPerCombatPower ?? EQUIPMENT_SHOP_GOLD_PER_POWER;
+  const buybackLabel =
+    payload?.buybackFormulaLabel ??
+    equipmentShopBuybackFormulaLabel();
 
   return (
     <div className="equipment-shop">
       <div className="equipment-shop__intro">
         <p>
-          NPC 상인이 보유 장비를 <strong>전투력(CP) × {goldPerPower}G</strong>로 즉시 매입합니다. 경매장 등록 없이
-          골드로 바꿀 수 있어요.
-        </p>
-        <p className="equipment-shop__gold">
-          보유 골드 <strong>{fmtGold(goldAvailable ?? payload?.goldAvailable ?? 0)} G</strong>
+          NPC 상인이 강화한 장비를 즉시 매입합니다.{" "}
+          <strong>{buybackLabel}</strong>
+          . 뽑기 → 강화 → 매입으로 골드를 굴리세요.
         </p>
       </div>
 

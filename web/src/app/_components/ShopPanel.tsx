@@ -107,7 +107,7 @@ export function ShopPanel({ embedded = false }: EmbeddedPanelProps = {}) {
           poolId={GACHA_MATERIALS_POOL_ID}
           eyebrow="상점 · 재료"
           rateHints={[
-            "하급·중급 마석, 감정서, 강화 보호 주문서",
+            "하급·중급 마석, 강화 보호 주문서",
             "골드 — 60~520 G (일부 환급)",
           ]}
           loopHint="재료는 대장간 강화·가공에 사용합니다."

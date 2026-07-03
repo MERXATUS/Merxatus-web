@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { prisma } from "@/server/db";
 import { computeMemberPower } from "@/server/dungeonBattler";
 import { computePartyPower } from "@/server/dungeonCombat";
 import { parseOptionsJson, weaponCombatBonusFromOptions } from "@/server/itemOptions";
@@ -25,7 +26,7 @@ import { minionBaseStatsFromRow, type MinionBaseStats } from "@/shared/minionBas
 import { minionCombatClassLabel, type MinionCombatClass } from "@/shared/minionDerivedClass";
 import { equipmentStatusEffectsFromGear } from "@/shared/equipmentStatusEffects";
 import type { StatusApplySpec } from "@/shared/combatStatus";
-import { minionDisplayName } from "@/shared/minionNickname";
+import { playerDisplayName } from "@/shared/minionNickname";
 import { ZERO_KNIGHT_ORDER_BONUSES } from "@/shared/knightOrder";
 import { scalePartyPowerWithKnightOrder } from "@/server/knightOrder";
 import { displayCombatPower } from "@/shared/combatPowerScale";
@@ -110,7 +111,7 @@ export function buildMinionPartyCombatRow(
   input: MinionCombatEquipInput & {
     minionId: string;
     combatClassLabel?: string;
-    nickname?: string | null;
+    playerUsername?: string | null;
     promotionTier?: number | null;
     promotionClass?: string | null;
     bonusAtkFlat?: number;
@@ -121,7 +122,7 @@ export function buildMinionPartyCombatRow(
   const combatInput = toCombatInput({ ...input, combatClass });
   const built = combatMemberFromMinion(combatInput);
   const combatClassLabel = input.combatClassLabel ?? minionCombatClassLabel(combatClass);
-  const displayName = minionDisplayName(input.nickname, combatClassLabel);
+  const displayName = playerDisplayName(input.playerUsername, combatClassLabel);
   let combatMods = combatModsFromEquip(input);
   const armor = normalizeArmor(input.armor);
   const gearFx = equipmentStatusEffectsFromGear({
@@ -136,7 +137,7 @@ export function buildMinionPartyCombatRow(
     minionId: input.minionId,
     combatClass,
     combatClassLabel,
-    nickname: input.nickname ?? null,
+    nickname: null,
     displayName,
     weaponBaseItemId: input.weapon?.baseItemId ?? null,
     power: computeMemberPower(built.member),
@@ -389,6 +390,7 @@ function buildMemberInputsForParty(
   party: PartyMinionRow[],
   batch: Awaited<ReturnType<typeof loadPartyEquipmentBatch>>,
   codex: ReturnType<typeof codexBonusesFromMeta>,
+  playerUsername: string | null = null,
 ) {
   const memberInputs = party.map((p) => {
     const wi = batch.weaponById.get(p.minion.equippedWeaponInstanceId ?? "");
@@ -396,7 +398,7 @@ function buildMemberInputsForParty(
     const armorIds: MinionArmorIds = equipRow ?? EMPTY_ARMOR_IDS;
     return buildMinionPartyCombatRow({
       minionId: p.minionId,
-      nickname: equipRow?.nickname ?? null,
+      playerUsername,
       level: p.minion.level,
       fighterRank: batch.fighterByMinionId.get(p.minionId) ?? 0,
       baseStats: minionBaseStatsFromRow(p.minion),
@@ -427,6 +429,11 @@ function buildMemberInputsForParty(
   return memberInputs;
 }
 
+async function loadPlayerUsername(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
+  return user?.username ?? null;
+}
+
 /** 기사단 집계 — 전체 미니언 CP 합 (기사단 보너스·순환 호출 없음) */
 export async function sumAllMinionCombatPower(
   tx: CombatDb,
@@ -443,11 +450,12 @@ export async function sumAllMinionCombatPower(
   }
 
   const party = minions.map((m) => ({ minionId: m.id, minion: m }));
-  const [batch, meta] = await Promise.all([
+  const [batch, meta, playerUsername] = await Promise.all([
     loadPartyEquipmentBatch(tx, userId, party),
     codexMeta ? Promise.resolve(codexMeta) : loadUserCodexMeta(tx, userId),
+    loadPlayerUsername(userId),
   ]);
-  const memberInputs = buildMemberInputsForParty(party, batch, codexBonusesFromMeta(meta));
+  const memberInputs = buildMemberInputsForParty(party, batch, codexBonusesFromMeta(meta), playerUsername);
   const totalCombatPower = memberInputs.reduce(
     (sum, row) => sum + displayCombatPower(Math.max(0, Math.floor(row.power))),
     0,
@@ -462,11 +470,12 @@ export async function computeMinionCombatPowerForUser(
   minion: PartyMinionRow["minion"] & { id: string },
 ) {
   const party = [{ minionId: minion.id, minion }];
-  const [batch, meta] = await Promise.all([
+  const [batch, meta, playerUsername] = await Promise.all([
     loadPartyEquipmentBatch(tx, userId, party),
     loadUserCodexMeta(tx, userId),
+    loadPlayerUsername(userId),
   ]);
-  const memberInputs = buildMemberInputsForParty(party, batch, codexBonusesFromMeta(meta));
+  const memberInputs = buildMemberInputsForParty(party, batch, codexBonusesFromMeta(meta), playerUsername);
   return displayCombatPower(Math.max(0, Math.floor(memberInputs[0]?.power ?? 0)));
 }
 
@@ -537,13 +546,19 @@ export async function getCachedKnightOrderBonuses(tx: CombatDb, userId: string):
 
 /** 던전·자동 웨이브 — UI와 동일한 장비/옵션/방어구 반영 */
 export async function loadPartyCombatRows(tx: CombatDb, userId: string, party: PartyMinionRow[]) {
-  const [batch, userMeta] = await Promise.all([
+  const [batch, userMeta, playerUsername] = await Promise.all([
     loadPartyEquipmentBatch(tx, userId, party),
     loadUserCombatMeta(tx, userId),
+    loadPlayerUsername(userId),
   ]);
 
   const { weaponCodex, armorCodex, setCodex, knightOrder } = userMeta;
-  const memberInputs = buildMemberInputsForParty(party, batch, codexBonusesFromMeta(userMeta));
+  const memberInputs = buildMemberInputsForParty(
+    party,
+    batch,
+    codexBonusesFromMeta(userMeta),
+    playerUsername,
+  );
 
   const basePartyPower = computePartyPower({ members: memberInputs.map((x) => x.row) });
   const partyPower = scalePartyPowerWithKnightOrder(basePartyPower, knightOrder);

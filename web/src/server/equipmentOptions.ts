@@ -2,8 +2,6 @@ import { formatOptionRows, parseOptionsJson, type RolledOption } from "@/server/
 import { armorOptionIds, weaponOptionIds } from "@/shared/itemOptionCatalog";
 import {
   blessingOptionIdsForRealm,
-  defaultAffixForRealm,
-  realmLabelKo,
   rollBlessingAffix,
   type OptionRealm,
 } from "@/shared/equipmentBlessings";
@@ -59,7 +57,7 @@ export function parseEquipmentOptionsPayload(json: string | null | undefined): E
           .slice(0, MAX_LOCKED_SLOTS)
       : [];
     return {
-      identified: row.identified !== false,
+      identified: true,
       lockedIndices,
       options: parseLegacyOptionArray(row.options),
     };
@@ -85,9 +83,9 @@ export function serializeEquipmentOptionsPayload(payload: EquipmentOptionsPayloa
   });
 }
 
-export function equipmentOptionsForLootDrop(options: RolledOption[], identified = false): string {
+export function equipmentOptionsForLootDrop(options: RolledOption[]): string {
   return serializeEquipmentOptionsPayload({
-    identified,
+    identified: true,
     lockedIndices: [],
     options,
   });
@@ -104,23 +102,6 @@ export function formatEquipmentOptionDisplay(
 ): EquipmentOptionDisplayRow[] {
   const payload = parseEquipmentOptionsPayload(json);
   const locked = lockedIndexSet(payload);
-  if (!payload.identified) {
-    return payload.options.map((opt, i) => ({
-      kind: "UNKNOWN",
-      optionId: "UNKNOWN",
-      label: "???",
-      tier: 0,
-      tierLabel: "?",
-      displayValue: 0,
-      isPercent: false,
-      flatBonus: undefined,
-      hidden: true,
-      locked: locked.has(i),
-      realm: opt.realm,
-      affix: opt.affix ?? (opt.realm ? defaultAffixForRealm(opt.realm) : null),
-      realmLabel: opt.realm ? realmLabelKo(opt.realm) : undefined,
-    }));
-  }
   const rows = formatOptionRows(payload.options, category, baseItemId);
   return rows.map((r, i) => ({
     ...r,
@@ -258,7 +239,6 @@ export function sealRandomUnlockedSlot(
   rnd = Math.random,
 ): EquipmentOptionsPayload | null {
   if (payload.lockedIndices.length >= MAX_LOCKED_SLOTS) return null;
-  if (!payload.identified) return null;
   const locked = lockedIndexSet(payload);
   const candidates = payload.options.map((_, i) => i).filter((i) => !locked.has(i));
   if (candidates.length === 0) return null;

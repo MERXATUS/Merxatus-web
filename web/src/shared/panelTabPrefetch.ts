@@ -34,8 +34,8 @@ function prefetchPanelChunkForTab(tab: GameTabKey) {
     case "ranking":
       prefetchPanelChunk("panel:ranking", () => import("@/app/_components/RankingPanel"));
       break;
-    case "minions":
-      prefetchPanelChunk("panel:minions", () => import("@/app/_components/MinionManagementPanel"));
+    case "profile":
+      prefetchPanelChunk("panel:profile", () => import("@/app/_components/ProfilePanel"));
       break;
     default:
       break;
@@ -81,7 +81,8 @@ function prefetchPanelData(tab: GameTabKey, userId: string | null) {
       void apiGetJsonCached("/api/pvp/opponents", { ttlMs: API_CACHE_TTL.pvpState }).catch(() => {});
       void apiGetJsonCached("/api/pvp/history", { ttlMs: API_CACHE_TTL.pvpHistory }).catch(() => {});
       break;
-    case "minions":
+    case "profile":
+      void apiGetJsonCached("/api/me/summary", { ttlMs: API_CACHE_TTL.summary }).catch(() => {});
       void apiGetJsonCached("/api/minions/panel", {
         ttlMs: API_CACHE_TTL.minionPanel,
         timeoutMs: BOOTSTRAP_FETCH_TIMEOUT_MS,

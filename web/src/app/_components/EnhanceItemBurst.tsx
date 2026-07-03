@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 /** 강화 1회당 연출 시간(초) — 아이콘 위 인라인 */
-export const ENHANCE_MOTION_SECONDS = 1;
+export const ENHANCE_MOTION_SECONDS = 0.2;
 
 export type EnhanceBurstVariant = "success" | "fail";
 

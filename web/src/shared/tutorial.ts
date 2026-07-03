@@ -26,13 +26,13 @@ export const TUTORIAL_STEPS: TutorialStepDef[] = [
   {
     id: "enhance_equipment",
     title: "장비 강화하기",
-    hint: "대장간 → 강화에서 나무 검(또는 뽑은 장비)을 고르고 「강화하기」를 눌러 보세요. 하급 마석은 신규 지급분을 씁니다.",
+    hint: "대장간 → 강화에서 장비를 고르고 「강화하기」를 눌러 보세요. 골드만으로도 강화할 수 있고, 마석은 성공률을 올리는 선택 재료예요.",
     action: { kind: "tab", tab: "enhance" },
   },
   {
     id: "sell_equipment",
     title: "장비 판매하기",
-    hint: "상점 → 장비 매입에서 보유 장비를 NPC에게 팔아 골드를 회수해 보세요.",
+    hint: "상점 → 장비 매입에서 +1 강화한 장비를 팔아 보세요. 강화 단계가 높을수록 매입가가 크게 오릅니다.",
     action: { kind: "tab", tab: "shop", shopSub: "equipment" },
   },
 ];
@@ -60,12 +60,14 @@ export function tutorialProgressPercent(step: number) {
   return Math.round((step / TUTORIAL_STEPS.length) * 100);
 }
 
-/** 예전 단계(던전·거래소) → 상점·대장간 3단계로 보정 */
+/** 예전 5단계+ 튜토리얼 → 현재 3단계(0~2)로 보정. 0~2는 그대로 둔다. */
 export function migrateLegacyTutorialStep(step: number): number {
   if (step >= TUTORIAL_DONE) return step;
   if (step <= 0) return 0;
-  if (step === 1 || step === 2) return 1;
+  // 신규 3단계: 0=뽑기, 1=강화, 2=매입
+  if (step < TUTORIAL_STEPS.length) return step;
+  // 레거시 3~4 → 매입, 5+ → 완료
   if (step === 3 || step === 4) return 2;
   if (step >= 5) return TUTORIAL_DONE;
-  return Math.min(step, TUTORIAL_STEPS.length - 1);
+  return TUTORIAL_STEPS.length - 1;
 }

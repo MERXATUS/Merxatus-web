@@ -1422,6 +1422,10 @@ body:has(.game-frame) {
   grid-template-columns: minmax(9rem, 10.5rem) minmax(0, 1fr) !important;
 }
 
+.minion-layout--fit.minion-layout--solo {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
 .minion-shell--fit .minion-layout--equip {
   gap: 0.3rem !important;
   min-height: 0 !important;
@@ -1760,6 +1764,40 @@ body:has(.game-frame) {
 
 .minion-detail-stack--fit .minion-detail-head--fit {
   gap: 0.3rem;
+}
+
+/* 내 정보 — 단일 캐릭터 장비 패널 (리스트 제거 후 전체 폭 사용) */
+.minion-detail-stack--solo {
+  align-items: center;
+  gap: 0.6rem;
+  padding-top: 0.35rem;
+}
+
+.minion-detail-stack--solo .minion-solo-identity {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.minion-detail-stack--solo .minion-solo-doll {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0.5rem 0;
+  flex-shrink: 0;
+}
+
+.minion-detail-stack--solo .minion-stat-panel {
+  width: 100%;
+}
+
+.minion-detail-stack--solo .minion-detail-head__equip-btn {
+  min-height: 1.9rem !important;
+  padding: 0.2rem 0.75rem !important;
+  font-size: 0.72rem !important;
 }
 
 .minion-detail-stack--fit .minion-equip-doll--compact {
@@ -3846,6 +3884,156 @@ body:has(.game-frame) {
     flex: 1 1 100%;
     margin-left: 0;
     justify-content: center;
+  }
+}
+
+.profile-panel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.profile-panel-stack--fit {
+  min-height: 0;
+  flex: 1;
+}
+
+.profile-panel-stack--fit .minion-shell--fit {
+  min-height: 0;
+  flex: 1;
+}
+
+.profile-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-panel--fit {
+  min-height: 0;
+}
+
+.profile-panel__hero {
+  padding: 0.85rem 1rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--game-border);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.profile-panel__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.profile-panel__profit--plus {
+  color: #86efac;
+}
+
+.profile-panel__profit--minus {
+  color: #fca5a5;
+}
+
+.profile-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.profile-panel__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.profile-panel__section-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--game-text);
+}
+
+.profile-panel__section-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--game-muted);
+}
+
+.profile-panel__minion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.profile-panel__minion-card {
+  border-radius: 0.65rem;
+  border: 1px solid var(--game-border);
+  background: rgba(0, 0, 0, 0.24);
+  padding: 0.85rem;
+}
+
+.profile-panel__minion-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.profile-panel__minion-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--game-text);
+}
+
+.profile-panel__minion-meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  color: var(--game-muted);
+}
+
+.profile-panel__minion-cp {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.profile-panel__minion-cp-label {
+  font-size: 0.65rem;
+  color: var(--game-muted);
+}
+
+.profile-panel__minion-cp-value {
+  font-size: 1.05rem;
+  color: var(--game-gold-bright);
+}
+
+.profile-panel__minion-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 720px) {
+  .profile-panel__minion-body {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .profile-panel__minion-body .minion-equip-doll--strip {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .profile-panel__minion-body .minion-stat-panel {
+    flex: 0 0 16rem;
+    max-width: 100%;
   }
 }
 
@@ -8090,7 +8278,7 @@ body:has(.game-frame) {
   min-width: 72px;
 }
 
-.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full) .minion-equip-slot {
+.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full):not(.minion-equip-doll--paperdoll) .minion-equip-slot {
   box-sizing: border-box;
   width: var(--equip-slot-size);
   height: var(--equip-slot-size);
@@ -8099,32 +8287,66 @@ body:has(.game-frame) {
   place-self: center;
 }
 
-.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full) .minion-equip-slot--helmet {
+.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full):not(.minion-equip-doll--paperdoll) .minion-equip-slot--helmet {
   grid-column: 2;
   grid-row: 1;
 }
 
-.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full) .minion-equip-slot--armor {
+.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full):not(.minion-equip-doll--paperdoll) .minion-equip-slot--armor {
   grid-column: 2;
   grid-row: 2;
 }
 
-.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full) .minion-equip-slot--pants {
+.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full):not(.minion-equip-doll--paperdoll) .minion-equip-slot--pants {
   grid-column: 2;
   grid-row: 3;
 }
 
-.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full) .minion-equip-slot--shoes {
+.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full):not(.minion-equip-doll--paperdoll) .minion-equip-slot--shoes {
   grid-column: 2;
   grid-row: 4;
 }
 
-.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full) .minion-equip-slot--weapon {
+.minion-equip-doll:not(.minion-equip-doll--gather-tool):not(.minion-equip-doll--strip):not(.minion-equip-doll--full):not(.minion-equip-doll--paperdoll) .minion-equip-slot--weapon {
   grid-column: 1;
   grid-row: 2 / 4;
   align-self: center;
   justify-self: center;
 }
+
+/* 전신 종이인형 — 방어구는 중앙, 무기·장신구는 좌우 (내 정보 장비 패널) */
+.minion-equip-doll--paperdoll {
+  --equip-slot-size: 60px;
+  grid-template-columns: repeat(3, var(--equip-slot-size));
+  grid-template-rows: repeat(4, var(--equip-slot-size));
+  grid-template-areas:
+    "necklace  helmet  necklace2"
+    "weapon    armor   ring1"
+    "ring2     pants   relic"
+    "relic2    shoes   relic3";
+  gap: 8px;
+  justify-content: center;
+}
+
+.minion-equip-doll--paperdoll .minion-equip-slot {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.minion-equip-doll--paperdoll .minion-equip-slot--necklace { grid-area: necklace; }
+.minion-equip-doll--paperdoll .minion-equip-slot--helmet { grid-area: helmet; }
+.minion-equip-doll--paperdoll .minion-equip-slot--necklace2 { grid-area: necklace2; }
+.minion-equip-doll--paperdoll .minion-equip-slot--weapon { grid-area: weapon; }
+.minion-equip-doll--paperdoll .minion-equip-slot--armor { grid-area: armor; }
+.minion-equip-doll--paperdoll .minion-equip-slot--ring1 { grid-area: ring1; }
+.minion-equip-doll--paperdoll .minion-equip-slot--ring2 { grid-area: ring2; }
+.minion-equip-doll--paperdoll .minion-equip-slot--pants { grid-area: pants; }
+.minion-equip-doll--paperdoll .minion-equip-slot--relic { grid-area: relic; }
+.minion-equip-doll--paperdoll .minion-equip-slot--relic2 { grid-area: relic2; }
+.minion-equip-doll--paperdoll .minion-equip-slot--shoes { grid-area: shoes; }
+.minion-equip-doll--paperdoll .minion-equip-slot--relic3 { grid-area: relic3; }
 
 .minion-equip-doll--gather-tool .minion-equip-slot--tool {
   grid-column: 1;
@@ -11540,30 +11762,18 @@ body:has(.game-frame) {
   pointer-events: none;
 }
 
-.forge-equipped-by-tag--compact {
+/* 착용 중 — 아이콘 셀 우측 위 점 */
+.forge-equipped-by-dot {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  margin-top: 0;
-  padding: 0.05rem 0.3rem;
-  font-size: 0.55rem;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--game-gold-bright);
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
   z-index: 1;
-}
-
-.forge-lobby__icon-equipped.forge-equipped-by-tag--compact {
-  max-width: calc(100% - 6px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.forge-equip-cell__equipped.forge-equipped-by-tag--compact {
-  top: auto;
-  bottom: 2px;
-  left: 2px;
-  right: 2px;
-  max-width: none;
-  justify-content: center;
 }
 
 .forge-bench__target-text .forge-equipped-by-tag {
@@ -12109,8 +12319,12 @@ body:has(.game-frame) {
   filter: drop-shadow(0 4px 12px rgba(212, 168, 83, 0.25));
 }
 
+.enhance-bench__focus--enhancing {
+  --enhance-burst-dur: 0.2s;
+}
+
 .enhance-bench__focus--enhancing .enhance-bench__icon {
-  animation: enhance-item-icon-charge 1s ease-out forwards;
+  animation: enhance-item-icon-charge var(--enhance-burst-dur, 0.2s) ease-out forwards;
 }
 
 .enhance-bench__focus--success .enhance-bench__icon {
@@ -12967,6 +13181,23 @@ body:has(.game-frame) {
 button.forge-material-cell--active {
   border-color: rgba(212, 168, 83, 0.65);
   background: rgba(212, 168, 83, 0.12);
+}
+
+button.forge-material-cell {
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+}
+
+button.forge-material-cell:hover:not(:disabled) {
+  border-color: rgba(212, 168, 83, 0.4);
+}
+
+button.forge-material-cell:disabled,
+.forge-material-cell--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .forge-material-cell__icon {
@@ -14489,8 +14720,12 @@ button.forge-material-cell--active {
   filter: drop-shadow(0 4px 12px rgba(212, 168, 83, 0.25));
 }
 
+.enhance-forge__hero--enhancing {
+  --enhance-burst-dur: 0.2s;
+}
+
 .enhance-forge__hero--enhancing .enhance-forge__hero-icon {
-  animation: enhance-item-icon-charge 1s ease-out forwards;
+  animation: enhance-item-icon-charge var(--enhance-burst-dur, 0.2s) ease-out forwards;
 }
 
 .enhance-forge__hero--success .enhance-forge__hero-icon {
@@ -14590,6 +14825,7 @@ button.forge-material-cell--active {
 }
 
 .enhance-item-burst--active {
+  --enhance-burst-dur: 0.2s;
   filter: drop-shadow(0 0 10px rgba(255, 200, 80, 0.35));
 }
 
@@ -14627,7 +14863,7 @@ button.forge-material-cell--active {
   height: 140%;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 210, 100, 0.55) 0%, rgba(212, 168, 83, 0.2) 42%, transparent 72%);
-  animation: enhance-item-glow 1s ease-out forwards;
+  animation: enhance-item-glow var(--enhance-burst-dur, 0.2s) ease-out forwards;
 }
 
 .enhance-item-burst__flash {
@@ -14637,7 +14873,7 @@ button.forge-material-cell--active {
   background: radial-gradient(circle, rgba(255, 245, 200, 0.95) 0%, rgba(255, 200, 80, 0.5) 35%, transparent 68%);
   mix-blend-mode: screen;
   opacity: 0;
-  animation: enhance-item-flash 1s ease-out forwards;
+  animation: enhance-item-flash var(--enhance-burst-dur, 0.2s) ease-out forwards;
 }
 
 .enhance-item-burst__core {
@@ -14648,7 +14884,7 @@ button.forge-material-cell--active {
   box-shadow:
     0 0 20px rgba(255, 230, 120, 1),
     0 0 40px rgba(255, 160, 40, 0.65);
-  animation: enhance-item-core-pop 1s cubic-bezier(0.12, 0.9, 0.2, 1) forwards;
+  animation: enhance-item-core-pop var(--enhance-burst-dur, 0.2s) cubic-bezier(0.12, 0.9, 0.2, 1) forwards;
 }
 
 .enhance-item-burst__ring {
@@ -14657,7 +14893,7 @@ button.forge-material-cell--active {
   border-radius: 50%;
   border: 3px solid rgba(255, 240, 180, 0.95);
   box-shadow: 0 0 14px rgba(255, 200, 80, 0.9);
-  animation: enhance-item-ring-pop 1s ease-out forwards;
+  animation: enhance-item-ring-pop var(--enhance-burst-dur, 0.2s) ease-out forwards;
 }
 
 .enhance-item-burst__shockwave {
@@ -14665,7 +14901,7 @@ button.forge-material-cell--active {
   height: 1.5rem;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.75) 0%, transparent 70%);
-  animation: enhance-item-shockwave 1s ease-out forwards;
+  animation: enhance-item-shockwave var(--enhance-burst-dur, 0.2s) ease-out forwards;
 }
 
 .enhance-item-burst__spark {
@@ -14675,8 +14911,8 @@ button.forge-material-cell--active {
   background: #fff8dc;
   box-shadow: 0 0 8px rgba(255, 220, 100, 1);
   opacity: 0;
-  animation: enhance-item-spark-burst 1s ease-out forwards;
-  animation-delay: calc(0.08s + var(--i) * 0.025s);
+  animation: enhance-item-spark-burst var(--enhance-burst-dur, 0.2s) ease-out forwards;
+  animation-delay: calc(0.02s + var(--i) * 0.005s);
 }
 
 @keyframes enhance-item-icon-charge {

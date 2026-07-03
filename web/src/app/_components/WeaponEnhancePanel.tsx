@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ItemIcon } from "@/app/_components/ItemIcon";
 import { EnhanceItemBurst, type EnhanceBurstVariant } from "@/app/_components/EnhanceItemBurst";
 import { ForgeBenchTopbar } from "@/app/_components/ForgeBenchTopbar";
-import { ForgeManaStonePicker } from "@/app/_components/ForgeManaStonePicker";
 import { ForgeEquipGrid } from "@/app/_components/ForgeEquipGrid";
 import { ForgeEquipPicker } from "@/app/_components/ForgeEquipPicker";
 import { ForgeEquippedByTag } from "@/app/_components/ForgeEquippedByTag";
@@ -15,11 +14,11 @@ import { GameBtn, GamePanel } from "@/app/_components/gameUi";
 import { itemGradeFrameClassName, itemGradeNameClassName } from "@/server/itemGrade";
 import { weaponEnhanceMaxLevelForGrade } from "@/shared/weaponEnhanceLimits";
 import {
-  eligibleManaStonesForRequirement,
+  computeEnhanceSuccessRate,
   enhanceManaStoneLabel,
+  enhanceManaStoneSuccessBonus,
+  isEnhanceManaStoneItemId,
   type EnhanceManaStoneItemId,
-  manaStoneRequirementFromCost,
-  resolveWeaponUpgradeDeductions,
   weaponUpgradeCostForNextLevel,
 } from "@/server/weaponUpgradeRules";
 import { armorDisplayName } from "@/shared/armorTooltip";
@@ -41,7 +40,7 @@ import {
   ITEM_GEM_BLESSING,
   forgeEnhanceMaterialLabel,
 } from "@/shared/enhanceConsumables";
-import { optionConsumableKind, ITEM_APPRAISAL_SCROLL } from "@/shared/optionConsumables";
+import { optionConsumableKind } from "@/shared/optionConsumables";
 import {
   equipmentCraftConsumableKind,
   itemLevelTierForCraftKind,
@@ -198,6 +197,26 @@ function mergeLootIntoInventory(
     }
   }
   return [...map.values()];
+}
+
+function applyEnhanceResultToMeState(
+  prev: MeState,
+  input: { kind: EquipKind; instanceId: string; enhanceLevel: number },
+): MeState {
+  if (input.kind === "weapon") {
+    return {
+      ...prev,
+      weaponInstances: (prev.weaponInstances ?? []).map((row) =>
+        row.id === input.instanceId ? { ...row, enhanceLevel: input.enhanceLevel } : row,
+      ),
+    };
+  }
+  return {
+    ...prev,
+    armorInstances: (prev.armorInstances ?? []).map((row) =>
+      row.id === input.instanceId ? { ...row, enhanceLevel: input.enhanceLevel } : row,
+    ),
+  };
 }
 
 function applySalvageToMeState(
@@ -402,26 +421,13 @@ function validateEnhanceAfford(input: {
 
   if (input.goldAvailable < cost.gold) return "골드가 부족해.";
 
-  const manaReq = manaStoneRequirementFromCost(cost.materials);
-  if (manaReq) {
-    if (!input.manaStoneItemId) return "사용할 마석을 선택해 주세요.";
-    const eligible = eligibleManaStonesForRequirement(
-      manaReq.itemId,
-      manaReq.quantity,
-      input.materialQty,
-    );
-    if (!eligible.includes(input.manaStoneItemId)) {
+  if (input.manaStoneItemId) {
+    if (!isEnhanceManaStoneItemId(input.manaStoneItemId)) return "사용할 수 없는 마석이에요.";
+    if (input.materialQty(input.manaStoneItemId) < 1) {
       return `재료 부족: ${input.itemNames.get(input.manaStoneItemId) ?? input.manaStoneItemId}`;
     }
   }
 
-  const deductions = resolveWeaponUpgradeDeductions(cost.materials, input.materialQty, {
-    manaStoneItemId: input.manaStoneItemId,
-  });
-  if (!deductions) {
-    const missing = cost.materials.find((m) => input.materialQty(m.itemId) < m.quantity);
-    if (missing) return `재료 부족: ${input.itemNames.get(missing.itemId) ?? missing.itemId}`;
-  }
   return null;
 }
 
@@ -869,18 +875,10 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
     return a?.name ?? craftTransferTarget.id;
   }, [craftTransferTarget, craftWeapons, armors]);
 
-  const unidentifiedEquipCount = useMemo(() => {
-    const w = (me?.weaponInstances ?? []).filter((x) => x.identified === false).length;
-    const a = (me?.armorInstances ?? []).filter((x) => x.identified === false).length;
-    return w + a;
-  }, [me]);
-
-  const appraisalScrollQty = stackQty(ITEM_APPRAISAL_SCROLL);
-
   const onEnhanceMotionComplete = useCallback(() => {
     setEnhanceMotion(null);
     pendingEnhanceRef.current = null;
-    window.setTimeout(() => setEnhanceOutcome(null), 2200);
+    window.setTimeout(() => setEnhanceOutcome(null), 800);
   }, []);
 
   const runEnhance = useCallback(
@@ -911,14 +909,6 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
         const cur = Math.max(0, Math.floor(equip.enhanceLevel ?? 0));
         const cost = weaponUpgradeCostForNextLevel(cur);
         rollbackGold = useWalletStore.getState().optimisticGoldDelta(-cost.gold);
-        setEnhanceMotion({
-          kind,
-          instanceId: equip.id,
-          baseItemId: equip.baseItemId,
-          fromLevel: cur,
-          toLevel: cur,
-          variant: "success",
-        });
 
         const r = await postJson<UpgradeApiOk>(
           kind === "weapon"
@@ -942,8 +932,6 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
 
         if (r.tutorialAdvanced) notifyTutorialRefresh();
         rollbackGold = null;
-        await load();
-        notifyGameFramePatch(["wallet", "enhance", kind === "weapon" ? "weapons" : "armor"]);
 
         const variant: EnhanceBurstVariant = r.success ? "success" : "fail";
         const payload: EnhanceMotionState = {
@@ -955,6 +943,20 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
           variant,
         };
         pendingEnhanceRef.current = payload;
+        setMe((prev) => {
+          if (!prev) return prev;
+          const next = applyEnhanceResultToMeState(prev, {
+            kind,
+            instanceId: equip.id,
+            enhanceLevel: r.to,
+          });
+          usePlayerEquipmentStore.getState().setEquipment({
+            inventory: next.inventory,
+            weaponInstances: next.weaponInstances,
+            armorInstances: next.armorInstances,
+          });
+          return next;
+        });
         setEnhanceMotion(payload);
         setEnhanceOutcome({
           variant,
@@ -962,6 +964,23 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
           to: r.to,
           protectedOnFail: r.protectedOnFail,
         });
+        notifyGameFramePatch(["wallet", "enhance", kind === "weapon" ? "weapons" : "armor"]);
+        void loadEnhanceMeState(true)
+          .then((next) => {
+            setMe(next);
+            if (next.wallet) {
+              useWalletStore.getState().setWallet({
+                goldAvailable: next.wallet.goldAvailable,
+                goldLocked: next.wallet.goldLocked,
+              });
+            }
+            usePlayerEquipmentStore.getState().setEquipment({
+              inventory: next.inventory,
+              weaponInstances: next.weaponInstances,
+              armorInstances: next.armorInstances,
+            });
+          })
+          .catch(() => {});
       } catch (e) {
         rollbackGold?.();
         setEnhanceMotion(null);
@@ -971,7 +990,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
         setBusy(false);
       }
     },
-    [enhanceMotion, load, goldAvailable, me?.wallet?.goldAvailable, nameById, selectedManaStoneId, stackQty, useProtectionScroll, useBlessingGem],
+    [enhanceMotion, goldAvailable, me?.wallet?.goldAvailable, nameById, selectedManaStoneId, stackQty, useProtectionScroll, useBlessingGem],
   );
 
   const runSalvage = useCallback(async () => {
@@ -1061,64 +1080,19 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
     }
   }, [craftTarget, craftTransferTarget, selectedToolId, chosenItemLevel, load, nameById]);
 
-  const runAppraiseAll = useCallback(async () => {
-    if (unidentifiedEquipCount === 0) return;
-    if (appraisalScrollQty < unidentifiedEquipCount) {
-      setError(
-        `감정 주문서가 부족해요. 미감정 ${unidentifiedEquipCount}개 · 보유 ${appraisalScrollQty}개`,
-      );
-      return;
-    }
-    if (
-      !window.confirm(
-        `미감정 장비 ${unidentifiedEquipCount}개에 감정 주문서 ${unidentifiedEquipCount}개를 사용합니다. 계속할까요?`,
-      )
-    ) {
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const r = await postJson<{ ok: boolean; appraisedCount?: number; error?: string }>(
-        "/api/inventory/equipment-instance/appraise-all",
-        {},
-      );
-      if (!r?.ok) throw new Error(typeof r === "object" && r && "error" in r ? String((r as { error: unknown }).error) : "APPRAISE_FAILED");
-      await load();
-    } catch (e) {
-      setError(friendlyForgeError(e, nameById));
-    } finally {
-      setBusy(false);
-    }
-  }, [unidentifiedEquipCount, appraisalScrollQty, load, nameById]);
-
   const selectedMax = selectedEnhance ? weaponEnhanceMaxLevelForGrade(selectedEnhance.grade ?? 1) : 0;
   const upgrade = selectedEnhance
     ? nextUpgradeInfo(selectedEnhance.enhanceLevel ?? 0, selectedEnhance.grade ?? 1, nameById)
     : null;
 
-  const manaStoneReq = useMemo(
-    () => (upgrade?.cost ? manaStoneRequirementFromCost(upgrade.cost.materials) : null),
-    [upgrade],
-  );
-
-  const eligibleManaStones = useMemo(() => {
-    if (!manaStoneReq) return [] as EnhanceManaStoneItemId[];
-    return eligibleManaStonesForRequirement(manaStoneReq.itemId, manaStoneReq.quantity, stackQty);
-  }, [manaStoneReq, stackQty]);
-
-  useEffect(() => {
-    if (!manaStoneReq) {
-      setSelectedManaStoneId(null);
-      return;
-    }
-    setSelectedManaStoneId((prev) => {
-      if (prev && eligibleManaStones.includes(prev)) return prev;
-      const exact = manaStoneReq.itemId as EnhanceManaStoneItemId;
-      if (eligibleManaStones.includes(exact)) return exact;
-      return null;
+  const displaySuccessRate = useMemo(() => {
+    if (!upgrade?.cost) return null;
+    return computeEnhanceSuccessRate({
+      baseSuccessRate: upgrade.cost.successRate,
+      manaStoneItemId: selectedManaStoneId,
+      useBlessingGem: useBlessingGem,
     });
-  }, [manaStoneReq, eligibleManaStones, selectedEnhance?.id, selectedEnhance?.enhanceLevel]);
+  }, [upgrade, selectedManaStoneId, useBlessingGem]);
 
   const forgeMaterialName = useCallback(
     (itemId: string) => {
@@ -1131,30 +1105,42 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
     [nameById],
   );
 
-  const manaStoneName = forgeMaterialName;
+  const motionBusy = !!enhanceMotion;
 
   const enhanceMaterialCells = useMemo((): ForgeMaterialCell[] => {
+    const selectBlocked = busy || motionBusy;
     const cells: ForgeMaterialCell[] = [];
     for (const itemId of FORGE_ENHANCE_MATERIAL_IDS) {
-      const need = upgrade?.cost?.materials.find((m) => m.itemId === itemId)?.quantity;
+      if (isEnhanceManaStoneItemId(itemId)) {
+        const qty = stackQty(itemId);
+        cells.push({
+          key: itemId,
+          itemId,
+          label: forgeMaterialName(itemId),
+          quantity: qty,
+          selected: selectedManaStoneId === itemId,
+          disabled: selectBlocked || qty < 1,
+          onClick: () => {
+            setSelectedManaStoneId((prev) => (prev === itemId ? null : itemId));
+          },
+          hint:
+            selectedManaStoneId === itemId
+              ? `이번 강화에 선택 · +${enhanceManaStoneSuccessBonus(itemId)}%`
+              : `선택 시 +${enhanceManaStoneSuccessBonus(itemId)}%`,
+        });
+        continue;
+      }
       cells.push({
         key: itemId,
         itemId,
         label: forgeMaterialName(itemId),
         quantity: stackQty(itemId),
-        required: need,
-        hint:
-          need != null && itemId === selectedManaStoneId
-            ? `이번 강화에 선택됨`
-            : need != null
-              ? `다음 강화 기준 재료`
-              : undefined,
+        hint: undefined,
       });
     }
     return cells;
-  }, [upgrade, forgeMaterialName, stackQty, selectedManaStoneId]);
+  }, [busy, forgeMaterialName, motionBusy, stackQty, selectedManaStoneId]);
 
-  const motionBusy = !!enhanceMotion;
   const canAfford =
     selectedEnhance && me
       ? validateEnhanceAfford({
@@ -1240,7 +1226,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                 : forgeMode === "salvage"
                   ? "착용·거래 중이 아닌 장비를 분해해 마석·재료를 추출합니다. 장비는 삭제됩니다."
                   : benchOpen
-                    ? "가공 작업대 — 감정·보석으로 옵션을 다듬습니다."
+                    ? "가공 작업대 — 보석으로 옵션을 다듬습니다."
                     : "가공할 장비를 고르면 작업대가 열립니다."}
             </p>
           ) : null}
@@ -1399,28 +1385,16 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                             <span className="enhance-bench__rate-label">성공률</span>
                             <span
                               className={`enhance-bench__rate-val ${
-                                upgrade.cost.successRate >= 70
+                                (displaySuccessRate ?? upgrade.cost.successRate) >= 70
                                   ? "enhance-forge__rate-ok"
-                                  : upgrade.cost.successRate >= 40
+                                  : (displaySuccessRate ?? upgrade.cost.successRate) >= 40
                                     ? "enhance-forge__rate-mid"
                                     : "enhance-forge__rate-low"
                               }`}
                             >
-                              {upgrade.cost.successRate}%
+                              {displaySuccessRate ?? upgrade.cost.successRate}%
                             </span>
                           </div>
-                          {manaStoneReq ? (
-                            <ForgeManaStonePicker
-                              requiredItemId={manaStoneReq.itemId}
-                              requiredQty={manaStoneReq.quantity}
-                              selectedId={selectedManaStoneId}
-                              onSelect={setSelectedManaStoneId}
-                              stackQty={stackQty}
-                              itemName={manaStoneName}
-                              disabled={busy || motionBusy}
-                              compact
-                            />
-                          ) : null}
                           {stackQty(ITEM_ENHANCE_SCROLL_PROTECT) > 0 ? (
                             <label className="forge-protect-toggle forge-protect-toggle--inline">
                               <input
@@ -1658,17 +1632,6 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                         <option value="name_az">이름</option>
                       </select>
                     ) : null}
-                    <GameBtn
-                      variant="ghost"
-                      disabled={
-                        busy ||
-                        unidentifiedEquipCount === 0 ||
-                        appraisalScrollQty < unidentifiedEquipCount
-                      }
-                      onClick={() => void runAppraiseAll()}
-                    >
-                      전체 감정 ({unidentifiedEquipCount})
-                    </GameBtn>
                   </>
                 }
               />
@@ -1699,7 +1662,6 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                           </h3>
                           <p className="enhance-forge__hero-meta">
                             {craftHero.gradeLabel ?? ""}
-                            {craftHero.identified === false ? " · 미감정" : ""}
                             {(craftSelectedWeapon?.quality ?? craftSelectedArmor?.quality ?? 0) > 0
                               ? ` · 품질 ${craftSelectedWeapon?.quality ?? craftSelectedArmor?.quality}`
                               : ""}
@@ -1719,7 +1681,7 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                           {(craftHero.options?.length ?? 0) > 0 ? (
                             <EquipmentBlessingOptionRows
                               options={craftHero.options ?? []}
-                              identified={craftHero.identified !== false}
+                              identified
                             />
                           ) : (
                             <p className="forge-equip-options__empty text-xs text-[var(--game-muted)]">옵션 없음</p>
@@ -1777,13 +1739,6 @@ export function WeaponEnhancePanel({ embedded = false }: EmbeddedPanelProps = {}
                         transferTargetLabel={craftTransferTargetLabel}
                         needsTransferTarget={needsTransferTarget}
                         onApply={() => void applyCraftTool()}
-                        onAppraiseAll={
-                          unidentifiedEquipCount > 0 && appraisalScrollQty >= unidentifiedEquipCount
-                            ? () => void runAppraiseAll()
-                            : undefined
-                        }
-                        unidentifiedCount={unidentifiedEquipCount}
-                        appraisalScrollQty={appraisalScrollQty}
                         busy={busy}
                       />
                     </>

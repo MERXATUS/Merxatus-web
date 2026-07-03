@@ -1,7 +1,5 @@
 import {
 
-  ITEM_APPRAISAL_SCROLL,
-
   ITEM_GEM_ASCENSION,
 
   ITEM_GEM_CHAOS,
@@ -112,26 +110,6 @@ export const FORGE_OPTION_TOOLS: ForgeToolDef[] = [
 
   {
 
-    itemId: ITEM_APPRAISAL_SCROLL,
-
-    kind: "appraisal",
-
-    label: optionConsumableLabel("appraisal"),
-
-    shortLabel: "감정",
-
-    description: "미감정 무기·방어구의 옵션을 확인합니다.",
-
-    hint: "미감정 장비에만 사용",
-
-    category: "option",
-
-    glyph: "◎",
-
-  },
-
-  {
-
     itemId: ITEM_GEM_DESTRUCTION,
 
     kind: "destruction",
@@ -140,7 +118,7 @@ export const FORGE_OPTION_TOOLS: ForgeToolDef[] = [
 
     shortLabel: "소멸",
 
-    description: "감정된 장비에서 봉인되지 않은 옵션 1개를 무작위 제거합니다.",
+    description: "장비에서 봉인되지 않은 옵션 1개를 무작위 제거합니다.",
 
     hint: "봉인(🔒) 슬롯은 제외",
 
@@ -200,7 +178,7 @@ export const FORGE_OPTION_TOOLS: ForgeToolDef[] = [
 
     shortLabel: "천계",
 
-    description: "감정된 장비의 모든 옵션을 천계 옵션으로 바꿉니다. 티어(T)는 유지됩니다.",
+    description: "장비의 모든 옵션을 천계 옵션으로 바꿉니다. 티어(T)는 유지됩니다.",
 
     hint: "봉인 슬롯 포함 · 옵션 종류·접두 재추첨",
 
@@ -220,7 +198,7 @@ export const FORGE_OPTION_TOOLS: ForgeToolDef[] = [
 
     shortLabel: "마계",
 
-    description: "감정된 장비의 모든 옵션을 마계 옵션으로 바꿉니다. 티어(T)는 유지됩니다.",
+    description: "장비의 모든 옵션을 마계 옵션으로 바꿉니다. 티어(T)는 유지됩니다.",
 
     hint: "봉인 슬롯 포함 · 옵션 종류·접미 재추첨",
 
@@ -240,7 +218,7 @@ export const FORGE_OPTION_TOOLS: ForgeToolDef[] = [
 
     shortLabel: "승천",
 
-    description: "감정된 장비의 옵션 중 1개 티어(T)를 1단계 올립니다.",
+    description: "장비의 옵션 중 1개 티어(T)를 1단계 올립니다.",
 
     hint: "등급별 티어 상한까지 · 봉인 슬롯 포함",
 
@@ -262,7 +240,7 @@ export const FORGE_OPTION_TOOLS: ForgeToolDef[] = [
 
     description: "장비의 모든 옵션과 봉인을 제거합니다.",
 
-    hint: "미감정 장비에도 사용 가능",
+    hint: "옵션이 있는 장비에 사용",
 
     category: "option",
 

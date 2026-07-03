@@ -130,7 +130,7 @@ export function WeaponCodexPanel() {
             <h3 className="text-sm font-bold text-[var(--game-text)]">무기 도감</h3>
             <p className="mt-1 text-[11px] text-[var(--game-muted)]">
               종류·단계별로 등록하면 영구 계정 버프가 누적됩니다. 기본 등록은 스탯의{" "}
-              {Math.round(CODEX_BUFF_RATIO * 100)}%, 제련·품질·레벨·옵션 수치(예: 물리 공격력 10% 이상) 단계는
+              {Math.round(CODEX_BUFF_RATIO * 100)}%, 강화·품질·레벨·옵션 수치(예: 공격력 10% 이상) 단계는
               베이스 스탯의 8~18%입니다. 등록 시 해당 무기는 소모됩니다.
             </p>
           </div>

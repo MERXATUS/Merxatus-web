@@ -52,12 +52,12 @@ export function UsernameSetupModal(props: { open: boolean; currentUsername: stri
       <div className="game-overlay__panel game-modal absolute inset-x-3 top-[12%] mx-auto w-full max-w-md overflow-hidden rounded-2xl shadow-2xl sm:inset-x-auto">
         <div className="game-modal-header flex items-center justify-between gap-3 px-5 py-4">
           <h2 id="username-setup-title" className="text-sm font-semibold text-[var(--game-text)]">
-            처음 오셨군요! 닉네임을 정해 주세요
+            처음 오셨군요! 이름을 정해 주세요
           </h2>
         </div>
         <div className="px-5 py-4">
           <label className="block text-xs text-[var(--game-muted)]" htmlFor="username-setup-input">
-            닉네임
+            이름
           </label>
           <input
             id="username-setup-input"

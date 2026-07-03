@@ -94,11 +94,6 @@ function GameFrameStatusBar(props: {
   const { summary, summaryLoading, runState } = props;
   const placeholder = summaryLoading ? "…" : "—";
 
-  const merc =
-    summary != null
-      ? `용병 ${fmtInt(summary.mercenaries.count)}/${fmtInt(summary.mercenaries.maxCount)}`
-      : `용병 ${placeholder}`;
-
   const dungeon = runState?.active
     ? runState.dungeon?.name
       ? `던전 · ${runState.dungeon.name}`
@@ -112,7 +107,6 @@ function GameFrameStatusBar(props: {
 
   return (
     <footer className={`game-frame__status ${props.className ?? ""}`.trim()} aria-label="진행 상태">
-      <span className="game-frame__status-chip">{merc}</span>
       <span className="game-frame__status-chip">{dungeon}</span>
       <span className="game-frame__status-chip">{market}</span>
     </footer>
@@ -481,7 +475,7 @@ export function GameFrame() {
               <GameFrameKeepAlive
                 activeTab={activeTab}
                 visitedTabs={visitedTabs}
-                onOpenMinions={() => navigateTab("minions")}
+                onOpenMinions={() => navigateTab("profile")}
                 onNavigate={navigateTab}
               />
             )}

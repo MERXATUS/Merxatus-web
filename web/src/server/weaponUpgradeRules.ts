@@ -1,4 +1,5 @@
 import weaponEnhanceLevels from "../../data/weapon_enhance_levels.json";
+import { BLESSING_GEM_SUCCESS_RATE_PENALTY } from "@/shared/enhanceConsumables";
 import {
   WEAPON_ENHANCE_ABSOLUTE_MAX,
   weaponEnhanceMaxLevelForGrade,
@@ -34,26 +35,21 @@ export function weaponEnhanceMaxLevelForWeapon(grade: number): number {
   return Math.min(weaponEnhanceMaxLevelForGrade(grade), weaponEnhanceMaxLevel());
 }
 
-/** currentWeaponLevel(0~) → next level (= current + 1) 비용 */
+/** currentWeaponLevel(0~) → next level (= current + 1) 비용 — 골드만 (마석은 선택 보조) */
 export function weaponUpgradeCostForNextLevel(currentWeaponLevel: number): WeaponUpgradeCost {
   const cur = Math.max(0, Math.floor(currentWeaponLevel));
   const next = cur + 1;
   const row = byTargetLevel.get(next);
   if (!row) throw new Error("MAX_WEAPON_LEVEL");
 
-  const materials: Array<{ itemId: string; quantity: number }> = [];
-  if (row.scrollItemId && row.scrollQty > 0) {
-    materials.push({ itemId: row.scrollItemId, quantity: row.scrollQty });
-  }
-
   return {
     gold: Math.max(0, Math.ceil(row.gold)),
-    materials,
+    materials: [],
     successRate: Math.max(0, Math.min(100, row.successRate)),
   };
 }
 
-/** 강화 재료 — 하급→상급 마석 (상위 등급은 플레이어가 직접 선택) */
+/** 강화 재료 — 하급→상급 마석 (선택 보조) */
 export const ENHANCE_MANA_STONE_ITEM_IDS = [
   "item_lesser_mana_stone",
   "item_mana_stone",
@@ -61,6 +57,32 @@ export const ENHANCE_MANA_STONE_ITEM_IDS = [
 ] as const;
 
 export type EnhanceManaStoneItemId = (typeof ENHANCE_MANA_STONE_ITEM_IDS)[number];
+
+/** 강화 보조 마석 — 사용 시 1개 소모, 성공률 가산 (%) */
+export const ENHANCE_MANA_STONE_SUCCESS_BONUS: Record<EnhanceManaStoneItemId, number> = {
+  item_lesser_mana_stone: 3,
+  item_mana_stone: 6,
+  item_greater_mana_stone: 10,
+};
+
+export function enhanceManaStoneSuccessBonus(itemId: string | null | undefined): number {
+  if (!itemId?.trim()) return 0;
+  const id = itemId.trim().toLowerCase() as EnhanceManaStoneItemId;
+  return ENHANCE_MANA_STONE_SUCCESS_BONUS[id] ?? 0;
+}
+
+export function computeEnhanceSuccessRate(input: {
+  baseSuccessRate: number;
+  manaStoneItemId?: string | null;
+  useBlessingGem?: boolean;
+}): number {
+  const base = Math.max(0, Math.min(100, Math.floor(input.baseSuccessRate)));
+  const afterBlessing = input.useBlessingGem
+    ? Math.max(1, base - BLESSING_GEM_SUCCESS_RATE_PENALTY)
+    : base;
+  const withMana = afterBlessing + enhanceManaStoneSuccessBonus(input.manaStoneItemId);
+  return Math.max(0, Math.min(100, withMana));
+}
 
 export const ENHANCE_MANA_STONE_LABELS: Record<EnhanceManaStoneItemId, string> = {
   item_lesser_mana_stone: "하급 마석",

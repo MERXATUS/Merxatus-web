@@ -4,13 +4,24 @@ import type { EquippedByMinionView } from "@/shared/equipmentEquippedBy";
 
 type Props = {
   equippedByMinion?: EquippedByMinionView | null;
-  /** @deprecated 단일 캐릭터 — 표시는 항상 「착용 중」 */
+  /** 아이콘 셀용 — 텍스트 대신 우측 위 점만 표시 */
   compact?: boolean;
   className?: string;
 };
 
-export function ForgeEquippedByTag({ equippedByMinion, className }: Props) {
+export function ForgeEquippedByTag({ equippedByMinion, compact, className }: Props) {
   if (!equippedByMinion) return null;
+
+  if (compact) {
+    return (
+      <span
+        className={["forge-equipped-by-dot", className ?? ""].filter(Boolean).join(" ")}
+        title="착용 중"
+        aria-label="착용 중"
+      />
+    );
+  }
+
   return (
     <span
       className={["forge-equipped-by-tag", className ?? ""].filter(Boolean).join(" ")}

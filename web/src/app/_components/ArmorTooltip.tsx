@@ -102,16 +102,6 @@ export function ArmorTooltipContent({ armor }: { armor: ArmorTooltipData }) {
         <span>전투력</span>
         <span className="item-tooltip__stat-val">{total}</span>
       </div>
-      {armor.identified !== false && (optBonus.hp > 0 || optBonus.def > 0) ? (
-        <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
-          <span>옵션 보너스</span>
-          <span>
-            {optBonus.hp > 0 ? `HP+${optBonus.hp}` : ""}
-            {optBonus.hp > 0 && optBonus.def > 0 ? " · " : ""}
-            {optBonus.def > 0 ? `DEF+${optBonus.def}` : ""}
-          </span>
-        </div>
-      ) : null}
       {enhancePower > 0 ? (
         <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
           <span>제련 전투력</span>
@@ -119,17 +109,20 @@ export function ArmorTooltipContent({ armor }: { armor: ArmorTooltipData }) {
         </div>
       ) : null}
 
-      {armor.identified === false && armorOpts.length > 0 ? (
+      {armorOpts.length > 0 ? (
         <>
-          <EquipmentBlessingOptionRows options={armorOpts} identified={false} />
-          <p className="item-tooltip__desc item-tooltip__desc--muted">
-            미감정 · 감정 주문서로 옵션 확인
-          </p>
+          {(optBonus.hp > 0 || optBonus.def > 0) ? (
+            <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
+              <span>옵션 보너스</span>
+              <span>
+                {optBonus.hp > 0 ? `HP+${optBonus.hp}` : ""}
+                {optBonus.hp > 0 && optBonus.def > 0 ? " · " : ""}
+                {optBonus.def > 0 ? `DEF+${optBonus.def}` : ""}
+              </span>
+            </div>
+          ) : null}
+          <EquipmentBlessingOptionRows options={armorOpts} identified />
         </>
-      ) : null}
-
-      {armor.identified !== false && armorOpts.length > 0 ? (
-        <EquipmentBlessingOptionRows options={armorOpts} identified />
       ) : null}
 
       <div className="item-tooltip__footer">ID {armor.id.slice(0, 12)}…</div>

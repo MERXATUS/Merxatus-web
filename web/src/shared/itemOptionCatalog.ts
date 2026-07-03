@@ -28,7 +28,7 @@ export const LEGACY_WEAPON_OPTION_ID: Record<string, string> = {
 
 export const LEGACY_OPTION_LABEL_KO: Record<string, string> = {
   ATTACK: "공격력",
-  MAGIC_POWER: "마법력",
+  MAGIC_POWER: "마력",
   ATTACK_SPEED: "공격속도",
   CRITICAL: "크리티컬",
   WORK_SPEED: "작업 속도",
@@ -141,26 +141,17 @@ export function utilOptionPowerFromDisplayValue(optionId: string, displayValue: 
   return displayValue * weight;
 }
 
-export function armorUtilPowerBonusFromOptionRows(rows: Array<{ optionId: string; tier: number }>): number {
-  let sum = 0;
-  for (const row of rows) {
-    const id = normalizeOptionId(row.optionId);
-    const v = optionTierValue(ARMOR_OPTION_CATALOG, id, row.tier);
-    if (v <= 0) continue;
-    if (id === "FINAL_DMG_PCT") sum += utilOptionPowerFromDisplayValue(id, v);
-  }
-  return Math.round(sum * 100) / 100;
-}
-
-export function weaponPowerBonusFromOptionRows(
+/** 무기·방어구 공용 옵션 전투력 환산 — 깡공/마·%공/마·공속·데미지 (스탯은 별도 경로) */
+function optionPowerBonusFromRows(
   rows: Array<{ optionId: string; tier: number }>,
-  baseAtk = 0,
-  baseMagic = 0,
+  catalog: Record<string, OptionTierRow>,
+  baseAtk: number,
+  baseMagic: number,
 ): number {
   let sum = 0;
   for (const row of rows) {
     const id = normalizeOptionId(row.optionId);
-    const v = optionTierValue(WEAPON_OPTION_CATALOG, id, row.tier);
+    const v = optionTierValue(catalog, id, row.tier);
     if (v <= 0) continue;
     if (isMechanizedWeaponOptionId(id)) {
       sum += utilOptionPowerFromDisplayValue(id, v);
@@ -173,6 +164,23 @@ export function weaponPowerBonusFromOptionRows(
     else if (LEGACY_OPTION_LABEL_KO[id]) sum += v;
   }
   return Math.round(sum * 100) / 100;
+}
+
+export function weaponPowerBonusFromOptionRows(
+  rows: Array<{ optionId: string; tier: number }>,
+  baseAtk = 0,
+  baseMagic = 0,
+): number {
+  return optionPowerBonusFromRows(rows, WEAPON_OPTION_CATALOG, baseAtk, baseMagic);
+}
+
+/** 방어구 옵션 전투력 — 무기와 동일 풀·공식 (기본 공격/마력 기준 % 환산) */
+export function armorOptionPowerBonusFromOptionRows(
+  rows: Array<{ optionId: string; tier: number }>,
+  baseAtk = 0,
+  baseMagic = 0,
+): number {
+  return optionPowerBonusFromRows(rows, ARMOR_OPTION_CATALOG, baseAtk, baseMagic);
 }
 
 export function armorHpDefBonusFromOptionRows(rows: Array<{ optionId: string; tier: number }>, baseHp: number, baseDef: number) {

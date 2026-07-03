@@ -4,9 +4,11 @@ import { DUNGEON_MIN_PARTY_POWER_RATIO } from "@/shared/dungeonDifficulty";
 import { RAID_MIN_PARTY_POWER_RATIO } from "@/shared/raidDifficulty";
 import { MAX_EQUIPMENT_OWNED } from "@/shared/equipmentCapacity";
 import {
+  EQUIPMENT_SHOP_ENHANCE_BONUS_GOLD,
   EQUIPMENT_SHOP_GOLD_PER_POWER,
   EQUIPMENT_SHOP_MAX_GOLD,
   EQUIPMENT_SHOP_MIN_GOLD,
+  EQUIPMENT_SHOP_UNENHANCED_SCRAP_RATIO,
   MAX_EQUIPMENT_SHOP_SELL_BATCH,
 } from "@/shared/equipmentShopPricing";
 import { DEFAULT_KNIGHT_ORDER_RULES } from "@/shared/knightOrder";
@@ -89,9 +91,11 @@ export const GAME_RULES = {
   },
   /** 자동 탐험(AUTO_WAVES) — 배속 BM, 상세는 `shared/autoExplore.ts` */
   autoExplore: AUTO_EXPLORE_RULES,
-  /** NPC 장비 매입 — 전투력 × goldPerCombatPower (상세는 `shared/equipmentShopPricing.ts`) */
+  /** NPC 장비 매입 — `shared/equipmentShopPricing.ts` (강화→판매 루프) */
   equipmentShop: {
     goldPerCombatPower: EQUIPMENT_SHOP_GOLD_PER_POWER,
+    enhanceBonusGold: EQUIPMENT_SHOP_ENHANCE_BONUS_GOLD,
+    unenhancedScrapRatio: EQUIPMENT_SHOP_UNENHANCED_SCRAP_RATIO,
     minBuybackGold: EQUIPMENT_SHOP_MIN_GOLD,
     maxBuybackGold: EQUIPMENT_SHOP_MAX_GOLD,
     maxSellBatch: MAX_EQUIPMENT_SHOP_SELL_BATCH,
@@ -99,7 +103,7 @@ export const GAME_RULES = {
   /** 신규 유저 — `ensureUserBootstrap.ts` */
   starter: {
     gold: 2_000,
-    /** +1 강화(150G+하급 마석 1) 여유 + 장비·재료 1회 뽑기 후에도 강화 가능 */
+    /** +1 강화(150G) 여유 + 장비·재료 1회 뽑기 후에도 강화 가능 (마석은 선택) */
     grantItems: [{ itemId: "item_lesser_mana_stone", qty: 5 }],
   },
   /** 가챠 상점 — `shared/gachaShop.ts` */

@@ -3,8 +3,8 @@ import { partyStatsFromPower } from "@/shared/combatBalance";
 import type { MinionCombatClass } from "@/shared/minionDerivedClass";
 import type { SkillBreakdown } from "@/shared/minionSkills";
 import { equipmentStatBonusFromOptions, parseOptionsJson } from "@/server/itemOptions";
-import { armorHpDefBonusFromOptionRows, armorUtilPowerBonusFromOptionRows } from "@/shared/itemOptionCatalog";
-import { armorItemCombatPower, getArmorStats } from "@/shared/armorStatsData";
+import { armorHpDefBonusFromOptionRows, armorOptionPowerBonusFromOptionRows } from "@/shared/itemOptionCatalog";
+import { armorBaseAtkMagic, armorItemCombatPower, getArmorStats } from "@/shared/armorStatsData";
 import type { MinionBaseStats } from "@/shared/minionBaseStats";
 import { minionBaseStatsFromRow } from "@/shared/minionBaseStats";
 import type { MinionEquipSlotId } from "@/shared/minionEquipSlots";
@@ -182,7 +182,12 @@ function sumArmorStats(armor?: MinionArmorLoadout) {
     hp += pieceHp;
     def += pieceDef;
     const enhPower = armorEnhancePowerBonus(piece.itemId, piece.enhanceLevel ?? 0);
-    const utilPower = armorUtilPowerBonusFromOptionRows(parseOptionsJson(piece.optionsJson ?? null));
+    const armorAtkMagic = armorBaseAtkMagic(piece.itemId);
+    const optPower = armorOptionPowerBonusFromOptionRows(
+      parseOptionsJson(piece.optionsJson ?? null),
+      armorAtkMagic.atk,
+      armorAtkMagic.magic,
+    );
     pieces.push({
       slot,
       slotLabel: SLOT_LABELS[slot] ?? slot,
@@ -190,7 +195,7 @@ function sumArmorStats(armor?: MinionArmorLoadout) {
       name: row.name,
       hp: pieceHp,
       def: pieceDef,
-      power: Math.floor((armorItemCombatPower(piece.itemId) + enhPower + utilPower) * scale),
+      power: Math.floor((armorItemCombatPower(piece.itemId) + enhPower + optPower) * scale),
     });
   }
   return { hp, def, pieces };
@@ -203,10 +208,15 @@ function sumArmorPower(armor?: MinionArmorLoadout) {
     const piece = armor[slot];
     if (piece?.itemId) {
       const scale = instanceScale(piece.quality, piece.itemLevel);
+      const armorAtkMagic = armorBaseAtkMagic(piece.itemId);
       const base =
         armorItemCombatPower(piece.itemId) +
         armorEnhancePowerBonus(piece.itemId, piece.enhanceLevel ?? 0) +
-        armorUtilPowerBonusFromOptionRows(parseOptionsJson(piece.optionsJson ?? null));
+        armorOptionPowerBonusFromOptionRows(
+          parseOptionsJson(piece.optionsJson ?? null),
+          armorAtkMagic.atk,
+          armorAtkMagic.magic,
+        );
       p += Math.floor(base * scale);
     }
   }

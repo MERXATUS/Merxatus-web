@@ -105,24 +105,16 @@ export function WeaponTooltipContent({ weapon }: { weapon: WeaponTooltipData }) 
           <span>+{enhance}</span>
         </div>
       ) : null}
-      {weapon.identified !== false && optBonus > 0 ? (
-        <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
-          <span>옵션 합</span>
-          <span>+{optBonus}</span>
-        </div>
-      ) : null}
-
-      {weapon.identified === false && weaponOpts.length > 0 ? (
+      {weaponOpts.length > 0 ? (
         <>
-          <EquipmentBlessingOptionRows options={weaponOpts} identified={false} />
-          <p className="item-tooltip__desc item-tooltip__desc--muted">
-            미감정 · 감정 주문서로 옵션 확인
-          </p>
+          {optBonus > 0 ? (
+            <div className="item-tooltip__stat-row item-tooltip__stat-row--sub">
+              <span>옵션 합</span>
+              <span>+{optBonus}</span>
+            </div>
+          ) : null}
+          <EquipmentBlessingOptionRows options={weaponOpts} identified />
         </>
-      ) : null}
-
-      {weapon.identified !== false && weaponOpts.length > 0 ? (
-        <EquipmentBlessingOptionRows options={weaponOpts} identified />
       ) : null}
 
       <div className="item-tooltip__footer">ID {weapon.id.slice(0, 12)}…</div>

@@ -40,9 +40,10 @@ const WEAPON_OPTION_MIN_GRADE: Record<string, number> = {
 };
 
 const ARMOR_OPTION_MIN_GRADE: Record<string, number> = {
-  HP_PCT: 2,
-  DEF_PCT: 2,
-  FINAL_DMG_PCT: 4,
+  PHY_ATK_PCT: 2,
+  MAG_ATK_PCT: 2,
+  ATK_SPD_PCT: 2,
+  FINAL_DMG_PCT: 3,
 };
 
 export type OptionTierRollMode = "loot" | "craft";

@@ -20,7 +20,7 @@ export async function loadMinionPanelPayload(userId: string, opts?: { detailMini
     console.warn("[minionPanelPayload] ensureMinionEntitiesForUser", e);
   });
 
-  const [armorByMinionId, accessoryByMinionId, minions, weaponInstances, armorInstances, iconMap] =
+  const [armorByMinionId, accessoryByMinionId, minions, weaponInstances, armorInstances, iconMap, userAccount] =
     await Promise.all([
     loadMinionArmorIdsForUser(prisma, userId),
     loadMinionAccessoryIdsForUser(prisma, userId),
@@ -43,6 +43,7 @@ export async function loadMinionPanelPayload(userId: string, opts?: { detailMini
       take: 200,
     }),
     getItemIconMap(),
+    prisma.user.findUnique({ where: { id: userId }, select: { username: true } }),
   ]);
 
   const armorInstById = new Map(
@@ -50,11 +51,13 @@ export async function loadMinionPanelPayload(userId: string, opts?: { detailMini
   );
 
   const detailMinionId = opts?.detailMinionId ?? null;
+  const playerUsername = userAccount?.username ?? null;
   const minionRows = minions.map((m) =>
     mapMinionToListRow(m, armorByMinionId, {
       detailMinionId,
       armorInstancesById: armorInstById,
       accessoryByMinionId,
+      playerUsername,
     }),
   );
 

@@ -17,15 +17,15 @@ export function validateUsername(raw: string): { ok: true; username: string } | 
 export function usernameChangeErrorMessage(code: string): string {
   switch (code) {
     case "EMPTY":
-      return "닉네임을 입력해 주세요.";
+      return "이름을 입력해 주세요.";
     case "TOO_LONG":
-      return `닉네임은 ${USERNAME_MAX_LEN}자 이하로 입력해 주세요.`;
+      return `이름은 ${USERNAME_MAX_LEN}자 이하로 입력해 주세요.`;
     case "INVALID_CHARS":
       return "한글·영문·숫자·밑줄(_)·하이픈(-)·마침표(.)만 사용할 수 있어요.";
     case "USERNAME_TAKEN":
-      return "이미 사용 중인 닉네임이에요.";
+      return "이미 사용 중인 이름이에요.";
     case "SAME_USERNAME":
-      return "현재 닉네임과 같아요.";
+      return "현재 이름과 같아요.";
     case "UNAUTHORIZED":
       return "로그인이 필요해요.";
     case "USER_NOT_FOUND":
@@ -33,6 +33,6 @@ export function usernameChangeErrorMessage(code: string): string {
     case "BAD_REQUEST":
       return "입력값을 확인해 주세요.";
     default:
-      return code || "닉네임 변경에 실패했어요.";
+      return code || "이름 변경에 실패했어요.";
   }
 }

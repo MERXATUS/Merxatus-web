@@ -2,12 +2,13 @@ import { clampItemGrade, itemGradeLabel } from "@/server/itemGrade";
 import type { EquippedByMinionView } from "@/shared/equipmentEquippedBy";
 import type { OptionRealm } from "@/shared/equipmentBlessings";
 import { blessedEquipmentDisplayName } from "@/shared/equipmentBlessings";
-import { armorHpDefBonusFromOptionRows, armorUtilPowerBonusFromOptionRows } from "@/shared/itemOptionCatalog";
+import { armorHpDefBonusFromOptionRows, armorOptionPowerBonusFromOptionRows } from "@/shared/itemOptionCatalog";
 import { normalizeOptionId } from "@/shared/itemOptionCatalog";
 import { ARMOR_LEVEL_STAT_PCT_PER_LEVEL } from "@/shared/armorEnhanceRules";
 import { equipmentInstanceStatMultiplier } from "@/shared/equipmentItemLevel";
 import { scaleCombatPower } from "@/shared/combatPowerScale";
 import {
+  armorBaseAtkMagic,
   armorItemCombatPower,
   armorSlotLabelKo,
   getArmorStats,
@@ -103,12 +104,13 @@ export function armorTotalPower(a: ArmorTooltipData): number {
       optionId: normalizeOptionId(o.optionId ?? o.kind),
       tier: o.tier,
     }));
-  const utilPower = armorUtilPowerBonusFromOptionRows(utilRows);
+  const armorAtkMagic = armorBaseAtkMagic(a.baseItemId);
+  const optPower = armorOptionPowerBonusFromOptionRows(utilRows, armorAtkMagic.atk, armorAtkMagic.magic);
   let raw: number;
-  if (!base) raw = armorItemCombatPower(a.baseItemId) + enhance + utilPower;
+  if (!base) raw = armorItemCombatPower(a.baseItemId) + enhance + optPower;
   else {
     const opt = armorOptionHpDefBonus(a.options, base.hp, base.def);
-    raw = armorItemCombatPower(a.baseItemId) + hpDefToArmorCombatPower(opt.hp, opt.def) + enhance + utilPower;
+    raw = armorItemCombatPower(a.baseItemId) + hpDefToArmorCombatPower(opt.hp, opt.def) + enhance + optPower;
   }
   return scaleCombatPower(Math.floor(raw * equipmentInstanceStatMultiplier(a.quality ?? 0, a.itemLevel ?? 10)));
 }

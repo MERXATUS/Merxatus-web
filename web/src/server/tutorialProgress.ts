@@ -101,7 +101,7 @@ export async function tryTutorialGachaPull(db: RawDb, userId: string, poolId: st
   return advanceTutorial(db, userId);
 }
 
-/** 튜토리얼 강화 단계 — 뽑기에 골드를 써도 +1 강화(150G+하급 마석)를 1회 보장 */
+/** 튜토리얼 강화 단계 — 골드 부족 시 +1 강화(150G) 1회 보장 */
 export async function ensureTutorialEnhanceBudget(db: RawDb & ItemGrantDb, userId: string) {
   const cur = await getTutorialStep(db, userId);
   if (tutorialCurrentStep(cur)?.id !== "enhance_equipment") return;

@@ -34,7 +34,7 @@ export type EnemyCombatTags = {
 /** 공속·데미지 % — 전투 시뮬 직접 적용 + CP 환산 */
 export const MECHANIZED_WEAPON_OPTION_IDS = new Set(["ATK_SPD_PCT", "FINAL_DMG_PCT"]);
 
-export const MECHANIZED_ARMOR_OPTION_IDS = new Set(["FINAL_DMG_PCT"]);
+export const MECHANIZED_ARMOR_OPTION_IDS = new Set(["ATK_SPD_PCT", "FINAL_DMG_PCT"]);
 
 export function emptyCombatModifiers(): EquipmentCombatModifiers {
   return {

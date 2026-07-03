@@ -20,16 +20,17 @@ export const WEAPON_OPTION_POOL_IDS = [
   "FINAL_DMG_PCT",
 ] as const;
 
-/** 방어구 드랍·제작 옵션 풀 (깡스탯) */
+/** 방어구 드랍·제작 옵션 풀 — 무기와 동일 (깡스탯) */
 export const ARMOR_OPTION_POOL_IDS = [
-  "HP_ADD",
-  "DEF_ADD",
-  "HP_PCT",
-  "DEF_PCT",
+  "PHY_ATK_ADD",
+  "PHY_ATK_PCT",
+  "MAG_ATK_ADD",
+  "MAG_ATK_PCT",
   "STAT_STR_ADD",
   "STAT_DEX_ADD",
   "STAT_INT_ADD",
   "STAT_END_ADD",
+  "ATK_SPD_PCT",
   "FINAL_DMG_PCT",
 ] as const;
 

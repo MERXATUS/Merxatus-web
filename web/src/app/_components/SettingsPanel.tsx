@@ -170,7 +170,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
               <>
                 <dl className="settings-dl">
                   <div>
-                    <dt>지휘관</dt>
+                    <dt>이름</dt>
                     <dd>{props.username ?? "—"}</dd>
                   </div>
                   {props.userId ? (
@@ -184,7 +184,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 {renameOpen ? (
                   <div className="settings-rename">
                     <label className="settings-rename__label" htmlFor="settings-username">
-                      새 닉네임
+                      새 이름
                     </label>
                     <input
                       id="settings-username"
@@ -224,7 +224,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   </div>
                 ) : (
                   <button type="button" className="settings-btn settings-btn--ghost" onClick={openRename}>
-                    닉네임 변경
+                    이름 변경
                   </button>
                 )}
               </>

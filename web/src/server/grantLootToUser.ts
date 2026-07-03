@@ -45,7 +45,7 @@ function equipmentCategory(itemId: unknown, category: string): "weapon" | "armor
 function lootOptionsJson(category: "weapon" | "armor", grade: number) {
   const catLabel = category === "weapon" ? "무기" : "방어구";
   const opts = rollOptionsForLootDrop({ category: catLabel, itemGrade: grade });
-  return equipmentOptionsForLootDrop(opts, false);
+  return equipmentOptionsForLootDrop(opts);
 }
 
 /** items.json 정의를 DB Item 행으로 보장 (시드 없이 JSON만 추가된 경우) */

@@ -34,7 +34,8 @@ export async function GET(req: Request) {
 
     const partyPick = parsed.data.scope === "partyPick";
 
-    const minions = await prisma.minion.findMany({
+    const [minions, userAccount] = await Promise.all([
+      prisma.minion.findMany({
       where: { userId: auth.userId },
       include: {
         traits: true,
@@ -42,14 +43,18 @@ export async function GET(req: Request) {
       },
       orderBy: [{ createdAt: "asc" }],
       take: 200,
-    });
+    }),
+      prisma.user.findUnique({ where: { id: auth.userId }, select: { username: true } }),
+    ]);
+
+    const playerUsername = userAccount?.username ?? null;
 
     if (partyPick) {
       return Response.json({
         ok: true,
         maxDungeonOwned: MAX_DUNGEON_MINIONS,
         maxOwned: MAX_DUNGEON_MINIONS,
-        minions: minions.map((m) => mapMinionToPartyPickRow(m)),
+        minions: minions.map((m) => mapMinionToPartyPickRow(m, playerUsername)),
       });
     }
 
@@ -60,7 +65,7 @@ export async function GET(req: Request) {
       maxDungeonOwned: MAX_DUNGEON_MINIONS,
       maxOwned: MAX_DUNGEON_MINIONS,
       minions: minions.map((m) =>
-        mapMinionToListRow(m, armorByMinionId, { detailMinionId: parsed.data.selectedId ?? null }),
+        mapMinionToListRow(m, armorByMinionId, { detailMinionId: parsed.data.selectedId ?? null, playerUsername }),
       ),
     });
   } catch (e) {
